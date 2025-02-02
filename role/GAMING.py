@@ -12,6 +12,8 @@ class GaMing(Role):
         self.name = self.data[1]
         self.element = self.data[2]
 
+        self.get_data()
+
         
     def get_data(self):
         l = DP.level(self.level)
