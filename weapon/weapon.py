@@ -2,8 +2,9 @@ from DataRequest import DR
 from DataProcessing import DataProcessing as DP
 
 class Weapon:
-    def __init__(self,id):
+    def __init__(self,id=1,level=1):
         self.id = id
+        self.level = level
         self.attributeData = {
             "攻击力": 0,
             "元素精通" : 0,
@@ -21,6 +22,7 @@ class Weapon:
         self.stats = DR.read_data(SQL)[0]
         self.name = self.stats[1]
         self.damage = self.stats[2]
+        self.get_data(level)
 
     def get_data(self,level):
         l = DP.level(level)
@@ -30,3 +32,16 @@ class Weapon:
 
     def skill(self):
         ...
+
+    def panel(self):
+        return self.attributeData
+    
+    def to_dict(self):
+        return {
+            'id':self.id,
+            'level':self.level,
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        return cls(data['level'])

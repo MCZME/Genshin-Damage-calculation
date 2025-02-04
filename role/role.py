@@ -2,8 +2,9 @@ from DataRequest import DR
 from DataProcessing import DataProcessing as DP
 
 class Role:
-    def __init__(self,id):
+    def __init__(self,id=1,level=1):
         self.id = id
+        self.level = level
         self.attributeData ={
             "生命值" : 0,
             "攻击力": 0,
@@ -33,6 +34,7 @@ class Role:
         self.data = DR.read_data(SQL)[0]
         self.name = self.data[1]
         self.element = self.data[2]
+        self.get_data(level)
 
     def get_data(self,level):
         l = DP.level(level)
@@ -46,7 +48,7 @@ class Role:
             self.attributeData[t][self.element] = self.data[27+l]
 
     def attributePanel(self):
-        pass
+        return self.attributeData
 
     def elementalSkill(self):
         return 0
@@ -59,3 +61,14 @@ class Role:
 
     def constellation(self):
         pass
+
+    def to_dict(self):
+        return {
+            'id':self.id,
+            'level':self.level
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        return cls(data['level'])
+    
