@@ -38,14 +38,14 @@ class Role:
 
     def get_data(self,level):
         l = DP.level(level)
-        self.attributeData["生命值"] = self.data[3+l]
-        self.attributeData["攻击力"] = self.data[11+l]
-        self.attributeData["防御力"] = self.data[19+l]
+        self.attributeData["生命值"] = self.data[5+l]
+        self.attributeData["攻击力"] = self.data[13+l]
+        self.attributeData["防御力"] = self.data[21+l]
         t = DP.attributeId(self.data[-1])
         if t != "元素伤害加成":
-            self.attributeData[t] = self.data[27+l]
+            self.attributeData[t] = self.data[29+l]
         else:
-            self.attributeData[t][self.element] = self.data[27+l]
+            self.attributeData[t][self.element] = self.data[29+l]
 
     def attributePanel(self):
         return self.attributeData

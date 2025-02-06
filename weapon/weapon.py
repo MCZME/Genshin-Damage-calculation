@@ -26,9 +26,9 @@ class Weapon:
 
     def get_data(self,level):
         l = DP.level(level)
-        self.attributeData["攻击力"] = self.stats[3+l]
+        self.attributeData["攻击力"] = self.stats[4+l]
         t = DP.attributeId(self.stats[-1])
-        self.attributeData[t] = self.stats[11+l]
+        self.attributeData[t] = self.stats[12+l]
 
     def skill(self):
         ...
