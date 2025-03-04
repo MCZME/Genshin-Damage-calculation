@@ -1,10 +1,13 @@
 from DataRequest import DR
-from DataProcessing import DataProcessing as DP
+from character.character import Character
+import setup.Tool as T
 
 class Weapon:
-    def __init__(self,id=1,level=1):
+    def __init__(self,character:Character,id=1,level=1,lv=1):
+        self.character = character
         self.id = id
         self.level = level
+        self.lv = lv
         self.attributeData = {
             "攻击力": 0,
             "元素精通" : 0,
@@ -16,6 +19,14 @@ class Weapon:
             "生命值%" : 0,
             "攻击力%": 0,
             "防御力%": 0,
+            "火元素伤害加成": 0,
+            "水元素伤害加成": 0,
+            "雷元素伤害加成": 0,
+            "冰元素伤害加成": 0,
+            "岩元素伤害加成": 0,
+            "风元素伤害加成": 0,
+            "草元素伤害加成": 0,
+            "物理伤害加成": 0
         }
 
         SQL = "SELECT * FROM `weapon_stats` WHERE w_id = {}".format(self.id)
@@ -25,23 +36,15 @@ class Weapon:
         self.get_data(level)
 
     def get_data(self,level):
-        l = DP.level(level)
+        l = T.level(level)
         self.attributeData["攻击力"] = self.stats[4+l]
-        t = DP.attributeId(self.stats[-1])
+        t = T.attributeId(self.stats[-1])
         self.attributeData[t] = self.stats[12+l]
+
+    def updatePanel(self):
+        attributePanel = self.character.attributePanel
+        for i in self.attributeData:
+            attributePanel[i] += self.attributeData[i]
 
     def skill(self):
         ...
-
-    def panel(self):
-        return self.attributeData
-    
-    def to_dict(self):
-        return {
-            'id':self.id,
-            'level':self.level,
-        }
-    
-    @classmethod
-    def from_dict(cls, data):
-        return cls(data['level'])
