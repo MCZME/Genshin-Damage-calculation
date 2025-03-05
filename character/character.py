@@ -1,12 +1,22 @@
 from abc import abstractmethod
+from enum import Enum, auto
 from DataRequest import DR
 import setup.Tool as T
 
+# 角色状态枚举
+class CharacterState(Enum):
+    IDLE = auto()        # 空闲状态
+    CASTING = auto()      # 施法中
+    NORMAL_ATTACK = auto()    # 普通攻击
+    HEAVY_ATTACK = auto()    # 重击
+    SKILL = auto() # 技能持续效果中
+    BURST = auto()        # 大招释放中
+
 class Character:
-    def __init__(self,id=1,level=1,skill_level=[1,1,1]):
+    def __init__(self,id=1,level=1,skill_params=[1,1,1]):
         self.id = id
         self.level = level
-        self.skill_level = skill_level
+        self.skill_params = skill_params
         self.attributeData ={
             "生命值" : 0,
             "攻击力": 0,
@@ -30,7 +40,6 @@ class Character:
             "草元素伤害加成": 0,
             "物理伤害加成": 0
         }
-
         SQL = "SELECT * FROM `role_stats` WHERE role_id = {}".format(self.id)
         self.data = DR.read_data(SQL)[0]
         self.name = self.data[1]
@@ -38,6 +47,7 @@ class Character:
         self.get_data(level)
         self.attributePanel = self.attributeData.copy()
 
+        self.state = CharacterState.IDLE
         self._init_character()    # 初始化特有属性
 
     def get_data(self,level):
@@ -54,7 +64,9 @@ class Character:
     @abstractmethod
     def _init_character(self):
         """初始化角色特有属性"""
-        self.skill_params = {}    # 技能参数表
+        self.NormalAttack = None
+        self.Skill = None
+        self.Burst = None
         self.talent_effects = []  # 天赋效果列表
 
     def setArtifact(self,artifact):
@@ -103,6 +115,13 @@ class Character:
         for effect in self.talent_effects:
             effect.apply(self)
 
-
-    def update(self):
-        pass
+    def update(self,target):
+        if self.state == CharacterState.SKILL:
+            if self.Skill.update(target):
+                self.state = CharacterState.IDLE
+        elif self.state == CharacterState.BURST:
+            if self.Burst.update(target):
+                self.state = CharacterState.IDLE
+        elif self.state == CharacterState.NORMAL_ATTACK:
+            if self.NormalAttack.update(target):
+                self.state = CharacterState.IDLE

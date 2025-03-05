@@ -1,13 +1,5 @@
 from abc import ABC, abstractmethod
-from enum import Enum, auto
 from character.character import Character
-
-# 角色状态枚举
-class CharacterState(Enum):
-    IDLE = auto()        # 空闲状态
-    CASTING = auto()      # 施法中
-    SKILL_ACTIVE = auto() # 技能持续效果中
-    BURST = auto()        # 大招释放中
 
 # 天赋效果基类
 class TalentEffect:
@@ -31,16 +23,16 @@ class SkillBase(ABC):
         self.caster = caster
         self.current_frame = 0
 
-    def update(self):
+    def update(self,target):
         self.current_frame += 1
         if self.current_frame >= self.total_frames:
             self.on_finish()
             return True
-        self.on_frame_update()
+        self.on_frame_update(target)
         return False
 
     @abstractmethod
-    def on_frame_update(self): pass
+    def on_frame_update(self,target): pass
     @abstractmethod
     def on_finish(self): pass
     @abstractmethod

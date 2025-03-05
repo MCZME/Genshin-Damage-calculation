@@ -1,5 +1,5 @@
-from setup.BaseClass import CharacterState, SkillBase
-from .character import Character
+from setup.BaseClass import SkillBase
+from .character import Character,CharacterState
 
 class RuishouDenggaolou(SkillBase):
     def __init__(self):
@@ -10,7 +10,7 @@ class RuishouDenggaolou(SkillBase):
         )
         self.has_jumped = False  # 是否已经腾跃
 
-    def on_frame_update(self):
+    def on_frame_update(self,target):
         if self.current_frame < 60:
             # 前60帧为扑击阶段
             if self.current_frame == 30:
@@ -30,15 +30,10 @@ class RuishouDenggaolou(SkillBase):
             self._perform_tayun_xianrui()
 
     def _perform_tayun_xianrui(self):
-        # 计算伤害和生命值消耗
-        damage = self.caster.attack * 2.5  # 假设伤害为基础攻击的2.5倍
-        hp_cost = self.caster.hp * 0.1  # 消耗10%生命值，但最低保留10%
-        final_hp_cost = min(hp_cost, self.caster.hp - self.caster.max_hp * 0.1)
-        
-        # 应用伤害和生命值消耗
-        self.caster.hp -= final_hp_cost
+        damage = 2000  # 假设下落攻击造成2000点伤害
+        final_hp_cost = 500  # 假设消耗500点生命值
         print(f"🔥 造成 {damage} 点无法被削魔覆盖的火元素伤害")
-        print(f"❤️ 嘉明消耗了 {final_hp_cost} 点生命值，当前生命值：{self.caster.hp}/{self.caster.max_hp}")
+        print(f"❤️ 嘉明消耗了 {final_hp_cost} 点生命值")
 
     def on_interrupt(self):
         if self.has_jumped:
@@ -48,9 +43,10 @@ class RuishouDenggaolou(SkillBase):
 
 class GaMing(Character):
     ID = 78
-    def __init__(self,level,skill_level):
-        super().__init__(self.ID,level,skill_level)
-        self.ruishou_denggaolou = RuishouDenggaolou()
+    def __init__(self,level,skill_params):
+        super().__init__(self.ID,level,skill_params)
+        self.Skill = RuishouDenggaolou()
+        self.Burst = RuishouDenggaolou()
         
     def _normal_attack_impl(self):
         ...
@@ -60,15 +56,15 @@ class GaMing(Character):
 
     def _elemental_skill_impl(self):
         if self.state == CharacterState.IDLE:
-            self.state = CharacterState.CASTING
-            self.ruishou_denggaolou.start(self)
+            self.state = CharacterState.SKILL
+            self.Skill.start(self)
 
     def _elemental_burst_impl(self):
-        ...
+        if self.state == CharacterState.IDLE:
+            self.state = CharacterState.BURST
+            self.Burst.start(self)
 
-    def update(self):
-        super().update()
-        if self.state == CharacterState.CASTING:
-            if self.ruishou_denggaolou.update():
-                self.state = CharacterState.IDLE
+    def update(self,target):
+        super().update(target)
+        
         
