@@ -44,13 +44,14 @@ class Character:
         self.data = DR.read_data(SQL)[0]
         self.name = self.data[1]
         self.element = self.data[2]
-        self.get_data(level)
+        self.type = self.data[3]
+        self._get_data(level)
         self.attributePanel = self.attributeData.copy()
 
         self.state = CharacterState.IDLE
         self._init_character()    # 初始化特有属性
 
-    def get_data(self,level):
+    def _get_data(self,level):
         l = T.level(level)
         self.attributeData["生命值"] = self.data[5+l]
         self.attributeData["攻击力"] = self.data[13+l]
@@ -65,6 +66,7 @@ class Character:
     def _init_character(self):
         """初始化角色特有属性"""
         self.NormalAttack = None
+        self.HeavyAttack = None
         self.Skill = None
         self.Burst = None
         self.talent_effects = []  # 天赋效果列表
@@ -125,3 +127,9 @@ class Character:
         elif self.state == CharacterState.NORMAL_ATTACK:
             if self.NormalAttack.update(target):
                 self.state = CharacterState.IDLE
+
+    def getSkillDamageMultipiler(self):
+        return self.Skill.getDamageMultipiler(self.skill_params[1])
+    
+    def getBurstDamageMultipiler(self):
+        return self.Burst.getDamageMultipiler(self.burst_params[2])

@@ -40,6 +40,8 @@ class Team:
                         if hasattr(self.current_character, action[1]):
                             getattr(self.current_character, action[1])()
                             return True
+            else:
+                print("切换角色CD中")
         return False
 
 

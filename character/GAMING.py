@@ -2,12 +2,17 @@ from setup.BaseClass import SkillBase
 from .character import Character,CharacterState
 
 class RuishouDenggaolou(SkillBase):
-    def __init__(self):
+    def __init__(self,lv):
         super().__init__(
             name="瑞兽登高楼",
-            total_frames=120,  # 假设总帧数为120帧（2秒）
-            interruptible=False  # 假设技能不可打断
+            total_frames=50,  # 假设总帧数为120帧（2秒）
+            lv=lv,
+            element=("火",1)
         )
+        self.damageMultipiler= [230.4,247.68,264.96,
+                               288,305.28,322.56,345.6,
+                               368.64,391.68,414.72,
+                               437.76,460.8,518.4,547.2]
         self.has_jumped = False  # 是否已经腾跃
 
     def on_frame_update(self,target):
@@ -45,8 +50,8 @@ class GaMing(Character):
     ID = 78
     def __init__(self,level,skill_params):
         super().__init__(self.ID,level,skill_params)
-        self.Skill = RuishouDenggaolou()
-        self.Burst = RuishouDenggaolou()
+        self.Skill = RuishouDenggaolou(skill_params[1])
+        self.Burst = RuishouDenggaolou(skill_params[2])
         
     def _normal_attack_impl(self):
         ...

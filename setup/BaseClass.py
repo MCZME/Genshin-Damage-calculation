@@ -12,12 +12,17 @@ class ConstellationEffect:
 
 # 技能基类
 class SkillBase(ABC):
-    def __init__(self, name, total_frames, interruptible=False, stamina_cost=0):
+    def __init__(self, name, total_frames, lv, element, interruptible=False):
         self.name = name
         self.total_frames = total_frames    # 总帧数
         self.current_frame = 0              # 当前帧
+        self.lv = lv
+        self.element = element
+        self.damageMultipiler = []
         self.interruptible = interruptible  # 是否可打断
-        self.stamina_cost = stamina_cost    # 体力消耗
+    
+    def getDamageMultipiler(self):
+        return self.damageMultipiler(self.lv)
 
     def start(self, caster):
         self.caster = caster

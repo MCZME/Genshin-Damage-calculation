@@ -10,11 +10,8 @@ class ArtifactPiece(Enum):
     Circlet_of_Logos = 4
 
 class ArtifactEffect:
-    def __init__(self,id=1):
-        self.id = id
-        SQL = "SELECT * FROM artifact WHERE id = {}".format(id)
-        self.data = DR.read_data(SQL)[0]
-        self.name = self.data[1]
+    def __init__(self,name):
+        self.name = name
 
     def tow_SetEffect(self,character:Character):
         ...
