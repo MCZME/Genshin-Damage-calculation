@@ -6,8 +6,22 @@ from typing import Dict, List
 # 事件类型枚举
 # --------------------------
 class EventType(Enum):
-    BEFORE_DAMAGE = 1   # 伤害计算前
-    AFTER_DAMAGE = 2    # 伤害施加后
+    BEFORE_DAMAGE = auto()       # 伤害计算前
+    AFTER_DAMAGE = auto()        # 伤害计算后
+    BEFORE_ATTACK = auto()        # 攻击力计算前
+    AFTER_ATTACK = auto()         # 攻击力计算后
+    BEFORE_DAMAGE_MULTIPLIER = auto()  # 伤害倍率计算前
+    AFTER_DAMAGE_MULTIPLIER = auto()   # 伤害倍率计算后
+    BEFORE_DAMAGE_BONUS = auto()  # 伤害加成计算前
+    AFTER_DAMAGE_BONUS = auto()   # 伤害加成计算后
+    BEFORE_CRITICAL = auto()      # 暴击伤害计算前
+    AFTER_CRITICAL = auto()       # 暴击伤害计算后
+    BEFORE_DEFENSE = auto()       # 防御力计算前
+    AFTER_DEFENSE = auto()       # 防御力计算后
+    BEFORE_RESISTANCE = auto()   # 抗性计算前
+    AFTER_RESISTANCE = auto()    # 抗性计算后
+    BEFORE_REACTION = auto()     # 反应加成计算前
+    AFTER_REACTION = auto()      # 反应加成计算后
 
 # --------------------------
 # 事件基类
@@ -27,7 +41,6 @@ class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
         pass
-
 
 # --------------------------
 # 事件总线（单例）

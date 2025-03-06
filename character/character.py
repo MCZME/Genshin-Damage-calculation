@@ -19,9 +19,11 @@ class Character:
         self.skill_params = skill_params
         self.attributeData ={
             "生命值" : 0,
+            "固定生命值": 0,
             "攻击力": 0,
             "固定攻击力":0,
             "防御力": 0,
+            "固定防御力":0,
             "元素精通" : 0,
             "暴击率" : 5,
             "暴击伤害" : 50,
@@ -38,7 +40,8 @@ class Character:
             "岩元素伤害加成": 0,
             "风元素伤害加成": 0,
             "草元素伤害加成": 0,
-            "物理伤害加成": 0
+            "物理伤害加成": 0,
+            "伤害加成": 0
         }
         SQL = "SELECT * FROM `role_stats` WHERE role_id = {}".format(self.id)
         self.data = DR.read_data(SQL)[0]
@@ -74,18 +77,20 @@ class Character:
     def setArtifact(self,artifact):
         self.artifactManager = artifact
         self.artifactManager.updatePanel()
+        self.artifactManager.setEffect()
 
     def setWeapon(self,weapon):
         self.weapon = weapon
         self.weapon.updatePanel()
+        self.weapon.skill()
 
 
-    def normal_attack(self):
+    def normal_attack(self,n):
         """普攻"""
-        self._normal_attack_impl()
+        self._normal_attack_impl(n)
 
     @abstractmethod
-    def _normal_attack_impl(self):
+    def _normal_attack_impl(self,n):
         """普攻具体实现"""
 
     def heavy_attack(self):

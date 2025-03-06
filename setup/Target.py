@@ -12,7 +12,7 @@ class Target:
         self.id = id
         self.level = level
         self.get_data()
-        self.elementalAura = ('无',0)
+        self.elementalAura = ('物理',0)
 
     def get_data(self):
         data = DR.read_data(f'SELECT * FROM `monster` WHERE `ID`={self.id}')

@@ -1,5 +1,5 @@
 from enum import Enum
-from DataRequest import DR
+from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
 from character.character import Character
 
 class ArtifactPiece(Enum):
@@ -8,16 +8,6 @@ class ArtifactPiece(Enum):
     Sands_of_Eon = 2
     Goblet_of_Eonothem = 3
     Circlet_of_Logos = 4
-
-class ArtifactEffect:
-    def __init__(self,name):
-        self.name = name
-
-    def tow_SetEffect(self,character:Character):
-        ...
-
-    def four_SetEffect(self,character:Character):
-        ...
 
 class Artifact:
     def __init__(self,name,piece:ArtifactPiece,main=None,sub=None):
@@ -82,9 +72,25 @@ class ArtifactManager:
         for key in panel.keys():
             if key == '攻击力':
                 attributePanel['固定攻击力'] += panel[key]
+            elif key == '生命值':
+                attributePanel['固定生命值'] += panel[key]
+            elif key == '防御力':
+                attributePanel['固定防御力'] += panel[key]
             else:
                 attributePanel[key] += panel[key]
         
     
     def setEffect(self):
-        ...
+        setEffect = {}
+        for artifact in self.Set.values():
+            if artifact != None:
+                if artifact.name not in setEffect.keys():
+                    setEffect[artifact.name] = 1
+                else:
+                    setEffect[artifact.name] += 1
+        
+        for key in setEffect.keys():
+            if setEffect[key] >= 2:
+                ArtfactSetEffectDict[key].tow_SetEffect(self.character)
+            if setEffect[key] >= 4:
+                ArtfactSetEffectDict[key].four_SetEffect(self.character)

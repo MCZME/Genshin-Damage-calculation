@@ -29,7 +29,10 @@ class Team:
         if action[0] == self.current_character.name:
             if self.current_character.state == CharacterState.IDLE:
                 if hasattr(self.current_character, action[1]):
-                    getattr(self.current_character, action[1])()
+                    if action[2] is not None:
+                        getattr(self.current_character, action[1])(action[2])
+                    else:
+                        getattr(self.current_character, action[1])()
                     return True
         else:
             if self.current_frame == 0:
@@ -38,7 +41,10 @@ class Team:
                         self.current_character = character
                         self.current_frame = self.SwapCd
                         if hasattr(self.current_character, action[1]):
-                            getattr(self.current_character, action[1])()
+                            if action[2] is not None:
+                                getattr(self.current_character, action[1])(action[2])
+                            else:
+                                getattr(self.current_character, action[1])()
                             return True
             else:
                 print("切换角色CD中")
