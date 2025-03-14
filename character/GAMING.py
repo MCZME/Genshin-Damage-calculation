@@ -7,8 +7,9 @@ class RuishouDenggaolou(SkillBase):
     def __init__(self,lv):
         super().__init__(
             name="瑞兽登高楼",
-            total_frames=120,  # 假设总帧数为120帧（2秒）
+            total_frames=1200,  # 假设总帧数为120帧（2秒）
             lv=lv,
+            cd=10*60,
             element=("火",1)
         )
         self.damageMultipiler= [230.4,247.68,264.96,
@@ -39,7 +40,7 @@ class RuishouDenggaolou(SkillBase):
     def _perform_tayun_xianrui(self):
         damage = 2000  # 假设下落攻击造成2000点伤害
         final_hp_cost = 500  # 假设消耗500点生命值
-        print(f"🔥 造成 {damage} 点无法被削魔覆盖的火元素伤害")
+        print(f"🔥 嘉明造成 {damage} 点无法被削魔覆盖的火元素伤害")
         print(f"❤️ 嘉明消耗了 {final_hp_cost} 点生命值")
 
     def on_interrupt(self):
@@ -59,6 +60,7 @@ class NormalAttackSkill(SkillBase):
             name="普通攻击",
             total_frames=total_frames,
             lv=lv,
+            cd=total_frames-1,
             element=("物理",0),
             interruptible=True
         )

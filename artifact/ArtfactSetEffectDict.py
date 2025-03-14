@@ -2,5 +2,6 @@ from artifact.ArtifactSetEffect import *
 
 
 ArtfactSetEffectDict = {
-    '角斗士的终幕礼': GladiatorFinale()
+    '角斗士的终幕礼': GladiatorFinale(),
+    '黑曜秘典': ObsidianCodex(),
 }
