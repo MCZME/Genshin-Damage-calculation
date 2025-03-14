@@ -1,6 +1,5 @@
 from enum import Enum, auto
 from character.character import Character
-from setup.BaseClass import SkillBase
 from setup.Event import EventBus, EventHandler, EventType, GameEvent
 from setup.Target import Target
 
@@ -11,12 +10,27 @@ class DamageType(Enum):
     SKILL = auto()
     BURST = auto()
 
+class Damage():
+    def __init__(self,damageMultipiler,element,damageType:DamageType,damge=0):
+        self.damageMultipiler = damageMultipiler
+        self.element = element
+        self.damageType = damageType
+        self.damage = damge
+
+    def setSource(self,source):
+        self.source = source
+
+    def setTarget(self,target):
+        self.target = target
+
+    def setDamageData(self):
+        ...        
+
 class Calculation:
-    def __init__(self,source:Character,target:Target,damageType:DamageType,skill:SkillBase):
+    def __init__(self,source:Character,target:Target,damage:Damage):
         self.source = source
         self.target = target
-        self.damageType = damageType
-        self.skill = skill
+        self.damage = damage
 
     def attack(self):
         attributePanel = self.source.attributePanel
@@ -25,7 +39,7 @@ class Calculation:
         return atk0+atk1
 
     def damageMultipiler(self):
-        return self.skill.getDamageMultipiler()/100
+        return self.damage.damageMultipiler/100
 
     def damageBonus(self):
         DamageBonus = 0
@@ -33,13 +47,13 @@ class Calculation:
             event_type=EventType.BEFORE_DAMAGE_BONUS,
             source=self.source,
             target=self.target,
-            damageType=self.damageType,
+            damageType=self.damage.damageType,
             damageBonus=DamageBonus
         )
         EventBus.publish(bonus_event)
 
         attributePanel = self.source.attributePanel
-        DamageBonus = bonus_event.data['damageBonus'] + attributePanel[self.skill.element[0]+'伤害加成'] + attributePanel['伤害加成']
+        DamageBonus = bonus_event.data['damageBonus'] + attributePanel[(self.damage.element[0] if self.damage.element[0]=='物理'else self.damage.element[0]+'元素') +'伤害加成'] + attributePanel['伤害加成']
         return DamageBonus/100
 
     def criticalBracket(self):
@@ -52,7 +66,7 @@ class Calculation:
         return (100+c_level)/(190+(t_level+100))
 
     def resistance(self):
-        r = self.target.element_resistance[self.skill.element[0]]
+        r = self.target.element_resistance[self.damage.element[0]]
         if r>75:
             return (1/(1+4*r))/100
         elif r>=0 and r<=75:
@@ -64,7 +78,7 @@ class Calculation:
     # 剧变反应
     def reaction(self):
         e = self.source.attributePanel['元素精通']
-        e_skill = self.skill.element
+        e_skill = self.damage.element
         e_target = self.target.elementalAura
         if e_target[0] == "物理":
             return 1
@@ -79,28 +93,12 @@ class Calculation:
         elif e_skill[0] == "冰" and e_target[0] == "火":
             return 1.5*(1+(2.78*e/(e+1400)))
         
-
     def calculation(self):
-        damage = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * (self.resistance()) * self.reaction()
-        return damage
+        value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * (self.resistance()) * self.reaction()
+        self.damage.damage = value
 
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
-            calculation = Calculation(event.source, event.target, event.data['damageType'],event.data['skill'])
-            event.data['damage'] = calculation.calculation()
-
-class Damage():
-    def __init__(self,damageMultipiler,element,damageType:DamageType,damge=0):
-        self.damageMultipiler = damageMultipiler
-        self.element = element
-        self.damageType = damageType
-
-    def setSource(self,source):
-        self.source = source
-
-    def setTarget(self,target):
-        self.target = target
-
-    def setDamageData(self):
-        ...        
+            calculation = Calculation(event.data['source'], event.data['target'], event.data['damage'])
+            calculation.calculation()

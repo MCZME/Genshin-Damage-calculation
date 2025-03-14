@@ -24,6 +24,8 @@ class EventType(Enum):
     AFTER_REACTION = auto()      # 反应加成计算后
 
     CHARACTER_SWITCH = auto()   # 角色切换
+    BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
+    AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
 
 # --------------------------
 # 事件类
@@ -36,11 +38,15 @@ class GameEvent:
 
 class DamageEvent(GameEvent):
     def __init__(self, source, target, damage, **kwargs):
-        super().__init__(EventType.AFTER_DAMAGE, source=source, target=target, damage=damage, **kwargs)
+        super().__init__(EventType.BEFORE_DAMAGE, source=source, target=target, damage=damage, **kwargs)
 
 class CharacterSwitchEvent(GameEvent):
     def __init__(self, old_character, new_character, **kwargs):
         super().__init__(EventType.CHARACTER_SWITCH, old_character=old_character, new_character=new_character, **kwargs)
+
+class NightSoulBlessingEvent(GameEvent):
+    def __init__(self, character, before=True, **kwargs):
+        super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING if before else EventType.AFTER_NIGHTSOUL_BLESSING, character=character, **kwargs)
 
 # --------------------------
 # 事件处理器接口

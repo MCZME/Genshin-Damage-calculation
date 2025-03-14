@@ -29,16 +29,11 @@ class SkillBase(ABC):
         self.damageMultipiler = []
         self.interruptible = interruptible  # 是否可打断
         self.state = state
-    
-    def getDamageMultipiler(self):
-        return self.damageMultipiler(self.lv)
+        self.caster = None
 
     def start(self, caster):
-        if self.current_frame < self.cd:
-            return False
         self.caster = caster
         self.current_frame = 0
-        self.cd_remaining = 0               # 重置冷却时间
         return True
 
     def update(self,target):
@@ -57,8 +52,8 @@ class SkillBase(ABC):
     def on_interrupt(self): pass
 
 class NormalAttackSkill(SkillBase):
-    def __init__(self,lv):
-        super().__init__(name="普通攻击",total_frames=0,lv=lv,element=('物理',0),interruptible=False)
+    def __init__(self,lv,cd=0):
+        super().__init__(name="普通攻击",total_frames=0,lv=lv,cd=cd,element=('物理',0),interruptible=False)
         self.segment_frames = [0,0,0,0]
         self.damageMultipiler= []
         # 攻击阶段控制
