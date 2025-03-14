@@ -23,16 +23,24 @@ class EventType(Enum):
     BEFORE_REACTION = auto()     # 反应加成计算前
     AFTER_REACTION = auto()      # 反应加成计算后
 
+    CHARACTER_SWITCH = auto()   # 角色切换
+
 # --------------------------
-# 事件基类
+# 事件类
 # --------------------------
 class GameEvent:
-    def __init__(self, event_type: EventType, source, target, **kwargs):
+    def __init__(self, event_type: EventType, **kwargs):
         self.event_type = event_type
-        self.source = source      # 事件来源（角色/技能）
-        self.target = target      # 事件目标
         self.data = kwargs        # 扩展数据
         self.cancelled = False    # 是否取消事件
+
+class DamageEvent(GameEvent):
+    def __init__(self, source, target, damage, **kwargs):
+        super().__init__(EventType.AFTER_DAMAGE, source=source, target=target, damage=damage, **kwargs)
+
+class CharacterSwitchEvent(GameEvent):
+    def __init__(self, old_character, new_character, **kwargs):
+        super().__init__(EventType.CHARACTER_SWITCH, old_character=old_character, new_character=new_character, **kwargs)
 
 # --------------------------
 # 事件处理器接口

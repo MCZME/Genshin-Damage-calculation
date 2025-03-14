@@ -9,8 +9,8 @@ class CharacterState(Enum):
     CASTING = auto()      # 施法中
     NORMAL_ATTACK = auto()    # 普通攻击
     HEAVY_ATTACK = auto()    # 重击
-    SKILL = auto() # 技能持续效果中
-    BURST = auto()        # 大招释放中
+    SKILL = auto()      # 元素战技
+    BURST = auto()        # 元素爆发
 
 class Character:
     def __init__(self,id=1,level=1,skill_params=[1,1,1]):
@@ -84,7 +84,6 @@ class Character:
         self.weapon.updatePanel()
         self.weapon.skill()
 
-
     def normal_attack(self,n):
         """普攻"""
         self._normal_attack_impl(n)
@@ -108,7 +107,9 @@ class Character:
     @abstractmethod
     def _elemental_skill_impl(self):
         """元素战技具体实现"""
-    
+        if self.state == CharacterState.IDLE and self.Skill.start(self):
+            self.state = CharacterState.SKILL
+            
     def elemental_burst(self):
         """元素爆发"""
         self._elemental_burst_impl()
@@ -116,7 +117,9 @@ class Character:
     @abstractmethod
     def _elemental_burst_impl(self):
         """元素爆发具体实现"""
-
+        if self.state == CharacterState.IDLE and self.Burst.start(self):
+            self.state = CharacterState.BURST
+            
     def apply_talents(self):
         """应用天赋效果"""
         for effect in self.talent_effects:
@@ -132,9 +135,6 @@ class Character:
         elif self.state == CharacterState.NORMAL_ATTACK:
             if self.NormalAttack.update(target):
                 self.state = CharacterState.IDLE
-
-    def getSkillDamageMultipiler(self):
-        return self.Skill.getDamageMultipiler(self.skill_params[1])
-    
-    def getBurstDamageMultipiler(self):
-        return self.Burst.getDamageMultipiler(self.burst_params[2])
+        elif self.state == CharacterState.HEAVY_ATTACK:
+            if self.HeavyAttack.update(target):
+                self.state = CharacterState.IDLE

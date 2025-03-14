@@ -89,3 +89,18 @@ class DamageCalculateEventHandler(EventHandler):
         if event.event_type == EventType.BEFORE_DAMAGE:
             calculation = Calculation(event.source, event.target, event.data['damageType'],event.data['skill'])
             event.data['damage'] = calculation.calculation()
+
+class Damage():
+    def __init__(self,damageMultipiler,element,damageType:DamageType,damge=0):
+        self.damageMultipiler = damageMultipiler
+        self.element = element
+        self.damageType = damageType
+
+    def setSource(self,source):
+        self.source = source
+
+    def setTarget(self,target):
+        self.target = target
+
+    def setDamageData(self):
+        ...        
