@@ -1,4 +1,7 @@
+import json
+from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
+from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
 from setup.Team import Team
 
@@ -49,4 +52,48 @@ class Emulation:
             return True
         return False
         
-    
+    def save_simulation(self,filename):
+        data = {
+            'characters': [char.to_dict() for char in self.team.team]
+        }
+        with open('./data/'+filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def load_simulation(self,filename):
+        with open('./data/'+filename, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        team = []
+        for char_data in data['characters']:
+            # 创建角色
+            character = CharacterClassMap[char_data['id']](  # 需要建立角色类映射
+                level=char_data['level'],
+                skill_params=char_data['skill_params']
+            )
+            
+            # 创建武器
+            if char_data['weapon']:
+                weapon_class = WeaponClassMap[char_data['weapon']['id']]  # 需要武器类映射
+                weapon = weapon_class(
+                    character=character,
+                    level=char_data['weapon']['level'],
+                    lv=char_data['weapon']['lv']
+                )
+                character.setWeapon(weapon)
+            
+            # 创建圣遗物
+            if char_data['artifacts']:
+                artifacts = []
+                for arti_data in char_data['artifacts']['set']:
+                    artifacts.append(Artifact(
+                        name=arti_data['name'],
+                        piece=ArtifactPiece[arti_data['piece']],
+                        main=arti_data['main'],
+                        sub=arti_data['sub']
+                    ))
+                am = ArtifactManager(artifacts, character)
+                character.setArtifact(am)
+            
+            team.append(character)
+        
+        self.team = Team(team)

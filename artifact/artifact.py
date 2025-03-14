@@ -27,19 +27,27 @@ class Artifact:
 
     def getSub(self):
         return self.sub
+    
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'piece': self.piece.name,
+            'main': self.main,
+            'sub': self.sub
+        }
 
 class ArtifactManager:
-    Set = {
+
+    def __init__(self,set:list[Artifact],character:Character):
+        self.character = character
+        self.Set = {
         'Flower_of_Life':None,
         'Plume_of_Death':None,
         'Sands_of_Eon':None,
         'Goblet_of_Eonothem':None,
         'Circlet_of_Logos':None
-    }
-
-    def __init__(self,set:list[Artifact],character:Character):
-        self.character = character
-        for  artifact in set:
+        }
+        for artifact in set:
             if artifact.piece == ArtifactPiece.Flower_of_Life:
                 self.Set['Flower_of_Life'] = artifact
             elif artifact.piece == ArtifactPiece.Plume_of_Death:
@@ -94,3 +102,8 @@ class ArtifactManager:
                 ArtfactSetEffectDict[key].tow_SetEffect(self.character)
             if setEffect[key] >= 4:
                 ArtfactSetEffectDict[key].four_SetEffect(self.character)
+    
+    def to_dict(self):
+        return {
+            'set': [artifact.to_dict() for artifact in self.Set.values() if artifact]
+        }

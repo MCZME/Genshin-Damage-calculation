@@ -48,3 +48,10 @@ class Weapon:
 
     def skill(self):
         ...
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'level': self.level,
+            'lv': self.lv
+        }

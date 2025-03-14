@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from enum import Enum, auto
+import json
 from DataRequest import DR
 import setup.Tool as T
 
@@ -13,6 +14,7 @@ class CharacterState(Enum):
     BURST = auto()        # 元素爆发
 
 class Character:
+
     def __init__(self,id=1,level=1,skill_params=[1,1,1]):
         self.id = id
         self.level = level
@@ -51,6 +53,8 @@ class Character:
         self._get_data(level)
         self.attributePanel = self.attributeData.copy()
 
+        self.weapon = None
+        self.artifactManager = None
         self.state = CharacterState.IDLE
         self._init_character()    # 初始化特有属性
 
@@ -138,3 +142,12 @@ class Character:
         elif self.state == CharacterState.HEAVY_ATTACK:
             if self.HeavyAttack.update(target):
                 self.state = CharacterState.IDLE
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'level': self.level,
+            'skill_params': self.skill_params,
+            'weapon': self.weapon.to_dict() if self.weapon else None,
+            'artifacts': self.artifactManager.to_dict() if self.artifactManager else None
+        }

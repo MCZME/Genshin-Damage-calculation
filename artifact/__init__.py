@@ -1,1 +1,0 @@
-__all__ = ['artifact','GladiatorFinale']
