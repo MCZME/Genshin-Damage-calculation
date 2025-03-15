@@ -23,9 +23,20 @@ class EventType(Enum):
     BEFORE_REACTION = auto()     # 反应加成计算前
     AFTER_REACTION = auto()      # 反应加成计算后
 
+    BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
+    AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
+    BEFORE_HEAVY_ATTACK = auto()  # 重击前
+    AFTER_HEAVY_ATTACK = auto()   # 重击后
+    BEFORE_SKILL = auto()        # 技能使用前
+    AFTER_SKILL = auto()         # 技能使用后
+    BEFORE_BURST = auto()        # 爆发使用前
+    AFTER_BURST = auto()         # 爆发使用后
+
     CHARACTER_SWITCH = auto()   # 角色切换
     BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
+    BEFORE_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之前
+    AFTER_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之后
 
 # --------------------------
 # 事件类
@@ -47,6 +58,15 @@ class CharacterSwitchEvent(GameEvent):
 class NightSoulBlessingEvent(GameEvent):
     def __init__(self, character, before=True, **kwargs):
         super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING if before else EventType.AFTER_NIGHTSOUL_BLESSING, character=character, **kwargs)
+
+class NormalAttackEvent(GameEvent):
+    def __init__(self, character,frame, before=True, **kwargs):
+        super().__init__(EventType.BEFORE_NORMAL_ATTACK if before else EventType.AFTER_NORMAL_ATTACK, character=character,frame=frame, **kwargs)
+
+class NightSoulConsumptionEvent(GameEvent):
+    def __init__(self, character,amount ,before=True, **kwargs):
+        super().__init__(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION if before else EventType.AFTER_NIGHT_SOUL_CONSUMPTION,
+                        character=character, amount=amount, **kwargs)
 
 # --------------------------
 # 事件处理器接口

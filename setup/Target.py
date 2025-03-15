@@ -13,6 +13,7 @@ class Target:
         self.level = level
         self.get_data()
         self.elementalAura = ('物理',0)
+        self.current_frame = 0
 
     def get_data(self):
         data = DR.read_data(f'SELECT * FROM `monster` WHERE `ID`={self.id}')
@@ -39,4 +40,4 @@ class Target:
         self.elementalAura = elementalAura
 
     def update(self):
-        pass
+        self.current_frame += 1

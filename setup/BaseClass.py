@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from character.character import Character
-from setup.DamageCalculation import DamageType
-from setup.Event import EventBus, EventType, GameEvent
+from setup.DamageCalculation import Damage, DamageType
+from setup.Event import DamageEvent, EventBus, NormalAttackEvent
 from enum import Enum, auto
 
 # 天赋效果基类
@@ -106,17 +106,15 @@ class NormalAttackSkill(SkillBase):
 
     def _apply_segment_effect(self,target):
         
+        # 发布普通攻击事件
+        normal_attack_event = NormalAttackEvent(self.caster,target.current_frame)
+        EventBus.publish(normal_attack_event)
+
         # 发布伤害事件
-        damage_event = GameEvent(
-            EventType.BEFORE_DAMAGE,
-            source=self.caster,
-            target=target,
-            damageType=DamageType.NORMAL,
-            skill =self,
-            damage = 0
-        )
+        damage = Damage(self.getDamageMultipiler(),self.element,DamageType.NORMAL)
+        damage_event = DamageEvent(self.caster,target,damage)
         EventBus.publish(damage_event)
-        print(f"🎯 {self.caster.name} 对 {target.name} 造成了 {damage_event.data['damage']} 点伤害")
+        print(f"🎯 {self.caster.name} 对 {target.name} 造成了 {damage.damage} 点伤害")
 
     def on_interrupt(self):
         print(f"💢 第{self.current_segment+1}段攻击被打断！")

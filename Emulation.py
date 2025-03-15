@@ -10,6 +10,7 @@ class Emulation:
     # 游戏参数设计
     fps = 60  # 帧率
     target = None
+    current_frame = 0
 
     def __init__(self,team:Team,target_id,target_level):
         self.target = Target(target_id, target_level)
@@ -25,6 +26,7 @@ class Emulation:
         action = iter(actions)
         self.team.swqp(next(action))
         self.team.current_frame = 0 # 初始化当前帧数
+        self.current_frame = 0 
         try:
             self.next_character = next(action)
         except StopIteration:
@@ -32,6 +34,7 @@ class Emulation:
             print("最后一个动作开始执行")
 
         while True:
+            self.current_frame += 1
             if self._update(self.target,action):
                 break
 
