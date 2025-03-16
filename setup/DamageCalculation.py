@@ -43,17 +43,8 @@ class Calculation:
 
     def damageBonus(self):
         DamageBonus = 0
-        bonus_event = GameEvent(
-            event_type=EventType.BEFORE_DAMAGE_BONUS,
-            source=self.source,
-            target=self.target,
-            damageType=self.damage.damageType,
-            damageBonus=DamageBonus
-        )
-        EventBus.publish(bonus_event)
-
         attributePanel = self.source.attributePanel
-        DamageBonus = bonus_event.data['damageBonus'] + attributePanel[(self.damage.element[0] if self.damage.element[0]=='物理'else self.damage.element[0]+'元素') +'伤害加成'] + attributePanel['伤害加成']
+        DamageBonus = attributePanel[(self.damage.element[0] if self.damage.element[0]=='物理'else self.damage.element[0]+'元素') +'伤害加成'] + attributePanel['伤害加成']
         return DamageBonus/100
 
     def criticalBracket(self):

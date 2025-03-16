@@ -1,6 +1,7 @@
 from character.character import Character,CharacterState
 from setup.BaseClass import SkillSate
 from setup.Event import CharacterSwitchEvent, EventBus
+from setup.Tool import GetCurrentTime
 
 # 转化字典
 action_state = {
@@ -54,7 +55,7 @@ class Team:
                            (current_skill is not None and current_skill.state == SkillSate.OffField)):
                             
                             # 执行切换
-                            character_switch_event = CharacterSwitchEvent(self.current_character, character)
+                            character_switch_event = CharacterSwitchEvent(self.current_character, character,frame=GetCurrentTime())
                             self.current_character.on_field = False
                             character.on_field = True
                             self.current_character = character
@@ -69,7 +70,8 @@ class Team:
                                     getattr(self.current_character, action[1])()
                                 return True
             else:
-                print("切换角色CD中  {}".format(self.current_frame))
+                if self.current_frame %30 == 0:
+                    print("切换角色CD中  {}".format(self.current_frame))
         return False
 
     def update(self,target):

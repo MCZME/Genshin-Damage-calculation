@@ -2,6 +2,7 @@ from character.character import Character, CharacterState
 from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent
+from setup.Tool import GetCurrentTime
 
 # todo: 
 # 1. 元素战技状态切换
@@ -50,18 +51,18 @@ class ElementalSkill(SkillBase,EventHandler):
     def on_frame_update(self, target):
         if self.current_frame == 1:
             damage = Damage(damageMultipiler=self.damageMultipiler['伤害'][self.lv-1], element=('火',1), damageType=DamageType.SKILL)
-            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage)
+            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
             print(f"🔥 玛薇卡释放元素战技，造成伤害：{damage.damage}")
         
         # 形态特有逻辑
         if self.mode == '焚曜之环':
-            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=5/60)
+            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=5/60, frame=GetCurrentTime())
             EventBus.publish(nightSoulConsumptionEvent)
             self.caster.current_night_soul -= 5/60
             self._handle_sacred_ring(target)
         elif self.mode == '驰轮车':
-            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=9/60)
+            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=9/60, frame=GetCurrentTime())
             EventBus.publish(nightSoulConsumptionEvent)
             self.caster.current_night_soul -= 9/60
             self._handle_chariot(target)
@@ -84,12 +85,12 @@ class ElementalSkill(SkillBase,EventHandler):
         if self.attack_interval >= 120:
             self.attack_interval = 0
 
-            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=3)
+            nightSoulConsumptionEvent = NightSoulConsumptionEvent(character=self.caster, amount=3, frame=GetCurrentTime())
             EventBus.publish(nightSoulConsumptionEvent)
             self.caster.current_night_soul -= 3
 
             damage = Damage(damageMultipiler=self.damageMultipiler['焚曜之环'][self.lv-1], element=('火',1), damageType=DamageType.SKILL)
-            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage)
+            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
             print(f"🔥 焚曜之环造成伤害：{damage.damage}")
             
@@ -106,7 +107,6 @@ class ElementalSkill(SkillBase,EventHandler):
         self.mode = new_mode
 
     def on_finish(self):
-        # 取消事件订阅
         self.caster.chargeNightsoulBlessing()
         print("🌙 夜魂加持结束")
 
@@ -117,7 +117,12 @@ class ElementalBurst(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="燔天之时", total_frames=60*2.375, cd=18*60, lv=lv,
                         element=('火', 1), state=SkillSate.OnField)
-
+        self.damageMultipiler = {
+            '坠日斩':[444.8,478.16,511.52,556,589.36,622.72,667.2,711.68,756.16,800.64,845.12,889.6,945.2],
+            '坠日斩伤害提升':[1.6,1.72,1.84,2,2.12,2.24,2.4,2.56,2.72,2.88,3.04,3.2,3.4],
+            '驰轮车普通攻击伤害提升':[0.26,0.28,0.3,0.33,0.35,0.37,0.41,0.44,0.47,0.51,0.55,0.58,0.62],
+            '驰轮车重击伤害提升':[0.52,0.56,0.6,0.66,0.7,0.75,0.82,0.88,0.95,1.02,1.09,1.16,1.24]
+        }
         self.furnace_duration = 7*60  # 7秒持续
         self.has_furnace = False
 
@@ -152,8 +157,11 @@ class ElementalBurst(SkillBase, EventHandler):
 
     # 坠日斩
     def _perform_plunge_attack(self,target):
-        
-        print(f"🔥 坠日斩造成 点火元素伤害")
+        damage = Damage(damageMultipiler=self.damageMultipiler['坠日斩'][self.lv-1]+self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1],
+                        element=('火',1), damageType=DamageType.BURST)
+        damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
+        EventBus.publish(damageEvent)
+        print(f"🔥 坠日斩造成{damage.damage:.2f}点火元素伤害")
 
     def handle_event(self, event: GameEvent):
         # 角色切换，死生之炉状态结束
@@ -168,10 +176,9 @@ class ElementalBurst(SkillBase, EventHandler):
         elif event.event_type == EventType.BEFORE_NIGHT_SOUL_CONSUMPTION:
             self.gain_battle_will(event.data['amount'])
 
-
     def update(self, target):
         self.current_frame += 1
-        if self.current_frame == self.total_frames:
+        if self.current_frame == int(self.total_frames):
             # 进入死生之炉状态
             self.in_furnace = True
             self.caster.current_night_soul = min(self.caster.max_night_soul, self.caster.current_night_soul + 10)
@@ -210,24 +217,24 @@ class MAVUIKA(Character):
         self.max_night_soul = 80 # 夜魂值上限
         self.current_night_soul = 0
         self.Nightsoul_Blessing = False # 夜魂加持状态
-        self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self)
-        self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, before=False)
 
     def elemental_skill(self,hold=False):
         self._elemental_skill_impl(hold)
 
     def _elemental_skill_impl(self,hold=False):
-        if self.state == CharacterState.IDLE and self.Skill.start(self,hold):
-            self.state = CharacterState.SKILL
+        if self._is_change_state() and self.Skill.start(self,hold):
+            self._append_state(CharacterState.SKILL)
          # 已处于技能状态时切换形态
-        elif self.state == CharacterState.SKILL:
+        elif self.state[0] == CharacterState.SKILL:
             self.Skill.switch_mode()
 
     def chargeNightsoulBlessing(self):
         if self.Nightsoul_Blessing:
+            self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
             EventBus.publish(self.after_nightsoulBlessingevent)
             self.Nightsoul_Blessing = False
         else:
+            self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
             EventBus.publish(self.before_nightsoulBlessingevent)
             self.Nightsoul_Blessing = True
             print(f"🌙 夜魂加持，夜魂值上限提升至{self.max_night_soul}")

@@ -1,16 +1,17 @@
 from abc import ABC, abstractmethod
-from character.character import Character
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, NormalAttackEvent
 from enum import Enum, auto
 
+from setup.Tool import GetCurrentTime
+
 # 天赋效果基类
 class TalentEffect:
-    def apply(self, character: Character):
+    def apply(self, character):
         pass
 
 class ConstellationEffect:
-    def apply(self, character: Character):
+    def apply(self, character):
         pass
 
 class SkillSate(Enum):
@@ -106,15 +107,19 @@ class NormalAttackSkill(SkillBase):
 
     def _apply_segment_effect(self,target):
         
-        # 发布普通攻击事件
-        normal_attack_event = NormalAttackEvent(self.caster,target.current_frame)
+        # 发布普通攻击事件（前段）
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime())
         EventBus.publish(normal_attack_event)
 
         # 发布伤害事件
         damage = Damage(self.getDamageMultipiler(),self.element,DamageType.NORMAL)
-        damage_event = DamageEvent(self.caster,target,damage)
+        damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
         EventBus.publish(damage_event)
         print(f"🎯 {self.caster.name} 对 {target.name} 造成了 {damage.damage} 点伤害")
+
+        # 发布普通攻击事件（后段）
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),before=False,damage=damage)
+        EventBus.publish(normal_attack_event)
 
     def on_interrupt(self):
         print(f"💢 第{self.current_segment+1}段攻击被打断！")

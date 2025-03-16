@@ -26,7 +26,6 @@ class Emulation:
         action = iter(actions)
         self.team.swqp(next(action))
         self.team.current_frame = 0 # 初始化当前帧数
-        self.current_frame = 0 
         try:
             self.next_character = next(action)
         except StopIteration:
@@ -34,7 +33,6 @@ class Emulation:
             print("最后一个动作开始执行")
 
         while True:
-            self.current_frame += 1
             if self._update(self.target,action):
                 break
 
@@ -50,7 +48,7 @@ class Emulation:
                 self.next_character = None
                 print("最后一个动作开始执行")
 
-        if self.next_character is None and self.team.current_character.state == CharacterState.IDLE:
+        if self.next_character is None and self.team.current_character.state[0] == CharacterState.IDLE:
             print("动作执行完毕")
             return True
         return False

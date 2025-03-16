@@ -1,7 +1,7 @@
 from setup.BaseClass import SkillBase
 from setup.DamageCalculation import DamageType
 from setup.Event import EventBus, EventType, GameEvent
-from .character import Character,CharacterState
+from .character import Character
 
 class RuishouDenggaolou(SkillBase):
     def __init__(self,lv):
@@ -144,26 +144,7 @@ class GaMing(Character):
         self.Skill = RuishouDenggaolou(skill_params[1])
         self.Burst = RuishouDenggaolou(skill_params[2])
         self.NormalAttack = NormalAttackSkill(skill_params[0])
-        
-    def _normal_attack_impl(self,n):
-        if self.state == CharacterState.IDLE:
-            self.state = CharacterState.NORMAL_ATTACK
-            self.NormalAttack.start(self,n)
-
-    def _heavy_attack_impl(self):
-        ...
-
-    def _elemental_skill_impl(self):
-        if self.state == CharacterState.IDLE:
-            self.state = CharacterState.SKILL
-            self.Skill.start(self)
-
-    def _elemental_burst_impl(self):
-        if self.state == CharacterState.IDLE:
-            self.state = CharacterState.BURST
-            self.Burst.start(self)
 
     def update(self,target):
         super().update(target)
-        
         

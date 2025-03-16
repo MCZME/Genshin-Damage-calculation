@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
-from setup.BaseClass import SkillSate
 import setup.Tool as T
 
 # 角色状态枚举
@@ -131,7 +130,7 @@ class Character:
             effect.apply(self)
 
     def update(self,target):
-        self.weapon.update()
+        self.weapon.update(target)
         for i in self.state:
             if i == CharacterState.SKILL:
                 if self.Skill.update(target):
@@ -158,6 +157,7 @@ class Character:
             self.state.append(state)
 
     def _is_change_state(self):
+        from setup.BaseClass import SkillSate
         for i in self.state:
             if i == CharacterState.IDLE:
                 return True

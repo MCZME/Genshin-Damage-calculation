@@ -42,31 +42,35 @@ class EventType(Enum):
 # 事件类
 # --------------------------
 class GameEvent:
-    def __init__(self, event_type: EventType, **kwargs):
+    def __init__(self, event_type: EventType, frame, **kwargs):
         self.event_type = event_type
+        self.frame = frame
         self.data = kwargs        # 扩展数据
         self.cancelled = False    # 是否取消事件
 
 class DamageEvent(GameEvent):
-    def __init__(self, source, target, damage, **kwargs):
-        super().__init__(EventType.BEFORE_DAMAGE, source=source, target=target, damage=damage, **kwargs)
+    def __init__(self, source, target, damage, frame, **kwargs):
+        super().__init__(EventType.BEFORE_DAMAGE, frame=frame, source=source, target=target, damage=damage, **kwargs)
 
 class CharacterSwitchEvent(GameEvent):
-    def __init__(self, old_character, new_character, **kwargs):
-        super().__init__(EventType.CHARACTER_SWITCH, old_character=old_character, new_character=new_character, **kwargs)
+    def __init__(self, old_character, new_character, frame, **kwargs):
+        super().__init__(EventType.CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
 
 class NightSoulBlessingEvent(GameEvent):
-    def __init__(self, character, before=True, **kwargs):
-        super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING if before else EventType.AFTER_NIGHTSOUL_BLESSING, character=character, **kwargs)
+    def __init__(self, character, frame, before=True, **kwargs):
+        super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING if before else EventType.AFTER_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
 
 class NormalAttackEvent(GameEvent):
-    def __init__(self, character,frame, before=True, **kwargs):
-        super().__init__(EventType.BEFORE_NORMAL_ATTACK if before else EventType.AFTER_NORMAL_ATTACK, character=character,frame=frame, **kwargs)
+    def __init__(self, character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_NORMAL_ATTACK, frame=frame, character=character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_NORMAL_ATTACK, frame=frame, character=character, **kwargs)
 
 class NightSoulConsumptionEvent(GameEvent):
-    def __init__(self, character,amount ,before=True, **kwargs):
+    def __init__(self, character, amount, frame, before=True, **kwargs):
         super().__init__(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION if before else EventType.AFTER_NIGHT_SOUL_CONSUMPTION,
-                        character=character, amount=amount, **kwargs)
+                        frame=frame, character=character, amount=amount, **kwargs)
 
 # --------------------------
 # 事件处理器接口
