@@ -11,6 +11,5 @@ def init():
 
 # todo:
 # 马薇卡 元素战技和元素爆发
-# 实现武器更新逻辑
 if __name__ == '__main__':
     init()

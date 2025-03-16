@@ -139,7 +139,7 @@ class ElementalBurst(SkillBase, EventHandler):
         
         # 订阅事件
         EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
-        EventBus.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
         EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
 
     def start(self, caster):
@@ -169,10 +169,10 @@ class ElementalBurst(SkillBase, EventHandler):
             if event.data['old_character'] == self.caster and self.in_furnace:
                 self.in_furnace = False
         # 普通攻击获得战意
-        elif event.event_type == EventType.BEFORE_NORMAL_ATTACK:
-            if event.data['frame']-self.last_will_gain_time >= 6:
+        elif event.event_type == EventType.AFTER_NORMAL_ATTACK:
+            if event.frame - self.last_will_gain_time >= 6:
                 self.gain_battle_will(1.5)
-                self.last_will_gain_time = event.data['frame']
+                self.last_will_gain_time = event.frame
         elif event.event_type == EventType.BEFORE_NIGHT_SOUL_CONSUMPTION:
             self.gain_battle_will(event.data['amount'])
 
@@ -204,11 +204,23 @@ class ElementalBurst(SkillBase, EventHandler):
             print(f"🔥 获得战意：{self.battle_will:.2f}")
         self.ttt += 1
 
+class MavuikaNormalAttackSkill(NormalAttackSkill):
+    def __init__(self,lv):
+        super().__init__(lv)
+        self.segment_frames = [38,40,50,48]
+        self.damageMultipiler = {
+            1:[80.04,86.55,93.06,102.37,108.88,116.33,126.57,136.8,147.07,158.21,169.38],
+            2:[36.48*2,39.45*2,42.42*2,46.66*2,49.63*2,53.02*2,57.69*2,62.36*2,67.02*2,72.11*2,77.2*2],
+            3:[33.22*3,35.93*3,38.63*3,42.49*3,45.2*3,48.29*3,52.54*3,56.79*3,61.04*3,65.67*3,70.31*3],
+            4:[116.19,125.65,135.11,148.62,158.08,168.89,183.75,198.61,213.47,229.68,245.9]
+        }
+
+
 class MAVUIKA(Character):
     ID = 92
     def __init__(self,level,skill_params):
         super().__init__(self.ID,level,skill_params)
-        self.NormalAttack = NormalAttackSkill(skill_params[0])
+        self.NormalAttack = MavuikaNormalAttackSkill(skill_params[0])
         self.Skill = ElementalSkill(skill_params[1])
         self.Burst = ElementalBurst(skill_params[2])
 

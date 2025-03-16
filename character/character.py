@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
-from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus
+from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, NormalAttackEvent
 import setup.Tool as T
 
 # 角色状态枚举
@@ -96,6 +96,8 @@ class Character:
     @abstractmethod
     def _normal_attack_impl(self,n):
         """普攻具体实现"""
+        if self._is_change_state() and self.NormalAttack.start(self,n):
+            self._append_state(CharacterState.NORMAL_ATTACK)
 
     def heavy_attack(self):
         """重击（需体力）"""

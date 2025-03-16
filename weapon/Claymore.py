@@ -13,6 +13,8 @@ class SerpentSpine(Weapon):
         attributePanel = self.character.attributePanel
         attributePanel['伤害加成'] += 5*self.skill_param[self.lv-1]
 
+# 焚曜千阳
+# 未测试 时间延长功能
 class AThousandBlazingSuns(Weapon, EventHandler):
     ID = 92
     def __init__(self, character, level, lv):
