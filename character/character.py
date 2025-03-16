@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import Enum, auto
-import json
 from DataRequest import DR
+from setup.BaseClass import SkillSate
 import setup.Tool as T
 
 # 角色状态枚举
@@ -55,7 +55,8 @@ class Character:
 
         self.weapon = None
         self.artifactManager = None
-        self.state = CharacterState.IDLE
+        self.state = [CharacterState.IDLE]
+        self.on_field = False
         self._init_character()    # 初始化特有属性
 
     def _get_data(self,level):
@@ -111,8 +112,8 @@ class Character:
     @abstractmethod
     def _elemental_skill_impl(self):
         """元素战技具体实现"""
-        if self.state == CharacterState.IDLE and self.Skill.start(self):
-            self.state = CharacterState.SKILL
+        if self._is_change_state() and self.Skill.start(self):
+            self._append_state(CharacterState.SKILL)
             
     def elemental_burst(self):
         """元素爆发"""
@@ -121,8 +122,8 @@ class Character:
     @abstractmethod
     def _elemental_burst_impl(self):
         """元素爆发具体实现"""
-        if self.state == CharacterState.IDLE and self.Burst.start(self):
-            self.state = CharacterState.BURST
+        if self._is_change_state() and self.Burst.start(self):
+            self._append_state(CharacterState.BURST)
             
     def apply_talents(self):
         """应用天赋效果"""
@@ -130,19 +131,42 @@ class Character:
             effect.apply(self)
 
     def update(self,target):
-        if self.state == CharacterState.SKILL:
-            if self.Skill.update(target):
-                self.state = CharacterState.IDLE
-        elif self.state == CharacterState.BURST:
-            if self.Burst.update(target):
-                self.state = CharacterState.IDLE
-        elif self.state == CharacterState.NORMAL_ATTACK:
-            if self.NormalAttack.update(target):
-                self.state = CharacterState.IDLE
-        elif self.state == CharacterState.HEAVY_ATTACK:
-            if self.HeavyAttack.update(target):
-                self.state = CharacterState.IDLE
-    
+        self.weapon.update()
+        for i in self.state:
+            if i == CharacterState.SKILL:
+                if self.Skill.update(target):
+                    self.state.remove(CharacterState.SKILL)
+            elif i == CharacterState.BURST:
+                if self.Burst.update(target):
+                    self.state.remove(CharacterState.BURST)
+            elif i == CharacterState.NORMAL_ATTACK:
+                if self.NormalAttack.update(target):
+                    self.state.remove(CharacterState.NORMAL_ATTACK)
+            elif i == CharacterState.HEAVY_ATTACK:
+                if self.HeavyAttack.update(target):
+                    self.state.remove(CharacterState.HEAVY_ATTACK)
+        if len(self.state) == 0:
+            self._append_state(CharacterState.IDLE)
+
+    def _append_state(self,state):
+        if state is not CharacterState.IDLE:
+            if CharacterState.IDLE in self.state:
+                self.state.remove(CharacterState.IDLE)
+            self.state.append(state)
+        elif state is CharacterState.IDLE:
+            self.state.clear()
+            self.state.append(state)
+
+    def _is_change_state(self):
+        for i in self.state:
+            if i == CharacterState.IDLE:
+                return True
+            elif i == CharacterState.SKILL and self.Skill.state == SkillSate.OffField:
+                return True
+            elif i == CharacterState.BURST and self.Burst.state == SkillSate.OffField:
+                return True
+        return False
+
     def to_dict(self):
         return {
             'id': self.id,
