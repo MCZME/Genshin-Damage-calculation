@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
+from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus
 import setup.Tool as T
 
 # 角色状态枚举
@@ -65,9 +66,9 @@ class Character:
         self.attributeData["防御力"] = self.data[21+l]
         t = T.attributeId(self.data[-1])
         if t != "元素伤害加成":
-            self.attributeData[t] = self.data[29+l]
+            self.attributeData[t] += self.data[29+l]
         else:
-            self.attributeData[self.element+t] = self.data[29+l]
+            self.attributeData[self.element+t] += self.data[29+l]
 
     @abstractmethod
     def _init_character(self):
@@ -113,6 +114,8 @@ class Character:
         """元素战技具体实现"""
         if self._is_change_state() and self.Skill.start(self):
             self._append_state(CharacterState.SKILL)
+            skillEvent = ElementalSkillEvent(self,T.GetCurrentTime())
+            EventBus.publish(skillEvent)
             
     def elemental_burst(self):
         """元素爆发"""
@@ -123,6 +126,8 @@ class Character:
         """元素爆发具体实现"""
         if self._is_change_state() and self.Burst.start(self):
             self._append_state(CharacterState.BURST)
+            burstEvent = ElementalBurstEvent(self,T.GetCurrentTime())
+            EventBus.publish(burstEvent)
             
     def apply_talents(self):
         """应用天赋效果"""
@@ -135,9 +140,13 @@ class Character:
             if i == CharacterState.SKILL:
                 if self.Skill.update(target):
                     self.state.remove(CharacterState.SKILL)
+                    skillEvent = ElementalSkillEvent(self,T.GetCurrentTime(),False)
+                    EventBus.publish(skillEvent)
             elif i == CharacterState.BURST:
                 if self.Burst.update(target):
                     self.state.remove(CharacterState.BURST)
+                    burstEvent = ElementalBurstEvent(self,T.GetCurrentTime(),False)
+                    EventBus.publish(burstEvent)
             elif i == CharacterState.NORMAL_ATTACK:
                 if self.NormalAttack.update(target):
                     self.state.remove(CharacterState.NORMAL_ATTACK)

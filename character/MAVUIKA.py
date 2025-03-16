@@ -1,7 +1,7 @@
 from character.character import Character, CharacterState
 from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent
+from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent
 from setup.Tool import GetCurrentTime
 
 # todo: 
@@ -92,7 +92,7 @@ class ElementalSkill(SkillBase,EventHandler):
             damage = Damage(damageMultipiler=self.damageMultipiler['焚曜之环'][self.lv-1], element=('火',1), damageType=DamageType.SKILL)
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
-            print(f"🔥 焚曜之环造成伤害：{damage.damage}")
+            print(f"🔥 焚曜之环造成伤害：{damage.damage:.2f}")
             
     def _handle_chariot(self, target):
         """驰轮车形态移动攻击逻辑"""
@@ -224,6 +224,8 @@ class MAVUIKA(Character):
     def _elemental_skill_impl(self,hold=False):
         if self._is_change_state() and self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
+            skillEvent = ElementalSkillEvent(self, frame=GetCurrentTime())
+            EventBus.publish(skillEvent)
          # 已处于技能状态时切换形态
         elif self.state[0] == CharacterState.SKILL:
             self.Skill.switch_mode()

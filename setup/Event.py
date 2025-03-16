@@ -72,6 +72,20 @@ class NightSoulConsumptionEvent(GameEvent):
         super().__init__(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION if before else EventType.AFTER_NIGHT_SOUL_CONSUMPTION,
                         frame=frame, character=character, amount=amount, **kwargs)
 
+class ElementalBurstEvent(GameEvent):
+    def __init__(self, character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_BURST, frame=frame, character=character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_BURST, frame=frame, character=character, **kwargs)
+
+class ElementalSkillEvent(GameEvent):
+    def __init__(self, character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_SKILL, frame=frame, character=character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_SKILL, frame=frame, character=character, **kwargs)
+
 # --------------------------
 # 事件处理器接口
 # --------------------------

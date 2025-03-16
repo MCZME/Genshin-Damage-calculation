@@ -33,6 +33,7 @@ class Emulation:
             print("最后一个动作开始执行")
 
         while True:
+            self.current_frame += 1
             if self._update(self.target,action):
                 break
 

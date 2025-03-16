@@ -49,6 +49,9 @@ class Weapon:
     def skill(self):
         ...
 
+    def update(self,target):
+        ...
+
     def to_dict(self):
         return {
             'id': self.id,
