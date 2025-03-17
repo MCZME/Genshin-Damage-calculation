@@ -107,6 +107,9 @@ class Character:
     @abstractmethod
     def _heavy_attack_impl(self):
         """重击具体实现"""
+        if self._is_change_state() and self.HeavyAttack.start(self):
+            self._append_state(CharacterState.HEAVY_ATTACK)
+
 
     def elemental_skill(self):
         """元素战技"""

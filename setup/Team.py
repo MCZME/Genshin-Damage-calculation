@@ -29,17 +29,17 @@ class Team:
         self.team.clear()
         self.current_character = None
     
-    def swqp(self,action):
+    def swap(self,action):
          # 获取当前技能类型（SKILL或BURST）
-        if self.current_character.state[0] == CharacterState.SKILL:
-                current_skill = self.current_character.Skill
-        elif self.current_character.state[0] == CharacterState.BURST:
+        if self.current_character.state[-1] == CharacterState.SKILL:
+            current_skill = self.current_character.Skill
+        elif self.current_character.state[-1] == CharacterState.BURST:
             current_skill = self.current_character.Burst
         else:
             current_skill = None
 
         if action[0] == self.current_character.name: # 如果是当前角色，则执行动作
-            if (self.current_character.state[0] == CharacterState.IDLE or 
+            if (self.current_character.state[-1] == CharacterState.IDLE or 
                 (current_skill is not None and current_skill.state == SkillSate.OffField)):
                 if hasattr(self.current_character, action[1]):
                     if action[2] is not None:
@@ -47,6 +47,7 @@ class Team:
                     else:
                         getattr(self.current_character, action[1])()
                     return True
+            return False  # 状态不允许执行新动作
         else: # 如果不是当前角色，则切换角色
             if self.current_frame == 0:
                 for character in self.team:

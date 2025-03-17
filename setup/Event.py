@@ -67,6 +67,13 @@ class NormalAttackEvent(GameEvent):
         else:
             super().__init__(EventType.AFTER_NORMAL_ATTACK, frame=frame, character=character, **kwargs)
 
+class HeavyAttackEvent(GameEvent):
+    def __init__(self, character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_HEAVY_ATTACK, frame=frame, character=character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_HEAVY_ATTACK, frame=frame, character=character, **kwargs)
+
 class NightSoulConsumptionEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
         super().__init__(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION if before else EventType.AFTER_NIGHT_SOUL_CONSUMPTION,

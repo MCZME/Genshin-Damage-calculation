@@ -24,7 +24,7 @@ class Emulation:
         {Name:actionName}
         """
         action = iter(actions)
-        self.team.swqp(next(action))
+        self.team.swap(next(action))
         self.team.current_frame = 0 # 初始化当前帧数
         try:
             self.next_character = next(action)
@@ -41,7 +41,7 @@ class Emulation:
         self.team.update(target)
         self.target.update()
 
-        if self.next_character is not None and self.team.swqp(self.next_character):
+        if self.next_character is not None and self.team.swap(self.next_character):
             print("切换成功")
             try:
                 self.next_character = next(action)

@@ -1,7 +1,7 @@
 from character.character import Character, CharacterState
-from setup.BaseClass import Effect, NormalAttackSkill, SkillBase, SkillSate
+from setup.BaseClass import Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent
+from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime
 
 class ElementalSkill(SkillBase,EventHandler):
@@ -72,6 +72,7 @@ class ElementalSkill(SkillBase,EventHandler):
             print(f"🔥 焚曜之环造成伤害：{damage.damage:.2f}")
             
     def on_finish(self):
+        super().on_finish()
         self.caster.chargeNightsoulBlessing()
         self.caster.mode = '正常模式'
         print("🌙 夜魂加持结束")
@@ -80,10 +81,11 @@ class ElementalSkill(SkillBase,EventHandler):
         self.on_finish()
 
 class FurnaceEffect(Effect, EventHandler):
-    def __init__(self, character, consumed_will):
+    def __init__(self, character, consumed_will, burst_instance):
         super().__init__(character)
         self.consumed_will = consumed_will
-        self.duration = 7 * 60  # 7秒持续
+        self.burst = burst_instance  # 持有元素爆发实例引用
+        self.duration = 7 * 60
         
     def apply(self):
         print(f'玛薇卡获得死生之炉')
@@ -121,7 +123,7 @@ class ElementalBurst(SkillBase, EventHandler):
         }
         # 战意系统属性
         self.max_battle_will = 200
-        self.battle_will = 0
+        self.battle_will = 100
         self.last_will_gain_time = 0  # 最后获得战意的时间戳
 
         # 控制标志
@@ -168,7 +170,7 @@ class ElementalBurst(SkillBase, EventHandler):
             self.caster.gain_night_soul(10)
             self.caster.switch_to_mode('驰轮车')
              # 创建并应用死生之炉效果
-            furnace_effect = FurnaceEffect(self.caster, self.consumed_will)
+            furnace_effect = FurnaceEffect(self.caster, self.consumed_will, self)
             self.caster.add_effect(furnace_effect)
             self._perform_plunge_attack(target)
         elif self.current_frame > self.total_frames:
@@ -180,7 +182,7 @@ class ElementalBurst(SkillBase, EventHandler):
         return super().on_frame_update(target)
 
     def on_finish(self):
-        ...
+        super().on_finish()
 
     def on_interrupt(self):
         self.on_finish()
@@ -194,22 +196,249 @@ class ElementalBurst(SkillBase, EventHandler):
 class MavuikaNormalAttackSkill(NormalAttackSkill):
     def __init__(self,lv):
         super().__init__(lv)
-        self.segment_frames = [38,40,50,48]
-        self.damageMultipiler = {
+        self.element_sequence = [1, 0, 0]  # 火元素附着序列 (1,0,0循环)
+        self.sequence_index = 0            # 当前序列位置
+        self.last_sequence_state = None    # 记录上次形态用于重置
+        # 普通形态的帧数和倍率
+        self.normal_segment_frames = [38,40,50,48]
+        self.normal_damageMultipiler = {
             1:[80.04,86.55,93.06,102.37,108.88,116.33,126.57,136.8,147.07,158.21,169.38],
             2:[36.48*2,39.45*2,42.42*2,46.66*2,49.63*2,53.02*2,57.69*2,62.36*2,67.02*2,72.11*2,77.2*2],
             3:[33.22*3,35.93*3,38.63*3,42.49*3,45.2*3,48.29*3,52.54*3,56.79*3,61.04*3,65.67*3,70.31*3],
             4:[116.19,125.65,135.11,148.62,158.08,168.89,183.75,198.61,213.47,229.68,245.9]
         }
+        # 驰轮车形态的帧数和倍率
+        self.chariot_segment_frames = [30, 35, 40, 45, 50]  # 5段攻击帧数
+        self.chariot_damageMultipiler = {
+            1:[57.26,61.93,66.59,73.25,77.91,83.23,90.56,97.88,105.21,113.2,121.19,129.18,137.17],
+            2:[59.13,63.95,68.76,75.63,80.45,85.95,93.51,101.08,108.64,116.89,125.14,133.39,141.64],
+            3:[69.99,75.68,81.38,89.52,95.21,101.72,110.68,119.63,128.58,138.35,148.11,157.88,167.64],
+            4:[69.7,75.38,81.05,89.16,94.83,101.31,110.23,119.15,128.06,137.79,147.51,157.24,166.97],
+            5:[91,98.41,105.82,116.4,123.81,132.27,143.91,155.55,167.19,179.89,192.59,205.29,217.99]
+        }
+
+    def start(self, caster, n):
+        # 根据形态切换数据
+        if caster.mode == '驰轮车':
+            self.segment_frames = self.chariot_segment_frames
+            self.damageMultipiler = self.chariot_damageMultipiler
+            self.max_segments = 5  # 驰轮车5段
+        else:
+            self.segment_frames = self.normal_segment_frames
+            self.damageMultipiler = self.normal_damageMultipiler
+            self.max_segments = 4  # 普通4段
+
+        if not super().start(caster, n):
+            return False
+        return True
+    
+    def _on_segment_end(self, target):
+        # 驰轮车状态下消耗夜魂
+        if self.caster.mode == '驰轮车':
+            if not self.caster.consume_night_soul(1):
+                print("⚠️ 夜魂不足，攻击中断")
+                self.current_segment = self.max_segments  # 强制结束攻击
+                return True
+        
+        return super()._on_segment_end(target)
+
+    def _apply_segment_effect(self, target):
+        # --------------------------
+        # 火元素序列控制逻辑
+        # --------------------------
+        if self.caster.mode == '驰轮车':
+            self.lv = self.caster.skill_params[1]
+            # 形态切换时重置序列
+            if self.last_sequence_state != '驰轮车':
+                self.sequence_index = 0
+                self.last_sequence_state = '驰轮车'
+
+            # 获取当前元素量并推进序列
+            element_value = self.element_sequence[self.sequence_index % 3]
+            element = ('火', element_value)
+            
+            # 推进序列索引(只在驰轮车形态下)
+            self.sequence_index += 1
+        else:
+            self.lv = self.caster.skill_params[0]
+            element = self.element  # 普通形态使用物理伤害
+            # 切换回普通形态时重置状态记录
+            self.last_sequence_state = '普通'
+
+        # --------------------------
+        # 伤害计算与事件发布
+        # --------------------------
+        base_multiplier = self.damageMultipiler[self.current_segment+1][self.lv-1]
+        
+        # 检测死生之炉效果
+        furnace_bonus = 0
+        for effect in self.caster.active_effects:
+            if isinstance(effect, FurnaceEffect):
+                normal_bonus = effect.burst.damageMultipiler['驰轮车普通攻击伤害提升'][self.lv-1]
+                furnace_bonus = effect.consumed_will * normal_bonus
+                break
+
+        total_multiplier = base_multiplier + furnace_bonus
+        damage = Damage(
+            damageMultipiler=total_multiplier,
+            element=element,
+            damageType=DamageType.NORMAL
+        )
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+
+        # 输出带序列状态的日志
+        if self.caster.mode == '驰轮车':
+            seq_pos = (self.sequence_index-1) % 3 + 1  # 显示1-based位置
+            gauge_info = f"🔥(量{element[1]} 序列{seq_pos}/3)"
+            print(f"🎯 驰轮车第{self.current_segment+1}段 {gauge_info} 造成 {damage.damage:.2f} 伤害")
+        else:
+            print(f"🎯 普通攻击造成 {damage.damage:.2f} 物理伤害")
+
+        # 发布普通攻击后事件（保持原有逻辑）
+        normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False)
+        EventBus.publish(normal_attack_event)
+
+class MavuikaHeavyAttackSkill(HeavyAttackSkill):
+    def __init__(self, lv):
+        super().__init__(lv)
+        # 驰轮车形态参数
+        self.spin_interval = 40  # 每次旋转伤害间隔帧数
+        self.spin_count = 0             # 当前旋转次数
+        self.spin_total = 8             # 总旋转次数
+        self.finish_damage_frame = 80   # 终结伤害帧数
+
+        # 火元素附着序列控制
+        self.element_sequence = [1, 0, 0]  # 旋转伤害附着序列
+        self.sequence_index = 0           # 当前序列位置
+        self.last_mode_state = None      # 记录上次形态
+
+        # 伤害倍率配置
+        self.damageMultipiler = [  
+            193.84,209.62,225.4,247.94,263.72,281.75,306.54,331.34,356.13,383.18,410.23
+        ]
+        self.chariot_multiplier = {
+            '驰轮车重击循环伤害':[98.9,106.95,115,126.5,134.55,143.75,156.4,160.05,181.7,195.5,209.3,223.1,236.9],
+            '驰轮车重击终结伤害':[137.6,148.8,160,176,187.2,200,217.6,235.2,252.8,272,291.2,310.4,329.6]
+        }
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+        
+        # 检查夜魂值
+        if caster.mode == '驰轮车' and not caster.consume_night_soul(2):
+            print("⚠️ 夜魂不足，无法发动驰轮车重击")
+            return False
+
+        # 根据形态初始化参数
+        if caster.mode == '驰轮车':
+            self.total_frames = self.spin_interval * self.spin_total + self.finish_damage_frame + 1
+            self.spin_count = 0
+            self.sequence_index = 0
+            print("🌀 进入驰轮车重击-焰轮旋舞")
+        else:
+            # 普通重击参数
+            self.total_frames = 45  # 默认45帧
+
+        return True
+
+    def on_frame_update(self, target):
+        # 普通重击逻辑
+        if self.caster.mode != '驰轮车':
+            return super().on_frame_update(target)
+
+        # 驰轮车重击逻辑
+        # 旋转阶段
+        if self.spin_count < self.spin_total:
+            if self.current_frame % self.spin_interval == 0:
+                self._apply_spin_damage(target)
+                self.spin_count += 1
+                # 每次旋转消耗夜魂
+                if not self.caster.consume_night_soul(2):
+                    print("⚠️ 夜魂不足，重击中断")
+                    self.on_interrupt()
+                    return True
+        # 终结伤害阶段
+        elif self.current_frame == self.spin_total * self.spin_interval + self.finish_damage_frame:
+            self._apply_finish_damage(target)
+            return True
+
+        return False
+
+    def _apply_spin_damage(self, target):
+        """应用旋转伤害"""
+        event = HeavyAttackEvent(self.caster, GetCurrentTime())
+        EventBus.publish(event)
+        # 获取当前元素量
+        element_value = self.element_sequence[self.sequence_index % 3]
+        element = ('火', element_value)
+        self.sequence_index += 1
+
+        base_multiplier = self.chariot_multiplier['驰轮车重击循环伤害'][self.lv-1]
+        
+        # 检测死生之炉效果
+        furnace_bonus = 0
+        for effect in self.caster.active_effects:
+            if isinstance(effect, FurnaceEffect):
+                heavy_bonus = effect.burst.damageMultipiler['驰轮车重击伤害提升'][self.lv-1]
+                furnace_bonus = effect.consumed_will * heavy_bonus
+                break
+
+        total_multiplier = base_multiplier + furnace_bonus
+        damage = Damage(
+            total_multiplier,
+            element=element,
+            damageType=DamageType.HEAVY
+        )
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+        print(f"🌀 焰轮旋舞第{self.spin_count+1}段 {element} 造成 {damage.damage:.2f} 火伤")
+
+        event = HeavyAttackEvent(self.caster, GetCurrentTime(), before=False)
+        EventBus.publish(event)
+
+    def _apply_finish_damage(self, target):
+        """应用终结伤害"""
+        base_multiplier = self.chariot_multiplier['驰轮车重击终结伤害'][self.lv-1]
+        
+        # 检测死生之炉效果
+        furnace_bonus = 0
+        for effect in self.caster.active_effects:
+            if isinstance(effect, FurnaceEffect):
+                heavy_bonus = effect.burst.damageMultipiler['驰轮车重击伤害提升'][self.lv-1]
+                furnace_bonus = effect.consumed_will * heavy_bonus
+                break
+
+        total_multiplier = base_multiplier + furnace_bonus
+        damage = Damage(
+            total_multiplier,
+            element=('火', 1),  
+            damageType=DamageType.HEAVY
+        )
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+        print(f"💥 焰轮终结 造成 {damage.damage:.2f} 火伤")
+
+    def on_finish(self):
+        super().on_finish()
+        if self.caster.mode == '驰轮车':
+            print("🎇 焰轮旋舞结束")
+
+    def on_interrupt(self):
+        super().on_interrupt()
+        if self.caster.mode == '驰轮车':
+            print("💢 焰轮旋舞被打断！")
 
 # todo: 
-# 1. 元素战技状态切换
-# 2. 驰轮车状态下攻击实现
+# 1. 天赋实现
+# 2. 命座实现
 class MAVUIKA(Character):
     ID = 92
     def __init__(self,level,skill_params):
         super().__init__(MAVUIKA.ID,level,skill_params)
         self.NormalAttack = MavuikaNormalAttackSkill(skill_params[0])
+        self.HeavyAttack = MavuikaHeavyAttackSkill(skill_params[0])
         self.Skill = ElementalSkill(skill_params[1])
         self.Burst = ElementalBurst(skill_params[2])
 
