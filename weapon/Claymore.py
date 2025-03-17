@@ -14,7 +14,6 @@ class SerpentSpine(Weapon):
         attributePanel['伤害加成'] += 5*self.skill_param[self.lv-1]
 
 # 焚曜千阳
-# 未测试 时间延长功能
 class AThousandBlazingSuns(Weapon, EventHandler):
     ID = 92
     def __init__(self, character, level, lv):
@@ -33,7 +32,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
         # 注册事件监听
         EventBus.subscribe(EventType.BEFORE_SKILL, self)
         EventBus.subscribe(EventType.BEFORE_BURST, self)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE, self)
         EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
         EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
 
@@ -48,7 +47,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
                 self._activate_fen_guang(event.frame)
                 
         # 延长持续时间
-        elif event.event_type == EventType.AFTER_DAMAGE:
+        elif event.event_type == EventType.BEFORE_DAMAGE:
             if self.fen_guang_active and self._is_valid_damage(event.data['damage']):
                 if event.frame - self.last_extension_frame >= 60:  # 1秒冷却
                     self._extend_fen_guang(event.frame, 120)  # 延长2秒

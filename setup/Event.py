@@ -50,7 +50,7 @@ class GameEvent:
 
 class DamageEvent(GameEvent):
     def __init__(self, source, target, damage, frame, **kwargs):
-        super().__init__(EventType.BEFORE_DAMAGE, frame=frame, source=source, target=target, damage=damage, **kwargs)
+        super().__init__(EventType.BEFORE_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
 
 class CharacterSwitchEvent(GameEvent):
     def __init__(self, old_character, new_character, frame, **kwargs):

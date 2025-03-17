@@ -91,5 +91,5 @@ class Calculation:
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
-            calculation = Calculation(event.data['source'], event.data['target'], event.data['damage'])
+            calculation = Calculation(event.data['character'], event.data['target'], event.data['damage'])
             calculation.calculation()
