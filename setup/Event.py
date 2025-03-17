@@ -113,6 +113,13 @@ class EventBus:
         cls._handlers[event_type].append(handler)
 
     @classmethod
+    def unsubscribe(cls, event_type: EventType, handler: EventHandler):
+        if event_type in cls._handlers:
+            cls._handlers[event_type].remove(handler)
+            if not cls._handlers[event_type]:
+                del cls._handlers[event_type]
+
+    @classmethod
     def publish(cls, event: GameEvent):
         if event.event_type in cls._handlers:
             for handler in cls._handlers[event.event_type]:

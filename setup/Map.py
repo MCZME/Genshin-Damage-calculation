@@ -1,6 +1,6 @@
 from character.GAMING import GaMing
 from character.MAVUIKA import MAVUIKA
-from weapon.Claymore import SerpentSpine
+from weapon.Claymore import *
 
 
 CharacterClassMap = {
@@ -9,5 +9,6 @@ CharacterClassMap = {
 }
 
 WeaponClassMap = {
-    1:SerpentSpine
+    1:SerpentSpine,
+    92:AThousandBlazingSuns
 }

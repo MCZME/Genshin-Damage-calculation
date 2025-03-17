@@ -36,7 +36,6 @@ class Effect:
                 return True
         return False
 
-
 class SkillSate(Enum):
     OnField = auto()
     OffField = auto()
