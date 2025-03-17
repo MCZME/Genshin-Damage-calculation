@@ -78,6 +78,7 @@ class Character:
         self.Skill = None
         self.Burst = None
         self.talent_effects = []  # 天赋效果列表
+        self.active_effects = []  # 激活效果列表
 
     def setArtifact(self,artifact):
         self.artifactManager = artifact
@@ -137,6 +138,7 @@ class Character:
             effect.apply(self)
 
     def update(self,target):
+        self.update_effects()
         self.weapon.update(target)
         for i in self.state:
             if i == CharacterState.SKILL:
@@ -177,6 +179,15 @@ class Character:
             elif i == CharacterState.BURST and self.Burst.state == SkillSate.OffField:
                 return True
         return False
+
+    def add_effect(self, effect):
+        effect.apply()
+        self.active_effects.append(effect)
+        
+    def update_effects(self):
+        for effect in self.active_effects.copy():
+            if effect.update():
+                self.active_effects.remove(effect)
 
     def to_dict(self):
         return {

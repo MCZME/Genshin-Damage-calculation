@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 from setup.Tool import GetCurrentTime
 
-# 天赋效果基类
+# 效果基类
 class TalentEffect:
     def apply(self, character):
         pass
@@ -13,6 +13,29 @@ class TalentEffect:
 class ConstellationEffect:
     def apply(self, character):
         pass
+
+class Effect:
+    def __init__(self, character):
+        self.character = character
+        self.duration = 0
+        
+    def apply(self):
+        """应用效果"""
+        pass
+    
+    def remove(self):
+        """移除效果"""
+        pass
+    
+    def update(self):
+        """更新持续时间"""
+        if self.duration > 0:
+            self.duration -= 1
+            if self.duration <= 0:
+                self.remove()
+                return True
+        return False
+
 
 class SkillSate(Enum):
     OnField = auto()
@@ -114,7 +137,6 @@ class NormalAttackSkill(SkillBase):
         return False
 
     def _apply_segment_effect(self,target):
-
         # 发布伤害事件
         damage = Damage(self.damageMultipiler[self.current_segment+1][self.lv-1],self.element,DamageType.NORMAL)
         damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
