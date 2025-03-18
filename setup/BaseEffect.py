@@ -37,12 +37,13 @@ class DefenseDebuffEffect(Effect):
         
     def apply(self):
         # 检查现有效果
-        existing = next((e for e in self.target.active_effects 
+        existing = next((e for e in self.target.effects 
                        if isinstance(e, DefenseDebuffEffect) 
                        and e.source_signature == self.source_signature), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
+        self.target.defense = self.target.defense * (1 - self.debuff_rate)
         self.target.add_effect(self)
         
     def remove(self):

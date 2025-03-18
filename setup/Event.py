@@ -50,8 +50,11 @@ class GameEvent:
         self.cancelled = False    # 是否取消事件
 
 class DamageEvent(GameEvent):
-    def __init__(self, source, target, damage, frame, **kwargs):
-        super().__init__(EventType.BEFORE_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
+    def __init__(self, source, target, damage, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
 
 class CharacterSwitchEvent(GameEvent):
     def __init__(self, old_character, new_character, frame, **kwargs):

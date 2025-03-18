@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from character.character import Character
-from setup.Event import EventBus, EventHandler, EventType, GameEvent
+from setup.Event import DamageEvent, EventBus, EventHandler, EventType
 from setup.Target import Target
 
 # 定义一个枚举类，表示伤害类型
@@ -52,7 +52,7 @@ class Calculation:
         return attributePanel['暴击伤害']/100
 
     def defense(self):
-        return self.target.defense/(self.target.defense+5*self.source.level+500)
+        return (5*self.source.level+500)/(self.target.defense+5*self.source.level+500)
 
     def resistance(self):
         r = self.target.element_resistance[self.damage.element[0]]
@@ -83,7 +83,7 @@ class Calculation:
             return 1.5*(1+(2.78*e/(e+1400)))
         
     def calculation(self):
-        value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * (self.resistance()) * self.reaction()
+        value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
 
 class DamageCalculateEventHandler(EventHandler):
@@ -91,3 +91,5 @@ class DamageCalculateEventHandler(EventHandler):
         if event.event_type == EventType.BEFORE_DAMAGE:
             calculation = Calculation(event.data['character'], event.data['target'], event.data['damage'])
             calculation.calculation()
+            damageEvent = DamageEvent(event.data['character'], event.data['target'], event.data['damage'], event.frame, before=False)
+            EventBus.publish(damageEvent)

@@ -179,6 +179,10 @@ class Character:
             elif i == CharacterState.HEAVY_ATTACK:
                 if self.HeavyAttack.update(target):
                     self.state.remove(CharacterState.HEAVY_ATTACK)
+        if self.constellation > 0:
+            for effect in self.constellation_effects[:self.constellation]:
+                if effect is not None:
+                    effect.update(target)
         if len(self.state) == 0:
             self._append_state(CharacterState.IDLE)
 
@@ -214,10 +218,6 @@ class Character:
         for talent in self.talent_effects:
             if talent is not None:
                 talent.update(target)
-        if self.constellation > 0:
-            for effect in self.constellation_effects[:self.constellation]:
-                if effect is not None:
-                    effect.update(target)
 
     def to_dict(self):
         return {

@@ -31,7 +31,7 @@ class ElementalSkill(SkillBase,EventHandler):
             print(f"🔥 进入夜魂加持状态，初始形态：{initial_mode}")
             self.ttt = True
             return True
-        return False
+        return True
 
     def handle_event(self, event: GameEvent):
         """处理角色切换事件"""
@@ -583,7 +583,6 @@ class MavuikaAttackScalingEffect(Effect):
             i -= 120
         self.character.remove_effect(self)
         
-
 class ConstellationEffect_2(ConstellationEffect, EventHandler):
     def __init__(self):
         super().__init__('灰烬的代价')
