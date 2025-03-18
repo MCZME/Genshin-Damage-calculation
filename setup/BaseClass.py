@@ -13,7 +13,7 @@ class TalentEffect:
     def apply(self, character):
         self.character = character
 
-    def update(self):
+    def update(self,target):
         pass
 
 class ConstellationEffect:
@@ -23,7 +23,7 @@ class ConstellationEffect:
     def apply(self, character):
         self.character = character
 
-    def update(self):
+    def update(self,target):
         pass
 
 class Effect:
@@ -39,14 +39,12 @@ class Effect:
         """移除效果"""
         pass
     
-    def update(self):
+    def update(self,target):
         """更新持续时间"""
         if self.duration > 0:
             self.duration -= 1
             if self.duration <= 0:
                 self.remove()
-                return True
-        return False
 
 class SkillSate(Enum):
     OnField = auto()
@@ -54,7 +52,7 @@ class SkillSate(Enum):
 
 # 技能基类
 class SkillBase(ABC):
-    def __init__(self, name, total_frames, cd, lv, element, interruptible=False,state=SkillSate.OnField):
+    def __init__(self, name, total_frames, cd, lv, element, caster=None,interruptible=False,state=SkillSate.OnField):
         self.name = name
         self.total_frames = total_frames    # 总帧数
         self.current_frame = 0              # 当前帧
@@ -64,7 +62,7 @@ class SkillBase(ABC):
         self.damageMultipiler = []
         self.interruptible = interruptible  # 是否可打断
         self.state = state
-        self.caster = None
+        self.caster = caster
 
     def start(self, caster):
         self.caster = caster

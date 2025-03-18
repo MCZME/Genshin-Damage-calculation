@@ -15,7 +15,7 @@ class CharacterState(Enum):
 
 class Character:
 
-    def __init__(self,id=1,level=1,skill_params=[1,1,1]):
+    def __init__(self,id=1,level=1,skill_params=[1,1,1],constellation=0):
         self.id = id
         self.level = level
         self.skill_params = skill_params
@@ -54,7 +54,7 @@ class Character:
         self.attributePanel = self.attributeData.copy()
 
         self.association = None
-        self.constellation = 0
+        self.constellation = constellation
 
         self.weapon = None
         self.artifactManager = None
@@ -154,12 +154,13 @@ class Character:
         for effect in self.talent_effects:
             if effect is not None:
                 effect.apply(self)
-        for effect in self.constellation_effects[self.constellation-1]:
-            if effect is not None:
-                effect.apply(self)
+        if self.constellation > 0:
+            for effect in self.constellation_effects[:self.constellation]:
+                if effect is not None:
+                    effect.apply(self)
 
     def update(self,target):
-        self.update_effects()
+        self.update_effects(target)
         self.weapon.update(target)
         for i in self.state:
             if i == CharacterState.SKILL:
@@ -202,19 +203,21 @@ class Character:
         return False
 
     def add_effect(self, effect):
-        effect.apply()
         self.active_effects.append(effect)
         
-    def update_effects(self):
+    def remove_effect(self, effect):
+        self.active_effects.remove(effect)
+
+    def update_effects(self,target):
         for effect in self.active_effects:
-            if effect.update():
-                self.active_effects.remove(effect)
+            effect.update(target)
         for talent in self.talent_effects:
             if talent is not None:
-                talent.update()
-        for effect in self.constellation_effects[self.constellation-1]:
-            if effect is not None:
-                effect.update()
+                talent.update(target)
+        if self.constellation > 0:
+            for effect in self.constellation_effects[:self.constellation]:
+                if effect is not None:
+                    effect.update(target)
 
     def to_dict(self):
         return {
