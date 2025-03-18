@@ -52,9 +52,7 @@ class Calculation:
         return attributePanel['暴击伤害']/100
 
     def defense(self):
-        t_level = self.target.level
-        c_level = self.source.level
-        return (100+c_level)/(190+(t_level+100))
+        return self.target.defense/(self.target.defense+5*self.source.level+500)
 
     def resistance(self):
         r = self.target.element_resistance[self.damage.element[0]]

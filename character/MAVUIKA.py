@@ -1,5 +1,7 @@
+import types
 from character.character import Character, CharacterState
-from setup.BaseClass import Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime
@@ -89,12 +91,19 @@ class FurnaceEffect(Effect, EventHandler):
         
     def apply(self):
         print(f'玛薇卡获得死生之炉')
-        # 订阅事件
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, FurnaceEffect)), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
         EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
         EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+
         
     def remove(self):
         print(f'死生之炉结束')
+        self.character.remove_effect(self)
         # 取消订阅
         EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
         EventBus.unsubscribe(EventType.CHARACTER_SWITCH, self)
@@ -112,8 +121,8 @@ class FurnaceEffect(Effect, EventHandler):
                 self.duration = 0  # 立即结束效果
 
 class ElementalBurst(SkillBase, EventHandler):
-    def __init__(self, lv):
-        super().__init__(name="燔天之时", total_frames=60*2.375, cd=18*60, lv=lv,
+    def __init__(self, lv, caster=None):
+        super().__init__(name="燔天之时", total_frames=60*2.375, cd=18*60, lv=lv, caster=caster,
                         element=('火', 1), state=SkillSate.OnField)
         self.damageMultipiler = {
             '坠日斩':[444.8,478.16,511.52,556,589.36,622.72,667.2,711.68,756.16,800.64,845.12,889.6,945.2],
@@ -123,7 +132,7 @@ class ElementalBurst(SkillBase, EventHandler):
         }
         # 战意系统属性
         self.max_battle_will = 200
-        self.battle_will = 100
+        self.battle_will = 0
         self.last_will_gain_time = -99  # 最后获得战意的时间戳
 
         # 控制标志
@@ -171,7 +180,7 @@ class ElementalBurst(SkillBase, EventHandler):
             self.caster.switch_to_mode('驰轮车')
              # 创建并应用死生之炉效果
             furnace_effect = FurnaceEffect(self.caster, self.consumed_will, self)
-            self.caster.add_effect(furnace_effect)
+            furnace_effect.apply()
             self._perform_plunge_attack(target)
         elif self.current_frame > self.total_frames:
             self.on_finish()
@@ -430,29 +439,6 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         if self.caster.mode == '驰轮车':
             print("💢 焰轮旋舞被打断！")
 
-class AttackBoostEffect(Effect):
-    """攻击力提升效果"""
-    def __init__(self, character, bonus):
-        super().__init__(character)
-        self.bonus = bonus  # 攻击力提升比例（0.3表示30%）
-        self.duration = 10 * 60  # 10秒（每秒60帧）
-        self.original_attack_percent = 0
-        
-    def apply(self):
-        # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
-                       if isinstance(e, AttackBoostEffect)), None)
-        if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            return
-            
-        self.character.attributePanel['攻击力%'] += self.bonus
-        print(f"🔥 玛薇卡攻击力提升{self.bonus}%")
-
-    def remove(self):
-        self.character.attributePanel['攻击力%'] -= self.bonus
-        print(f"🔥 攻击力提升效果结束")
-
 class TwoPhaseDamageBoostEffect(Effect, EventHandler):
     def __init__(self, source, initial_boost, fixed_duration, decay_duration):
         super().__init__(source)
@@ -503,10 +489,10 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
             self._apply_boost()
             
             self.total_duration -= 1
-            # print(f"🕒 剩余时间：{self.total_duration//60}秒{self.total_duration%60}帧 | 当前加成：{self.current_boost*100:.1f}%")  # 调试日志
+        else:
+            self.character.remove_effect(self)
+            print(f"🔥「基扬戈兹」效果结束！")
             
-        return self.total_duration <= 0
-
 class PassiveSkillEffect_2(TalentEffect, EventHandler):
     def __init__(self):
         super().__init__('「基扬戈兹」')
@@ -526,7 +512,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
                 fixed_duration=143,  
                 decay_duration=20*60
             )
-            self.character.add_effect(effect)
+            effect.apply()
 
 class PassiveSkillEffect_1(TalentEffect, EventHandler):
     def __init__(self):
@@ -540,21 +526,105 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
             print(f"🎉 炎花献礼：玛薇卡攻击力提升{self.boost_amount}%")
-            effect = AttackBoostEffect(self.character, self.boost_amount)
-            self.character.add_effect(effect)
+            effect = AttackBoostEffect(self.character,  self.name, self.boost_amount, 10*60)
+            effect.apply()
+
+class ConstellationEffect_1(ConstellationEffect):
+    def __init__(self):
+        super().__init__('夜主的授记')
+        self.boost_amount = 40  # 40%攻击力提升
+    
+    def apply(self, character):
+        super().apply(character)
+        # 提升夜魂值上限
+        character.base_max_night_soul = 120
+        
+        # 添加战意效率提升和攻击力提升
+        def f(self, amount):
+            self.battle_will = min(self.max_battle_will, self.battle_will + amount*1.25)
+            if self.ttt % 60 == 0:
+                print(f"🔥 获得战意：{self.battle_will:.2f}")
+            self.ttt += 1
+            effect = AttackBoostEffect(self.caster, '夜主的授记', 40, 8*60)
+            effect.apply()
+        character.Burst.gain_battle_will = types.MethodType(f, character.Burst)
+
+class MavuikaAttackScalingEffect(Effect):
+    def __init__(self, character):
+        super().__init__(character)
+        self.duration = 10
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, MavuikaAttackScalingEffect)), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+
+        for i in self.character.NormalAttack.chariot_damageMultipiler.values():
+            for j in i:
+                j += 60
+        for i in self.character.HeavyAttack.chariot_multiplier.values():
+            for j in i:
+                j += 90
+        for i in self.character.Burst.damageMultipiler['坠日斩']:
+            i += 120
+        
+        self.character.add_effect(self)
+    
+    def remove(self):
+        for i in self.character.NormalAttack.chariot_damageMultipiler.values():
+            for j in i:
+                j -= 60
+        for i in self.character.HeavyAttack.chariot_multiplier.values():
+            for j in i:
+                j -= 90
+        for i in self.character.Burst.damageMultipiler['坠日斩']:
+            i -= 120
+        self.character.remove_effect(self)
+        
+
+class ConstellationEffect_2(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('灰烬的代价')
+    
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
+            self.character.attributePanel['攻击力'] += 200
+        elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
+            self.character.attributePanel['攻击力'] -= 200
+
+    def update(self, target):
+        if self.character.Nightsoul_Blessing:
+            if self.character.mode == '焚曜之环':
+                effect = DefenseDebuffEffect(
+                    source=self.character,
+                    target=target,
+                    debuff_rate=0.2,
+                    duration=10 
+                )
+                effect.apply()
+            elif self.character.mode == '驰轮车':
+                effect = MavuikaAttackScalingEffect(self.character)
+                effect.apply()
 
 class MAVUIKA(Character):
     ID = 92
-    def __init__(self,level,skill_params):
-        super().__init__(MAVUIKA.ID,level,skill_params)
+    def __init__(self,level,skill_params,constellation=0):
+        super().__init__(MAVUIKA.ID,level,skill_params,constellation)
         self.association = '纳塔'
-        self.NormalAttack = MavuikaNormalAttackSkill(skill_params[0])
-        self.HeavyAttack = MavuikaHeavyAttackSkill(skill_params[0])
-        self.Skill = ElementalSkill(skill_params[1])
-        self.Burst = ElementalBurst(skill_params[2])
 
     def _init_character(self):
         super()._init_character()
+        self.NormalAttack = MavuikaNormalAttackSkill(self.skill_params[0])
+        self.HeavyAttack = MavuikaHeavyAttackSkill(self.skill_params[0])
+        self.Skill = ElementalSkill(self.skill_params[1])
+        self.Burst = ElementalBurst(self.skill_params[2],caster=self)
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
         self.max_night_soul = 80 # 夜魂值上限
@@ -562,6 +632,9 @@ class MAVUIKA(Character):
         self.Nightsoul_Blessing = False # 夜魂加持状态
         self.mode = '正常模式'  # 初始模式
         self.time_accumulator = 0   # 时间累积器
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
+
 
     def update(self, target):
         if  self.mode != '正常模式':

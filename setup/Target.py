@@ -14,6 +14,9 @@ class Target:
         self.get_data()
         self.elementalAura = ('物理',0)
         self.current_frame = 0
+        self.defense = level*5 + 500
+
+        self.effects = []
 
     def get_data(self):
         data = DR.read_data(f'SELECT * FROM `monster` WHERE `ID`={self.id}')
@@ -39,5 +42,13 @@ class Target:
     def setElementalAura(self, elementalAura):
         self.elementalAura = elementalAura
 
+    def add_effect(self, effect):
+        self.effects.append(effect)
+
+    def remove_effect(self, effect):
+        self.effects.remove(effect)
+
     def update(self):
         self.current_frame += 1
+        for effect in self.effects:
+            effect.update(self)

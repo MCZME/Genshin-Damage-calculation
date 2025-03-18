@@ -12,6 +12,5 @@ def init():
     EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
 
 # todo:
-# 马薇卡 元素战技和元素爆发
 if __name__ == '__main__':
     init()
