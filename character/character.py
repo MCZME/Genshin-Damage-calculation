@@ -85,6 +85,7 @@ class Character:
         self.talent2 = None
         self.talent_effects = []  # 天赋效果列表
         self.active_effects = []  # 激活效果列表
+        self.constellation_effects = [None, None, None, None, None, None]  # 命座效果列表
 
     def setArtifact(self,artifact):
         self.artifactManager = artifact
@@ -153,6 +154,9 @@ class Character:
         for effect in self.talent_effects:
             if effect is not None:
                 effect.apply(self)
+        for effect in self.constellation_effects[self.constellation-1]:
+            if effect is not None:
+                effect.apply(self)
 
     def update(self,target):
         self.update_effects()
@@ -208,6 +212,9 @@ class Character:
         for talent in self.talent_effects:
             if talent is not None:
                 talent.update()
+        for effect in self.constellation_effects[self.constellation-1]:
+            if effect is not None:
+                effect.update()
 
     def to_dict(self):
         return {

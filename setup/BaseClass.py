@@ -17,7 +17,13 @@ class TalentEffect:
         pass
 
 class ConstellationEffect:
+    def __init__(self,name):
+        self.name = name
+
     def apply(self, character):
+        self.character = character
+
+    def update(self):
         pass
 
 class Effect:
