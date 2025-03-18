@@ -224,6 +224,7 @@ class Character:
             'id': self.id,
             'level': self.level,
             'skill_params': self.skill_params,
+            'constellation': self.constellation,
             'weapon': self.weapon.to_dict() if self.weapon else None,
             'artifacts': self.artifactManager.to_dict() if self.artifactManager else None
         }

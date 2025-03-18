@@ -49,8 +49,8 @@ class RuishouDenggaolou(SkillBase):
 
 class GaMing(Character):
     ID = 78
-    def __init__(self,level,skill_params):
-        super().__init__(self.ID,level,skill_params)
+    def __init__(self,level,skill_params,constellation=0):
+        super().__init__(self.ID,level,skill_params,constellation)
         self.Skill = RuishouDenggaolou(skill_params[1])
         self.Burst = RuishouDenggaolou(skill_params[2])
         self.NormalAttack = NormalAttackSkill(skill_params[0])

@@ -71,7 +71,8 @@ class Emulation:
             # 创建角色
             character = CharacterClassMap[char_data['id']](  # 需要建立角色类映射
                 level=char_data['level'],
-                skill_params=char_data['skill_params']
+                skill_params=char_data['skill_params'],
+                constellation=char_data['constellation'],
             )
             
             # 创建武器
