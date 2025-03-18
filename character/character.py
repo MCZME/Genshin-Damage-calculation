@@ -53,11 +53,15 @@ class Character:
         self._get_data(level)
         self.attributePanel = self.attributeData.copy()
 
+        self.association = None
+        self.constellation = 0
+
         self.weapon = None
         self.artifactManager = None
         self.state = [CharacterState.IDLE]
         self.on_field = False
         self._init_character()    # 初始化特有属性
+        self.apply_talents()
 
     def _get_data(self,level):
         l = T.level(level)
@@ -77,6 +81,8 @@ class Character:
         self.HeavyAttack = None
         self.Skill = None
         self.Burst = None
+        self.talent1 = None
+        self.talent2 = None
         self.talent_effects = []  # 天赋效果列表
         self.active_effects = []  # 激活效果列表
 
@@ -89,6 +95,9 @@ class Character:
         self.weapon = weapon
         self.weapon.updatePanel()
         self.weapon.skill()
+
+    def setConstellation(self,c):
+        self.constellation = c
 
     def normal_attack(self,n):
         """普攻"""
@@ -137,8 +146,13 @@ class Character:
             
     def apply_talents(self):
         """应用天赋效果"""
+        if self.level >= 20:
+            self.talent_effects.append(self.talent1)
+        if self.level >= 60:
+            self.talent_effects.append(self.talent2)
         for effect in self.talent_effects:
-            effect.apply(self)
+            if effect is not None:
+                effect.apply(self)
 
     def update(self,target):
         self.update_effects()
@@ -188,9 +202,12 @@ class Character:
         self.active_effects.append(effect)
         
     def update_effects(self):
-        for effect in self.active_effects.copy():
+        for effect in self.active_effects:
             if effect.update():
                 self.active_effects.remove(effect)
+        for talent in self.talent_effects:
+            if talent is not None:
+                talent.update()
 
     def to_dict(self):
         return {

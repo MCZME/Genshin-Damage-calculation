@@ -7,7 +7,13 @@ from setup.Tool import GetCurrentTime
 
 # 效果基类
 class TalentEffect:
+    def __init__(self,name):
+        self.name = name
+        
     def apply(self, character):
+        self.character = character
+
+    def update(self):
         pass
 
 class ConstellationEffect:

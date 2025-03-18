@@ -37,6 +37,7 @@ class EventType(Enum):
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
     BEFORE_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之前
     AFTER_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之后
+    NightsoulBurst = auto()  # 夜魂迸发
 
 # --------------------------
 # 事件类
