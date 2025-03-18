@@ -1,6 +1,7 @@
 
 
 
+from setup.BaseEventHandler import NightsoulBurstEventHandler
 from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.Event import EventBus, EventType
 
@@ -8,6 +9,7 @@ from setup.Event import EventBus, EventType
 def init():
     
     EventBus.subscribe(EventType.BEFORE_DAMAGE,DamageCalculateEventHandler())
+    EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
 
 # todo:
 # 马薇卡 元素战技和元素爆发

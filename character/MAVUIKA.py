@@ -1,5 +1,5 @@
 from character.character import Character, CharacterState
-from setup.BaseClass import Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate
+from setup.BaseClass import Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime
@@ -124,7 +124,7 @@ class ElementalBurst(SkillBase, EventHandler):
         # 战意系统属性
         self.max_battle_will = 200
         self.battle_will = 100
-        self.last_will_gain_time = 0  # 最后获得战意的时间戳
+        self.last_will_gain_time = -99  # 最后获得战意的时间戳
 
         # 控制标志
         self.ttt = 0 # 控制日志打印
@@ -430,13 +430,124 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         if self.caster.mode == '驰轮车':
             print("💢 焰轮旋舞被打断！")
 
-# todo: 
-# 1. 天赋实现
-# 2. 命座实现
+class AttackBoostEffect(Effect):
+    """攻击力提升效果"""
+    def __init__(self, character, bonus):
+        super().__init__(character)
+        self.bonus = bonus  # 攻击力提升比例（0.3表示30%）
+        self.duration = 10 * 60  # 10秒（每秒60帧）
+        self.original_attack_percent = 0
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, AttackBoostEffect)), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.attributePanel['攻击力%'] += self.bonus
+        print(f"🔥 玛薇卡攻击力提升{self.bonus}%")
+
+    def remove(self):
+        self.character.attributePanel['攻击力%'] -= self.bonus
+        print(f"🔥 攻击力提升效果结束")
+
+class TwoPhaseDamageBoostEffect(Effect, EventHandler):
+    def __init__(self, source, initial_boost, fixed_duration, decay_duration):
+        super().__init__(source)
+        self.current_boost = initial_boost
+        self.max_boost = initial_boost
+        self.fixed_duration = fixed_duration
+        self.decay_duration = decay_duration
+        self.total_duration = fixed_duration + decay_duration
+        self.decay_rate = self.max_boost / decay_duration
+        self.current_holder = None
+        EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+
+    def apply(self):
+        self.current_holder = self.character
+        self._apply_boost()
+        print(f"🔥「基扬戈兹」生效！初始加成：{self.current_boost*100:.1f}%")
+
+    def handle_event(self, event):
+        if event.event_type == EventType.CHARACTER_SWITCH and self in event.data['old_character'].active_effects:
+            new_char = event.data['new_character']
+            self._transfer_effect(new_char)
+
+    def _transfer_effect(self, new_char):
+        self._remove_boost()
+        self.current_holder = new_char
+        new_char.active_effects.append(self)
+        self._apply_boost()
+        print(f"🔄「基扬戈兹」转移至{new_char.name}")
+
+    def _apply_boost(self):
+        if self.current_holder:
+            self.current_holder.attributePanel['伤害加成'] += self.current_boost * 100
+
+    def _remove_boost(self):
+        if self.current_holder:
+            self.current_holder.attributePanel['伤害加成'] -= self.current_boost * 100
+
+    def update(self):
+        if self.total_duration > 0:
+            # 先移除当前加成
+            self._remove_boost()
+            
+            # 计算新加成值
+            if self.total_duration <= self.decay_duration:
+                self.current_boost = max(0, self.current_boost - self.decay_rate)
+                
+            # 重新应用新值
+            self._apply_boost()
+            
+            self.total_duration -= 1
+            # print(f"🕒 剩余时间：{self.total_duration//60}秒{self.total_duration%60}帧 | 当前加成：{self.current_boost*100:.1f}%")  # 调试日志
+            
+        return self.total_duration <= 0
+
+class PassiveSkillEffect_2(TalentEffect, EventHandler):
+    def __init__(self):
+        super().__init__('「基扬戈兹」')
+        
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.BEFORE_BURST, self)
+    
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_BURST and event.data['character'] == self.character:
+            consumed_will = self.character.Burst.consumed_will
+            initial_boost = min(consumed_will * 0.002, 0.4)  # 每0.2% 最高40%
+            
+            effect = TwoPhaseDamageBoostEffect(
+                source=self.character,
+                initial_boost=initial_boost,
+                fixed_duration=143,  
+                decay_duration=20*60
+            )
+            self.character.add_effect(effect)
+
+class PassiveSkillEffect_1(TalentEffect, EventHandler):
+    def __init__(self):
+        super().__init__('炎花献礼')
+        self.boost_amount = 30  # 30%攻击力提升
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.NightsoulBurst, self)
+    
+    def handle_event(self, event):
+        if event.event_type == EventType.NightsoulBurst:
+            print(f"🎉 炎花献礼：玛薇卡攻击力提升{self.boost_amount}%")
+            effect = AttackBoostEffect(self.character, self.boost_amount)
+            self.character.add_effect(effect)
+
 class MAVUIKA(Character):
     ID = 92
     def __init__(self,level,skill_params):
         super().__init__(MAVUIKA.ID,level,skill_params)
+        self.association = '纳塔'
         self.NormalAttack = MavuikaNormalAttackSkill(skill_params[0])
         self.HeavyAttack = MavuikaHeavyAttackSkill(skill_params[0])
         self.Skill = ElementalSkill(skill_params[1])
@@ -444,6 +555,8 @@ class MAVUIKA(Character):
 
     def _init_character(self):
         super()._init_character()
+        self.talent1 = PassiveSkillEffect_1()
+        self.talent2 = PassiveSkillEffect_2()
         self.max_night_soul = 80 # 夜魂值上限
         self.current_night_soul = 0
         self.Nightsoul_Blessing = False # 夜魂加持状态
@@ -564,4 +677,3 @@ class MAVUIKA(Character):
             self.max_night_soul, 
             self.current_night_soul + amount
         )
-       

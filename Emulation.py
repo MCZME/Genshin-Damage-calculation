@@ -11,10 +11,11 @@ class Emulation:
     fps = 60  # 帧率
     target = None
     current_frame = 0
+    team = None
 
     def __init__(self,team:Team,target_id,target_level):
-        self.target = Target(target_id, target_level)
-        self.team = team
+        Emulation.target = Target(target_id, target_level)
+        Emulation.team = team
 
     def simulate(self,actions):
         """
@@ -24,8 +25,8 @@ class Emulation:
         {Name:actionName}
         """
         action = iter(actions)
-        self.team.swap(next(action))
-        self.team.current_frame = 0 # 初始化当前帧数
+        Emulation.team.swap(next(action))
+        Emulation.team.current_frame = 0 # 初始化当前帧数
         try:
             self.next_character = next(action)
         except StopIteration:
@@ -38,10 +39,10 @@ class Emulation:
                 break
 
     def _update(self, target, action):
-        self.team.update(target)
-        self.target.update()
+        Emulation.team.update(target)
+        Emulation.target.update()
 
-        if self.next_character is not None and self.team.swap(self.next_character):
+        if self.next_character is not None and Emulation.team.swap(self.next_character):
             print("切换成功")
             try:
                 self.next_character = next(action)
@@ -56,7 +57,7 @@ class Emulation:
         
     def save_simulation(self,filename):
         data = {
-            'characters': [char.to_dict() for char in self.team.team]
+            'characters': [char.to_dict() for char in Emulation.team.team]
         }
         with open('./data/'+filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -98,4 +99,4 @@ class Emulation:
             
             team.append(character)
         
-        self.team = Team(team)
+        Emulation.team = Team(team)
