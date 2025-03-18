@@ -23,6 +23,9 @@ class EventType(Enum):
     BEFORE_REACTION = auto()     # 反应加成计算前
     AFTER_REACTION = auto()      # 反应加成计算后
 
+    BEFORE_HEAL = auto()         # 治疗计算前
+    AFTER_HEAL = auto()          # 治疗后
+
     BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
     BEFORE_HEAVY_ATTACK = auto()  # 重击前

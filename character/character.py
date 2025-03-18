@@ -15,7 +15,7 @@ class CharacterState(Enum):
 
 class Character:
 
-    def __init__(self,id=1,level=1,skill_params=[1,1,1],constellation=0):
+    def __init__(self, id=1, level=1, skill_params=[1,1,1], constellation=0):
         self.id = id
         self.level = level
         self.skill_params = skill_params
