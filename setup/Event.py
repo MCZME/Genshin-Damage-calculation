@@ -20,8 +20,20 @@ class EventType(Enum):
     AFTER_DEFENSE = auto()       # 防御力计算后
     BEFORE_RESISTANCE = auto()   # 抗性计算前
     AFTER_RESISTANCE = auto()    # 抗性计算后
-    BEFORE_REACTION = auto()     # 反应加成计算前
-    AFTER_REACTION = auto()      # 反应加成计算后
+    BEFORE_ELEMENTAL_REACTION = auto()  # 元素反应触发前
+    AFTER_ELEMENTAL_REACTION = auto()   # 元素反应触发后
+    BEFORE_FREEZE = auto()       # 冻结反应前
+    AFTER_FREEZE = auto()        # 冻结反应后
+    BEFORE_CATALYZE = auto()     # 激化反应前
+    AFTER_CATALYZE = auto()      # 激化反应后
+    BEFORE_VAPORIZE = auto()     # 蒸发反应前
+    AFTER_VAPORIZE = auto()      # 蒸发反应后
+    BEFORE_MELT = auto()         # 融化反应前
+    AFTER_MELT = auto()          # 融化反应后
+    BEFORE_OVERLOAD = auto()     # 超载反应前
+    AFTER_OVERLOAD = auto()      # 超载反应后
+    BEFORE_SWIRL = auto()        # 扩散反应前
+    AFTER_SWIRL = auto()         # 扩散反应后
 
     BEFORE_HEALTH_CHANGE = auto()  # 角色血量变化前
     AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
@@ -108,6 +120,11 @@ class HealChargeEvent(GameEvent):
             super().__init__(EventType.BEFORE_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
             super().__init__(EventType.AFTER_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
+
+class ElementalReactionEvent(GameEvent):
+    def __init__(self,elementalReaction, frame, before=True, **kwargs):
+        event_type = EventType.BEFORE_ELEMENTAL_REACTION if before else EventType.AFTER_ELEMENTAL_REACTION
+        super().__init__(event_type, frame = frame, elementalReaction = elementalReaction,**kwargs)
 
 class HealEvent(GameEvent):
     def __init__(self, source, target, healing, frame, before=True, **kwargs):

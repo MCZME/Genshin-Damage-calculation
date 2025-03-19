@@ -45,7 +45,7 @@ class Target:
             
             # 检查是否可以发生反应
             reaction_type = ReactionMMap.get((trigger_element, base_element), None)
-            if reaction_type:
+            if reaction_type and trigger_amount > 0:
                 base_current = self.elementalAura[0]['current_amount']
                 trigger_actual = trigger_amount  # 后手元素不产生附着时无20%损耗
                 
@@ -55,15 +55,16 @@ class Target:
                 # 计算实际消耗
                 if trigger_actual/ratio[0] > base_current/ratio[1]:
                     self.elementalAura.clear()
-                    return
+                    return base_element
                 else:
                     actual_base_consumed = trigger_actual*ratio[0]/ratio[1]
 
                 # 更新元素量
                 self.elementalAura[0]['current_amount'] -= actual_base_consumed
-                return
+                return base_element
         if trigger_element not in {'风', '岩'}:
             self._attach_new_element(trigger_element, trigger_amount)
+        return None
 
     def _get_element_ratio(self, trigger, base):
         """获取元素消耗比例 (trigger:base)"""

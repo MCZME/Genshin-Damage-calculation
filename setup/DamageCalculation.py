@@ -1,7 +1,9 @@
 from enum import Enum, auto
 from character.character import Character
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType
+from setup.ElementalReaction import ElementalReaction
+from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType
 from setup.Target import Target
+from setup.Tool import GetCurrentTime
 
 # 定义一个枚举类，表示伤害类型
 class DamageType(Enum):
@@ -81,21 +83,31 @@ class Calculation:
     # 待补充
     # 剧变反应
     def reaction(self):
-        e = self.source.attributePanel['元素精通']
-        e_skill = self.damage.element
-        e_target = self.target.elementalAura
-        if e_target[0] == "物理":
+        attributePanel = self.source.attributePanel
+        e = attributePanel['元素精通']
+        r = {'反应类型':[],'反应系数提高值':0}
+        if '反应系数提高' in list(attributePanel.keys()):
+            r = attributePanel['反应系数提高']
+        if self.damage.element[0] == '物理':
             return 1
-        elif e_skill[0] == e_target[0]:
-            return 1
-        elif e_skill[0] == "火" and e_target[0] == "水":
-            return 1.5*(1+(2.78*e/(e+1400)))
-        elif e_skill[0] == "水" and e_target[0] == "火":
-            return 2*(1+(2.78*e/(e+1400)))
-        elif e_skill[0] == "火" and e_target[0] == "冰":
-            return 2*(1+(2.78*e/(e+1400)))
-        elif e_skill[0] == "冰" and e_target[0] == "火":
-            return 1.5*(1+(2.78*e/(e+1400)))
+        else:
+            target_element = self.target.apply_elemental_aura(self.damage.element)
+            if target_element is not None:
+                elementalReaction = ElementalReaction(source=self.source,target_element=target_element,damage=self.damage)
+                event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
+                EventBus.publish(event)
+                if event.data['elementalReaction'].reaction_Type == '增幅反应':
+                    if event.data['elementalReaction'].reaction_type in r['反应类型']:
+                        r1 = r['反应系数提高值']
+                    else:
+                        r1 = 0
+                    return event.data['elementalReaction'].reaction_ratio * (1+(2.78*e)/(e+1400)+r1)
+                elif event.data['elementalReaction'].reaction_Type == '剧变反应':
+                    ...
+        return 1
+
+
+        
         
     def calculation_by_attack(self):
         value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
