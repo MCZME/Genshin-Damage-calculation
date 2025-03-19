@@ -1,21 +1,15 @@
 from DataRequest import DR
+from setup.ElementalReaction import ReactionMMap
 
 class Target:
     def __init__(self, id, level):
-        """
-        初始化目标对象
-        
-        参数:
-        - id: 目标的唯一标识符
-        - level: 目标的等级
-        """
         self.id = id
         self.level = level
         self.get_data()
-        self.elementalAura = ('物理',0)
+
         self.current_frame = 0
         self.defense = level*5 + 500
-
+        self.elementalAura = []
         self.effects = []
 
     def get_data(self):
@@ -42,6 +36,65 @@ class Target:
     def setElementalAura(self, elementalAura):
         self.elementalAura = elementalAura
 
+    def apply_elemental_aura(self, element):
+        trigger_element, trigger_amount = element 
+        
+        # 先处理元素反应（如果有附着元素存在）
+        if len(self.elementalAura)>0:
+            base_element = self.elementalAura[0]['element'] 
+            
+            # 检查是否可以发生反应
+            reaction_type = ReactionMMap.get((trigger_element, base_element), None)
+            if reaction_type:
+                base_current = self.elementalAura[0]['current_amount']
+                trigger_actual = trigger_amount  # 后手元素不产生附着时无20%损耗
+                
+                # 确定消耗比例
+                ratio = self._get_element_ratio(trigger_element, base_element)
+                
+                # 计算实际消耗
+                if trigger_actual/ratio[0] > base_current/ratio[1]:
+                    self.elementalAura.clear()
+                    return
+                else:
+                    actual_base_consumed = trigger_actual*ratio[0]/ratio[1]
+
+                # 更新元素量
+                self.elementalAura[0]['current_amount'] -= actual_base_consumed
+                return
+        if trigger_element not in {'风', '岩'}:
+            self._attach_new_element(trigger_element, trigger_amount)
+
+    def _get_element_ratio(self, trigger, base):
+        """获取元素消耗比例 (trigger:base)"""
+        if (trigger, base) in [('水', '火'), ('火', '冰')]:
+            return (1, 2) 
+        if (trigger, base) in [('火', '水'), ('冰', '火')]:
+            return (2, 1)  
+        if trigger in {'风','岩'} and base in {'水','雷','冰','火'}:
+            return (2, 1) 
+        return (1, 1)
+
+    def _attach_new_element(self, element_type, applied_amount):
+        """处理新元素附着"""
+        existing_aura = next((a for a in self.elementalAura if a['element'] == element_type), None)
+        duration = 7 + applied_amount * 2.5
+
+        if existing_aura:
+            new_applied = applied_amount*0.8
+            if new_applied > existing_aura['current_amount']:
+                existing_aura.update({
+                    'initial_amount': new_applied,
+                    'current_amount': new_applied,
+                })
+        else:   
+            self.elementalAura.append({
+                'element': element_type,
+                'initial_amount': applied_amount*0.8,
+                'current_amount': applied_amount*0.8,
+                'decay_rate': applied_amount*0.8 / duration
+            })
+
     def add_effect(self, effect):
         self.effects.append(effect)
 
@@ -50,5 +103,14 @@ class Target:
 
     def update(self):
         self.current_frame += 1
+        # 更新元素衰减状态
+        for aura in self.elementalAura:
+            # 按帧衰减（每秒60帧）
+            aura['current_amount'] -= aura['decay_rate'] / 60
+            # 清除已衰减完毕的元素
+            if aura['current_amount'] <= 0:
+                self.elementalAura.remove(aura)
+        
+        # 更新其他效果状态
         for effect in self.effects:
             effect.update(self)
