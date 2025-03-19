@@ -7,7 +7,7 @@ class NightsoulBurstEventHandler(EventHandler):
         super().__init__()
         self.last_nightsoul_burst_time = -9999
         self.NATLAN_character = 0
-        self.triggerInterval = [18,12,9][self.NATLAN_character-1]*60
+        self.triggerInterval = [9,12,18][self.NATLAN_character-1]*60
         
         EventBus.subscribe(EventType.AFTER_DAMAGE, self)
 

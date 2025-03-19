@@ -54,7 +54,7 @@ class ElementalSkill(SkillBase,EventHandler):
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
             self.ttt = False
-            print(f"🔥 玛薇卡释放元素战技，造成伤害：{damage.damage}")
+            print(f"🔥 玛薇卡释放元素战技，造成伤害：{damage.damage:.2f}")
         if self.caster.mode == '正常模式':
             return True
         return False

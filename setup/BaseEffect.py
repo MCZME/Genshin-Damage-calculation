@@ -25,7 +25,7 @@ class AttackBoostEffect(Effect):
     def remove(self):
         self.character.attributePanel['攻击力%'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"攻击力提升效果结束")
+        print(f"{self.name}攻击力提升效果结束")
 
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
