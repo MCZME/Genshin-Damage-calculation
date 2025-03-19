@@ -27,6 +27,31 @@ class AttackBoostEffect(Effect):
         self.character.remove_effect(self)
         print(f"攻击力提升效果结束")
 
+class HealthBoostEffect(Effect):
+    """生命值提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character)
+        self.bonus = bonus  # 生命值提升百分比
+        self.duration = duration  # 持续时间
+        self.name = name
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, HealthBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        self.character.add_effect(self)
+        self.character.attributePanel['生命值%'] += self.bonus
+        print(f"{self.character.name}的生命值提升了{self.bonus}%")
+
+    def remove(self):
+        self.character.attributePanel['生命值%'] -= self.bonus
+        self.character.remove_effect(self)
+        print(f"生命值提升效果结束")
+
 class DefenseDebuffEffect(Effect):
     def __init__(self, source, target, debuff_rate, duration):
         super().__init__(source)
