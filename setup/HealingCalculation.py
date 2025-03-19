@@ -9,10 +9,11 @@ class HealingType(Enum):
     PASSIVE = auto()     # 被动治疗
 
 class Healing:
-    def __init__(self, base_value, healing_type: HealingType):
-        self.base_value = base_value      # 基础治疗值（固定值或百分比）
+    def __init__(self, base_Multipiler, healing_type: HealingType):
+        self.base_Multipiler = base_Multipiler   # 基础倍率
         self.healing_type = healing_type   # 治疗类型
         self.final_value = 0               # 最终治疗量
+        self.base_value = '攻击力'
 
     def set_source(self, source: Character):
         self.source = source
@@ -27,7 +28,7 @@ class Calculation:
         self.healing = healing
 
     def get_attack(self):
-        """获取攻击力（参考伤害计算类）"""
+        """获取攻击力"""
         attribute = self.source.attributePanel
         atk0 = attribute['攻击力']
         atk1 = atk0 * attribute['攻击力%'] / 100 + attribute['固定攻击力']
@@ -40,6 +41,10 @@ class Calculation:
         hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
         return hp0 + hp1
 
+    def get_Multipiler(self):
+        """获取倍率"""
+        return self.healing.base_Multipiler/100
+
     def get_healing_bonus(self):
         """获取治疗加成"""
         return self.source.attributePanel['治疗加成'] / 100
@@ -50,17 +55,13 @@ class Calculation:
 
     def calculate_by_attack(self):
         """基于攻击力的治疗计算"""
-        base = self.get_attack() * self.healing.base_value / 100
-        healing_bonus = 1 + self.get_healing_bonus()
-        healed_bonus = 1 + self.get_healed_bonus()
-        self.healing.final_value = base * healing_bonus * healed_bonus
+        value = self.get_attack() * self.get_Multipiler() * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
+        self.healing.final_value = value
 
     def calculate_by_hp(self):
         """基于生命值的治疗计算"""
-        base = self.get_hp() * self.healing.base_value / 100
-        healing_bonus = 1 + self.get_healing_bonus()
-        healed_bonus = 1 + self.get_healed_bonus()
-        self.healing.final_value = base * healing_bonus * healed_bonus
+        value = self.get_hp() * self.get_Multipiler() * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
+        self.healing.final_value = value
 
 class HealingCalculateEventHandler(EventHandler):
     def handle_event(self, event: HealEvent):
@@ -74,7 +75,10 @@ class HealingCalculateEventHandler(EventHandler):
                 target=event.data['target'],
                 healing=event.data['healing']
             )
-            calculation.calculate()
+            if event.data['healing'].base_value == '攻击力':
+                calculation.calculate_by_attack()
+            elif event.data['healing'].base_value == '生命值':
+                calculation.calculate_by_hp()
             
             event.data['target'].heal(event.data['healing'].final_value)
             

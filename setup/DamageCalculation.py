@@ -16,6 +16,7 @@ class Damage():
         self.element = element
         self.damageType = damageType
         self.damage = damge
+        self.baseValue = '攻击力'
 
     def setSource(self,source):
         self.source = source
@@ -37,6 +38,20 @@ class Calculation:
         atk0 = attributePanel['攻击力']
         atk1 = atk0 * attributePanel['攻击力%']/100 + attributePanel['固定攻击力']
         return atk0+atk1
+
+    def health(self):
+        """获取生命值"""
+        attribute = self.source.attributePanel
+        hp0 = attribute['生命值']
+        hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
+        return hp0 + hp1
+
+    def DEF(self):
+        """获取防御力"""
+        attribute = self.source.attributePanel
+        def0 = attribute['防御力']
+        def1 = def0 * attribute['防御力%'] / 100 + attribute['固定防御力']
+        return def0 + def1
 
     def damageMultipiler(self):
         return self.damage.damageMultipiler/100
@@ -82,14 +97,27 @@ class Calculation:
         elif e_skill[0] == "冰" and e_target[0] == "火":
             return 1.5*(1+(2.78*e/(e+1400)))
         
-    def calculation(self):
+    def calculation_by_attack(self):
         value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+        self.damage.damage = value
+    
+    def calculation_by_hp(self):
+        value = self.health() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+        self.damage.damage = value
+
+    def calculation_by_def(self):
+        value = self.DEF() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
 
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
             calculation = Calculation(event.data['character'], event.data['target'], event.data['damage'])
-            calculation.calculation()
+            if event.data['damage'].baseValue == '攻击力':
+                calculation.calculation_by_attack()
+            elif event.data['damage'].baseValue == '生命值':
+                calculation.calculation_by_hp()
+            elif event.data['damage'].baseValue == '防御力':
+                calculation.calculation_by_def()
             damageEvent = DamageEvent(event.data['character'], event.data['target'], event.data['damage'], event.frame, before=False)
             EventBus.publish(damageEvent)
