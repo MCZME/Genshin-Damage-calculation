@@ -23,6 +23,8 @@ class EventType(Enum):
     BEFORE_REACTION = auto()     # 反应加成计算前
     AFTER_REACTION = auto()      # 反应加成计算后
 
+    BEFORE_HEALTH_CHANGE = auto()  # 角色血量变化前
+    AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
     BEFORE_HEAL = auto()         # 治疗计算前
     AFTER_HEAL = auto()          # 治疗后
 
@@ -40,7 +42,7 @@ class EventType(Enum):
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
     BEFORE_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之前
     AFTER_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之后
-    NightsoulBurst = auto()  # 夜魂迸发
+    NightsoulBurst = auto()
 
 # --------------------------
 # 事件类
@@ -99,6 +101,20 @@ class ElementalSkillEvent(GameEvent):
             super().__init__(EventType.BEFORE_SKILL, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_SKILL, frame=frame, character=character, **kwargs)
+
+class HealChargeEvent(GameEvent):
+    def __init__(self, character, amount, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
+
+class HealEvent(GameEvent):
+    def __init__(self, source, target, healing, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
 
 # --------------------------
 # 事件处理器接口

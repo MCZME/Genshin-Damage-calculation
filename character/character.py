@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
-from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, NormalAttackEvent
+from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, HealChargeEvent, NormalAttackEvent
 import setup.Tool as T
 
 # 角色状态枚举
@@ -56,6 +56,8 @@ class Character:
         self.association = None
         self.constellation = constellation
 
+        self.maxHP = self.attributePanel['生命值'] * (1 + self.attributePanel['生命值%'] / 100) + self.attributePanel['固定生命值']
+        self.currentHP = self.maxHP
         self.weapon = None
         self.artifactManager = None
         self.state = [CharacterState.IDLE]
@@ -100,6 +102,15 @@ class Character:
     def setConstellation(self,c):
         self.constellation = c
 
+    def heal(self,amount):
+        event = HealChargeEvent(self,amount,T.GetCurrentTime())
+        EventBus.publish(event)
+        if event.cancelled:
+            return
+        self.currentHP = max(self.maxHP,self.currentHP+event.data['amount'])
+        event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
+        EventBus.publish(event)
+
     def normal_attack(self,n):
         """普攻"""
         self._normal_attack_impl(n)
@@ -119,7 +130,6 @@ class Character:
         """重击具体实现"""
         if self._is_change_state() and self.HeavyAttack.start(self):
             self._append_state(CharacterState.HEAVY_ATTACK)
-
 
     def elemental_skill(self):
         """元素战技"""
@@ -185,6 +195,21 @@ class Character:
                     effect.update(target)
         if len(self.state) == 0:
             self._append_state(CharacterState.IDLE)
+        self.updateHealth()
+
+    def updateHealth(self):
+        current_maxHP = self.attributePanel['生命值'] * (1 + self.attributePanel['生命值%'] / 100) + self.attributePanel['固定生命值']
+
+        if self.maxHP != current_maxHP:
+            self.currentHP = self.currentHP * current_maxHP / self.maxHP
+            self.maxHP = current_maxHP
+
+    def update_effects(self,target):
+        for effect in self.active_effects:
+            effect.update(target)
+        for talent in self.talent_effects:
+            if talent is not None:
+                talent.update(target)
 
     def _append_state(self,state):
         if state is not CharacterState.IDLE:
@@ -211,13 +236,6 @@ class Character:
         
     def remove_effect(self, effect):
         self.active_effects.remove(effect)
-
-    def update_effects(self,target):
-        for effect in self.active_effects:
-            effect.update(target)
-        for talent in self.talent_effects:
-            if talent is not None:
-                talent.update(target)
 
     def to_dict(self):
         return {
