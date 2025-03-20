@@ -1,9 +1,10 @@
 import types
-from character.character import Character, CharacterState
+from character.NATLAN.natlan import Natlan
+from character.character import CharacterState
 from setup.BaseClass import ConstellationEffect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent, NormalAttackEvent
+from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime
 
 class ElementalSkill(SkillBase,EventHandler):
@@ -615,11 +616,10 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
 # todo
 # 命座3，4，5，6
 # 驰轮车下的元素附着 冷却重置逻辑未实现
-class MAVUIKA(Character):
+class MAVUIKA(Natlan):
     ID = 92
     def __init__(self,level,skill_params,constellation=0):
         super().__init__(MAVUIKA.ID,level,skill_params,constellation)
-        self.association = '纳塔'
 
     def _init_character(self):
         super()._init_character()
@@ -629,11 +629,7 @@ class MAVUIKA(Character):
         self.Burst = ElementalBurst(self.skill_params[2],caster=self)
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
-        self.max_night_soul = 80 # 夜魂值上限
-        self.current_night_soul = 0
-        self.Nightsoul_Blessing = False # 夜魂加持状态
         self.mode = '正常模式'  # 初始模式
-        self.time_accumulator = 0   # 时间累积器
         self.constellation_effects[0] = ConstellationEffect_1()
         self.constellation_effects[1] = ConstellationEffect_2()
 
@@ -714,41 +710,3 @@ class MAVUIKA(Character):
                 self.chargeNightsoulBlessing()
                 
             return True
-    
-    def consume_night_soul(self, amount):
-        """安全消耗夜魂值并触发事件"""
-        if not self.Nightsoul_Blessing:
-            return False
-
-        # 发布消耗事件
-        actual_amount = min(amount, self.current_night_soul)
-        event =NightSoulConsumptionEvent(
-            character=self,
-            amount=actual_amount,
-            frame=GetCurrentTime()
-        )
-        EventBus.publish(event)
-        if event.cancelled:
-            return True
-        
-        self.current_night_soul -= actual_amount
-        EventBus.publish(NightSoulConsumptionEvent(
-            character=self,
-            amount=actual_amount,
-            frame=GetCurrentTime(),
-            before=False
-        ))
-        
-        # 自动退出加持状态检测
-        if self.current_night_soul <= 0:
-            self.chargeNightsoulBlessing()
-        return True
-    
-    def gain_night_soul(self, amount):
-        """获得夜魂值"""
-        if not self.Nightsoul_Blessing:
-            self.chargeNightsoulBlessing()
-        self.current_night_soul = min(
-            self.max_night_soul, 
-            self.current_night_soul + amount
-        )

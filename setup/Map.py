@@ -1,5 +1,5 @@
 from character.GAMING import GaMing
-from character.MAVUIKA import MAVUIKA
+from character.NATLAN.MAVUIKA import MAVUIKA
 from weapon.Claymore import *
 
 

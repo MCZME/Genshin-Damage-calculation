@@ -16,6 +16,7 @@ class Emulation:
     def __init__(self,team:Team,target_id,target_level):
         Emulation.target = Target(target_id, target_level)
         Emulation.team = team
+        self.skip_frame = 0
 
     def simulate(self,actions):
         """
@@ -41,6 +42,10 @@ class Emulation:
     def _update(self, target, action):
         Emulation.team.update(target)
         Emulation.target.update()
+
+        if self.skip_frame > 0:
+            self.skip_frame -= 1
+            return False
 
         if self.next_character is not None and Emulation.team.swap(self.next_character):
             print("切换成功")
