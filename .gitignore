@@ -1,4 +1,6 @@
 __pycache__
 driver
-data/*.json
+data/
 test.py
+.vscode/
+.vosode
