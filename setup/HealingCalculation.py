@@ -43,7 +43,7 @@ class Calculation:
 
     def get_Multipiler(self):
         """获取倍率"""
-        return self.healing.base_Multipiler/100
+        return self.healing.base_Multipiler
 
     def get_healing_bonus(self):
         """获取治疗加成"""
@@ -55,12 +55,22 @@ class Calculation:
 
     def calculate_by_attack(self):
         """基于攻击力的治疗计算"""
-        value = self.get_attack() * self.get_Multipiler() * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
+        m = self.get_Multipiler()
+        if isinstance(m, tuple):
+            value = (m[0]/100)*self.get_attack() + m[1]
+        else:
+            value = (m/100) * self.get_attack()
+        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
         self.healing.final_value = value
 
     def calculate_by_hp(self):
         """基于生命值的治疗计算"""
-        value = self.get_hp() * self.get_Multipiler() * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
+        m = self.get_Multipiler()
+        if isinstance(m, tuple):
+            value = (m[0]/100)*self.get_hp() + m[1]
+        else:
+            value = (m/100) * self.get_hp()
+        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
         self.healing.final_value = value
 
 class HealingCalculateEventHandler(EventHandler):

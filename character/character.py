@@ -171,7 +171,8 @@ class Character:
 
     def update(self,target):
         self.update_effects(target)
-        self.weapon.update(target)
+        if self.weapon is not None:
+            self.weapon.update(target)
         for i in self.state:
             if i == CharacterState.SKILL:
                 if self.Skill.update(target):

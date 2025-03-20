@@ -27,6 +27,31 @@ class AttackBoostEffect(Effect):
         self.character.remove_effect(self)
         print(f"{self.name}攻击力提升效果结束")
 
+class AttackValueBoostEffect(Effect):
+    """攻击力值提升效果（固定数值）"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character)
+        self.bonus = bonus  # 攻击力固定值提升
+        self.duration = duration  # 持续时间（秒）
+        self.name = name
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, AttackValueBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.character.attributePanel['固定攻击力'] += self.bonus
+        print(f"{self.character.name}的攻击力提升了{self.bonus:.2f}点")
+
+    def remove(self):
+        self.character.attributePanel['固定攻击力'] -= self.bonus
+        self.character.remove_effect(self)
+        print(f"{self.name}基础攻击力提升效果结束")
+
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
     def __init__(self, character, name, bonus, duration):
