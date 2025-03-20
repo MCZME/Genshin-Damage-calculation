@@ -26,26 +26,6 @@ class ConstellationEffect:
     def update(self,target):
         pass
 
-class Effect:
-    def __init__(self, character):
-        self.character = character
-        self.duration = 0
-        
-    def apply(self):
-        """应用效果"""
-        pass
-    
-    def remove(self):
-        """移除效果"""
-        pass
-    
-    def update(self,target):
-        """更新持续时间"""
-        if self.duration > 0:
-            self.duration -= 1
-            if self.duration <= 0:
-                self.remove()
-
 class SkillSate(Enum):
     OnField = auto()
     OffField = auto()
@@ -98,7 +78,7 @@ class NormalAttackSkill(SkillBase):
             return False
         self.current_segment = 0
         self.segment_progress = 0
-        self.max_segments = n           # 实际攻击段数
+        self.max_segments = min(n,len(self.segment_frames))           # 实际攻击段数
         self.total_frames = sum(self.segment_frames[:self.max_segments])
         print(f"⚔️ 开始第{self.current_segment+1}段攻击")
         

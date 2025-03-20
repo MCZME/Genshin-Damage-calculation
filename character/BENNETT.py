@@ -1,6 +1,6 @@
 from character.character import Character
-from setup.BaseClass import SkillBase, SkillSate, ConstellationEffect
-from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalInfusionEffect
+from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate, ConstellationEffect
+from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
@@ -230,7 +230,8 @@ class ConstellationEffect_6(ConstellationEffect):
             # 命座6效果
             if target.type in self.weapon_types:
                 # 火元素伤害加成
-                target.attributePanel['火元素伤害加成'] += self.pyro_boost
+                elementEffect = ElementalDamageBoostEffect(target, "鼓舞领域", "火", self.pyro_boost,2)
+                elementEffect.apply()
             
             # 攻击力加成
             lv_index = self.character.Burst.lv - 1
@@ -243,6 +244,11 @@ class ConstellationEffect_6(ConstellationEffect):
         InspirationFieldEffect.__init__ = patched_init
         InspirationFieldEffect._apply_field_effect = new_apply_field_effect
 
+# todo
+# 元素战技
+# 重击
+# 天赋1 2
+# 命座3 4
 class BENNETT(Character):
     ID = 19
     def __init__(self,lv,skill_params,constellation=0):
@@ -251,7 +257,15 @@ class BENNETT(Character):
 
     def _init_character(self):
         super()._init_character()
-        # self.NormalAttack = 
+        self.NormalAttack = NormalAttackSkill(self.skill_params[0])
+        self.NormalAttack.segment_frames = [13,16,21,49,50]
+        self.NormalAttack.damageMultipiler = {
+            1:[44.55, 48.17, 51.8, 56.98, 60.61, 64.75, 70.45, 76.15, 81.84, 88.06, 94.28, 100.49, 106.71, 112.92, 119.14],
+            2:[42.74, 46.22, 49.7, 54.67, 58.15, 62.12, 67.59, 73.06, 78.53, 84.49, 90.45, 96.42, 102.38, 108.35, 114.31],
+            3:[54.61, 59.06, 63.5, 69.85, 74.3, 79.37, 86.36, 93.34, 100.33, 107.95, 115.57, 123.19, 130.81, 138.43, 146.05],
+            4:[59.68, 64.54, 69.4, 76.34, 81.2, 86.75, 94.38, 102.02, 109.65, 117.98, 126.31, 134.64, 142.96, 151.29, 159.62],
+            5:[71.9, 77.75, 83.6, 91.96, 97.81, 104.5, 113.7, 122.89, 132.09, 142.12, 152.15, 162.18, 172.22, 182.25, 192.28]
+        }
         self.Burst = ElementalBurst(self.skill_params[2])
         self.constellation_effects[0] = ConstellationEffect_1()
         self.constellation_effects[1] = ConstellationEffect_2()

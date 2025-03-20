@@ -612,6 +612,9 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                 effect = MavuikaAttackScalingEffect(self.character)
                 effect.apply()
 
+# todo
+# 命座3，4，5，6
+# 驰轮车下的元素附着 冷却重置逻辑未实现
 class MAVUIKA(Character):
     ID = 92
     def __init__(self,level,skill_params,constellation=0):

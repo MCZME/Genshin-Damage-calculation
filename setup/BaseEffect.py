@@ -20,6 +20,52 @@ class Effect:
             if self.duration <= 0:
                 self.remove()
 
+class DamageBoostEffect(Effect):
+    """伤害提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character)
+        self.bonus = bonus  # 伤害提升
+        self.duration = duration  # 持续时间（秒）
+        self.name = name
+        self.attribute_name = '伤害加成'  # 属性名称
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.setEffect()
+
+    def setEffect(self):
+        self.character.attributePanel[self.attribute_name] += self.bonus
+        print(f"{self.character.name}获得{self.name}效果")
+
+    def remove(self):
+        self.romoveEffect()
+        self.character.remove_effect(self)
+
+    def romoveEffect(self):
+        self.character.attributePanel[self.attribute_name] -= self.bonus
+        print(f"{self.name}{self.name}效果结束")
+
+class ElementalDamageBoostEffect(DamageBoostEffect):
+    """元素伤害提升效果"""
+    def __init__(self, character, name, element_type, bonus, duration):
+        super().__init__(character, name, bonus, duration)
+        self.element_type = element_type  # 元素类型
+    
+    def setEffect(self):
+        self.character.attributePanel[self.element_type+'元素伤害加成'] += self.bonus
+        print(f"{self.character.name}获得{self.name}效果")
+    
+    def romoveEffect(self):
+        self.character.attributePanel[self.element_type+'元素伤害加成'] -= self.bonus
+        print(f"{self.name}{self.name}效果结束")
+
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""
     def __init__(self, character, name, bonus, duration):
@@ -123,11 +169,35 @@ class ElementalInfusionEffect(Effect):
     def __init__(self, character, name, element_type, duration, is_unoverridable=False):
         super().__init__(character)
         self.name = name
-        self.element_type = element_type  # 元素类型
-        self.duration = duration  # 持续时间（秒）
-        self.is_unoverridable = is_unoverridable  # 是否不可覆盖
-        self.apply_time = None  # 效果应用时间
+        self.element_type = element_type
+        self.duration = duration
+        self.is_unoverridable = is_unoverridable
+        self.apply_time = None
+        # 冷却控制参数
+        self.sequence = [1, 0, 0]  # 攻击序列冷却模板
+        self.sequence_index = 0     # 当前序列索引
+        self.last_trigger_time = 0  # 最后触发时间
+        self.cooldown_reset_time = 2.5*60  # 冷却重置时间（秒）
         
+    def should_apply_infusion(self):
+        """判断是否应该应用元素附着"""
+        current_time = GetCurrentTime()
+        time_since_last = current_time - self.last_trigger_time
+        
+        # 时间冷却优先：超过设定阈值则重置序列
+        if time_since_last > self.cooldown_reset_time:
+            self.sequence_index = 0
+            allow = self.sequence[self.sequence_index]
+            self.sequence_index = (self.sequence_index + 1) % len(self.sequence)
+            self.last_trigger_time = current_time
+            return allow
+            
+        # 攻击序列冷却模式
+        allow = self.sequence[self.sequence_index]
+        self.sequence_index = (self.sequence_index + 1) % len(self.sequence)
+        self.last_trigger_time = current_time
+        return allow
+
     def apply(self):
         # 防止重复应用
         existing = next((e for e in self.character.active_effects 
