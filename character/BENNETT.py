@@ -1,6 +1,6 @@
 from character.character import Character
-from setup.BaseClass import Effect, SkillBase, SkillSate
-from setup.BaseEffect import AttackBoostEffect, AttackValueBoostEffect
+from setup.BaseClass import SkillBase, SkillSate, ConstellationEffect
+from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalInfusionEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
@@ -46,11 +46,11 @@ class InspirationFieldEffect(Effect, EventHandler):
             heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
             EventBus.publish(heal_event)
             print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
-        # 攻击加成逻辑
         else:
+            # 基础攻击加成逻辑
             lv_index = self.character.Burst.lv - 1
-            atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100)*self.base_atk
-            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)  # 百分比加成
+            atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100) * self.base_atk
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
             effect.apply()
 
     def handle_event(self, event: GameEvent):
@@ -118,6 +118,131 @@ class ElementalBurst(SkillBase):
     def on_interrupt(self):
         return super().on_interrupt()
 
+class ConstellationEffect_1(ConstellationEffect):
+    """命座1：冒险憧憬"""
+    def __init__(self):
+        super().__init__('冒险憧憬')
+        
+    def apply(self, character):
+        # 保存原始方法
+        original_apply = InspirationFieldEffect._apply_field_effect
+        
+        # 定义新的领域应用方法
+        def new_apply_field_effect(self, target):
+            # 移除生命值限制
+            current_time = GetCurrentTime()
+            
+            # 保留原有治疗逻辑
+            if target.currentHP / target.maxHP <= 0.7 and current_time - self.last_heal_time >= 60:
+                lv_index = self.character.Burst.lv - 1
+                self.last_heal_time = current_time
+                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
+                heal.base_value = '攻击力'
+                heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
+                EventBus.publish(heal_event)
+                print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
+            
+            # 修改后的攻击加成逻辑
+            lv_index = self.character.Burst.lv - 1
+            base_atk = self.character.attributeData["攻击力"]
+            # 基础加成 + 命座额外20%
+            atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100 + 0.2) * base_atk
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
+            effect.apply()
+        
+        InspirationFieldEffect._apply_field_effect = new_apply_field_effect
+
+class ConstellationEffect_2(ConstellationEffect,EventHandler):
+    """命座2：踏破绝境"""
+    def __init__(self):
+        super().__init__('踏破绝境')
+        self.original_er = 0
+        self.is_active = False  # 添加状态标记
+        
+    def apply(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        self._update_energy_recharge()
+        
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_HEALTH_CHANGE and event.data['character'].id == self.character.id:
+            self._update_energy_recharge()
+                
+    def _update_energy_recharge(self):
+        current_hp_ratio = self.character.currentHP / self.character.maxHP
+        if current_hp_ratio <= 0.7 and not self.is_active:
+            # 应用加成
+            self.character.attributePanel['元素充能效率'] += 30
+            self.is_active = True
+            print(f"⚡ {self.character.name} 触发命座2：元素充能效率提高30%")
+        elif current_hp_ratio > 0.7 and self.is_active:
+            # 移除加成
+            self.character.attributePanel['元素充能效率'] -= 30
+            self.is_active = False
+            print(f"⚡ {self.character.name} 命座2效果解除")
+                
+    def remove(self):
+        EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        if self.is_active:
+            self.character.attributePanel['元素充能效率'] = self.original_er
+            self.is_active = False
+
+class ConstellationEffect_5(ConstellationEffect):
+    """命座5：开拓的心魂"""
+    def __init__(self):
+        super().__init__('开拓的心魂')
+        
+    def apply(self, character):
+        super().apply(character)
+        burst_lv = character.Burst.lv+3
+        if burst_lv > 15:
+            burst_lv = 15
+        character.Burst = ElementalBurst(burst_lv)
+
+class ConstellationEffect_6(ConstellationEffect):
+    """命座6：烈火与勇气"""
+    def __init__(self):
+        super().__init__('烈火与勇气')
+        
+    def apply(self, character):
+        # 修改领域效果类
+        original_init = InspirationFieldEffect.__init__
+        
+        def patched_init(self, caster, base_atk, max_hp, duration):
+            original_init(self, caster, base_atk, max_hp, duration)
+            
+            # 添加火伤加成和附魔效果
+            self.weapon_types = ['单手剑', '双手剑', '长柄武器']
+            self.pyro_boost = 15
+    
+        def new_apply_field_effect(self, target):
+            # 原始领域效果
+            current_time = GetCurrentTime()
+            if target.currentHP / target.maxHP <= 0.7 and current_time - self.last_heal_time >= 60:
+                lv_index = self.character.Burst.lv - 1
+                self.last_heal_time = current_time
+                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
+                heal.base_value = '攻击力'
+                heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
+                EventBus.publish(heal_event)
+                print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
+            
+            # 命座6效果
+            if target.type in self.weapon_types:
+                # 火元素伤害加成
+                target.attributePanel['火元素伤害加成'] += self.pyro_boost
+            
+            # 攻击力加成
+            lv_index = self.character.Burst.lv - 1
+            atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100+0.2) * self.base_atk
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
+            Infusion = ElementalInfusionEffect(target, "鼓舞领域", "火",2)
+            effect.apply()
+            Infusion.apply()
+            
+        InspirationFieldEffect.__init__ = patched_init
+        InspirationFieldEffect._apply_field_effect = new_apply_field_effect
+
 class BENNETT(Character):
     ID = 19
     def __init__(self,lv,skill_params,constellation=0):
@@ -126,4 +251,9 @@ class BENNETT(Character):
 
     def _init_character(self):
         super()._init_character()
+        # self.NormalAttack = 
         self.Burst = ElementalBurst(self.skill_params[2])
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
