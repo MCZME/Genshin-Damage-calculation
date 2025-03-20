@@ -1,7 +1,7 @@
 import types
 from character.character import Character, CharacterState
-from setup.BaseClass import ConstellationEffect, Effect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
-from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect
+from setup.BaseClass import ConstellationEffect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NightSoulConsumptionEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime

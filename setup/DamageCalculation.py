@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from character.character import Character
+from setup.BaseEffect import ElementalInfusionEffect
 from setup.ElementalReaction import ElementalReaction
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType
 from setup.Target import Target
@@ -122,14 +123,53 @@ class Calculation:
         self.damage.damage = value
 
 class DamageCalculateEventHandler(EventHandler):
+    def handle_elemental_infusion(self, character, damage):
+        # 获取所有元素附魔效果
+        infusion_effects = [e for e in character.active_effects 
+                          if isinstance(e, ElementalInfusionEffect)]
+        
+        # 检查是否有不可覆盖的效果
+        unoverridable = next((e for e in infusion_effects if e.is_unoverridable), None)
+        if unoverridable:
+            damage.element = (unoverridable.element_type, 1)
+            return
+        
+        # 收集所有元素类型并处理克制关系
+        elements = [e.element_type for e in infusion_effects]
+        if len(elements) > 1:
+            # 实现元素克制逻辑
+            dominant_element = self.get_dominant_element(elements)
+            damage.element = (dominant_element, 1)
+        elif len(elements) == 1:
+            damage.element = (elements[0], 1)
+        
+    def get_dominant_element(self, elements):
+        # 元素克制关系：水 > 火 > 冰
+        element_order = ['水', '火', '冰']
+        infusion_effects = [e for e in self.character.active_effects 
+                          if isinstance(e, ElementalInfusionEffect)]
+        for element in element_order:
+            if element in elements:
+                return element
+        # 没有克制关系则返回最早应用的元素
+        return min(elements, key=lambda x: next(e.apply_time for e in infusion_effects if e.element_type == x))
+
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
-            calculation = Calculation(event.data['character'], event.data['target'], event.data['damage'])
-            if event.data['damage'].baseValue == '攻击力':
+            character = event.data['character']
+            damage = event.data['damage']
+            
+            # 处理元素附魔
+            self.handle_elemental_infusion(character, damage)
+            
+            # 原有伤害计算逻辑
+            calculation = Calculation(character, event.data['target'], damage)
+            if damage.baseValue == '攻击力':
                 calculation.calculation_by_attack()
-            elif event.data['damage'].baseValue == '生命值':
+            elif damage.baseValue == '生命值':
                 calculation.calculation_by_hp()
-            elif event.data['damage'].baseValue == '防御力':
+            elif damage.baseValue == '防御力':
                 calculation.calculation_by_def()
-            damageEvent = DamageEvent(event.data['character'], event.data['target'], event.data['damage'], event.frame, before=False)
+                
+            damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
             EventBus.publish(damageEvent)
