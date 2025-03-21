@@ -117,7 +117,8 @@ class ElementalSkill(SkillBase, EventHandler):
         damage = Damage(
             self.damageMultipiler['点按伤害'][self.lv-1],
             element=('火',1),
-            damageType=DamageType.SKILL
+            damageType=DamageType.SKILL,
+            name=self.name + ' 点按伤害'
         )
         self.scheduled_damage = (damage, self.skill_frames['点按'][0])
         
@@ -146,7 +147,8 @@ class ElementalSkill(SkillBase, EventHandler):
         damage = Damage(
             self.damageMultipiler[damage_type][self.lv-1],
             element=('火',2),
-            damageType=DamageType.SKILL
+            damageType=DamageType.SKILL,
+            name=self.name + ' ' +damage_type.split('伤害')[0]
         )
         self.scheduled_damage = (damage, self.skill_frames['长按'][0])
 
@@ -164,7 +166,6 @@ class ElementalSkill(SkillBase, EventHandler):
             if self.current_frame == trigger_frame:
                 event =  DamageEvent(self.caster, target, damage, GetCurrentTime())
                 EventBus.publish(event)
-                print(f"🔥 {'点按' if trigger_frame ==25 else '长按'}射击造成{damage.damage:.2f}火伤")
                 del self.scheduled_damage
                 
                 # 生成流涌之刃
@@ -172,7 +173,8 @@ class ElementalSkill(SkillBase, EventHandler):
                 surge_damage = Damage(
                     self.damageMultipiler['流涌之刃伤害'][self.lv-1],
                     element=('火', 0),
-                    damageType=DamageType.SKILL
+                    damageType=DamageType.SKILL,
+                    name='流涌之刃'
                 )
                 surge = ArkheObject(
                     name="流涌之刃",
@@ -233,15 +235,16 @@ class ElementalBurst(SkillBase):
                 self.damageMultipiler['爆轰榴弹伤害'][self.lv-1],
                 element=('火', 2),
                 damageType=DamageType.BURST,
+                name=self.name
             )
             EventBus.publish(DamageEvent(self.caster, target, main_damage, current_time))
-            print(f"💥🔥 爆轰榴弹造成范围火伤 {main_damage.damage:.2f}")
             
             for i in range(self.split_bullets):
                 damage = Damage(
                     self.damageMultipiler['二重毁伤弹伤害'][self.lv-1],
                     element=('火', 1),
-                    damageType=DamageType.BURST
+                    damageType=DamageType.BURST,
+                    name='二重毁伤弹'
                 )
                 bullet = DoubleDamageBullet(
                     caster=self.caster,
@@ -359,7 +362,8 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                 explosion_damage = Damage(
                     120,
                     element=('火', 1),
-                    damageType=DamageType.SKILL
+                    damageType=DamageType.SKILL,
+                    name='连锁殉爆'
                 )
                 explosion_event = DamageEvent(
                     self.character,
@@ -368,7 +372,6 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                     GetCurrentTime()
                 )
                 EventBus.publish(explosion_event)
-                print(f"💥🔥 连锁殉爆造成{explosion_damage.damage:.2f}火伤")
    
     def update(self, target):
         if self.cooldown > 0:
@@ -493,7 +496,10 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                     else:
                         buff.apply(member)
 
-
+# todo:
+# 1. 命座1，4
+# 2. 重击
+# 3. 天赋和命座测试
 class CHEVREUSE(Fontaine):
     ID = 76
     def __init__(self, level, skill_params, constellation=0):

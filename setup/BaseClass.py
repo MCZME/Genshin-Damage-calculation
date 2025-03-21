@@ -128,10 +128,9 @@ class NormalAttackSkill(SkillBase):
 
     def _apply_segment_effect(self,target):
         # 发布伤害事件
-        damage = Damage(self.damageMultipiler[self.current_segment+1][self.lv-1],self.element,DamageType.NORMAL)
+        damage = Damage(self.damageMultipiler[self.current_segment+1][self.lv-1],self.element,DamageType.NORMAL,f'普通攻击 {self.current_segment+1}')
         damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
         EventBus.publish(damage_event)
-        print(f"🎯 {self.caster.name} 对 {target.name} 造成了 {damage.damage:.2f} 点伤害")
 
         # 发布普通攻击事件（后段）
         normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),before=False,damage=damage)
@@ -175,15 +174,14 @@ class HeavyAttackSkill(SkillBase):
         damage = Damage(
             damageMultipiler=self.damageMultipiler[self.lv-1],
             element=self.element,
-            damageType=DamageType.HEAVY
+            damageType=DamageType.HEAVY,
+            name=f'重击'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
         event = HeavyAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
         EventBus.publish(event)
-
-        print(f"💥 {self.caster.name} 重击造成 {damage.damage:.2f} 伤害")
 
     def on_finish(self):
         super().on_finish()

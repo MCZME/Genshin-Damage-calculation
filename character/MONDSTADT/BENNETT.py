@@ -113,11 +113,11 @@ class ElementalBurst(SkillBase):
             damage = Damage(
                 damageMultipiler=self.damageMultipiler[self.lv-1],
                 element=('火', 1),
-                damageType=DamageType.BURST
+                damageType=DamageType.BURST,
+                name=self.name,
             )
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
-            print(f"🔥 {self.caster.name} 对 {target.name} 造成了 {damage.damage:.2f} 点伤害")
             return True
         return False
     

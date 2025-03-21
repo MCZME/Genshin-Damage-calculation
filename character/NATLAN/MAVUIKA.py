@@ -51,11 +51,13 @@ class ElementalSkill(SkillBase,EventHandler):
 
     def on_frame_update(self, target):
         if self.current_frame == 1 and self.ttt:
-            damage = Damage(damageMultipiler=self.damageMultipiler['伤害'][self.lv-1], element=('火',1), damageType=DamageType.SKILL)
+            damage = Damage(damageMultipiler=self.damageMultipiler['伤害'][self.lv-1], 
+                            element=('火',1), 
+                            damageType=DamageType.SKILL,
+                            name=self.name)
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
             self.ttt = False
-            print(f"🔥 玛薇卡释放元素战技，造成伤害：{damage.damage:.2f}")
         if self.caster.mode == '正常模式':
             return True
         return False
@@ -69,10 +71,11 @@ class ElementalSkill(SkillBase,EventHandler):
                 self.on_finish()
                 return
 
-            damage = Damage(damageMultipiler=self.damageMultipiler['焚曜之环'][self.lv-1], element=('火',1), damageType=DamageType.SKILL)
+            damage = Damage(damageMultipiler=self.damageMultipiler['焚曜之环'][self.lv-1], element=('火',1),
+                             damageType=DamageType.SKILL,
+                             name='焚曜之环')
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
-            print(f"🔥 焚曜之环造成伤害：{damage.damage:.2f}")
             
     def on_finish(self):
         super().on_finish()
@@ -159,10 +162,10 @@ class ElementalBurst(SkillBase, EventHandler):
     # 坠日斩
     def _perform_plunge_attack(self,target):
         damage = Damage(damageMultipiler=self.damageMultipiler['坠日斩'][self.lv-1]+self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1],
-                        element=('火',1), damageType=DamageType.BURST)
+                        element=('火',1), damageType=DamageType.BURST,
+                        name="坠日斩")
         damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
         EventBus.publish(damageEvent)
-        print(f"🔥 坠日斩造成{damage.damage:.2f}点火元素伤害")
 
     def handle_event(self, event: GameEvent):
         # 普通攻击获得战意
@@ -292,18 +295,11 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
         damage = Damage(
             damageMultipiler=total_multiplier,
             element=element,
-            damageType=DamageType.NORMAL
+            damageType=DamageType.NORMAL,
+            name="驰轮车" if self.caster.mode == '驰轮车' else "普通攻击",
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
-
-        # 输出带序列状态的日志
-        if self.caster.mode == '驰轮车':
-            seq_pos = (self.sequence_index-1) % 3 + 1  # 显示1-based位置
-            gauge_info = f"🔥(量{element[1]} 序列{seq_pos}/3)"
-            print(f"🎯 驰轮车第{self.current_segment+1}段 {gauge_info} 造成 {damage.damage:.2f} 伤害")
-        else:
-            print(f"🎯 普通攻击造成 {damage.damage:.2f} 物理伤害")
 
         # 发布普通攻击后事件（保持原有逻辑）
         normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False)
@@ -399,11 +395,11 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         damage = Damage(
             total_multiplier,
             element=element,
-            damageType=DamageType.HEAVY
+            damageType=DamageType.HEAVY,
+            name='驰轮车重击'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
-        print(f"🌀 焰轮旋舞第{self.spin_count+1}段 {element} 造成 {damage.damage:.2f} 火伤")
 
         event = HeavyAttackEvent(self.caster, GetCurrentTime(), before=False)
         EventBus.publish(event)
@@ -424,11 +420,11 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         damage = Damage(
             total_multiplier,
             element=('火', 1),  
-            damageType=DamageType.HEAVY
+            damageType=DamageType.HEAVY,
+            name='驰轮车重击终结'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
-        print(f"💥 焰轮终结 造成 {damage.damage:.2f} 火伤")
 
     def on_finish(self):
         super().on_finish()

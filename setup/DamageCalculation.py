@@ -14,11 +14,12 @@ class DamageType(Enum):
     BURST = auto()
 
 class Damage():
-    def __init__(self,damageMultipiler,element,damageType:DamageType,damge=0):
+    def __init__(self,damageMultipiler,element,damageType:DamageType,name):
         self.damageMultipiler = damageMultipiler
         self.element = element
         self.damageType = damageType
-        self.damage = damge
+        self.name = name
+        self.damage = 0
         self.baseValue = '攻击力'
 
     def setSource(self,source):
@@ -123,6 +124,40 @@ class Calculation:
         self.damage.damage = value
 
 class DamageCalculateEventHandler(EventHandler):
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE:
+            character = event.data['character']
+            damage = event.data['damage']
+            
+            if damage.damageType in [DamageType.NORMAL, DamageType.HEAVY]:
+                # 处理元素附魔
+                self.handle_elemental_infusion(character, damage)
+            
+            # 原有伤害计算逻辑
+            calculation = Calculation(character, event.data['target'], damage)
+            if damage.baseValue == '攻击力':
+                calculation.calculation_by_attack()
+            elif damage.baseValue == '生命值':
+                calculation.calculation_by_hp()
+            elif damage.baseValue == '防御力':
+                calculation.calculation_by_def()
+
+            element_icons = {
+                '物理': '⚔️',
+                '水': '🌊',
+                '火': '🔥',
+                '冰': '❄️',
+                '风': '🌪️',
+                '雷': '⚡',
+                '岩': '⛰️',
+                '草': '🌿'
+            }
+            e = element_icons.get(damage.element[0], '❓')
+            print(f'{e} {character.name}使用 {damage.name} 造成{damage.damage:.2f}点 {damage.element[0]+"元素" if damage.element[0] != "物理" else damage.element[0]} 伤害')
+                
+            damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
+            EventBus.publish(damageEvent)
+    
     def handle_elemental_infusion(self, character, damage):
         # 获取所有元素附魔效果
         infusion_effects = [e for e in character.active_effects 
@@ -153,24 +188,3 @@ class DamageCalculateEventHandler(EventHandler):
                 return element
         # 没有克制关系则返回最早应用的元素
         return min(elements, key=lambda x: next(e.apply_time for e in infusion_effects if e.element_type == x))
-
-    def handle_event(self, event):
-        if event.event_type == EventType.BEFORE_DAMAGE:
-            character = event.data['character']
-            damage = event.data['damage']
-            
-            if damage.damageType in [DamageType.NORMAL, DamageType.HEAVY]:
-                # 处理元素附魔
-                self.handle_elemental_infusion(character, damage)
-            
-            # 原有伤害计算逻辑
-            calculation = Calculation(character, event.data['target'], damage)
-            if damage.baseValue == '攻击力':
-                calculation.calculation_by_attack()
-            elif damage.baseValue == '生命值':
-                calculation.calculation_by_hp()
-            elif damage.baseValue == '防御力':
-                calculation.calculation_by_def()
-                
-            damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
-            EventBus.publish(damageEvent)
