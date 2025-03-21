@@ -1,9 +1,10 @@
+from abc import ABC,abstractmethod
 from setup.Event import DamageEvent, EventBus
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
 
 
-class baseObject:
+class baseObject(ABC):
     def __init__(self,name, life_frame = 0):
         self.name = name
 
@@ -19,8 +20,8 @@ class baseObject:
             self.on_finish(target)
             Team.remove_object(self)
 
-    def on_finish(self,target):
-        ...
+    @abstractmethod
+    def on_finish(self,target):...
            
 class ArkheObject(baseObject):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):
