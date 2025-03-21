@@ -42,7 +42,7 @@ class InspirationFieldEffect(Effect, EventHandler):
             lv_index = self.character.Burst.lv - 1
             self.last_heal_time = current_time
             heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
-            heal.base_value = '攻击力'
+            heal.base_value = '生命值'
             heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
             EventBus.publish(heal_event)
             print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
@@ -77,7 +77,7 @@ class InspirationFieldEffect(Effect, EventHandler):
         print("🔥 鼓舞领域消失")
         EventBus.unsubscribe(EventType.CHARACTER_SWITCH, self)
         EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
-        self.caster.remove_effect(self)
+        self.current_char.remove_effect(self)
 
 class ElementalBurst(SkillBase):
     def __init__(self, lv, caster=None):
@@ -137,7 +137,7 @@ class ConstellationEffect_1(ConstellationEffect):
                 lv_index = self.character.Burst.lv - 1
                 self.last_heal_time = current_time
                 heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
-                heal.base_value = '攻击力'
+                heal.base_value = '生命值'
                 heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
                 EventBus.publish(heal_event)
                 print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
@@ -222,7 +222,7 @@ class ConstellationEffect_6(ConstellationEffect):
                 lv_index = self.character.Burst.lv - 1
                 self.last_heal_time = current_time
                 heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
-                heal.base_value = '攻击力'
+                heal.base_value = '生命值'
                 heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
                 EventBus.publish(heal_event)
                 print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
