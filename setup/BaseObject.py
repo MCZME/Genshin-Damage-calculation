@@ -19,6 +19,11 @@ class baseObject(ABC):
         if self.current_frame >= self.life_frame:
             self.on_finish(target)
             Team.remove_object(self)
+        self.on_frame_update(target)
+
+    @abstractmethod
+    def on_frame_update(self,target):
+        ...
 
     @abstractmethod
     def on_finish(self,target):...
