@@ -20,6 +20,7 @@ class Team:
     SwapCd = 60
     element_counts = {}
     active_resonances = {}
+    active_objects = []
 
     def __init__(self, team: list[Character] = None):
         if team is not None:
@@ -82,8 +83,11 @@ class Team:
         self.active_resonances.pop(resonance_name, None)
     
     def clear(self):
-        self.team.clear()
-        self.current_character = None
+        Team.team.clear()
+        Team.active_objects.clear()
+        Team.active_resonances.clear()
+        Team.current_character = None
+        Team.current_frame = 0
     
     def swap(self,action):
          # 获取当前技能类型（SKILL或BURST）
@@ -134,5 +138,15 @@ class Team:
     def update(self,target):
         for character in self.team:
             character.update(target)
+        for object in self.active_objects:
+            object.update(target)
         if self.current_frame > 0:
             self.current_frame -= 1
+
+    @classmethod
+    def add_object(self,object):
+        self.active_objects.append(object)
+
+    @classmethod
+    def remove_object(self,object):
+        self.active_objects.remove(object)
