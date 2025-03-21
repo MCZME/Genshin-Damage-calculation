@@ -117,6 +117,7 @@ class Team:
                             
                             # 执行切换
                             character_switch_event = CharacterSwitchEvent(self.current_character, character,frame=GetCurrentTime())
+                            old_character = self.current_character
                             self.current_character.on_field = False
                             character.on_field = True
                             self.current_character = character
@@ -129,6 +130,8 @@ class Team:
                                     getattr(self.current_character, action[1])(action[2])
                                 else:
                                     getattr(self.current_character, action[1])()
+                                character_switch_event = CharacterSwitchEvent(old_character, self.current_character,frame=GetCurrentTime(),before=False)
+                                EventBus.publish(character_switch_event)
                                 return True
             else:
                 if self.current_frame %30 == 0:

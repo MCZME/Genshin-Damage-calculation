@@ -23,10 +23,15 @@ class InspirationFieldEffect(Effect, EventHandler):
         self.last_heal_time = 0  # 上次治疗时间（帧数）
 
         # 订阅领域相关事件
-        EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, InspirationFieldEffect)), None)
+        if existing:
+            return
         print("🔥 鼓舞领域展开！")
         self.current_char.add_effect(self)
         self._apply_field_effect(self.current_char)
@@ -50,18 +55,19 @@ class InspirationFieldEffect(Effect, EventHandler):
             # 基础攻击加成逻辑
             lv_index = self.character.Burst.lv - 1
             atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100) * self.base_atk
-            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 5)
             effect.apply()
 
     def handle_event(self, event: GameEvent):
         """处理角色切换和血量变化"""
-        if event.event_type == EventType.CHARACTER_SWITCH:
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             # 角色切换时，将效果转移到新角色
             old_char = event.data['old_character']
             new_char = event.data['new_character']
             if old_char == self.current_char:
                 self.current_char.remove_effect(self)
                 self.current_char = new_char
+                self.current_char.add_effect(self)
                 self._apply_field_effect(new_char)
         elif event.event_type == EventType.AFTER_HEALTH_CHANGE:
             self._apply_field_effect(self.current_char)
@@ -75,7 +81,7 @@ class InspirationFieldEffect(Effect, EventHandler):
 
     def remove(self):
         print("🔥 鼓舞领域消失")
-        EventBus.unsubscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
         self.current_char.remove_effect(self)
 
@@ -147,7 +153,7 @@ class ConstellationEffect_1(ConstellationEffect):
             base_atk = self.character.attributeData["攻击力"]
             # 基础加成 + 命座额外20%
             atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100 + 0.2) * base_atk
-            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 5)
             effect.apply()
         
         InspirationFieldEffect._apply_field_effect = new_apply_field_effect
@@ -230,14 +236,14 @@ class ConstellationEffect_6(ConstellationEffect):
             # 命座6效果
             if target.type in self.weapon_types:
                 # 火元素伤害加成
-                elementEffect = ElementalDamageBoostEffect(target, "鼓舞领域", "火", self.pyro_boost,2)
+                elementEffect = ElementalDamageBoostEffect(target, "鼓舞领域", "火", self.pyro_boost,5)
                 elementEffect.apply()
             
             # 攻击力加成
             lv_index = self.character.Burst.lv - 1
             atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100+0.2) * self.base_atk
-            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 2)
-            Infusion = ElementalInfusionEffect(target, "鼓舞领域", "火",2)
+            effect = AttackValueBoostEffect(target, "鼓舞领域", atk_bonus_percent, 5)
+            Infusion = ElementalInfusionEffect(target, "鼓舞领域", "火",5)
             effect.apply()
             Infusion.apply()
             

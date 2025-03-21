@@ -39,6 +39,8 @@ class EventType(Enum):
     AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
     BEFORE_HEAL = auto()         # 治疗计算前
     AFTER_HEAL = auto()          # 治疗后
+    BEFORE_SHIELD_CREATION = auto()  # 护盾生成前
+    AFTER_SHIELD_CREATION = auto()   # 护盾生成后
 
     BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
@@ -49,7 +51,8 @@ class EventType(Enum):
     BEFORE_BURST = auto()        # 爆发使用前
     AFTER_BURST = auto()         # 爆发使用后
 
-    CHARACTER_SWITCH = auto()   # 角色切换
+    BEFORE_CHARACTER_SWITCH = auto()   # 角色切换前
+    AFTER_CHARACTER_SWITCH = auto()    # 角色切换后
     BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
     BEFORE_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之前
@@ -74,8 +77,11 @@ class DamageEvent(GameEvent):
             super().__init__(EventType.AFTER_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
 
 class CharacterSwitchEvent(GameEvent):
-    def __init__(self, old_character, new_character, frame, **kwargs):
-        super().__init__(EventType.CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
+    def __init__(self, old_character, new_character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
 
 class NightSoulBlessingEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
@@ -117,9 +123,9 @@ class ElementalSkillEvent(GameEvent):
 class HealChargeEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
         if before:
-            super().__init__(EventType.BEFORE_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
+            super().__init__(EventType.BEFORE_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
-            super().__init__(EventType.AFTER_HEAL_CHARGE, frame=frame, character=character, amount=amount, **kwargs)
+            super().__init__(EventType.AFTER_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
 
 class ElementalReactionEvent(GameEvent):
     def __init__(self,elementalReaction, frame, before=True, **kwargs):
@@ -132,6 +138,11 @@ class HealEvent(GameEvent):
             super().__init__(EventType.BEFORE_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
         else:
             super().__init__(EventType.AFTER_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
+
+class ShieldEvent(GameEvent):
+    def __init__(self, source, target, shield, frame, before=True, **kwargs):
+        event_type = EventType.BEFORE_SHIELD_CREATION if before else EventType.AFTER_SHIELD_CREATION
+        super().__init__(event_type, frame=frame, source=source, target=target, shield=shield, **kwargs)
 
 # --------------------------
 # 事件处理器接口

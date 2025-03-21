@@ -20,7 +20,7 @@ class ElementalSkill(SkillBase,EventHandler):
                                 '伤害':[74.4,79.98,85.56,93,98.58,104.16,111.6,119.04,126.48,133.92,141.36,148.8,158.1]}
         
         # 订阅角色切换事件
-        EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def start(self, caster, hold=False):
         if not super().start(caster):
@@ -36,7 +36,7 @@ class ElementalSkill(SkillBase,EventHandler):
 
     def handle_event(self, event: GameEvent):
         """处理角色切换事件"""
-        if event.event_type == EventType.CHARACTER_SWITCH:
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             # 当玛薇卡被切出时自动转为焚曜之环
             if event.data['old_character'] == self.caster and self.caster is not None:
                 print("🔄 角色切换，变为焚曜之环形态")
@@ -99,7 +99,7 @@ class FurnaceEffect(Effect, EventHandler):
             existing.duration = self.duration  # 刷新持续时间
             return
         EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
-        EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
         
     def remove(self):
@@ -107,7 +107,7 @@ class FurnaceEffect(Effect, EventHandler):
         self.character.remove_effect(self)
         # 取消订阅
         EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
-        EventBus.unsubscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     
     def handle_event(self, event: GameEvent):
@@ -117,7 +117,7 @@ class FurnaceEffect(Effect, EventHandler):
                 event.cancelled = True
                 
         # 角色切换时移除效果
-        if event.event_type == EventType.CHARACTER_SWITCH:
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             if event.data['old_character'] == self.character:
                 self.duration = 0  # 立即结束效果
 
@@ -450,7 +450,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
         self.total_duration = fixed_duration + decay_duration
         self.decay_rate = self.max_boost / decay_duration
         self.current_holder = None
-        EventBus.subscribe(EventType.CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def apply(self):
         self.current_holder = self.character
@@ -458,7 +458,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
         print(f"🔥「基扬戈兹」生效！初始加成：{self.current_boost*100:.1f}%")
 
     def handle_event(self, event):
-        if event.event_type == EventType.CHARACTER_SWITCH and self in event.data['old_character'].active_effects:
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH and self in event.data['old_character'].active_effects:
             new_char = event.data['new_character']
             self._transfer_effect(new_char)
 
