@@ -77,11 +77,11 @@ class HealingCalculateEventHandler(EventHandler):
     def handle_event(self, event: HealEvent):
         if event.event_type == EventType.BEFORE_HEAL:
             # 确保目标对象存在
-            if not hasattr(event.data['source'], 'attributePanel'):
+            if not hasattr(event.data['character'], 'attributePanel'):
                 return
                 
             calculation = Calculation(
-                source=event.data['source'],
+                source=event.data['character'],
                 target=event.data['target'],
                 healing=event.data['healing']
             )
@@ -94,7 +94,7 @@ class HealingCalculateEventHandler(EventHandler):
             
             # 发布治疗后事件
             after_event = HealEvent(
-                source=event.data['source'],
+                source=event.data['character'],
                 target=event.data['target'],
                 healing=event.data['healing'],
                 frame=event.frame,

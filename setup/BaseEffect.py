@@ -50,7 +50,7 @@ class DamageBoostEffect(Effect):
 
     def romoveEffect(self):
         self.character.attributePanel[self.attribute_name] -= self.bonus
-        print(f"{self.name}{self.name}效果结束")
+        print(f"{self.character.name}: {self.name}的伤害加成效果结束")
 
 class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""
@@ -64,7 +64,7 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
     
     def romoveEffect(self):
         self.character.attributePanel[self.element_type+'元素伤害加成'] -= self.bonus
-        print(f"{self.name}{self.name}效果结束")
+        print(f"{self.character.name}: {self.name}的{self.element_type}元素伤害提升效果结束")
 
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""
@@ -90,7 +90,7 @@ class AttackBoostEffect(Effect):
     def remove(self):
         self.character.attributePanel['攻击力%'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"{self.name}攻击力提升效果结束")
+        print(f"{self.character.name}: {self.name}攻击力提升效果结束")
 
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
@@ -115,7 +115,7 @@ class AttackValueBoostEffect(Effect):
     def remove(self):
         self.character.attributePanel['固定攻击力'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"{self.name}基础攻击力提升效果结束")
+        print(f"{self.character.name}: {self.name}基础攻击力提升效果结束")
 
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
@@ -140,7 +140,7 @@ class HealthBoostEffect(Effect):
     def remove(self):
         self.character.attributePanel['生命值%'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"生命值提升效果结束")
+        print(f"{self.character.name}: {self.name} 生命值提升效果结束")
 
 class DefenseDebuffEffect(Effect):
     def __init__(self, source, target, debuff_rate, duration):
@@ -212,4 +212,4 @@ class ElementalInfusionEffect(Effect):
         
     def remove(self):
         self.character.remove_effect(self)
-        print(f"{self.name}元素附魔效果结束")
+        print(f"{self.character.name}: {self.name}元素附魔效果结束")
