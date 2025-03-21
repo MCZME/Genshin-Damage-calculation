@@ -42,11 +42,10 @@ class HealingFieldEffect(Effect, EventHandler):
             lv_index = self.character.Skill.lv - 1
             self.last_heal_time = current_time
             
-            heal = Healing(self.multipiler[lv_index], HealingType.SKILL)
+            heal = Healing(self.multipiler[lv_index], HealingType.SKILL,'近迫式急促拦射')
             heal.base_value = '生命值'
             heal_event = HealEvent(self.character, target, heal, current_time)
             EventBus.publish(heal_event)
-            print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value:.2f} 生命值")
 
     def handle_event(self, event: GameEvent):
         """处理角色切换"""
@@ -475,7 +474,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                 self.heal_triggered = True
                 # 12秒后触发全队治疗
                 for c in Team.team:
-                    heal = Healing(10, HealingType.SKILL)
+                    heal = Healing(10, HealingType.SKILL,name='终结罪恶的追缉')
                     heal.base_value = '生命值'
                     heal_event = HealEvent(self.character, c, heal, GetCurrentTime())
                     EventBus.publish(heal_event)

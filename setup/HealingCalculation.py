@@ -9,11 +9,12 @@ class HealingType(Enum):
     PASSIVE = auto()     # 被动治疗
 
 class Healing:
-    def __init__(self, base_Multipiler, healing_type: HealingType):
+    def __init__(self, base_Multipiler, healing_type: HealingType,name):
         self.base_Multipiler = base_Multipiler   # 基础倍率
         self.healing_type = healing_type   # 治疗类型
         self.final_value = 0               # 最终治疗量
         self.base_value = '攻击力'
+        self.name = name
 
     def set_source(self, source: Character):
         self.source = source
@@ -91,6 +92,8 @@ class HealingCalculateEventHandler(EventHandler):
                 calculation.calculate_by_hp()
             
             event.data['target'].heal(event.data['healing'].final_value)
+
+            print(f'💚 {event.data["character"].name} 使用 {event.data["healing"].name} 治疗 {event.data["target"].name} {event.data["healing"].final_value:.2f} 生命值')
             
             # 发布治疗后事件
             after_event = HealEvent(

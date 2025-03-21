@@ -46,11 +46,10 @@ class InspirationFieldEffect(Effect, EventHandler):
         if target.currentHP / target.maxHP <= 0.7 and current_time - self.last_heal_time >= 60:
             lv_index = self.character.Burst.lv - 1
             self.last_heal_time = current_time
-            heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
+            heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
             heal.base_value = '生命值'
             heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
             EventBus.publish(heal_event)
-            print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
         else:
             # 基础攻击加成逻辑
             lv_index = self.character.Burst.lv - 1
@@ -142,11 +141,10 @@ class ConstellationEffect_1(ConstellationEffect):
             if target.currentHP / target.maxHP <= 0.7 and current_time - self.last_heal_time >= 60:
                 lv_index = self.character.Burst.lv - 1
                 self.last_heal_time = current_time
-                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
+                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
                 heal.base_value = '生命值'
                 heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
                 EventBus.publish(heal_event)
-                print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
             
             # 修改后的攻击加成逻辑
             lv_index = self.character.Burst.lv - 1
@@ -227,11 +225,10 @@ class ConstellationEffect_6(ConstellationEffect):
             if target.currentHP / target.maxHP <= 0.7 and current_time - self.last_heal_time >= 60:
                 lv_index = self.character.Burst.lv - 1
                 self.last_heal_time = current_time
-                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST)
+                heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
                 heal.base_value = '生命值'
                 heal_event = HealEvent(self.character, target,heal, GetCurrentTime())
                 EventBus.publish(heal_event)
-                print(f"💚 {self.character.name} 治疗 {target.name} {heal.final_value} 生命值")
             
             # 命座6效果
             if target.type in self.weapon_types:
