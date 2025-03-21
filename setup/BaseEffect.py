@@ -72,7 +72,6 @@ class AttackBoostEffect(Effect):
         super().__init__(character)
         self.bonus = bonus  # 攻击力提升
         self.duration = duration  # 持续时间（秒）
-        self.original_attack_percent = 0
         self.name = name
         
     def apply(self):
@@ -85,7 +84,7 @@ class AttackBoostEffect(Effect):
             
         self.character.add_effect(self)
         self.character.attributePanel['攻击力%'] += self.bonus
-        print(f"{self.character.name}的攻击力提升了{self.bonus}%")
+        print(f"{self.character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
 
     def remove(self):
         self.character.attributePanel['攻击力%'] -= self.bonus
@@ -184,14 +183,14 @@ class ResistanceDebuffEffect(Effect):
             return
 
         for element in self.elements:
-            self.target.resistance[element] -= self.debuff_rate
+            self.target.element_resistance[element] -= self.debuff_rate
         self.target.add_effect(self)
-        print(f"🛡️ {self.source.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
+        print(f"🛡️ {self.character.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
         
     def remove(self):
         self.target.remove_effect(self)
         for element in self.elements:
-            self.target.resistance[element] += self.debuff_rate
+            self.target.element_resistance[element] += self.debuff_rate
         print(f"🛡️ {self.source.name} 的抗性降低效果结束")
 
 class ElementalInfusionEffect(Effect):

@@ -1,9 +1,11 @@
 from character.character import Character
-from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate
+from setup.BaseClass import ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus
 from setup.Tool import GetCurrentTime
+from setup.Team import Team
 
 class GuobaObject(baseObject):
     """锅巴对象"""
@@ -12,19 +14,37 @@ class GuobaObject(baseObject):
         self.caster = caster
         self.damage = damage
         self.interval = 96  # 1.6秒攻击间隔（96帧）
-        self.last_attack_time = GetCurrentTime() + 86  # 第126帧（40+86）开始第一次攻击
+        self.last_attack_time = -10  # 第126帧开始第一次攻击
+        self.is_acquirable = True  # 辣椒是否可被拾取
+        self.constellation = caster.constellation  # 添加命座判断
 
-    def update(self, target):
-        super().update(target)
-        current_time = GetCurrentTime()
-        if current_time - self.last_attack_time >= self.interval:
+    def on_frame_update(self, target):
+        if self.current_frame - self.last_attack_time >= self.interval:
             self._attack(target)
-            self.last_attack_time = current_time
+            self.last_attack_time = self.current_frame
 
     def _attack(self, target):
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
-        print(f"🔥 {self.name}喷火造成{self.damage.damage:.2f}火元素伤害")
+        
+        # 命座1效果：锅巴攻击降低火抗
+        if self.constellation >= 1:
+            debuff = ResistanceDebuffEffect(
+                name="外酥里嫩",
+                source=self.caster,
+                target=target,
+                elements=["火"],
+                debuff_rate=15,
+                duration=6*60
+            )
+            debuff.apply()
+
+    def on_finish(self, target):
+        if self.caster.level >= 60 and self.is_acquirable:
+            # 锅巴消失时触发辣椒效果
+            effect = ChiliPepperEffect(Team.current_character)
+            effect.apply()
+        return super().on_finish(target)
 
 class ElementalSkill(SkillBase):
     """元素战技：锅巴出击"""
@@ -68,7 +88,12 @@ class ElementalSkill(SkillBase):
 class PyronadoObject(baseObject):
     """旋火轮"""
     def __init__(self, caster, damage_multiplier, lv):
-        super().__init__(name="旋火轮", life_frame=600)  # 存在10秒（600帧）
+        base_duration = 600 - 56  # 基础持续时间544帧（9.07秒）
+        # 如果命座4激活，增加40%持续时间
+        if caster.constellation >= 4:
+            base_duration = int(base_duration * 1.4)
+            
+        super().__init__(name="旋火轮", life_frame=base_duration)
         character = Character(id=caster.id, level=caster.level, skill_params=caster.skill_params, constellation=caster.constellation)
         character.attributePanel = caster.attributePanel.copy()
         self.caster = character
@@ -148,6 +173,168 @@ class ElementalBurst(SkillBase):
     def on_interrupt(self):
         return super().on_interrupt()
 
+class ExplosionEffect(Effect):
+    """内爆效果"""
+    def __init__(self, source, damage):
+        super().__init__(source)
+        self.damage = damage
+        self.duration = 2 * 60  # 2秒
+        self.name = '内爆'
+
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, ExplosionEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+
+    def remove(self):
+        self.character.remove_effect(self)
+
+    def update(self, target):
+        if self.duration > 0:
+            self.duration -= 1
+            if self.duration <= 0:
+                # 持续时间结束时触发爆炸
+                event = DamageEvent(
+                    self.character,
+                    target,
+                    self.damage,
+                    GetCurrentTime()
+                )
+                EventBus.publish(event)
+                self.remove()
+                print("💥 内爆效果触发！")
+
+class PassiveSkillEffect_2(TalentEffect):
+    def __init__(self):
+        super().__init__('绝云朝天椒')
+
+    def apply(self, character):
+        super().apply(character)
+
+class ChiliPepperEffect(AttackBoostEffect):
+    """辣椒效果"""
+    def __init__(self, source):
+        super().__init__(source,"绝云朝天椒🌶️",10,10*60)
+
+class ConstellationEffect_1(ConstellationEffect):
+    """命座1：外酥里嫩"""
+    def __init__(self):
+        self.name = "外酥里嫩"
+        
+    def apply(self, character):
+        pass 
+
+class ConstellationEffect_2(ConstellationEffect):
+    """命座2：大火宽油"""
+    def __init__(self):
+        super().__init__('大火宽油')
+
+    def apply(self, character):
+        super().apply(character)
+        # 修改普通攻击最后一击
+        original_on_finish = character.NormalAttack.on_finish
+        def new_on_finish():
+            original_on_finish()
+            if character.constellation >= 2:
+                # 创建内爆效果
+                damage = Damage(
+                    75,
+                    element=('火', 1),
+                    damageType=DamageType.NORMAL,
+                    name='大火宽油 内爆'
+                )
+                effect = ExplosionEffect(character, damage)
+                effect.apply()
+        character.NormalAttack.on_finish = new_on_finish
+
+class ConstellationEffect_3(ConstellationEffect):
+    """命座3：武火急烹"""
+    def __init__(self):
+        super().__init__('武火急烹')
+
+    def apply(self, character):
+        skill_lv = character.Burst.lv + 3
+        if skill_lv > 15:
+            skill_lv = 15
+        character.Burst = ElementalBurst(skill_lv)
+
+class ConstellationEffect_4(ConstellationEffect):
+    """命座4：文火慢煨"""
+    def __init__(self):
+        super().__init__('文火慢煨')
+
+    def apply(self, character):
+        pass  # 效果已在PyronadoObject中实现
+
+class ConstellationEffect_5(ConstellationEffect):
+    """命座5：锅巴凶猛"""
+    def __init__(self):
+        super().__init__('锅巴凶猛')
+
+    def apply(self, character):
+        skill_lv = character.Skill.lv + 3
+        if skill_lv > 15:
+            skill_lv = 15
+        character.Skill = ElementalSkill(skill_lv)
+
+class PyroDamageBoostEffect(Effect):
+    """火元素伤害加成效果"""
+    def __init__(self, source):
+        super().__init__(source)
+        self.name = "大龙卷旋火轮"
+        self.bonus = 15
+        self.duration = 0
+
+    def apply(self):
+        for member in Team.team:
+            member.attributePanel['火元素伤害加成'] += self.bonus
+            member.add_effect(self)
+            print(f"{member.name} 获得 {self.name} 效果，火元素伤害提升 {self.bonus}%")
+
+    def remove(self):
+        for member in Team.team:
+            member.attributePanel['火元素伤害加成'] -= self.bonus
+            member.remove_effect(self)
+            print(f"{member.name} 的 {self.name} 效果结束")
+
+    def update(self,target):
+        pass
+
+class ConstellationEffect_6(ConstellationEffect):
+    """命座6：大龙卷旋火轮"""
+    def __init__(self):
+        super().__init__('大龙卷旋火轮')
+
+    def apply(self, character):
+        # 修改PyronadoObject以添加火伤加成
+        original_init = PyronadoObject.__init__
+        
+        def new_init(self, caster, damage_multiplier, lv):
+            original_init(self, caster, damage_multiplier, lv)
+            if caster.constellation >= 6:
+                self.pyro_boost = PyroDamageBoostEffect(caster)
+                self.pyro_boost.apply()
+                
+        PyronadoObject.__init__ = new_init
+        
+        # 修改PyronadoObject的on_finish以移除效果
+        original_finish = PyronadoObject.on_finish
+        
+        def new_finish(self, target):
+            if hasattr(self, 'pyro_boost'):
+                self.pyro_boost.remove()
+            original_finish(self, target)
+            
+        PyronadoObject.on_finish = new_finish
+
+# todo:
+# 重击
+# 添加一个控制参数，用于控制释放捡起辣椒
 class XiangLing(Character):
     ID = 11
     def __init__(self,lv,skill_params,constellation=0):
@@ -167,3 +354,10 @@ class XiangLing(Character):
         }
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2])
+        self.talent2 = PassiveSkillEffect_2()
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[3] = ConstellationEffect_4()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
