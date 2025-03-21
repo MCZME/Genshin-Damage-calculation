@@ -24,7 +24,7 @@ class Team:
 
     def __init__(self, team: list[Character] = None):
         if team is not None:
-            self.team = team
+            Team.team = team
             self.current_character = team[0]
             self.current_character.on_field = True
             self._update_element_counts()
@@ -32,7 +32,7 @@ class Team:
 
     def _update_element_counts(self):
         self.element_counts = {}
-        for char in self.team:
+        for char in Team.team:
             element = char.element
             self.element_counts[element] = self.element_counts.get(element, 0) + 1
 
@@ -43,17 +43,17 @@ class Team:
                 self._remove_resonance(resonance)
 
         # 火元素共鸣（热诚之火）
-        if self.element_counts.get('火', 0) >= 2 and len(self.team) >= 4:
+        if self.element_counts.get('火', 0) >= 2 and len(Team.team) >= 4:
             if '热诚之火' not in self.active_resonances:
-                for char in self.team:
+                for char in Team.team:
                     effect = AttackBoostEffect(char, "热诚之火", 25, float('inf'))
                     effect.apply()
                 self.active_resonances['热诚之火'] = True
 
         # 水元素共鸣（愈疗之水）
-        if self.element_counts.get('水', 0) >= 2 and len(self.team) >= 4:
+        if self.element_counts.get('水', 0) >= 2 and len(Team.team) >= 4:
             if '愈疗之水' not in self.active_resonances:
-                for char in self.team:
+                for char in Team.team:
                     effect = HealthBoostEffect(char, "愈疗之水", 25, float('inf'))
                     effect.apply()
                 self.active_resonances['愈疗之水'] = True
@@ -63,20 +63,20 @@ class Team:
     def _check_resonance_condition(self, resonance_name):
         # 各共鸣的触发条件检查
         if resonance_name == '热诚之火':
-            return self.element_counts.get('火', 0) >= 2 and len(self.team) >= 4
+            return self.element_counts.get('火', 0) >= 2 and len(Team.team) >= 4
         elif resonance_name == '愈疗之水':
-            return self.element_counts.get('水', 0) >= 2 and len(self.team) >= 4
+            return self.element_counts.get('水', 0) >= 2 and len(Team.team) >= 4
         # 其他共鸣条件检查...
         return False
 
     def _remove_resonance(self, resonance_name):
         if resonance_name == '热诚之火':
-            for char in self.team:
+            for char in Team.team:
                 effects = [e for e in char.active_effects if e.name == "热诚之火"]
                 for effect in effects:
                     effect.remove()
         elif resonance_name == '愈疗之水':
-            for char in self.team:
+            for char in Team.team:
                 effects = [e for e in char.active_effects if e.name == "愈疗之水"]
                 for effect in effects:
                     effect.remove()
@@ -110,7 +110,7 @@ class Team:
             return False  # 状态不允许执行新动作
         else: # 如果不是当前角色，则切换角色
             if self.current_frame == 0:
-                for character in self.team:
+                for character in Team.team:
                     if character.name == action[0]:
                         if (self.current_character.state[0] == CharacterState.IDLE or 
                            (current_skill is not None and current_skill.state == SkillSate.OffField)):
@@ -139,7 +139,7 @@ class Team:
         return False
 
     def update(self,target):
-        for character in self.team:
+        for character in Team.team:
             character.update(target)
         for object in self.active_objects:
             object.update(target)

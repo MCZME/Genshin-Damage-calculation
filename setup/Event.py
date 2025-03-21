@@ -144,6 +144,13 @@ class ShieldEvent(GameEvent):
         event_type = EventType.BEFORE_SHIELD_CREATION if before else EventType.AFTER_SHIELD_CREATION
         super().__init__(event_type, frame=frame, source=source, target=target, shield=shield, **kwargs)
 
+class OverloadEvent(GameEvent):
+    def __init__(self, source, target, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
+
 # --------------------------
 # 事件处理器接口
 # --------------------------

@@ -1,11 +1,12 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate
+from setup.BaseClass import ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
-from setup.BaseEffect import Effect
+from setup.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
+from setup.Team import Team
 from setup.Tool import GetCurrentTime
 
 class HealingFieldEffect(Effect, EventHandler):
@@ -74,12 +75,13 @@ class ElementalSkill(SkillBase, EventHandler):
         super().__init__(name="近迫式急促拦射", total_frames=30, cd=15*60, lv=lv,
                         element=('火', 1), interruptible=True, state=SkillSate.OnField)
         self.scheduled_damage = None
+        self.hold = False  # 添加长按状态标识
         
         self.skill_frames = {'点按':[25,31,59], '长按':[41,47,55]} # [命中帧，动画帧，流涌之刃的命中帧]
         self.overload_count = 0
         self.arkhe_interval = 10*60  # 荒性伤害间隔
         self.heal_duration = 12*60  # 治疗持续时间
-        self.charged_shot_ready = False
+        self.charged_shot = False
         self.special_round = 0  # 超量装药弹头数量
         
         self.damageMultipiler = {
@@ -98,6 +100,7 @@ class ElementalSkill(SkillBase, EventHandler):
             return False
             
         # 根据按键类型初始化不同模式
+        self.hold = hold
         if hold:
             self._start_charged_shot()
         else:
@@ -137,6 +140,8 @@ class ElementalSkill(SkillBase, EventHandler):
         self.total_frames = self.skill_frames['长按'][1]  # 使用动画帧作为总帧数
         self.special_round -= 1
         damage_type = '长按伤害' if self.special_round < 1 else '「超量装药弹头」伤害'
+        if damage_type == '「超量装药弹头」伤害':
+            self.charged_shot = True
         # 使用skill_frames定义的命中帧触发伤害
         damage = Damage(
             self.damageMultipiler[damage_type][self.lv-1],
@@ -249,7 +254,246 @@ class ElementalBurst(SkillBase):
 
     def on_finish(self):
         return super().on_finish()
+
+class CoordinatedTacticsEffect(Effect, EventHandler):
+    def __init__(self, source, target):
+        super().__init__(source)
+        self.current_character = target
+        self.name = '协同战法'
+        self.elements = ['火', '雷']
+        self.duration = 60
+
+    def apply(self):
+        EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
+        self.current_character.add_effect(self)
+
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_OVERLOAD:   
+            self._apply_debuff(event.data['target'])
+    
+    def _apply_debuff(self, target):
+        debuff = ResistanceDebuffEffect(
+            name=self.name,
+            source=self.character,
+            target=target,
+            elements=self.elements,
+            debuff_rate=40,
+            duration=6*60
+        )
+        debuff.apply()
+
+    def remove(self):
+        self.current_character.remove_effect(self)
+        EventBus.unsubscribe(EventType.AFTER_OVERLOAD, self)
+
+class PassiveSkillEffect_1(TalentEffect):
+    def __init__(self):
+        super().__init__('尖兵协同战法')     
+
+    def apply(self, character):
+        super().apply(character)
+        for c in Team.team:
+            effect = CoordinatedTacticsEffect(character, c)
+            effect.apply()
+
+    def check_team_condition(self):
+        element_counts = Team.element_counts
+        fire_count = element_counts.get('火', 0)
+        electro_count = element_counts.get('雷', 0)
+        return (
+            (fire_count + electro_count) == len(Team.team) 
+            and fire_count >= 1 
+            and electro_count >= 1
+        )
+    
+    def update(self, target):
+        if self.check_team_condition(): 
+            for c in Team.team:
+                effect = CoordinatedTacticsEffect(self.character, c)
+                effect.apply()
+        else:
+            for c in Team.team:
+                for effect in c.active_effects:
+                    if isinstance(effect, CoordinatedTacticsEffect):
+                        effect.remove()
+                        break
+        return super().update(target)
+    
+class PassiveSkillEffect_2(TalentEffect, EventHandler):
+    def __init__(self):
+        super().__init__('纵阵武力统筹')
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_SKILL, self)
+
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_SKILL and event.data['character'] == self.character:
+            if self.character.Skill.charged_shot:
+                maxHP = self.character.maxHP
+                bonus = int(maxHP) % 1000
+                if bonus > 40:
+                    bonus = 40
+                effect = AttackBoostEffect(self.character, self.name, bonus, 30*60)
+                effect.apply()
+                self.character.Skill.charged_shot = False
+
+class ConstellationEffect_2(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('协同诱导殉爆的狙击战法')
+        self.cooldown = 0  # 冷却时间计数器
+        self.triggered = False
+        
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        
+    def handle_event(self, event: GameEvent):
+        if (event.event_type == EventType.AFTER_DAMAGE and event.data['damage'].damageType == DamageType.SKILL and 
+            event.data['character'] == self.character and self.character.Skill.hold and not self.triggered):
             
+            self.triggered = True
+            self.cooldown = 10 * 60  # 10秒冷却
+            # 触发两次殉爆伤害
+            for _ in range(2):
+                explosion_damage = Damage(
+                    120,
+                    element=('火', 1),
+                    damageType=DamageType.SKILL
+                )
+                explosion_event = DamageEvent(
+                    self.character,
+                    event.data['target'],
+                    explosion_damage,
+                    GetCurrentTime()
+                )
+                EventBus.publish(explosion_event)
+                print(f"💥🔥 连锁殉爆造成{explosion_damage.damage:.2f}火伤")
+   
+    def update(self, target):
+        if self.cooldown > 0:
+            self.cooldown -= 1
+            if self.cooldown <= 0:
+                self.triggered = False
+
+class ConstellationEffect_3(ConstellationEffect):
+    """命座3：娴熟复装的技巧"""
+    def __init__(self):
+        super().__init__('娴熟复装的技巧')
+        
+    def apply(self, character):
+        super().apply(character)
+        skill_lv = character.Skill.lv + 3
+        if skill_lv > 15:
+            skill_lv = 15
+        character.Skill = ElementalSkill(skill_lv)
+
+class ConstellationEffect_5(ConstellationEffect):
+    """命座5：增量火力的毁伤"""
+    def __init__(self):
+        super().__init__('增量火力的毁伤')
+        
+    def apply(self, character):
+        super().apply(character)
+        skill_lv = character.Burst.lv + 3
+        if skill_lv > 15:
+            skill_lv = 15
+        character.Burst = ElementalBurst(skill_lv)
+
+class PyroElectroBuffEffect(ElementalDamageBoostEffect):
+    """火雷元素伤害加成效果"""
+    def __init__(self, source):
+        super().__init__(
+            character=source,
+            name='终结罪恶的追缉',
+            element_type='火',  # 继承基类参数，实际处理双元素
+            bonus=0,  # 动态计算
+            duration=8 * 60  # 单层持续时间
+        )
+        self.stacks = []  # 存储各层剩余时间（每层独立计时）
+        self.elements = ['火', '雷'] 
+
+    def apply(self, target):
+        # 添加新层（最多3层），每层独立持续8秒
+        prev_stacks = len(self.stacks)
+        if len(self.stacks) < 3:
+            self.stacks.append(8 * 60)
+        
+        # 每次添加层数都更新效果
+        if prev_stacks == 0: 
+            self.character = target 
+            self._update_total_bonus()
+            self.setEffect()
+        else: 
+            self.romoveEffect() 
+            self._update_total_bonus()
+            self.setEffect()   
+
+    def _update_total_bonus(self):
+        """更新总伤害加成值"""
+        self.bonus = 20 * len(self.stacks)  
+
+    def update(self, target):
+        # 更新所有层持续时间并移除过期层
+        self.stacks = [t - 1 for t in self.stacks]
+        self.stacks = [t for t in self.stacks if t > 0]
+        
+        if not self.stacks:
+            self.remove()
+        else:
+            self._update_total_bonus()
+            # 更新基类持续时间以保证效果不被提前移除
+            self.duration = max(self.stacks)  
+
+    def setEffect(self):
+        for element in self.elements:
+            self.character.attributePanel[f'{element}元素伤害加成'] += self.bonus
+        print(f"{self.character.name}获得{self.name}效果，火/雷元素伤害提升{self.bonus}%")
+
+    def romoveEffect(self):
+        for element in self.elements:
+            self.character.attributePanel[f'{element}元素伤害加成'] -= self.bonus
+        print(f"{self.character.name}: {self.name}的火/雷元素伤害加成效果结束，移除了{self.bonus}%加成")
+
+class ConstellationEffect_6(ConstellationEffect, EventHandler):
+    '''命座6：终结罪恶的追缉'''
+    def __init__(self):
+        super().__init__('终结罪恶的追缉')
+        self.heal_triggered = False
+        
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        # 在HealingFieldEffect添加12秒后全队治疗
+        original_remove = HealingFieldEffect.remove
+        def new_remove(self):
+            original_remove()
+            if self.character.constellation >= 6 and not self.heal_triggered:
+                self.heal_triggered = True
+                # 12秒后触发全队治疗
+                for c in Team.team:
+                    heal = Healing(10, HealingType.SKILL)
+                    heal.base_value = '生命值'
+                    heal_event = HealEvent(self.character, c, heal, GetCurrentTime())
+                    EventBus.publish(heal_event)
+        HealingFieldEffect.remove = new_remove
+            
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_HEAL:
+            heal_source = event.data['character']
+            # 确认治疗效果来自夏沃蕾的技能
+            if isinstance(heal_source, CHEVREUSE) and heal_source == self.character:
+                for member in Team.team:
+                    # 获取或创建buff效果
+                    buff = next((eff for eff in member.active_effects 
+                               if isinstance(eff, PyroElectroBuffEffect)), None)
+                    if not buff:
+                        buff = PyroElectroBuffEffect(self.character)
+                        buff.apply(member)
+                    else:
+                        buff.apply(member)
+
+
 class CHEVREUSE(Fontaine):
     ID = 76
     def __init__(self, level, skill_params, constellation=0):
@@ -271,6 +515,12 @@ class CHEVREUSE(Fontaine):
         self.Skill = ElementalSkill(self.skill_params[1])
         # 初始化元素爆发
         self.Burst = ElementalBurst(self.skill_params[2])
+        self.talent1 = PassiveSkillEffect_1()
+        self.talent2 = PassiveSkillEffect_2()
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
 
     def elemental_skill(self,hold=False):
         self._elemental_skill_impl(hold)

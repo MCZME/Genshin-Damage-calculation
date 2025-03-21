@@ -164,6 +164,36 @@ class DefenseDebuffEffect(Effect):
     def remove(self):
         self.target.remove_effect(self)
 
+class ResistanceDebuffEffect(Effect):
+    """元素抗性降低效果"""
+    def __init__(self, name, source, target, elements, debuff_rate, duration):
+        super().__init__(source)
+        self.name = name
+        self.target = target
+        self.elements = elements
+        self.debuff_rate = debuff_rate
+        self.duration = duration
+        
+    def apply(self):
+        # 检查现有效果
+        existing = next((e for e in self.target.effects 
+                       if isinstance(e, ResistanceDebuffEffect) 
+                       and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+
+        for element in self.elements:
+            self.target.resistance[element] -= self.debuff_rate
+        self.target.add_effect(self)
+        print(f"🛡️ {self.source.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
+        
+    def remove(self):
+        self.target.remove_effect(self)
+        for element in self.elements:
+            self.target.resistance[element] += self.debuff_rate
+        print(f"🛡️ {self.source.name} 的抗性降低效果结束")
+
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""
     def __init__(self, character, name, element_type, duration, is_unoverridable=False):
