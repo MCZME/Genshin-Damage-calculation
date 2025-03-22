@@ -129,7 +129,7 @@ class Character:
 
     def charged_attack(self):
         """重击（需体力）"""
-        self._Charged_attack_impl()
+        self._charged_attack_impl()
     
     @abstractmethod
     def _charged_attack_impl(self):
@@ -137,14 +137,14 @@ class Character:
         if self._is_change_state() and self.ChargedAttack.start(self):
             self._append_state(CharacterState.CHARGED_ATTACK)
 
-    def plunging_attack(self):
+    def plunging_attack(self,is_high):
         """下落攻击"""
-        self._plunging_attack_impl()
+        self._plunging_attack_impl(is_high)
 
     @abstractmethod
-    def _plunging_attack_impl(self):
+    def _plunging_attack_impl(self,is_high):
         """下落攻击具体实现"""
-        if self._is_change_state() and self.PlungingAttack.start(self):
+        if self._is_change_state() and self.PlungingAttack.start(self,is_high):
             self._append_state(CharacterState.PLUNGING_ATTACK)
 
     def elemental_skill(self):

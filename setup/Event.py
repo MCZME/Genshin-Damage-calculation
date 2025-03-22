@@ -46,6 +46,8 @@ class EventType(Enum):
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
     BEFORE_CHARGED_ATTACK = auto()  # 重击前
     AFTER_CHARGED_ATTACK = auto()   # 重击后
+    BEFORE_PLUNGING_ATTACK = auto()  # 下落攻击前
+    AFTER_PLUNGING_ATTACK = auto()   # 下落攻击后
     BEFORE_SKILL = auto()        # 技能使用前
     AFTER_SKILL = auto()         # 技能使用后
     BEFORE_BURST = auto()        # 爆发使用前
@@ -55,8 +57,8 @@ class EventType(Enum):
     AFTER_CHARACTER_SWITCH = auto()    # 角色切换后
     BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
-    BEFORE_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之前
-    AFTER_NIGHT_SOUL_CONSUMPTION = auto()  # 夜魂消耗之后
+    BEFORE_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之前
+    AFTER_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之后
     NightsoulBurst = auto()
 
 # --------------------------
@@ -101,10 +103,19 @@ class ChargedAttackEvent(GameEvent):
         else:
             super().__init__(EventType.AFTER_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
 
-class NightSoulConsumptionEvent(GameEvent):
+class PlungingAttackEvent(GameEvent):
+    def __init__(self, character, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_PLUNGING_ATTACK, frame=frame, character=character, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_PLUNGING_ATTACK, frame=frame, character=character, **kwargs)
+
+class NightSoulChangeEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
-        super().__init__(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION if before else EventType.AFTER_NIGHT_SOUL_CONSUMPTION,
-                        frame=frame, character=character, amount=amount, **kwargs)
+        if before:
+            super().__init__(EventType.BEFORE_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
 
 class ElementalBurstEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):

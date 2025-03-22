@@ -144,7 +144,7 @@ class ElementalBurst(SkillBase, EventHandler):
         
         # 订阅事件
         EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CONSUMPTION, self)
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def start(self, caster):
         if self.battle_will < 50:
@@ -173,8 +173,9 @@ class ElementalBurst(SkillBase, EventHandler):
             if event.frame - self.last_will_gain_time >= 6:
                 self.gain_battle_will(1.5)
                 self.last_will_gain_time = event.frame
-        elif event.event_type == EventType.AFTER_NIGHT_SOUL_CONSUMPTION:
-            self.gain_battle_will(event.data['amount'])
+        elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
+            if event.data['amount'] < 0:
+                self.gain_battle_will(-event.data['amount'])
 
     def update(self, target):
         self.current_frame += 1

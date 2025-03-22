@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent
+from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent, PlungingAttackEvent
 from enum import Enum, auto
 
 from setup.Tool import GetCurrentTime
@@ -152,6 +152,7 @@ class ChargedAttackSkill(SkillBase):
                         lv=lv,
                         element=('物理', 0),
                         interruptible=True)
+        self.hit_frame = total_frames
 
     def start(self, caster):
         if not super().start(caster):
@@ -161,7 +162,7 @@ class ChargedAttackSkill(SkillBase):
 
     def on_frame_update(self, target): 
         # 攻击阶段
-        if self.current_frame == self.total_frames:
+        if self.current_frame == self.hit_frame:
             self._apply_attack(target)
             return True
         return False
@@ -198,7 +199,7 @@ class PlungingAttackSkill(SkillBase):
                         lv=lv,
                         element=('物理', 0),
                         interruptible=True)
-        # 伤害倍率配置（支持1-15级）
+        self.hit_frame = total_frames
         self.damageMultipiler = {
             '下坠期间伤害': [],
             '低空坠地冲击伤害': [],
@@ -212,6 +213,8 @@ class PlungingAttackSkill(SkillBase):
             return False
         self.height_type = '高空' if is_high else '低空'
         print(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
+        event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
+        EventBus.publish(event)
         return True
 
     def on_frame_update(self, target):
@@ -220,7 +223,7 @@ class PlungingAttackSkill(SkillBase):
             self._apply_during_damage(target)
         
         # 在最后一帧触发坠地冲击伤害
-        if self.current_frame == self.total_frames:
+        if self.current_frame == self.hit_frame:
             self._apply_impact_damage(target)
             return True
         return False
@@ -230,12 +233,12 @@ class PlungingAttackSkill(SkillBase):
         # 确保等级不超过数据范围（1-15级）
         clamped_lv = min(max(self.lv, 1), 15) - 1
         damage = Damage(
-            self.damageMultipiler['下坠期间伤害'][clamped_lv] / 100,  # 百分比转换
+            self.damageMultipiler['下坠期间伤害'][clamped_lv] ,  
             self.element,
             DamageType.PLUNGING,
             '下落攻击-下坠期间'
         )
-        DamageEvent(self.caster, target, damage, GetCurrentTime()).publish()
+        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
 
     def _apply_impact_damage(self, target):
         """坠地冲击伤害"""
@@ -248,7 +251,9 @@ class PlungingAttackSkill(SkillBase):
             DamageType.PLUNGING,
             f'下落攻击-{self.height_type}'
         )
-        DamageEvent(self.caster, target, damage, GetCurrentTime()).publish()
+        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+
+        EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
 
     def on_finish(self):
         super().on_finish()

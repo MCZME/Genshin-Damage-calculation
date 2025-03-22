@@ -1,5 +1,5 @@
 from character.character import Character
-from setup.Event import EventBus, NightSoulBlessingEvent, NightSoulConsumptionEvent
+from setup.Event import EventBus, NightSoulBlessingEvent, NightSoulChangeEvent
 from setup.Tool import GetCurrentTime
 
 
@@ -22,9 +22,9 @@ class Natlan(Character):
 
         # 发布消耗事件
         actual_amount = min(amount, self.current_night_soul)
-        event =NightSoulConsumptionEvent(
+        event =NightSoulChangeEvent(
             character=self,
-            amount=actual_amount,
+            amount=-actual_amount,
             frame=GetCurrentTime()
         )
         EventBus.publish(event)
@@ -32,9 +32,9 @@ class Natlan(Character):
             return True
         
         self.current_night_soul -= actual_amount
-        EventBus.publish(NightSoulConsumptionEvent(
+        EventBus.publish(NightSoulChangeEvent(
             character=self,
-            amount=actual_amount,
+            amount=-actual_amount,
             frame=GetCurrentTime(),
             before=False
         ))
@@ -48,10 +48,23 @@ class Natlan(Character):
         """获得夜魂值"""
         if not self.Nightsoul_Blessing:
             self.chargeNightsoulBlessing()
-        self.current_night_soul = min(
-            self.max_night_soul, 
-            self.current_night_soul + amount
-        )
+
+        actual_amount = min(amount, self.max_night_soul - self.current_night_soul)
+        EventBus.publish(NightSoulChangeEvent(
+            character=self,
+            amount=actual_amount,
+            frame=GetCurrentTime(),
+            before=False
+        ))
+
+        self.current_night_soul += actual_amount
+
+        EventBus.publish(NightSoulChangeEvent(
+            character=self,
+            amount=actual_amount,
+            frame=GetCurrentTime(),
+            before=False
+        ))
 
     def chargeNightsoulBlessing(self):
         if self.Nightsoul_Blessing:

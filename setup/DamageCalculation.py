@@ -15,7 +15,7 @@ class DamageType(Enum):
     PLUNGING = auto()  # 下落攻击
 
 class Damage():
-    def __init__(self,damageMultipiler,element,damageType:DamageType,name):
+    def __init__(self,damageMultipiler,element,damageType:DamageType,name,**kwargs):
         self.damageMultipiler = damageMultipiler
         self.element = element
         self.damageType = damageType
@@ -130,7 +130,7 @@ class DamageCalculateEventHandler(EventHandler):
             character = event.data['character']
             damage = event.data['damage']
             
-            if damage.damageType in [DamageType.NORMAL, DamageType.HEAVY]:
+            if damage.damageType in [DamageType.NORMAL, DamageType.CHARGED]:
                 # 处理元素附魔
                 self.handle_elemental_infusion(character, damage)
             
