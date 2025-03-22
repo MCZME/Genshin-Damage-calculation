@@ -7,11 +7,13 @@ import setup.Tool as T
 # 角色状态枚举
 class CharacterState(Enum):
     IDLE = auto()        # 空闲状态
-    CASTING = auto()      # 施法中
     NORMAL_ATTACK = auto()    # 普通攻击
     CHARGED_ATTACK = auto()    # 重击
     SKILL = auto()      # 元素战技
     BURST = auto()        # 元素爆发
+    PLUNGING_ATTACK = auto()    # 下落攻击
+    SKIP = auto()           # 跳过
+
 
 class Character:
 
@@ -111,6 +113,10 @@ class Character:
         event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 
+    def skip(self,n):
+        self.skip_frame = n
+        self._append_state(CharacterState.SKIP)
+
     def normal_attack(self,n):
         """普攻"""
         self._normal_attack_impl(n)
@@ -121,15 +127,25 @@ class Character:
         if self._is_change_state() and self.NormalAttack.start(self,n):
             self._append_state(CharacterState.NORMAL_ATTACK)
 
-    def Charged_attack(self):
+    def charged_attack(self):
         """重击（需体力）"""
         self._Charged_attack_impl()
     
     @abstractmethod
-    def _Charged_attack_impl(self):
+    def _charged_attack_impl(self):
         """重击具体实现"""
         if self._is_change_state() and self.ChargedAttack.start(self):
             self._append_state(CharacterState.CHARGED_ATTACK)
+
+    def plunging_attack(self):
+        """下落攻击"""
+        self._plunging_attack_impl()
+
+    @abstractmethod
+    def _plunging_attack_impl(self):
+        """下落攻击具体实现"""
+        if self._is_change_state() and self.PlungingAttack.start(self):
+            self._append_state(CharacterState.PLUNGING_ATTACK)
 
     def elemental_skill(self):
         """元素战技"""
@@ -190,6 +206,13 @@ class Character:
             elif i == CharacterState.CHARGED_ATTACK:
                 if self.ChargedAttack.update(target):
                     self.state.remove(CharacterState.CHARGED_ATTACK)
+            elif i == CharacterState.PLUNGING_ATTACK:
+                if self.PlungingAttack.update(target):
+                    self.state.remove(CharacterState.PLUNGING_ATTACK)
+            elif i == CharacterState.SKIP:
+                self.skip_frame -= 1
+                if self.skip_frame <= 0:
+                    self.state.remove(CharacterState.SKIP)
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:

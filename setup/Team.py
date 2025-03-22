@@ -7,9 +7,11 @@ from setup.Tool import GetCurrentTime
 # 转化字典
 action_state = {
     "normal_attack": CharacterState.NORMAL_ATTACK,
-    "heavy_attack": CharacterState.HEAVY_ATTACK,
+    "charged_attack": CharacterState.CHARGED_ATTACK,
     "elemental_skill": CharacterState.SKILL,
-    "elemental_burst": CharacterState.BURST
+    "elemental_burst": CharacterState.BURST,
+    "skip": CharacterState.SKIP,
+    "plunging_attack": CharacterState.PLUNGING_ATTACK,
 }
 
 # 队伍系统

@@ -198,3 +198,62 @@ class PlungingAttackSkill(SkillBase):
                         lv=lv,
                         element=('物理', 0),
                         interruptible=True)
+        # 伤害倍率配置（支持1-15级）
+        self.damageMultipiler = {
+            '下坠期间伤害': [],
+            '低空坠地冲击伤害': [],
+            '高空坠地冲击伤害': []
+        }
+        self.height_type = '低空'  # 默认低空
+        
+    def start(self, caster, is_high=False):
+        """启动下落攻击并设置高度类型"""
+        if not super().start(caster):
+            return False
+        self.height_type = '高空' if is_high else '低空'
+        print(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
+        return True
+
+    def on_frame_update(self, target):
+        # 在总帧数的30%时触发下坠期间伤害
+        if self.current_frame == int(self.total_frames * 0.3):
+            self._apply_during_damage(target)
+        
+        # 在最后一帧触发坠地冲击伤害
+        if self.current_frame == self.total_frames:
+            self._apply_impact_damage(target)
+            return True
+        return False
+
+    def _apply_during_damage(self, target):
+        """下坠期间持续伤害"""
+        # 确保等级不超过数据范围（1-15级）
+        clamped_lv = min(max(self.lv, 1), 15) - 1
+        damage = Damage(
+            self.damageMultipiler['下坠期间伤害'][clamped_lv] / 100,  # 百分比转换
+            self.element,
+            DamageType.PLUNGING,
+            '下落攻击-下坠期间'
+        )
+        DamageEvent(self.caster, target, damage, GetCurrentTime()).publish()
+
+    def _apply_impact_damage(self, target):
+        """坠地冲击伤害"""
+        clamped_lv = self.lv - 1
+        damage_type_key = '高空坠地冲击伤害' if self.height_type == '高空' else '低空坠地冲击伤害'
+        
+        damage = Damage(
+            self.damageMultipiler[damage_type_key][clamped_lv],
+            self.element,
+            DamageType.PLUNGING,
+            f'下落攻击-{self.height_type}'
+        )
+        DamageEvent(self.caster, target, damage, GetCurrentTime()).publish()
+
+    def on_finish(self):
+        super().on_finish()
+        print(f"💥 {self.caster.name} 下落攻击完成")
+
+    def on_interrupt(self):
+        print("💢 下落攻击被打断")
+        super().on_interrupt()
