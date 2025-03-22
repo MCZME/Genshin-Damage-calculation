@@ -9,7 +9,7 @@ class CharacterState(Enum):
     IDLE = auto()        # 空闲状态
     CASTING = auto()      # 施法中
     NORMAL_ATTACK = auto()    # 普通攻击
-    HEAVY_ATTACK = auto()    # 重击
+    CHARGED_ATTACK = auto()    # 重击
     SKILL = auto()      # 元素战技
     BURST = auto()        # 元素爆发
 
@@ -80,7 +80,7 @@ class Character:
     def _init_character(self):
         """初始化角色特有属性"""
         self.NormalAttack = None
-        self.HeavyAttack = None
+        self.ChargedAttack = None
         self.Skill = None
         self.Burst = None
         self.talent1 = None
@@ -121,15 +121,15 @@ class Character:
         if self._is_change_state() and self.NormalAttack.start(self,n):
             self._append_state(CharacterState.NORMAL_ATTACK)
 
-    def heavy_attack(self):
+    def Charged_attack(self):
         """重击（需体力）"""
-        self._heavy_attack_impl()
+        self._Charged_attack_impl()
     
     @abstractmethod
-    def _heavy_attack_impl(self):
+    def _Charged_attack_impl(self):
         """重击具体实现"""
-        if self._is_change_state() and self.HeavyAttack.start(self):
-            self._append_state(CharacterState.HEAVY_ATTACK)
+        if self._is_change_state() and self.ChargedAttack.start(self):
+            self._append_state(CharacterState.CHARGED_ATTACK)
 
     def elemental_skill(self):
         """元素战技"""
@@ -187,9 +187,9 @@ class Character:
             elif i == CharacterState.NORMAL_ATTACK:
                 if self.NormalAttack.update(target):
                     self.state.remove(CharacterState.NORMAL_ATTACK)
-            elif i == CharacterState.HEAVY_ATTACK:
-                if self.HeavyAttack.update(target):
-                    self.state.remove(CharacterState.HEAVY_ATTACK)
+            elif i == CharacterState.CHARGED_ATTACK:
+                if self.ChargedAttack.update(target):
+                    self.state.remove(CharacterState.CHARGED_ATTACK)
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:

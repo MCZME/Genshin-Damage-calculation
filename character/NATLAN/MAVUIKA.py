@@ -1,10 +1,10 @@
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from setup.BaseClass import ConstellationEffect, HeavyAttackSkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HeavyAttackEvent, NightSoulBlessingEvent, NormalAttackEvent
+from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
 from setup.Tool import GetCurrentTime
 
 class ElementalSkill(SkillBase,EventHandler):
@@ -305,7 +305,7 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
         normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False)
         EventBus.publish(normal_attack_event)
 
-class MavuikaHeavyAttackSkill(HeavyAttackSkill):
+class MavuikaChargedAttackSkill(ChargedAttackSkill):
     def __init__(self, lv):
         super().__init__(lv)
         # 驰轮车形态参数
@@ -374,7 +374,7 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
 
     def _apply_spin_damage(self, target):
         """应用旋转伤害"""
-        event = HeavyAttackEvent(self.caster, GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, GetCurrentTime())
         EventBus.publish(event)
         # 获取当前元素量
         element_value = self.element_sequence[self.sequence_index % 3]
@@ -395,13 +395,13 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         damage = Damage(
             total_multiplier,
             element=element,
-            damageType=DamageType.HEAVY,
+            damageType=DamageType.CHARGED,
             name='驰轮车重击'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
-        event = HeavyAttackEvent(self.caster, GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, GetCurrentTime(), before=False)
         EventBus.publish(event)
 
     def _apply_finish_damage(self, target):
@@ -420,7 +420,7 @@ class MavuikaHeavyAttackSkill(HeavyAttackSkill):
         damage = Damage(
             total_multiplier,
             element=('火', 1),  
-            damageType=DamageType.HEAVY,
+            damageType=DamageType.CHARGED,
             name='驰轮车重击终结'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
@@ -561,7 +561,7 @@ class MavuikaAttackScalingEffect(Effect):
         for i in self.character.NormalAttack.chariot_damageMultipiler.values():
             for j in i:
                 j += 60
-        for i in self.character.HeavyAttack.chariot_multiplier.values():
+        for i in self.character.ChargedAttack.chariot_multiplier.values():
             for j in i:
                 j += 90
         for i in self.character.Burst.damageMultipiler['坠日斩']:
@@ -573,7 +573,7 @@ class MavuikaAttackScalingEffect(Effect):
         for i in self.character.NormalAttack.chariot_damageMultipiler.values():
             for j in i:
                 j -= 60
-        for i in self.character.HeavyAttack.chariot_multiplier.values():
+        for i in self.character.ChargedAttack.chariot_multiplier.values():
             for j in i:
                 j -= 90
         for i in self.character.Burst.damageMultipiler['坠日斩']:
@@ -620,7 +620,7 @@ class MAVUIKA(Natlan):
     def _init_character(self):
         super()._init_character()
         self.NormalAttack = MavuikaNormalAttackSkill(self.skill_params[0])
-        self.HeavyAttack = MavuikaHeavyAttackSkill(self.skill_params[0])
+        self.ChargedAttack = MavuikaChargedAttackSkill(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2],caster=self)
         self.talent1 = PassiveSkillEffect_1()

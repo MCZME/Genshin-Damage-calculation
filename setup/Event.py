@@ -44,8 +44,8 @@ class EventType(Enum):
 
     BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
-    BEFORE_HEAVY_ATTACK = auto()  # 重击前
-    AFTER_HEAVY_ATTACK = auto()   # 重击后
+    BEFORE_CHARGED_ATTACK = auto()  # 重击前
+    AFTER_CHARGED_ATTACK = auto()   # 重击后
     BEFORE_SKILL = auto()        # 技能使用前
     AFTER_SKILL = auto()         # 技能使用后
     BEFORE_BURST = auto()        # 爆发使用前
@@ -94,12 +94,12 @@ class NormalAttackEvent(GameEvent):
         else:
             super().__init__(EventType.AFTER_NORMAL_ATTACK, frame=frame, character=character, **kwargs)
 
-class HeavyAttackEvent(GameEvent):
+class ChargedAttackEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
         if before:
-            super().__init__(EventType.BEFORE_HEAVY_ATTACK, frame=frame, character=character, **kwargs)
+            super().__init__(EventType.BEFORE_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
         else:
-            super().__init__(EventType.AFTER_HEAVY_ATTACK, frame=frame, character=character, **kwargs)
+            super().__init__(EventType.AFTER_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
 
 class NightSoulConsumptionEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):

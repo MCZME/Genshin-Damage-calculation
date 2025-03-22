@@ -9,9 +9,10 @@ from setup.Tool import GetCurrentTime
 # 定义一个枚举类，表示伤害类型
 class DamageType(Enum):
     NORMAL = auto()
-    HEAVY = auto()
+    CHARGED = auto()
     SKILL = auto()
     BURST = auto()
+    PLUNGING = auto()  # 下落攻击
 
 class Damage():
     def __init__(self,damageMultipiler,element,damageType:DamageType,name):

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, HeavyAttackEvent, NormalAttackEvent
+from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent
 from enum import Enum, auto
 
 from setup.Tool import GetCurrentTime
@@ -140,7 +140,7 @@ class NormalAttackSkill(SkillBase):
         print(f"💢 第{self.current_segment+1}段攻击被打断！")
         self.current_segment = self.max_segments  # 直接结束攻击链
  
-class HeavyAttackSkill(SkillBase):
+class ChargedAttackSkill(SkillBase):
     def __init__(self, lv, total_frames=30, cd=0):
         """
         重击技能基类
@@ -168,19 +168,19 @@ class HeavyAttackSkill(SkillBase):
 
     def _apply_attack(self, target):
         """应用重击伤害"""
-        event = HeavyAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
         EventBus.publish(event)
 
         damage = Damage(
             damageMultipiler=self.damageMultipiler[self.lv-1],
             element=self.element,
-            damageType=DamageType.HEAVY,
+            damageType=DamageType.CHARGED,
             name=f'重击'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
-        event = HeavyAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
         EventBus.publish(event)
 
     def on_finish(self):
@@ -189,3 +189,12 @@ class HeavyAttackSkill(SkillBase):
 
     def on_interrupt(self):
         super().on_interrupt()
+
+class PlungingAttackSkill(SkillBase):
+    def __init__(self, lv, total_frames=30, cd=0):
+        super().__init__(name="下落攻击", 
+                        total_frames=total_frames, 
+                        cd=cd,
+                        lv=lv,
+                        element=('物理', 0),
+                        interruptible=True)
