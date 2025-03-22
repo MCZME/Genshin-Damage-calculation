@@ -90,6 +90,7 @@ class Character:
         self.talent_effects = []  # 天赋效果列表
         self.active_effects = []  # 激活效果列表
         self.constellation_effects = [None, None, None, None, None, None]  # 命座效果列表
+        self.elemental_energy = None
 
     def setArtifact(self,artifact):
         self.artifactManager = artifact

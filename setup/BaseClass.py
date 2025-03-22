@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent, PlungingAttackEvent
 from enum import Enum, auto
-
 from setup.Tool import GetCurrentTime
 
 # 效果基类
@@ -26,6 +25,18 @@ class ConstellationEffect:
     def update(self,target):
         pass
 
+class ElementalEnergy():
+    def __init__(self, character,ee=('无',0)):
+        self.character = character
+        self.elemental_energy = ee
+        self.current_energy = ee[1]
+
+    def is_energy_full(self):
+        return self.current_energy >= self.elemental_energy[1]
+    
+    def clear_energy(self):
+        self.current_energy = 0
+
 class SkillSate(Enum):
     OnField = auto()
     OffField = auto()
@@ -37,6 +48,8 @@ class SkillBase(ABC):
         self.total_frames = total_frames    # 总帧数
         self.current_frame = 0              # 当前帧
         self.cd = cd                         # 冷却时间
+        self.cd_timer = 0                   # 冷却计时器
+        self.cd_frame = 0
         self.lv = lv
         self.element = element
         self.damageMultipiler = []
@@ -45,11 +58,19 @@ class SkillBase(ABC):
         self.caster = caster
 
     def start(self, caster):
+        if self.cd_timer > 0:
+            return False  # 技能仍在冷却中
         self.caster = caster
         self.current_frame = 0
         return True
 
     def update(self,target):
+        # 更新冷却计时器
+        if self.cd_timer > 0:
+            self.cd_timer -= 1
+        if self.current_frame == self.cd_frame:
+            self.cd_timer = self.cd
+ 
         self.current_frame += 1
         if self.current_frame >= self.total_frames:
             self.on_finish()
@@ -59,10 +80,23 @@ class SkillBase(ABC):
 
     @abstractmethod
     def on_frame_update(self,target): pass
+    def on_finish(self): 
+        self.current_frame = 0
     @abstractmethod
-    def on_finish(self): self.current_frame = 0
-    @abstractmethod
-    def on_interrupt(self): pass
+    def on_interrupt(self): 
+        ...
+
+class EnergySkill(SkillBase):
+    def __init__(self, name, total_frames, cd, lv, element, caster=None, interruptible=False, state=SkillSate.OnField):
+        super().__init__(name, total_frames, cd, lv, element, caster, interruptible, state)
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+        if self.caster.elemental_energy.is_energy_full():
+            self.caster.elemental_energy.clear_energy()
+            return True
+        return False
 
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):

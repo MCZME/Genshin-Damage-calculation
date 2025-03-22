@@ -53,6 +53,8 @@ class EventType(Enum):
     BEFORE_BURST = auto()        # 爆发使用前
     AFTER_BURST = auto()         # 爆发使用后
 
+    BEFORE_ENERGY_CHANGE = auto()  # 能量变化前
+    AFTER_ENERGY_CHANGE = auto()   # 能量变化后
     BEFORE_CHARACTER_SWITCH = auto()   # 角色切换前
     AFTER_CHARACTER_SWITCH = auto()    # 角色切换后
     BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
@@ -161,6 +163,13 @@ class OverloadEvent(GameEvent):
             super().__init__(EventType.BEFORE_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
         else:
             super().__init__(EventType.AFTER_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
+
+class EnergyChargeEvent(GameEvent):
+    def __init__(self, character, amount, frame, is_fixed=False, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, amount=amount, is_fixed=is_fixed, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_ENERGY_CHANGE, frame=frame, character=character, amount=amount, is_fixed=is_fixed, **kwargs)
 
 # --------------------------
 # 事件处理器接口

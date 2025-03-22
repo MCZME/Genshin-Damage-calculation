@@ -1,5 +1,5 @@
 from character.character import Character
-from setup.BaseClass import NormalAttackSkill, SkillBase, SkillSate, ConstellationEffect
+from setup.BaseClass import ElementalEnergy, NormalAttackSkill, SkillBase, SkillSate, ConstellationEffect
 from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
@@ -260,6 +260,7 @@ class BENNETT(Character):
 
     def _init_character(self):
         super()._init_character()
+        self.elemental_energy = ElementalEnergy(self,('火',60))
         self.NormalAttack = NormalAttackSkill(self.skill_params[0])
         self.NormalAttack.segment_frames = [13,16,21,49,50]
         self.NormalAttack.damageMultipiler = {

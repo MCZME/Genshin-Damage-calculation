@@ -1,9 +1,9 @@
 from character.character import Character
-from setup.BaseClass import ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus
+from setup.Event import DamageEvent, EnergyChargeEvent, EventBus
 from setup.Tool import GetCurrentTime
 from setup.Team import Team
 
@@ -26,7 +26,10 @@ class GuobaObject(baseObject):
     def _attack(self, target):
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
-        
+
+        energy_event = EnergyChargeEvent(self.caster,('火', 6), GetCurrentTime())
+        EventBus.publish(energy_event)
+
         # 命座1效果：锅巴攻击降低火抗
         if self.constellation >= 1:
             debuff = ResistanceDebuffEffect(
@@ -121,17 +124,18 @@ class PyronadoObject(baseObject):
         del self.caster
         return super().on_finish(target)
 
-class ElementalBurst(SkillBase):
+class ElementalBurst(EnergySkill):
     """元素爆发：旋火轮"""
-    def __init__(self, lv):
+    def __init__(self, lv, caster):
         super().__init__(
             name="旋火轮",
             total_frames=80,  # 技能动画帧数
             cd=20 * 60,  # 20秒冷却
             lv=lv,
-            element=('火', 2),
+            element=('火', 1),
             interruptible=False,
-            state=SkillSate.OnField
+            state=SkillSate.OnField,
+            caster=caster
         )
         self.damageMultipiler = {
             '一段挥舞': [72, 77.4, 82.8, 90, 95.4, 100.8, 108, 115.2, 122.4, 129.6, 136.8, 144, 153, 162, 171],
@@ -261,7 +265,7 @@ class ConstellationEffect_3(ConstellationEffect):
         skill_lv = character.Burst.lv + 3
         if skill_lv > 15:
             skill_lv = 15
-        character.Burst = ElementalBurst(skill_lv)
+        character.Burst = ElementalBurst(skill_lv,character)
 
 class ConstellationEffect_4(ConstellationEffect):
     """命座4：文火慢煨"""
@@ -343,6 +347,7 @@ class XiangLing(Character):
 
     def _init_character(self):
         super()._init_character()
+        self.elemental_energy = ElementalEnergy(self,('火',80))
         self.NormalAttack = NormalAttackSkill(self.skill_params[0])
         self.NormalAttack.segment_frames = [12,16,26,39,52]
         self.NormalAttack.damageMultipiler = {
@@ -353,7 +358,7 @@ class XiangLing(Character):
             5:[71.04, 76.82, 82.6, 90.86, 96.64, 103.25, 112.34, 121.42, 130.51, 140.42, 151.78, 165.13, 178.49, 191.85, 206.42, ],
         }
         self.Skill = ElementalSkill(self.skill_params[1])
-        self.Burst = ElementalBurst(self.skill_params[2])
+        self.Burst = ElementalBurst(self.skill_params[2],self)
         self.talent2 = PassiveSkillEffect_2()
         self.constellation_effects[0] = ConstellationEffect_1()
         self.constellation_effects[1] = ConstellationEffect_2()
