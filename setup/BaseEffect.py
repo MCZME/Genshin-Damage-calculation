@@ -191,7 +191,7 @@ class ResistanceDebuffEffect(Effect):
         self.target.remove_effect(self)
         for element in self.elements:
             self.target.element_resistance[element] += self.debuff_rate
-        print(f"🛡️ {self.source.name} 的抗性降低效果结束")
+        print(f"🛡️ {self.target.name} 的抗性降低效果结束")
 
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""

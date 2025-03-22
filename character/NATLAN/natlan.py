@@ -68,11 +68,17 @@ class Natlan(Character):
 
     def chargeNightsoulBlessing(self):
         if self.Nightsoul_Blessing:
-            self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
-            EventBus.publish(self.after_nightsoulBlessingevent)
-            self.Nightsoul_Blessing = False
+            self.romve_NightSoulBlessing()
         else:
-            self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
-            EventBus.publish(self.before_nightsoulBlessingevent)
-            self.Nightsoul_Blessing = True
-            print(f"🌙 夜魂加持")
+            self.gain_NightSoulBlessing()
+
+    def gain_NightSoulBlessing(self):
+        self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
+        EventBus.publish(self.before_nightsoulBlessingevent)
+        self.Nightsoul_Blessing = True
+        print(f"🌙 夜魂加持")
+
+    def romve_NightSoulBlessing(self):
+        self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
+        EventBus.publish(self.after_nightsoulBlessingevent)
+        self.Nightsoul_Blessing = False

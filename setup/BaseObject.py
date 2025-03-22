@@ -39,3 +39,6 @@ class ArkheObject(baseObject):
         event = DamageEvent(self.character, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
         print(f'💫 {self.name}对{target.name}造成{self.damage.damage:.2f}点伤害')
+
+    def on_frame_update(self, target):
+        ...
