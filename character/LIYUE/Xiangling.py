@@ -137,6 +137,7 @@ class ElementalBurst(EnergySkill):
             state=SkillSate.OnField,
             caster=caster
         )
+        self.cd_frame = 19
         self.damageMultipiler = {
             '一段挥舞': [72, 77.4, 82.8, 90, 95.4, 100.8, 108, 115.2, 122.4, 129.6, 136.8, 144, 153, 162, 171],
             '二段挥舞': [88, 94.6, 101.2, 110, 116.6, 123.2, 132, 140.8, 149.6, 158.4, 167.2, 176, 187, 198, 209],

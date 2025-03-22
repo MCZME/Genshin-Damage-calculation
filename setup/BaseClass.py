@@ -49,6 +49,7 @@ class SkillBase(ABC):
         self.current_frame = 0              # 当前帧
         self.cd = cd                         # 冷却时间
         self.cd_timer = 0                   # 冷却计时器
+        self.last_use_time = 0  # 上次使用时间
         self.cd_frame = 0
         self.lv = lv
         self.element = element
@@ -59,15 +60,18 @@ class SkillBase(ABC):
 
     def start(self, caster):
         if self.cd_timer > 0:
+            print(f'{self.name}技能还在冷却中')
             return False  # 技能仍在冷却中
         self.caster = caster
         self.current_frame = 0
+        self.last_use_time = GetCurrentTime()
+
         return True
 
     def update(self,target):
         # 更新冷却计时器
         if self.cd_timer > 0:
-            self.cd_timer -= 1
+            self.cd_timer -= GetCurrentTime() - self.last_use_time
         if self.current_frame == self.cd_frame:
             self.cd_timer = self.cd
  
@@ -96,6 +100,7 @@ class EnergySkill(SkillBase):
         if self.caster.elemental_energy.is_energy_full():
             self.caster.elemental_energy.clear_energy()
             return True
+        print(f'{self.name} 能量不够')
         return False
 
 class NormalAttackSkill(SkillBase):

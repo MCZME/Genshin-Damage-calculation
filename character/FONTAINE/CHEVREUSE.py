@@ -1,9 +1,9 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from setup.BaseClass import ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from setup.Event import DamageEvent, ElementalSkillEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
 from setup.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
 from setup.Team import Team
@@ -73,6 +73,7 @@ class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="近迫式急促拦射", total_frames=30, cd=15*60, lv=lv,
                         element=('火', 1), interruptible=True, state=SkillSate.OnField)
+        self.cd_frame = 18
         self.scheduled_damage = None
         self.hold = False  # 添加长按状态标识
         
@@ -184,6 +185,9 @@ class ElementalSkill(SkillBase, EventHandler):
                 )
                 surge.apply()
                 print(f"🌊 生成流涌之刃")
+                for _ in range(4):
+                    energy_event = EnergyChargeEvent(self.caster,('火', 6), GetCurrentTime())
+                    EventBus.publish(energy_event)
         return False
     
     def on_interrupt(self):
@@ -204,6 +208,9 @@ class DoubleDamageBullet(baseObject):
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
         print(f"💥 二重毁伤弹造成{self.damage.damage:.2f}火伤")
+
+    def on_frame_update(self, target):
+        return super().on_frame_update(target)
        
 class ElementalBurst(SkillBase):
     """元素爆发：轰烈子母弹"""
@@ -506,7 +513,7 @@ class CHEVREUSE(Fontaine):
         
     def _init_character(self):
         super()._init_character()
-        # 初始化普通攻击
+        self.elemental_energy = ElementalEnergy(self,('火',60))
         self.NormalAttack = NormalAttackSkill(self.skill_params[0])
         self.NormalAttack.segment_frames = [11,24,39,61]
         self.NormalAttack.damageMultipiler = {
@@ -516,9 +523,7 @@ class CHEVREUSE(Fontaine):
                50.79 + 59.62, 54.65 + 64.15, 58.5 + 68.68, 62.36 + 73.21, 66.22 + 77.74, 70.08 + 82.26, 73.93 + 86.79, ],
             4:[77.26, 83.55, 89.84, 98.82, 105.11, 112.3, 122.18, 132.06, 141.95, 152.73, 163.51, 174.29, 185.07, 195.85, 206.63, ],
         }
-        # 初始化元素战技
         self.Skill = ElementalSkill(self.skill_params[1])
-        # 初始化元素爆发
         self.Burst = ElementalBurst(self.skill_params[2])
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()

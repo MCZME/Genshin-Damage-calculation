@@ -50,7 +50,7 @@ class ElementalEnergyEventHandler(EventHandler):
                 emergy_value = amount[1] * team_rate * element_rate * emergy_rate
                 emergy_value = min(emergy_value, ee.elemental_energy[1])
                 ee.current_energy += emergy_value
-                print(f'🔋 {character.name}恢复{emergy_value}点元素能量')
+                print(f'🔋 {character.name}恢复{emergy_value:.2f}点元素能量')
                 e_event = EnergyChargeEvent(character, (amount[0],emergy_value), GetCurrentTime(),before=False)
                 EventBus.publish(e_event)
                 
