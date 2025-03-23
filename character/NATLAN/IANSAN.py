@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate
+from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate, TalentEffect
 from setup.BaseObject import baseObject
 from setup.BaseEffect import AttackBoostEffect
 from setup.Event import ChargedAttackEvent, DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, HealEvent, NightSoulChangeEvent, NormalAttackEvent
@@ -120,6 +120,10 @@ class IansanChargedAttack(ChargedAttackSkill):
             is_nightsoul=True if self.caster.Nightsoul_Blessing else False
         )
         
+        # 触发天赋1效果
+        if self.caster.Nightsoul_Blessing and self.caster.level >= 20:
+            StandardActionEffect(self.caster).apply()
+        
         # 发布伤害事件
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
@@ -164,8 +168,8 @@ class ElementalSkill(SkillBase):
             for _ in range(4):
                 energy_event = EnergyChargeEvent(self.caster,('雷', 6), GetCurrentTime())
                 EventBus.publish(energy_event)
-            
-        return False
+
+        self.caster.movement += 3.6
 
     def on_finish(self):
         super().on_finish()
@@ -184,11 +188,19 @@ class KineticMarkObject(baseObject):
         self.max_boost = max_boost  # 最大攻击力加成
         self.current_character = caster # 记录当前角色
 
+        EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+
     def on_frame_update(self, target):
         if self.current_frame - self.last_attack_time >= self.interval:
             self._romve_boost()
             self._apply_boost()
             self.last_attack_time = self.current_frame
+            
+        # 每秒检查移动距离并恢复夜魂值
+        if self.current_frame % 60 == 0:
+            self._night_soul_recovery()
 
     def _apply_boost(self):
         if self.caster.current_night_soul > 42:
@@ -213,6 +225,38 @@ class KineticMarkObject(baseObject):
         self.current_character.attributePanel['固定攻击力'] -= self.original_boost
         print(f"⚡ {self.current_character.name} 移除动能标示攻击力加成")
 
+    def _night_soul_recovery(self):
+        """根据移动距离恢复夜魂值"""
+        if self.current_character == self.caster:
+            return
+            
+        current_movement = self.current_character.movement
+        movement_delta = current_movement - self.last_movement
+        self.last_movement = current_movement
+        
+        # 计算基础夜魂值恢复量
+        night_soul_gain = movement_delta * 0.06
+        if night_soul_gain > 0:
+            # 检查标准动作效果
+            standard_action = next((e for e in self.caster.active_effects 
+                                 if isinstance(e, StandardActionEffect)), None)
+            if standard_action:
+                # 应用额外夜魂值恢复
+                extra_gain = standard_action.extra_night_soul
+                current_time = GetCurrentTime()
+                
+                # 检查是否触发强化恢复
+                if standard_action.is_enhanced and \
+                   current_time - standard_action.last_enhanced_time >= standard_action.enhanced_interval:
+                    extra_gain = standard_action.enhanced_night_soul
+                    standard_action.is_enhanced = False
+                    standard_action.last_enhanced_time = current_time
+                    print(f"⚡ {self.caster.name} 触发强化夜魂恢复，额外恢复 {extra_gain} 点")
+                
+                night_soul_gain += extra_gain
+            
+            self.caster.gain_night_soul(night_soul_gain)
+            print(f"⚡ {self.current_character.name} 移动距离 {movement_delta:.1f}，为伊安珊恢复 {night_soul_gain:.1f} 夜魂值")
 
     def on_finish(self, target):
         self.caster.romve_NightSoulBlessing()
@@ -230,6 +274,7 @@ class KineticMarkObject(baseObject):
             # 角色切换后，给新角色添加加成
             if event.data['old_character'] == self.current_character:
                 self.current_character = event.data['new_character']
+                self.last_movement = self.current_character.movement  # 重置移动距离记录
                 self._apply_boost()
 
 class ElementalBurst(EnergySkill):
@@ -315,7 +360,59 @@ class WarmUpEffect(Effect, EventHandler):
         event = HealEvent(self.character, active_character, heal, GetCurrentTime())
         EventBus.publish(event)
 
-class PassiveSkillEffect_2(Effect, EventHandler):
+class StandardActionEffect(Effect, EventHandler):
+    """标准动作效果"""
+    def __init__(self, character):
+        super().__init__(character)
+        self.name = '标准动作'
+        self.duration = 15 * 60  # 15秒
+        self.attack_boost = 20  # 攻击力提升20%
+        self.extra_night_soul = 1  # 额外恢复1点夜魂值
+        self.enhanced_night_soul = 4  # 强化后额外恢复4点
+        self.last_enhanced_time = -9999  # 上次触发强化恢复的时间
+        self.enhanced_interval = 2.8 * 60  # 2.8秒冷却
+        self.is_enhanced = False  # 是否触发强化恢复
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        
+    def apply(self):
+        # 检查现有效果并刷新持续时间
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, StandardActionEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        # 应用攻击力提升
+        self.original_attack = self.character.attributePanel['攻击力%']
+        self.character.attributePanel['攻击力%'] += self.attack_boost
+        self.character.add_effect(self)
+        print(f"{self.character.name}获得{self.name}效果，攻击力提升{self.attack_boost}%")
+        
+    def remove(self):
+        # 移除攻击力提升
+        self.character.attributePanel['攻击力%'] -= self.attack_boost
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        EventBus.unsubscribe(EventType.NIGHTSOUL_BLESSING_END, self)
+        print(f"{self.character.name}: {self.name}效果结束")
+        
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
+            # 队伍中角色消耗/恢复夜魂值后，标记下次恢复强化
+            if event.data['character'] != self.character:
+                self.is_enhanced = True
+    
+    def update(self, target):
+        super().update(target)
+        if not self.character.Nightsoul_Blessing:
+            self.remove()
+
+class PassiveSkillEffect_1(TalentEffect):
+    """强化抗阻练习"""
+    def __init__(self):
+        super().__init__('强化抗阻练习')
+
+class PassiveSkillEffect_2(TalentEffect, EventHandler):
     """动能梯度测验"""
     def __init__(self):
         super().__init__('动能梯度测验')
@@ -328,6 +425,7 @@ class PassiveSkillEffect_2(Effect, EventHandler):
         if event.event_type == EventType.NightsoulBurst:
             WarmUpEffect(self.character).apply()
 
+# 默认 位移100 25帧 v=4 一个闪避的距离 转化率r = 0.08
 class Iansan(Natlan):
     ID = 97
     def __init__(self, level=1, skill_params=..., constellation=0):
@@ -345,4 +443,6 @@ class Iansan(Natlan):
         self.talent2 = PassiveSkillEffect_2()
 
     def update(self, target):
-        return super().update(target)
+        super().update(target)
+        if self.Nightsoul_Blessing:
+            self.consume_night_soul(8/60)
