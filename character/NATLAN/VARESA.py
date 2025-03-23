@@ -10,7 +10,7 @@ class VaresaNormalAttack(NormalAttackSkill):
         super().__init__(lv=lv, cd=0)
         self.element = ('雷', 1)  # 雷元素伤害
 
-        self.normal_segment_frames = [15, 14, 29]  # 普通攻击的帧数
+        self.normal_segment_frames = [30, 28, 58]  # 普通攻击的帧数
         
         self.damageMultipiler = {
             1:[46.78, 50.29, 53.8, 58.47, 61.98, 65.49, 70.17, 74.85, 79.52, 84.2, 88.88, 93.56, 99.4, 105.25, 111.1, ],
@@ -18,7 +18,7 @@ class VaresaNormalAttack(NormalAttackSkill):
             3:[56.31, 60.54, 64.76, 70.39, 74.61, 78.84, 84.47, 90.1, 95.73, 101.36, 106.99, 112.63, 119.66, 126.7, 133.74, ],
         }
 
-        self.passion_segment_frames = [8,20,23]  # 炽热激情攻击的帧数
+        self.passion_segment_frames = [16,40,46]  # 炽热激情攻击的帧数
         self.passionMultipiler = {
             1:[54.41, 58.49, 62.57, 68.01, 72.09, 76.17, 81.61, 87.05, 92.49, 97.93, 103.37, 108.81, 115.62, 122.42, 129.22, ],
             2:[52.03, 55.93, 59.83, 65.04, 68.94, 72.84, 78.04, 83.25, 88.45, 93.65, 98.85, 104.06, 110.56, 117.06, 123.57, ],
@@ -77,15 +77,15 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         super().__init__(lv, total_frames, cd)
         self.element = ('雷', 1)
 
-        self.normal_hit_frame = 19
-        self.normal_total_frames = 34
+        self.normal_hit_frame = 38
+        self.normal_total_frames = 68
         self.damageMultipiler = {
             '下坠期间伤害': [74.59, 80.66, 86.73, 95.4, 101.47, 108.41, 117.95, 127.49, 137.03, 147.44, 157.85, 168.26, 178.66, 189.07, 199.48],
             '低空坠地冲击伤害': [149.14, 161.28, 173.42, 190.77, 202.91, 216.78, 235.86, 254.93, 274.01, 294.82, 315.63, 336.44, 357.25, 378.06, 398.87],
             '高空坠地冲击伤害': [186.29, 201.45, 216.62, 238.28, 253.44, 270.77, 294.6, 318.42, 342.25, 368.25, 394.24, 420.23, 446.23, 472.22, 498.21]
         }
-        self.passion_hit_frame = 14
-        self.passion_total_frames = 14 + 18
+        self.passion_hit_frame = 28
+        self.passion_total_frames = (14 + 18)*2
         self.passionMultipiler = {
             '下坠期间伤害': [74.59, 80.66, 86.73, 95.4, 101.47, 108.41, 117.95, 127.49, 137.03, 147.44, 157.85, 168.26, 178.66, 189.07, 199.48],
             '低空坠地冲击伤害': [223.72, 241.93, 260.13, 286.15, 304.36, 325.17, 353.78, 382.4, 411.01, 442.23, 473.45, 504.66, 535.88, 567.09, 598.31],
@@ -162,13 +162,13 @@ class VaresaChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=27+20, cd=0):
         super().__init__(lv=lv, total_frames=total_frames, cd=cd)
         self.element = ('雷', 1)  # 雷元素伤害
-        self.normal_hit_frame = 27
-        self.normal_total_frames=self.normal_hit_frame+20
+        self.normal_hit_frame = 54
+        self.normal_total_frames=self.normal_hit_frame+40
         self.damageMultipiler = [89.28, 95.98, 102.67, 111.6, 118.3, 124.99, 133.92, 142.85, 151.78,
                                   160.7, 169.63, 178.56, 189.72, 200.88, 212.04, ]
         
-        self.passion_hit_frame = 21
-        self.passion_total_frames=self.passion_hit_frame+8
+        self.passion_hit_frame = 42
+        self.passion_total_frames=self.passion_hit_frame+16
         self.passionMultipiler = [92.64, 99.59, 106.54, 115.8, 122.75, 129.7, 138.96, 148.22, 157.49, 166.75, 176.02, 185.28, 196.86, 208.44, 220.02, ]
 
     def start(self, caster):
@@ -187,8 +187,8 @@ class VaresaChargedAttack(ChargedAttackSkill):
             self.damageMultipiler = self.damageMultipiler
         chase_effect = next((e for e in self.caster.active_effects if isinstance(e, ChaseEffect)), None)
         if chase_effect:
-            self.hit_frame = 7
-            self.total_frames = 7+7
+            self.hit_frame = 14
+            self.total_frames = 14+14
             
         return True
 
@@ -282,10 +282,10 @@ class ElementalSkill(SkillBase):
         self.max_charges = 2  # 最大使用次数
         self.current_charges = 2  # 当前使用次数
         self.last_use_time = [-self.cd] * self.max_charges  # 每个充能的最后使用时间
-        self.normal_hit_frame = 15  # 普通状态命中帧
-        self.normal_total_frames = 30  # 普通状态总帧数
-        self.passion_hit_frame = 12  # 炽热激情状态命中帧
-        self.passion_total_frames = 24  # 炽热激情状态总帧数
+        self.normal_hit_frame = 30  # 普通状态命中帧
+        self.normal_total_frames = 60  # 普通状态总帧数
+        self.passion_hit_frame = 24  # 炽热激情状态命中帧
+        self.passion_total_frames = 48  # 炽热激情状态总帧数
         self.damageMultipiler = {
             '突进伤害': [74.48, 80.07, 85.65, 93.1, 98.69, 104.27, 111.72, 119.17, 126.62, 
                         134.06, 141.51, 148.96, 158.27, 167.58, 176.89],
@@ -459,7 +459,7 @@ class SpecialElementalBurst(EnergySkill):
     def __init__(self, lv, caster):
         super().__init__(
             name="闪烈降临·大火山崩落",
-            total_frames=60,
+            total_frames=42 + 44,
             cd=0,
             lv=lv,
             element=('雷', 1),
@@ -471,7 +471,7 @@ class SpecialElementalBurst(EnergySkill):
             '「大火山崩落」伤害':[402.64, 432.84, 463.04, 503.3, 533.5, 563.7,
                           603.96, 644.22, 684.49, 724.75, 765.02, 805.28, 855.61, 905.94, 956.27, ],
         }
-        self.hit_frame = 30
+        self.hit_frame = 42
 
     def start(self, caster):
         limitDriveEffect = next((e for e in self.caster.active_effects if isinstance(e, LimitDriveEffect)), None)
@@ -501,7 +501,7 @@ class ElementalBurst(EnergySkill):
     def __init__(self, lv, caster):
         super().__init__(
             name="闪烈降临！", 
-            total_frames=80,
+            total_frames=90 +38,
             cd=20 * 60,
             lv=lv,
             element=('雷', 1),
@@ -516,7 +516,7 @@ class ElementalBurst(EnergySkill):
             '炽热激情状态飞踢伤害':[575.2, 618.34, 661.48, 719, 762.14, 805.28, 862.8,
                            920.32, 977.84, 1035.36, 1092.88, 1150.4, 1222.3, 1294.2, 1366.1, ],
         }
-        self.hit_frame = 40
+        self.hit_frame = 90
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:

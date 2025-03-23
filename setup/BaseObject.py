@@ -26,7 +26,8 @@ class baseObject(ABC):
         ...
 
     @abstractmethod
-    def on_finish(self,target):...
+    def on_finish(self,target):
+        print(f'{self.name} 存活时间结束')
            
 class ArkheObject(baseObject):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):
