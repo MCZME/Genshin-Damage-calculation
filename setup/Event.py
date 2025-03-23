@@ -165,11 +165,11 @@ class OverloadEvent(GameEvent):
             super().__init__(EventType.AFTER_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
 
 class EnergyChargeEvent(GameEvent):
-    def __init__(self, character, amount, frame, is_fixed=False, before=True, **kwargs):
+    def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):
         if before:
-            super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, amount=amount, is_fixed=is_fixed, **kwargs)
+            super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone,amount=amount, is_fixed=is_fixed, **kwargs)
         else:
-            super().__init__(EventType.AFTER_ENERGY_CHANGE, frame=frame, character=character, amount=amount, is_fixed=is_fixed, **kwargs)
+            super().__init__(EventType.AFTER_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone, amount=amount, is_fixed=is_fixed, **kwargs)
 
 # --------------------------
 # 事件处理器接口

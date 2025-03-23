@@ -29,29 +29,64 @@ class ElementalEnergyEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_ENERGY_CHANGE:
             amount = event.data['amount']
-            l = len(Team.team)
-            for character in Team.team:
-                ee = character.elemental_energy
-                if character.on_field:
-                    team_rate = 1.0
-                elif l == 2:
-                    team_rate = 0.8
-                elif l == 3:
-                    team_rate = 0.7
+            
+            if event.data['is_alone']:
+                character = event.data['character']
+                if event.data['is_fixed']:
+                    emergy_value = min(amount[1], 
+                                           character.elemental_energy.elemental_energy[1] -
+                                           character.elemental_energy.current_energy)
+                    character.elemental_energy.current_energy += emergy_value
                 else:
-                    team_rate = 0.6
-
-                if ee.elemental_energy[0] == amount[0]:
-                    element_rate = 1.5
-                elif amount[0] == '无':
-                    element_rate = 1.0
-                else:
-                    element_rate = 0.5
-                emergy_rate = character.attributePanel['元素充能效率']/100
-                emergy_value = amount[1] * team_rate * element_rate * emergy_rate
-                emergy_value = min(emergy_value, ee.elemental_energy[1])
-                ee.current_energy += emergy_value
+                    rate = self.get_rate(character,amount[0])
+                    emergy_value = amount[1] * rate[0] * rate[1] * rate[2]
+                    emergy_value = min(emergy_value, 
+                                           character.elemental_energy.elemental_energy[1] -
+                                           character.elemental_energy.current_energy)
+                    character.elemental_energy.current_energy += emergy_value
                 print(f'🔋 {character.name}恢复{emergy_value:.2f}点元素能量')
-                e_event = EnergyChargeEvent(character, (amount[0],emergy_value), GetCurrentTime(),before=False)
-                EventBus.publish(e_event)
+                e_event = EnergyChargeEvent(character, (amount[0],emergy_value),
+                                            GetCurrentTime(),
+                                            before=False,
+                                            is_fixed=event.data['is_fixed'],
+                                            is_alone=event.data['is_alone'])
+                EventBus.publish(e_event) 
+            else:
+                for character in Team.team:
+                    if event.data['is_fixed']:
+                        character.elemental_energy.current_energy += amount[1]
+                    else:
+                        rate = self.get_rate(character,amount[0])
+                        emergy_value = amount[1] * rate[0] * rate[1] * rate[2]
+                        emergy_value = min(emergy_value, 
+                                           character.elemental_energy.elemental_energy[1] -
+                                           character.elemental_energy.current_energy)
+                        character.elemental_energy.current_energy += emergy_value
+                        print(f'🔋 {character.name}恢复{emergy_value:.2f}点元素能量')
+                    e_event = EnergyChargeEvent(character, (amount[0],emergy_value),
+                                            GetCurrentTime(),
+                                            before=False,
+                                            is_fixed=event.data['is_fixed'],
+                                            is_alone=event.data['is_alone'])
+                    EventBus.publish(e_event) 
                 
+    def get_rate(self,character,element):
+        l = len(Team.team)
+        if character.on_field:
+            team_rate = 1.0
+        elif l == 2:
+            team_rate = 0.8
+        elif l == 3:
+            team_rate = 0.7
+        else:
+            team_rate = 0.6
+
+        if character.elemental_energy.elemental_energy[0] == element:
+            element_rate = 1.5
+        elif element == '无':
+            element_rate = 1.0
+        else:
+            element_rate = 0.5
+        emergy_rate = character.attributePanel['元素充能效率']/100
+        
+        return (team_rate,element_rate,emergy_rate)
