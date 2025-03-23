@@ -1,7 +1,7 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate, TalentEffect
 from setup.BaseObject import baseObject
-from setup.BaseEffect import AttackBoostEffect
+from setup.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from setup.Event import ChargedAttackEvent, DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, HealEvent, NightSoulChangeEvent, NormalAttackEvent
 from setup.HealingCalculation import Healing, HealingType
 from setup.Team import Team
@@ -180,7 +180,11 @@ class ElementalSkill(SkillBase):
 class KineticMarkObject(baseObject):
     """动能标示对象"""
     def __init__(self, caster,max_boost):
-        super().__init__(name="动能标示", life_frame=12*60) 
+        # 命座6效果：持续时间延长3秒（180帧）
+        base_life = 12 * 60
+        if caster.constellation >= 6:
+            base_life += 3 * 60
+        super().__init__(name="动能标示", life_frame=base_life) 
         self.caster = caster
         self.interval = 60  # 1秒攻击间隔（60帧）
         self.last_attack_time = -60  # 立即开始第一次攻击
@@ -254,6 +258,29 @@ class KineticMarkObject(baseObject):
                     print(f"⚡ {self.caster.name} 触发强化夜魂恢复，额外恢复 {extra_gain} 点")
                 
                 night_soul_gain += extra_gain
+            
+            # 检查原力激扬效果
+            force_excitation = next((e for e in self.caster.active_effects 
+                                   if isinstance(e, ForceExcitationEffect)), None)
+            if force_excitation and force_excitation.consume_stack():
+                # 消耗一层原力激扬，额外恢复4点夜魂值
+                night_soul_gain += 4
+                print(f"⚡ {self.caster.name} 消耗1层原力激扬，额外恢复4点夜魂值")
+            
+            # 检查夜魂值是否溢出
+            overflow = (self.caster.current_night_soul + night_soul_gain) - self.caster.max_night_soul
+            if overflow > 0:
+                # 记录溢出量
+                self.caster._last_overflow = overflow
+                print(f"⚡ {self.caster.name} 夜魂值溢出 {overflow:.1f} 点")
+                LimitBreakEffect(Team.current_character).apply()
+            
+            # 如果有上次溢出，额外恢复50%
+            if hasattr(self.caster, '_last_overflow') and self.caster._last_overflow > 0:
+                extra_recovery = self.caster._last_overflow * 0.5
+                night_soul_gain += extra_recovery
+                print(f"⚡ {self.caster.name} 基于上次溢出量额外恢复 {extra_recovery:.1f} 点夜魂值")
+                self.caster._last_overflow = 0
             
             self.caster.gain_night_soul(night_soul_gain)
             print(f"⚡ {self.current_character.name} 移动距离 {movement_delta:.1f}，为伊安珊恢复 {night_soul_gain:.1f} 夜魂值")
@@ -425,6 +452,224 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         if event.event_type == EventType.NightsoulBurst:
             WarmUpEffect(self.character).apply()
 
+class ConstellationEffect_1(ConstellationEffect, EventHandler):
+    """命座1：万事从来开头难"""
+    def __init__(self):
+        super().__init__('万事从来开头难')
+        self.last_trigger_time = -9999
+        self.trigger_interval = 18 * 60  # 18秒
+        self.night_soul_consumed = 0  # 累计消耗的夜魂值
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        
+    def apply(self, character):
+        self.character = character
+        
+    def handle_event(self, event: GameEvent):
+        if not self.character.Nightsoul_Blessing:
+            return
+            
+        current_time = GetCurrentTime()
+        if current_time - self.last_trigger_time < self.trigger_interval:
+            return
+            
+        # 检查夜魂值消耗
+        if event.data['amount'] < 0:
+            self.night_soul_consumed += abs(event.data['amount'])
+            if self.night_soul_consumed >= 6:
+                # 恢复15点元素能量
+                energy_event = EnergyChargeEvent(
+                    self.character,
+                    ('雷', 15),
+                    GetCurrentTime(),
+                    is_fixed=True,
+                    is_alone=True,
+                )
+                EventBus.publish(energy_event)
+                self.last_trigger_time = current_time
+                self.night_soul_consumed = 0  # 重置累计消耗
+                print(f"⚡ {self.character.name} 触发命座1效果，恢复15点元素能量")
+
+class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
+    """伊安珊攻击力提升效果"""
+    def __init__(self, character):
+        super().__init__(character, '偷懒是健身大忌', 30, 0)
+        self.current_character = character
+    
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel['攻击力%'] += self.bonus
+        print(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def remove(self):
+        self.current_character.attributePanel['攻击力%'] -= self.bonus
+        self.current_character.remove_effect(self)
+        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            # 角色切换后，检查伊安珊是否在后台
+            if event.data['old_character'] == self.character:
+                self.remove() 
+                self.current_character = event.data['new_character']
+                if self.character != Team.current_character:
+                    self.apply()
+
+    def update(self, target):
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, StandardActionEffect)), None)
+        if not existing:
+            self.remove()
+
+class ConstellationEffect_2(ConstellationEffect, EventHandler):
+    """命座2：偷懒是健身大忌!"""
+    def __init__(self):
+        super().__init__('偷懒是健身大忌!')
+        
+    def apply(self, character):
+        EventBus.subscribe(EventType.AFTER_BURST, self)
+        self.character = character
+        
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_BURST and event.data['character'] == self.character:
+            # 检查是否解锁天赋1
+            if self.character.level < 20:
+                return   
+            # 应用标准动作效果
+            StandardActionEffect(self.character).apply() 
+            IansanAttackBoostEffect(self.character).apply()
+
+class ForceExcitationEffect(Effect):
+    """原力激扬效果"""
+    def __init__(self, character):
+        super().__init__(character)
+        self.name = '原力激扬'
+        self.stacks = 0
+        self.max_stacks = 2
+        
+    def apply(self):
+        force_excitation = next((e for e in self.character.active_effects
+                           if isinstance(e, ForceExcitationEffect)), None)
+        if force_excitation:
+            return
+        else:
+            self.character.add_effect(self)
+
+    def add_stack(self):
+        if self.stacks < self.max_stacks:
+            self.stacks += 1
+            print(f"{self.character.name} 获得1层{self.name}，当前层数：{self.stacks}")
+            
+    def consume_stack(self):
+        if self.stacks > 0:
+            self.stacks -= 1
+            print(f"{self.character.name} 消耗1层{self.name}，当前层数：{self.stacks}")
+            return True
+        return False
+    
+    def update(self, target):
+        existing = next((e for e in Team.active_objects 
+                       if isinstance(e, KineticMarkObject)), None)
+        if not existing:
+            self.remove()
+
+class ConstellationEffect_3(ConstellationEffect):
+    """命座3：科学的饮食规划"""
+    def __init__(self):
+        super().__init__('科学的饮食规划')
+
+    def apply(self, character):
+        skill_lv = character.Skill.lv + 3
+        if skill_lv > 15:
+            skill_lv = 15
+        character.Skill = ElementalSkill(skill_lv)
+
+class ConstellationEffect_4(ConstellationEffect, EventHandler):
+    """命座4：循序渐进是关键"""
+    def __init__(self):
+        super().__init__('循序渐进是关键')
+        
+    def apply(self, character):
+        self.character = character
+        self.force_excitation = None
+        self.is_gain = True
+        EventBus.subscribe(EventType.AFTER_BURST, self)
+        
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.AFTER_BURST:
+            # 检查是否是其他角色施放元素爆发
+            if event.data['character'] != self.character and self.is_gain:
+                # 获取或创建原力激扬效果
+                self.force_excitation = next((e for e in self.character.active_effects 
+                                            if isinstance(e, ForceExcitationEffect)), None)
+                if not self.force_excitation:
+                    self.force_excitation = ForceExcitationEffect(self.character)
+                    self.force_excitation.apply()
+                # 添加两层原力激扬
+                self.force_excitation.add_stack()
+                self.force_excitation.add_stack()
+                self.is_gain = False            
+            elif event.data['character'] == self.character and not self.is_gain:
+                self.is_gain = True
+
+class LimitBreakEffect(DamageBoostEffect, EventHandler):
+    """极限发力效果"""
+    def __init__(self, character):
+        super().__init__(character,'极限发力',25,3*60)
+        self.current_character = character
+
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+        
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel[self.attribute_name] += self.bonus
+        print(f"{self.current_character.name}获得{self.name}效果")
+        EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+    
+    def remove(self):
+        self.current_character.attributePanel[self.attribute_name] -= self.bonus
+        print(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
+        self.current_character.remove_effect(self)
+        EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event: GameEvent):
+        if event.event_type == EventType.BEFORE_CHARACTER_SWITCH:
+            if event.data['old_character'] == self.current_character:
+                self.remove()
+                self.current_character = event.data['new_character']
+                self.apply()  
+
+class ConstellationEffect_5(ConstellationEffect):
+    """命座5：还没有到极限呢！"""
+    def __init__(self):
+        super().__init__('还没有到极限呢！')
+
+    def apply(self, character):
+        burst_lv = character.Burst.lv + 3
+        if burst_lv > 15:
+            burst_lv = 15
+        character.Burst = ElementalBurst(burst_lv, character)
+
+class ConstellationEffect_6(ConstellationEffect):
+    """命座6：「沃陆之邦」的训教"""
+    def __init__(self):
+        super().__init__('「沃陆之邦」的训教')
+        
+    def apply(self, character):
+        self.character = character
+
 # 默认 位移100 25帧 v=4 一个闪避的距离 转化率r = 0.08
 class Iansan(Natlan):
     ID = 97
@@ -441,7 +686,13 @@ class Iansan(Natlan):
         self.Skill = ElementalSkill(lv=self.skill_params[1])
         self.Burst = ElementalBurst(lv=self.skill_params[2], caster=self)
         self.talent2 = PassiveSkillEffect_2()
-
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[3] = ConstellationEffect_4()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
+        
     def update(self, target):
         super().update(target)
         if self.Nightsoul_Blessing:
