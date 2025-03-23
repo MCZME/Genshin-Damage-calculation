@@ -16,10 +16,7 @@ class Natlan(Character):
         self.time_accumulator = 0   # 时间累积器
 
     def consume_night_soul(self, amount):
-        """安全消耗夜魂值并触发事件"""
-        if not self.Nightsoul_Blessing:
-            return False
-
+        """消耗夜魂值"""
         # 发布消耗事件
         actual_amount = min(amount, self.current_night_soul)
         event =NightSoulChangeEvent(
@@ -46,9 +43,6 @@ class Natlan(Character):
     
     def gain_night_soul(self, amount):
         """获得夜魂值"""
-        if not self.Nightsoul_Blessing:
-            self.chargeNightsoulBlessing()
-
         actual_amount = min(amount, self.max_night_soul - self.current_night_soul)
         EventBus.publish(NightSoulChangeEvent(
             character=self,

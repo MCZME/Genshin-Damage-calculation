@@ -710,3 +710,8 @@ class MAVUIKA(Natlan):
                 self.chargeNightsoulBlessing()
                 
             return True
+    
+    def gain_night_soul(self, amount):
+       if not self.Nightsoul_Blessing:
+           self.chargeNightsoulBlessing()
+       super().gain_night_soul(amount)
