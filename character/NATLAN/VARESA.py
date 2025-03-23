@@ -113,6 +113,10 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         EventBus.publish(event)
         return True
 
+    def on_frame_update(self, target):
+        super().on_frame_update(target)
+        self.caster.movement += 1.7
+
     def _apply_impact_damage(self, target):
         clamped_lv = min(max(self.lv, 1), 15) - 1
         damage_type_key = '高空坠地冲击伤害' if self.height_type == 'high' else '低空坠地冲击伤害'
@@ -145,8 +149,13 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         EventBus.publish(damage_event)
 
         EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
-        # 触发夜魂值获取
-        self._handle_nightsoul_charge()
+        
+        # 炽热激情状态下消耗全部夜魂值
+        if passion_effect:
+            self.caster.consume_night_soul(self.caster.current_night_soul)
+        else:
+            # 普通状态下触发夜魂值获取
+            self._handle_nightsoul_charge()
 
     def _handle_nightsoul_charge(self):
         """处理夜魂值获取及状态转换"""
@@ -157,7 +166,7 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         if original_value < self.caster.max_night_soul and \
            self.caster.current_night_soul >= self.caster.max_night_soul:
             self.caster._enter_passion_state()
-
+       
 class VaresaChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=27+20, cd=0):
         super().__init__(lv=lv, total_frames=total_frames, cd=cd)
@@ -176,6 +185,7 @@ class VaresaChargedAttack(ChargedAttackSkill):
             return False
             
         # 根据炽热激情状态选择帧数和倍率
+        self.v = 1.7
         passion_effect = next((e for e in self.caster.active_effects if isinstance(e, PassionEffect)), None)
         if passion_effect:
             self.hit_frame = self.passion_hit_frame
@@ -189,6 +199,7 @@ class VaresaChargedAttack(ChargedAttackSkill):
         if chase_effect:
             self.hit_frame = 14
             self.total_frames = 14+14
+            self.v = 5.357
             
         return True
 
@@ -283,7 +294,7 @@ class ElementalSkill(SkillBase):
         self.current_charges = 2  # 当前使用次数
         self.last_use_time = [-self.cd] * self.max_charges  # 每个充能的最后使用时间
         self.normal_hit_frame = 30  # 普通状态命中帧
-        self.normal_total_frames = 60  # 普通状态总帧数
+        self.normal_total_frames = 46  # 普通状态总帧数
         self.passion_hit_frame = 24  # 炽热激情状态命中帧
         self.passion_total_frames = 48  # 炽热激情状态总帧数
         self.damageMultipiler = {
@@ -375,6 +386,8 @@ class ElementalSkill(SkillBase):
             for _ in range(3):
                 energy_event = EnergyChargeEvent(self.caster,('雷', 6), GetCurrentTime())
                 EventBus.publish(energy_event)
+            
+        self.caster.movement += 4.347
 
     def on_finish(self):
         return super().on_finish()
@@ -496,6 +509,7 @@ class SpecialElementalBurst(EnergySkill):
             )
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
+        self.caster.movement += 1.627
 
 class ElementalBurst(EnergySkill):
     def __init__(self, lv, caster):
@@ -537,6 +551,7 @@ class ElementalBurst(EnergySkill):
             self.caster.gain_night_soul(self.caster.max_night_soul)
                 
             print("⚡ 正义英雄的飞踢！")
+        self.caster.movement += 1.09375
 
 class PassiveSkillEffect_1(TalentEffect):
     def __init__(self):

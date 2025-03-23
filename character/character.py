@@ -60,6 +60,7 @@ class Character:
 
         self.maxHP = self.attributePanel['生命值'] * (1 + self.attributePanel['生命值%'] / 100) + self.attributePanel['固定生命值']
         self.currentHP = self.maxHP
+        self.movement = 0
         self.weapon = None
         self.artifactManager = None
         self.state = [CharacterState.IDLE]

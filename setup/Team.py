@@ -119,12 +119,12 @@ class Team:
                             
                             # 执行切换
                             character_switch_event = CharacterSwitchEvent(Team.current_character, character,frame=GetCurrentTime())
+                            EventBus.publish(character_switch_event)
                             old_character = Team.current_character
                             Team.current_character.on_field = False
                             character.on_field = True
                             Team.current_character = character
                             self.current_frame = self.SwapCd
-                            EventBus.publish(character_switch_event)
                             
                             # 执行新角色动作
                             if hasattr(Team.current_character, action[1]):
