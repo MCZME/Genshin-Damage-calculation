@@ -1,8 +1,8 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, SkillSate
+from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import Effect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, ElementalSkillEvent, EventType, GameEvent
+from setup.Event import ChargedAttackEvent, DamageEvent, EnergyChargeEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, ElementalSkillEvent, EventType, GameEvent
 from setup.Tool import GetCurrentTime
 
 class VaresaNormalAttack(NormalAttackSkill):
@@ -117,23 +117,30 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         clamped_lv = min(max(self.lv, 1), 15) - 1
         damage_type_key = '高空坠地冲击伤害' if self.height_type == 'high' else '低空坠地冲击伤害'
         
+        # 计算基础伤害
         passion_effect = next((e for e in self.caster.active_effects if isinstance(e, PassionEffect)), None)
         if passion_effect:
-            damage = Damage(
-                self.passionMultipiler[damage_type_key][clamped_lv],
-                self.element,
-                DamageType.PLUNGING,
-                f'炽热激情·夜魂·{damage_type_key}',
-                is_nightsoul=True
-            )
+            base_damage = self.passionMultipiler[damage_type_key][clamped_lv]
+
         else:
-            damage = Damage(
-                self.damageMultipiler[damage_type_key][clamped_lv],
-                self.element,
-                DamageType.PLUNGING,
-                f'夜魂·{damage_type_key}',
-                is_nightsoul=True
-            )
+            base_damage = self.damageMultipiler[damage_type_key][clamped_lv]
+
+        # 检查虹色坠击效果
+        rainbow_effect = next((e for e in self.caster.active_effects if isinstance(e, RainbowPlungeEffect)), None)
+        if rainbow_effect:
+            if passion_effect:
+                base_damage += 180  # 炽热激情状态下180%额外伤害
+            else:
+                base_damage += 50  # 普通状态下50%额外伤害
+
+        # 发布基础伤害事件
+        damage = Damage(
+            base_damage,
+            self.element,
+            DamageType.PLUNGING,
+            f'夜魂·{damage_type_key}' if not passion_effect else f'炽热激情·夜魂·{damage_type_key}',
+            is_nightsoul=True
+        )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
@@ -150,10 +157,6 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         if original_value < self.caster.max_night_soul and \
            self.caster.current_night_soul >= self.caster.max_night_soul:
             self.caster._enter_passion_state()
-            
-        # 如果夜魂值达到上限，重置当前夜魂值
-        if self.caster.current_night_soul >= self.caster.max_night_soul:
-            self.caster.current_night_soul = 0
 
 class VaresaChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=27+20, cd=0):
@@ -223,6 +226,31 @@ class VaresaChargedAttack(ChargedAttackSkill):
         if self.current_frame == self.hit_frame:
             self._apply_attack(target)
 
+class RainbowPlungeEffect(Effect, EventHandler):
+    """虹色坠击效果"""
+    def __init__(self, caster):
+        super().__init__(caster)
+        self.name = '虹色坠击'
+        self.duration = 5 * 60  # 5秒
+        
+    def apply(self):
+        rainbowPlungeEffect = next((e for e in self.character.active_effects if isinstance(e, RainbowPlungeEffect)), None)
+        if rainbowPlungeEffect:
+            rainbowPlungeEffect.duration = self.duration
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        print(f"🌈 {self.character.name}获得{self.name}效果")
+        
+    def remove(self):
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        print(f"🌈 {self.character.name}的{self.name}效果消失")
+        
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_PLUNGING_ATTACK:
+            if event.data['character'] == self.character:
+                self.remove()
+
 class ChaseEffect(Effect,EventHandler):
     """逐击效果"""
     def __init__(self, caster):
@@ -242,28 +270,60 @@ class ChaseEffect(Effect,EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARGED_ATTACK:
             if event.data['character'] == self.character:
-                self.remove()
+                chaseEffect = next((e for e in self.character.active_effects if isinstance(e, ChaseEffect)), None)
+                if chaseEffect:
+                    chaseEffect.remove()
 
 class ElementalSkill(SkillBase):
     """元素战技：夜虹逐跃"""
     def __init__(self, lv):
         super().__init__(name="夜虹逐跃", total_frames=30, cd=15*60, lv=lv,
                         element=('雷', 1), interruptible=True, state=SkillSate.OnField)
+        self.max_charges = 2  # 最大使用次数
+        self.current_charges = 2  # 当前使用次数
+        self.last_use_time = [-self.cd] * self.max_charges  # 每个充能的最后使用时间
         self.normal_hit_frame = 15  # 普通状态命中帧
         self.normal_total_frames = 30  # 普通状态总帧数
         self.passion_hit_frame = 12  # 炽热激情状态命中帧
         self.passion_total_frames = 24  # 炽热激情状态总帧数
         self.damageMultipiler = {
-            '突进伤害':[74.48, 80.07, 85.65, 93.1, 98.69, 104.27, 111.72, 119.17, 126.62, 
-                    134.06, 141.51, 148.96, 158.27, 167.58, 176.89, ],
-            '炽热激情状态突进伤害':[106.4, 114.38, 122.36, 133, 140.98, 148.96, 159.6, 170.24,
-                           180.88, 191.52, 202.16, 212.8, 226.1, 239.4, 252.7, ],
+            '突进伤害': [74.48, 80.07, 85.65, 93.1, 98.69, 104.27, 111.72, 119.17, 126.62, 
+                        134.06, 141.51, 148.96, 158.27, 167.58, 176.89],
+            '炽热激情状态突进伤害': [106.4, 114.38, 122.36, 133, 140.98, 148.96, 159.6, 170.24,
+                               180.88, 191.52, 202.16, 212.8, 226.1, 239.4, 252.7],
         }
         
+    def update_charges(self):
+        """更新当前充能次数，基于各充能槽位的冷却状态"""
+        current_time = GetCurrentTime()
+        available = 0
+        for i in range(self.max_charges):
+            if current_time >= self.last_use_time[i] + self.cd:
+                available += 1
+        self.current_charges = min(available, self.max_charges)
+
     def start(self, caster):
-        if not super().start(caster):
+        self.update_charges()
+        if self.current_charges <= 0:
+            print("当前无可用充能")
             return False
-            
+
+        # 找到第一个可用的充能槽位
+        current_time = GetCurrentTime()
+        used_index = -1
+        for i in range(self.max_charges):
+            if current_time >= self.last_use_time[i] + self.cd:
+                used_index = i
+                break
+        if used_index == -1:
+            return False  # 无可用充能，不应发生
+
+        self.current_frame = 0
+        self.caster = caster
+        # 标记该充能槽位已使用
+        self.last_use_time[used_index] = current_time
+        self.current_charges -= 1
+
         # 根据炽热激情状态选择帧数和倍率
         passion_effect = next((e for e in caster.active_effects if isinstance(e, PassionEffect)), None)
         if passion_effect:
@@ -272,15 +332,21 @@ class ElementalSkill(SkillBase):
         else:
             self.hit_frame = self.normal_hit_frame
             self.total_frames = self.normal_total_frames
-            
-        # 获得20点夜魂值
+
         caster.gain_night_soul(20)
         
         # 应用逐击效果
         chase_effect = ChaseEffect(caster)
         chase_effect.apply()
-        
         return True
+
+    def update(self,target):
+        self.current_frame += 1
+        if self.current_frame >= self.total_frames:
+            self.on_finish()
+            return True
+        self.on_frame_update(target)
+        return False
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
@@ -303,6 +369,13 @@ class ElementalSkill(SkillBase):
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
 
+            if self.caster.level >= 20:
+                effect = RainbowPlungeEffect(self.caster)
+                effect.apply()
+            for _ in range(3):
+                energy_event = EnergyChargeEvent(self.caster,('雷', 6), GetCurrentTime())
+                EventBus.publish(energy_event)
+
     def on_finish(self):
         return super().on_finish()
     
@@ -317,11 +390,19 @@ class PassionEffect(Effect, EventHandler):
         self.duration = 15 * 60  # 15秒，以帧为单位
         self.character = character
         self.start_time = GetCurrentTime()
-        
+              
     def apply(self):
         passionEffect = next((e for e in self.character.active_effects if isinstance(e, PassionEffect)), None)
         if passionEffect:
             return
+        # 进入炽热激情状态时，增加1次元素战技使用次数
+        if self.character.Skill.current_charges < self.character.Skill.max_charges:
+            t = self.character.Skill.last_use_time
+            for i in range(len(t)):
+                if GetCurrentTime() < t[i] + self.character.Skill.cd:
+                    t[i] = GetCurrentTime() - self.character.Skill.cd
+                    break
+
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
@@ -334,12 +415,12 @@ class PassionEffect(Effect, EventHandler):
         print("🔥 炽热激情状态结束！")
         
     def handle_event(self, event):
-        if event.type == EventType.AFTER_NIGHT_SOUL_CHANGE:
+        if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             if event.data['character'] == self.character:
                 # 如果夜魂值低于最大值，结束状态
                 if self.character.current_night_soul < self.character.max_night_soul:
                     self.remove()
-        elif event.type == EventType.AFTER_PLUNGING_ATTACK:
+        elif event.event_type == EventType.AFTER_PLUNGING_ATTACK:
             if event.data['character'] == self.character:
                 passionEffect = next((e for e in self.character.active_effects if isinstance(e, PassionEffect)), None)
                 if passionEffect:
@@ -352,12 +433,12 @@ class PassionEffect(Effect, EventHandler):
         if GetCurrentTime() - self.start_time >= self.duration:
             self.remove()
 
-class LimitDriveEffect(Effect, EventHandler):
+class LimitDriveEffect(Effect):
     """极限驱动效果"""
     def __init__(self, character):
         super().__init__(character)
         self.name = '极限驱动'
-        self.duration = 10 * 60  # 10秒
+        self.duration = 1.5 * 60 
         self.character = character
         
     def apply(self):
@@ -367,18 +448,11 @@ class LimitDriveEffect(Effect, EventHandler):
             return
         
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         print("⚡ 进入极限驱动状态！")
         
     def remove(self):
         self.character.remove_effect(self)
-        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         print("⚡ 极限驱动状态结束！")
-        
-    def handle_event(self, event):
-        if event.type == EventType.AFTER_PLUNGING_ATTACK:
-            if event.data['character'] == self.character:
-                self.remove()
 
 class SpecialElementalBurst(EnergySkill):
     """特殊元素爆发：闪烈降临·大火山崩落"""
@@ -400,7 +474,7 @@ class SpecialElementalBurst(EnergySkill):
         self.hit_frame = 30
 
     def start(self, caster):
-        limitDriveEffect = next((e for e in self.character.active_effects if isinstance(e, LimitDriveEffect)), None)
+        limitDriveEffect = next((e for e in self.caster.active_effects if isinstance(e, LimitDriveEffect)), None)
         if not limitDriveEffect:
             return
         self.caster = caster
@@ -443,14 +517,6 @@ class ElementalBurst(EnergySkill):
                            920.32, 977.84, 1035.36, 1092.88, 1150.4, 1222.3, 1294.2, 1366.1, ],
         }
         self.hit_frame = 40
-        
-    def start(self, caster):
-        # 检查极限驱动状态
-        limit_drive_effect = next((e for e in caster.active_effects if isinstance(e, LimitDriveEffect)), None)
-        if limit_drive_effect:
-            SpecialElementalBurst.start(caster)
-        
-        return super().start(caster)
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
@@ -472,6 +538,77 @@ class ElementalBurst(EnergySkill):
                 
             print("⚡ 正义英雄的飞踢！")
 
+class PassiveSkillEffect_1(TalentEffect):
+    def __init__(self):
+        super().__init__('连势，三重腾跃！')
+
+    def apply(self, character):
+        super().apply(character)
+
+class HeroReturnsEffect(Effect):
+    """英雄二度归来效果"""
+    def __init__(self, character):
+        super().__init__(character)
+        self.name = '英雄二度归来'
+        self.duration = 12 * 60  # 12秒
+        self.attack_bonus = 35  # 35%攻击力提升
+        self.stacks = [0,0] 
+        self.max_stacks = 2  # 最大层数
+        
+    def apply(self):
+        # 检查是否达到最大层数
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, HeroReturnsEffect)), None)
+        if existing:
+            s = self.get_stacks()
+            self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
+            min_stack = min(existing.stacks)
+            min_stack.duration = self.duration
+            s = self.get_stacks()
+            self.character.attributePanel['攻击力%'] += self.attack_bonus * s
+            print(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
+            return
+            
+        self.character.add_effect(self)
+        self.stacks[0] = self.duration
+        self.character.attributePanel['攻击力%'] += self.attack_bonus
+        print(f"⚔️ {self.character.name} 获得英雄二度归来效果")
+        
+    def remove(self):
+        self.character.remove_effect(self)
+        s = self.get_stacks()
+        self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
+        print(f"⚔️ {self.character.name} 的英雄二度归来效果消失")
+        
+    def get_stacks(self):
+        a=0
+        for i in self.stacks:
+            if i > 0:
+                a+=1
+        return a
+
+    def update(self, target):
+        for i in range(len(self.stacks)):
+            if self.stacks[i] > 0:
+                self.stacks[i] -= 1
+        if self.get_stacks() == 0:
+            self.remove()
+
+class PassiveSkillEffect_2(TalentEffect,EventHandler):
+    def __init__(self):
+        super().__init__('英雄，二度归来！')
+        
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.NightsoulBurst, self)
+        
+    def handle_event(self, event):
+        if event.event_type == EventType.NightsoulBurst:
+                effect = HeroReturnsEffect(self.character)
+                effect.apply()
+
+# todo
+# 1.命座1——6
 class Varesa(Natlan):
     ID = 96
     def __init__(self, level=1, skill_params=..., constellation=0):
@@ -486,12 +623,23 @@ class Varesa(Natlan):
         self.ChargedAttack = VaresaChargedAttack(lv=self.skill_params[0])
         self.Skill = ElementalSkill(lv=self.skill_params[1])
         self.Burst = ElementalBurst(lv=self.skill_params[2], caster=self)
-        self.SpecialBurst = SpecialElementalBurst(lv=self.skill_params[2])
+        self.NormalBurst = ElementalBurst(lv=self.skill_params[2], caster=self)
+        self.SpecialBurst = SpecialElementalBurst(lv=self.skill_params[2], caster=self)
+        self.talent1 = PassiveSkillEffect_1()
+        self.talent2 = PassiveSkillEffect_2()
         
     def _enter_passion_state(self):
         """进入炽热激情状态"""
         passion_effect = PassionEffect(self)
         passion_effect.apply()
+
+    def elemental_burst(self):
+        limit_drive_effect = next((e for e in self.active_effects if isinstance(e, LimitDriveEffect)), None)
+        if limit_drive_effect:
+            self.Burst = self.SpecialBurst
+        else:
+            self.Burst = self.NormalBurst
+        return super().elemental_burst()
 
     def gain_night_soul(self, amount):
         """获取夜魂值"""
@@ -500,18 +648,14 @@ class Varesa(Natlan):
             character=self,
             amount=actual_amount,
             frame=GetCurrentTime(),
-            before=False
         ))
-
         self.current_night_soul += actual_amount
-
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
             frame=GetCurrentTime(),
             before=False
         ))
-        
         existing = next((e for e in self.active_effects 
                        if isinstance(e, PassionEffect)), None)
         

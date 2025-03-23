@@ -102,6 +102,12 @@ class EnergySkill(SkillBase):
             return True
         print(f'{self.name} 能量不够')
         return False
+    
+    def on_finish(self):
+        return super().on_finish()
+    
+    def on_interrupt(self):
+        return super().on_interrupt()
 
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):

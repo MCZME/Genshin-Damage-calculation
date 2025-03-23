@@ -5,6 +5,7 @@ from setup.Tool import GetCurrentTime
 
 
 class NightsoulBurstEventHandler(EventHandler):
+    '''夜魂迸发事件处理类'''
     def __init__(self):
         super().__init__()
         self.last_nightsoul_burst_time = -9999

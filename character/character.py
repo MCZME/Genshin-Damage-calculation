@@ -138,7 +138,7 @@ class Character:
         if self._is_change_state() and self.ChargedAttack.start(self):
             self._append_state(CharacterState.CHARGED_ATTACK)
 
-    def plunging_attack(self,is_high):
+    def plunging_attack(self,is_high=False):
         """下落攻击"""
         self._plunging_attack_impl(is_high)
 
