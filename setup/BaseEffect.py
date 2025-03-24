@@ -71,7 +71,7 @@ class AttackBoostEffect(Effect):
     def __init__(self, character, name, bonus, duration):
         super().__init__(character)
         self.bonus = bonus  # 攻击力提升
-        self.duration = duration  # 持续时间（秒）
+        self.duration = duration  # 持续时间
         self.name = name
         
     def apply(self):

@@ -106,11 +106,11 @@ class ChargedAttackEvent(GameEvent):
             super().__init__(EventType.AFTER_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
 
 class PlungingAttackEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
+    def __init__(self, character, frame, is_plunging_impact=True, before=True, **kwargs):
         if before:
-            super().__init__(EventType.BEFORE_PLUNGING_ATTACK, frame=frame, character=character, **kwargs)
+            super().__init__(EventType.BEFORE_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
         else:
-            super().__init__(EventType.AFTER_PLUNGING_ATTACK, frame=frame, character=character, **kwargs)
+            super().__init__(EventType.AFTER_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
 
 class NightSoulChangeEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
@@ -211,3 +211,7 @@ class EventBus:
                 if event.cancelled:
                     break
                 handler.handle_event(event)
+
+    @classmethod
+    def clear(cls):
+        cls._handlers.clear()

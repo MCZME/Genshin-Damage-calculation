@@ -258,7 +258,7 @@ class PlungingAttackSkill(SkillBase):
             return False
         self.height_type = '高空' if is_high else '低空'
         print(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
-        event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
+        event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(),is_plunging_impact=False)
         EventBus.publish(event)
         return True
 
@@ -266,10 +266,16 @@ class PlungingAttackSkill(SkillBase):
         # 在总帧数的30%时触发下坠期间伤害
         if self.current_frame == int(self.total_frames * 0.3):
             self._apply_during_damage(target)
+            event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False,is_plunging_impact=False)
+            EventBus.publish(event)
+            event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
+            EventBus.publish(event)
         
         # 在最后一帧触发坠地冲击伤害
         if self.current_frame == self.hit_frame:
             self._apply_impact_damage(target)
+            event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+            EventBus.publish(event)
             return True
         return False
 

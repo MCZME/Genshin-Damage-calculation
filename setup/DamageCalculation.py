@@ -2,7 +2,7 @@ from enum import Enum, auto
 from character.character import Character
 from setup.BaseEffect import ElementalInfusionEffect, ResistanceDebuffEffect
 from setup.ElementalReaction import ElementalReaction, ElementalReactionType
-from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType
+from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Target import Target
 from setup.Tool import GetCurrentTime
 
@@ -25,6 +25,7 @@ class Damage():
         self.baseValue = '攻击力'
         self.reaction = None # (reaction_Type,ElementalReactionType)
         self.data = kwargs
+        self.panel = {}
 
     def setSource(self,source):
         self.source = source
@@ -38,8 +39,11 @@ class Damage():
     def setReaction(self,reaction):
         self.reaction = reaction
 
-    def setDamageData(self):
-        ...        
+    def setDamageData(self,key,value):
+        self.data[key] = value
+
+    def setPanel(self,key,value):
+        self.panel[key] = value
 
 class Calculation:
     def __init__(self,source:Character,target:Target,damage:Damage):
@@ -71,14 +75,39 @@ class Calculation:
         return self.damage.damageMultipiler/100
 
     def damageBonus(self):
-        DamageBonus = 0
+        self.damage.setPanel('伤害加成',0)
+        event = GameEvent(EventType.BEFORE_DAMAGE_BONUS, 
+                          GetCurrentTime(),
+                          character = self.source,
+                           target = self.target, 
+                           damage = self.damage)
+        EventBus.publish(event)
         attributePanel = self.source.attributePanel
-        DamageBonus = attributePanel[(self.damage.element[0] if self.damage.element[0]=='物理'else self.damage.element[0]+'元素') +'伤害加成'] + attributePanel['伤害加成']
-        return DamageBonus/100
+        self.damage.panel['伤害加成'] += attributePanel['伤害加成']
+        self.damage.panel['伤害加成'] += attributePanel[(self.damage.element[0] if self.damage.element[0]=='物理'else self.damage.element[0]+'元素') +'伤害加成']
+        event = GameEvent(EventType.AFTER_DAMAGE_BONUS, 
+                          GetCurrentTime(),
+                          character = self.source,
+                           target = self.target, 
+                           damage = self.damage)
+        EventBus.publish(event)
+        return self.damage.panel['伤害加成']/100
 
     def criticalBracket(self):
+        self.damage.setPanel('暴击伤害',0)
+        event = GameEvent(EventType.BEFORE_CRITICAL,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
         attributePanel = self.source.attributePanel
-        return attributePanel['暴击伤害']/100
+        self.damage.panel['暴击伤害'] += attributePanel['暴击伤害']   
+        event = GameEvent(EventType.AFTER_CRITICAL,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        return self.damage.panel['暴击伤害']/100
 
     def defense(self):
         return (5*self.source.level+500)/(self.target.defense+5*self.source.level+500)
