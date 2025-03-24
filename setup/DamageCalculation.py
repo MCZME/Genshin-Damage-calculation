@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from character.character import Character
-from setup.BaseEffect import ElementalInfusionEffect
-from setup.ElementalReaction import ElementalReaction
+from setup.BaseEffect import ElementalInfusionEffect, ResistanceDebuffEffect
+from setup.ElementalReaction import ElementalReaction, ElementalReactionType
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType
 from setup.Target import Target
 from setup.Tool import GetCurrentTime
@@ -13,6 +13,7 @@ class DamageType(Enum):
     SKILL = auto()
     BURST = auto()
     PLUNGING = auto()  # 下落攻击
+    REACTION = auto()  # 剧变反应伤害
 
 class Damage():
     def __init__(self,damageMultipiler,element,damageType:DamageType,name,**kwargs):
@@ -22,12 +23,20 @@ class Damage():
         self.name = name
         self.damage = 0
         self.baseValue = '攻击力'
+        self.reaction = None # (reaction_Type,ElementalReactionType)
+        self.data = kwargs
 
     def setSource(self,source):
         self.source = source
 
     def setTarget(self,target):
         self.target = target
+
+    def setBaseValue(self,baseValue):
+        self.baseValue = baseValue
+
+    def setReaction(self,reaction):
+        self.reaction = reaction
 
     def setDamageData(self):
         ...        
@@ -88,30 +97,25 @@ class Calculation:
     def reaction(self):
         attributePanel = self.source.attributePanel
         e = attributePanel['元素精通']
-        r = {'反应类型':[],'反应系数提高值':0}
+        r = {}
         if '反应系数提高' in list(attributePanel.keys()):
             r = attributePanel['反应系数提高']
-        if self.damage.element[0] == '物理':
-            return 1
-        else:
+        if self.damage.element[0] != '物理':
             target_element = self.target.apply_elemental_aura(self.damage.element)
             if target_element is not None:
                 elementalReaction = ElementalReaction(source=self.source,target_element=target_element,damage=self.damage)
                 event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
                 EventBus.publish(event)
-                if event.data['elementalReaction'].reaction_Type == '增幅反应':
-                    if event.data['elementalReaction'].reaction_type in r['反应类型']:
-                        r1 = r['反应系数提高值']
-                    else:
-                        r1 = 0
-                    return event.data['elementalReaction'].reaction_ratio * (1+(2.78*e)/(e+1400)+r1)
-                elif event.data['elementalReaction'].reaction_Type == '剧变反应':
-                    ...
+                self.damage.reaction = event.data['elementalReaction']
+                if self.damage.reaction.reaction_type in list(r.keys()):
+                    r1 = r[self.damage.reaction.reaction_type]
+                else:
+                    r1 = 0
+                return self.damage.reaction.reaction_ratio * (1+(2.78*e)/(e+1400)+r1)
         return 1
 
 
-        
-        
+              
     def calculation_by_attack(self):
         value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
@@ -124,6 +128,21 @@ class Calculation:
         value = self.DEF() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
 
+    def calculation_by_reaction(self):
+        attributePanel = self.source.attributePanel
+        r = {}
+        if '反应系数提高' in list(attributePanel.keys()):
+            r = attributePanel['反应系数提高']
+        if self.damage.name in list(r.keys()):
+            r1 = r[self.damage.name]
+        else:
+            r1 = 0
+        inc = self.damage.data['reaction_ratio'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
+        value = self.damage.data['lv_ratio'] * (inc+r1) * self.resistance()
+        self.damage.damage = value
+
+# todo
+# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化，感电，扩散，碎冰，冻结
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
@@ -136,7 +155,9 @@ class DamageCalculateEventHandler(EventHandler):
             
             # 原有伤害计算逻辑
             calculation = Calculation(character, event.data['target'], damage)
-            if damage.baseValue == '攻击力':
+            if damage.damageType == DamageType.REACTION:
+                calculation.calculation_by_reaction()
+            elif damage.baseValue == '攻击力':
                 calculation.calculation_by_attack()
             elif damage.baseValue == '生命值':
                 calculation.calculation_by_hp()
@@ -158,6 +179,9 @@ class DamageCalculateEventHandler(EventHandler):
                 
             damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
             EventBus.publish(damageEvent)
+
+            if damage.reaction is not None and damage.reaction.reaction_Type == '剧变反应':
+                self.extra_damage(character, event.data['target'], damage)
     
     def handle_elemental_infusion(self, character, damage):
         # 获取所有元素附魔效果
@@ -189,3 +213,14 @@ class DamageCalculateEventHandler(EventHandler):
                 return element
         # 没有克制关系则返回最早应用的元素
         return min(elements, key=lambda x: next(e.apply_time for e in infusion_effects if e.element_type == x))
+    
+    def extra_damage(self, character, target, damage):
+        if damage.reaction.reaction_type == ElementalReactionType.OVERLOAD:
+            e_damage = Damage(0,('火',0),DamageType.REACTION, '超载',
+                              lv_ratio = damage.reaction.lv_ratio,
+                              reaction_ratio = damage.reaction.reaction_ratio)
+            EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
+        elif damage.reaction.reaction_type == ElementalReactionType.SUPERCONDUCT:
+            e_damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
+            EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
+            ResistanceDebuffEffect('超导',character,target,'物理',40,12*60).apply()
