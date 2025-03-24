@@ -245,11 +245,23 @@ class DamageCalculateEventHandler(EventHandler):
     
     def extra_damage(self, character, target, damage):
         if damage.reaction.reaction_type == ElementalReactionType.OVERLOAD:
+            EventBus.publish(GameEvent(EventType.BEFORE_OVERLOAD, GetCurrentTime(),
+                                       character = character, 
+                                       target = target))
             e_damage = Damage(0,('火',0),DamageType.REACTION, '超载',
                               lv_ratio = damage.reaction.lv_ratio,
                               reaction_ratio = damage.reaction.reaction_ratio)
             EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
+            EventBus.publish(GameEvent(EventType.AFTER_OVERLOAD, GetCurrentTime(), 
+                                        character = character, 
+                                        target = target))
         elif damage.reaction.reaction_type == ElementalReactionType.SUPERCONDUCT:
+            EventBus.publish(GameEvent(EventType.BEFORE_SUPERCONDUCT, GetCurrentTime(),
+                                        character = character, 
+                                        target = target))
             e_damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
             EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
             ResistanceDebuffEffect('超导',character,target,'物理',40,12*60).apply()
+            EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, GetCurrentTime(), 
+                                        character = character, 
+                                        target = target))

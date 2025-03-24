@@ -80,7 +80,6 @@ class DuskGlowEffect(Effect,EventHandler):
                 event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
                 event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})
 
-
 class VividNotions(Weapon, EventHandler):
     ID = 215
     def __init__(self, character, level=1, lv=1):

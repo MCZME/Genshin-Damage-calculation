@@ -1,3 +1,4 @@
+from setup.Team import Team
 from setup.Tool import GetCurrentTime
 
 class Effect:
@@ -242,3 +243,77 @@ class ElementalInfusionEffect(Effect):
     def remove(self):
         self.character.remove_effect(self)
         print(f"{self.character.name}: {self.name}元素附魔效果结束")
+
+class CinderCityEffect(ElementalDamageBoostEffect):
+    """烬城勇者绘卷效果"""
+    def __init__(self, character,element_type):
+        super().__init__(character, '烬城勇者绘卷', element_type, 12, 12*60)
+        self.stacks = {}
+        self.nightsoul_stacks = {}
+        self.nightsoul_duration = 20*60
+        self.nightsoul_bonus = 28
+
+    def apply(self,element_type):
+        # 防止重复应用
+        for character in Team.team:
+            existing = next((e for e in character.active_effects 
+                        if isinstance(e, CinderCityEffect) and e.name == self.name), None)
+            if existing:
+                for i in element_type:
+                    if i in existing.stacks.keys():
+                        existing.stacks[i] = self.duration
+                    else:
+                        existing.apply_element(i)
+                    if self.character.Nightsoul_Blessing:
+                        if i in existing.nightsoul_stacks.keys():
+                            existing.nightsoul_stacks[i] = self.nightsoul_bonus
+                        else:
+                            existing.apply_nightsoul(i)
+                return
+            for element in self.element_type:
+                character.attributePanel[element+'元素伤害加成'] += self.bonus
+                character.add_effect(self)
+                self.stacks[element] = self.duration
+                if self.character.Nightsoul_Blessing:
+                    character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
+                    self.nightsoul_stacks[element] = self.nightsoul_bonus
+            print(f"{character.name}获得{element_type}烬城勇者绘卷效果")
+
+    def apply_element(self,element):
+        for character in Team.team:
+            character.attributePanel[element+'元素伤害加成'] += self.bonus
+            self.stacks[element] = self.duration
+
+    def apply_nightsoul(self,element):
+        for character in Team.team:
+            character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
+            self.nightsoul_stacks[element] = self.nightsoul_bonus
+        
+    def remove(self):
+        for character in Team.team:
+            for element in self.element_type:
+                character.attributePanel[element+'元素伤害加成'] -= self.bonus
+            character.remove_effect(self)
+            print(f"{character.name}: {self.name}效果结束")
+
+    def remove_element(self,element):
+        for character in Team.team:
+            character.attributePanel[element+'元素伤害加成'] -= self.bonus
+        del self.stacks[element]
+
+    def remove_nightsoul(self,element):
+        for character in Team.team:
+            character.attributePanel[element+'元素伤害加成'] -= self.nightsoul_bonus
+        del self.nightsoul_stacks[element]
+
+    def update(self):
+        for elemment,time in self.stacks.items():
+            self.stacks[elemment] -= 1
+            if self.stacks[elemment] <= 0:
+                self.remove_element(elemment)
+        for elemment,time in self.nightsoul_stacks.items():
+            self.nightsoul_stacks[elemment] -= 1
+            if self.nightsoul_stacks[elemment] <= 0:
+                self.remove_nightsoul(elemment)
+        if sum(self.nightsoul_stacks.values()) <= 0 and sum(self.stacks.values()) <= 0:
+            self.remove()

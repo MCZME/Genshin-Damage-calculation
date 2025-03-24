@@ -34,6 +34,12 @@ class EventType(Enum):
     AFTER_OVERLOAD = auto()      # 超载反应后
     BEFORE_SWIRL = auto()        # 扩散反应前
     AFTER_SWIRL = auto()         # 扩散反应后
+    BEFORE_SHATTER = auto()      # 碎冰反应前
+    AFTER_SHATTER = auto()       # 碎冰反应后
+    BEFORE_BURNING = auto()      # 燃烧反应前
+    AFTER_BURNING = auto()       # 燃烧反应后
+    BEFORE_SUPERCONDUCT = auto()  # 超导反应前
+    AFTER_SUPERCONDUCT = auto()   # 超导反应后
 
     BEFORE_HEALTH_CHANGE = auto()  # 角色血量变化前
     AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
@@ -61,7 +67,7 @@ class EventType(Enum):
     AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
     BEFORE_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之前
     AFTER_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之后
-    NightsoulBurst = auto()
+    NightsoulBurst = auto()      # 夜魂迸发
 
 # --------------------------
 # 事件类
@@ -156,13 +162,6 @@ class ShieldEvent(GameEvent):
     def __init__(self, source, target, shield, frame, before=True, **kwargs):
         event_type = EventType.BEFORE_SHIELD_CREATION if before else EventType.AFTER_SHIELD_CREATION
         super().__init__(event_type, frame=frame, source=source, target=target, shield=shield, **kwargs)
-
-class OverloadEvent(GameEvent):
-    def __init__(self, source, target, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_OVERLOAD, frame=frame, source=source, target=target, **kwargs)
 
 class EnergyChargeEvent(GameEvent):
     def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):

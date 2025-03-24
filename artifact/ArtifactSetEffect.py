@@ -1,6 +1,8 @@
 from character.character import Character
+from setup.BaseEffect import CinderCityEffect
 from setup.DamageCalculation import DamageType
-from setup.Event import EventBus, EventHandler, EventType
+from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType
+from setup.Tool import GetCurrentTime
 
 class ArtifactEffect(EventHandler):
     def __init__(self,name):
@@ -48,3 +50,24 @@ class ObsidianCodex(ArtifactEffect):
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
             attributePanel = event.data['character'].attributePanel
             attributePanel['伤害加成'] -= 15
+
+class ScrolloftheHeroOfCinderCity(ArtifactEffect):
+    def __init__(self):
+        super().__init__('烬城勇者绘卷')
+
+    def tow_SetEffect(self,character):
+        self.character = character
+        EventBus.subscribe(EventType.NightsoulBurst, self)
+
+    def four_SetEffect(self,character):
+        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.NightsoulBurst:
+            energy_event = EnergyChargeEvent(self.character,('无', 6), GetCurrentTime(),
+                                             is_alone=True,is_fixed=True)
+            EventBus.publish(energy_event)
+        elif event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
+            reaction = event.data['elementalReaction']
+            if reaction.source == self.character:
+                CinderCityEffect(self.character,[reaction.target_element, reaction.damage.element[0]]).apply([reaction.target_element, reaction.damage.element[0]])
