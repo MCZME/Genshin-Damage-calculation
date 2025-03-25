@@ -57,19 +57,7 @@ class IansanNormalAttack(NormalAttackSkill):
             caster.charged_attack()
             return False
             
-        # 否则执行普通攻击
-        if not super().start(caster,n):
-            return False
-        self.current_segment = 0
-        self.segment_progress = 0
-        self.max_segments = min(n,len(self.segment_frames))           # 实际攻击段数
-        self.total_frames = sum(self.segment_frames[:self.max_segments])
-        print(f"⚔️ 开始第{self.current_segment+1}段攻击")
-        
-        # 发布普通攻击事件（前段）
-        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime())
-        EventBus.publish(normal_attack_event)
-        return True
+        return super().start(caster, n)
 
 class IansanChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=27+20, cd=0):

@@ -128,7 +128,7 @@ class NormalAttackSkill(SkillBase):
         print(f"⚔️ 开始第{self.current_segment+1}段攻击")
         
         # 发布普通攻击事件（前段）
-        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime())
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
         return True
 
@@ -164,7 +164,7 @@ class NormalAttackSkill(SkillBase):
             self.segment_progress = 0
             print(f"⚔️ 开始第{self.current_segment+1}段攻击")
             # 发布普通攻击事件（前段）
-            normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime())
+            normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
             EventBus.publish(normal_attack_event)
         else:
             self.on_finish()

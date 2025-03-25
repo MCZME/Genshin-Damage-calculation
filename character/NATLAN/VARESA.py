@@ -68,7 +68,8 @@ class VaresaNormalAttack(NormalAttackSkill):
             self.caster, 
             frame=GetCurrentTime(), 
             before=False,
-            damage=damage
+            damage=damage,
+            segment=self.current_segment+1
         )
         EventBus.publish(normal_attack_event)
 

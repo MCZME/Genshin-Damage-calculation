@@ -306,7 +306,7 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
         EventBus.publish(damage_event)
 
         # 发布普通攻击后事件（保持原有逻辑）
-        normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False)
+        normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False, self.current_segment+1)
         EventBus.publish(normal_attack_event)
 
 class MavuikaChargedAttackSkill(ChargedAttackSkill):
