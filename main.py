@@ -3,6 +3,8 @@ from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
 from setup.HealingCalculation import HealingCalculateEventHandler
+from ui.main_window import MainWindow
+from PySide6.QtWidgets import QApplication
 
 # 初始化
 def init():
@@ -26,3 +28,9 @@ def init():
 # 9. 茜特菈莉
 if __name__ == '__main__':
     init()
+    
+    # 初始化UI
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec()
