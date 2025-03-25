@@ -1,4 +1,4 @@
-from setup.BaseEventHandler import ElementalEnergyEventHandler, NightsoulBurstEventHandler
+from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler
 from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
@@ -12,6 +12,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_HEAL,HealingCalculateEventHandler())
     EventBus.subscribe(EventType.BEFORE_ELEMENTAL_REACTION,ElementalReactionHandler())
     EventBus.subscribe(EventType.BEFORE_ENERGY_CHANGE, ElementalEnergyEventHandler())
+    EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
 
 # todo:
 # 1. 暴击率系统
@@ -21,7 +22,7 @@ def init():
 # 5. 元素共鸣系统
 # 6. 护盾系统
 # 7. 冲刺
-# 8. 夏沃蕾
+# 8. 数据处理
 # 9. 茜特菈莉
 if __name__ == '__main__':
     init()

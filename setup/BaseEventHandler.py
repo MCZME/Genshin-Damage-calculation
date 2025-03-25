@@ -1,8 +1,30 @@
 from Emulation import Emulation
+from setup.DataHandler import send_to_handler
 from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
 
+
+class FrameEndEventHandler(EventHandler):
+    '''帧结束事件处理类'''
+    def handle_event(self, event):
+        if event.event_type == EventType.FRAME_END:
+            character_data = {}
+            for character in Emulation.team.team:
+                name = character.name
+                character_data[name] = {
+                    'panel': character.attributePanel,
+                    'effect' : character.active_effects,
+                    'elemental_energy': character.elemental_energy,
+                    }
+            target_data = {}
+            target_data['name'] = Emulation.target.name
+            target_data['effect'] = Emulation.target.effects
+            target_data['defense'] = Emulation.target.defense
+            target_data['elemental_aura'] = Emulation.target.elementalAura
+            target_data['resistance'] = Emulation.target.current_resistance
+
+            send_to_handler(event.frame, {'character':character_data, 'target':target_data})
 
 class NightsoulBurstEventHandler(EventHandler):
     '''夜魂迸发事件处理类'''

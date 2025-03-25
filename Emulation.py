@@ -1,6 +1,7 @@
 import json
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
+from setup.Event import EventBus, FrameEndEvent
 from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
 from setup.Team import Team
@@ -41,6 +42,9 @@ class Emulation:
     def _update(self, target, action):
         Emulation.team.update(target)
         Emulation.target.update()
+
+        event = FrameEndEvent(self.current_frame)
+        EventBus.publish(event)
 
         if self.next_character is not None and Emulation.team.swap(self.next_character):
             print("切换成功")
