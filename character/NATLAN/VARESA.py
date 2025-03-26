@@ -678,3 +678,13 @@ class Varesa(Natlan):
         if self.current_night_soul >= self.max_night_soul and existing is None:
             self._enter_passion_state()
             self.gain_NightSoulBlessing()
+
+Varesa_table = {
+    'id': Varesa.ID,
+    'name': '瓦雷莎',
+    'normalAttack': '普通攻击',
+    'chargedAttack': '重击',
+    'plungingAttack': '下落攻击',
+    'skill': '元素战技',
+    'burst': '元素爆发'
+}

@@ -2,11 +2,8 @@ from character.FONTAINE.CHEVREUSE import CHEVREUSE
 from character.GAMING import GaMing
 from character.LIYUE import Xiangling
 from character.MONDSTADT.BENNETT import BENNETT
-from character.NATLAN import *
 from character.NATLAN.CITLALI import CITLALI
-from character.NATLAN.IANSAN import Iansan
-from character.NATLAN.MAVUIKA import MAVUIKA
-from character.NATLAN.VARESA import Varesa
+from character import *
 from weapon.Catalyst import *
 from weapon.Claymore import *
 from weapon.Polearm import *

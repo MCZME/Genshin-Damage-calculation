@@ -715,3 +715,12 @@ class MAVUIKA(Natlan):
        if not self.Nightsoul_Blessing:
            self.chargeNightsoulBlessing()
        super().gain_night_soul(amount)
+
+mavuika_table = {
+    'id': MAVUIKA.ID,
+    'name': '玛薇卡',
+    'normalAttack':'普通攻击',
+    'chargedAttack':'重击',
+    'skill':'元素战技',
+    'burst':'元素爆发'
+}

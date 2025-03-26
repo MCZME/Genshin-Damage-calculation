@@ -685,3 +685,12 @@ class Iansan(Natlan):
         super().update(target)
         if self.Nightsoul_Blessing:
             self.consume_night_soul(8/60)
+
+iansan_table = {
+    'id':Iansan.ID,
+    'name':'伊安珊',
+    'normalAttack':'普通攻击',
+    'chargedAttack':'重击',
+    'skill':'元素战技',
+    'burst':'元素爆发'
+}
