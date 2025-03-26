@@ -4,13 +4,15 @@ from PySide6.QtCore import Qt
 from .styles import MODERN_STYLE
 from .components import ActionCard
 from .result_window import ResultWindow
+from .character_window import CharacterWindow
 
 class MainWindow(QMainWindow):
     """主窗口类"""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("原神伤害计算器")
-        self.setMinimumSize(1000, 600)
+        self.setMinimumSize(960, 700)
+        self.character_windows = {}  # 存储每个角色槽位的窗口
         
         # 创建中央部件和布局
         central_widget = QWidget()
@@ -48,30 +50,32 @@ class MainWindow(QMainWindow):
         """)
         team_layout = QVBoxLayout()
         team_layout.setAlignment(Qt.AlignCenter)
-        team_layout.setContentsMargins(10, 10, 10, 10)
-        
-        team_label = QLabel("队伍配置")
-        team_label.setAlignment(Qt.AlignCenter)
-        team_label.setStyleSheet("""
-            border: 0px;
-            border-radius: 6px;
-            background-color: white;
-        """)
-        team_layout.addWidget(team_label)
+        team_layout.setContentsMargins(10, 10, 10, 10)   
         
         # 4个角色槽
         char_slots = QHBoxLayout()
         char_slots.setSpacing(20)  # 增加角色间距
         for i in range(4):
-            slot = QLabel(f"角色{i+1}")
-            slot.setFixedSize(200, 100)  # 进一步扩宽角色方形
-            slot.setStyleSheet("border: 2px dashed #aaa;")
-            slot.setAlignment(Qt.AlignCenter)
+            slot = QPushButton(f"角色{i+1}")
+            slot.setFixedSize(200, 140)  # 进一步扩宽角色方形
+            slot.setStyleSheet("""
+                QPushButton {
+                    border: 2px dashed #aaa;
+                    background-color: white;
+                    font-weight: normal;
+                }
+                QPushButton:hover {
+                    border: 2px dashed #3b82f6;
+                    background-color: #f0f0f0;
+                }
+            """)
+            slot.setCursor(Qt.PointingHandCursor)
+            slot.clicked.connect(lambda _, idx=i: self._open_character_window(idx))
             char_slots.addWidget(slot)
         team_layout.addLayout(char_slots)
         
         team_frame.setLayout(team_layout)
-        main_layout.addWidget(team_frame, stretch=3)
+        main_layout.addWidget(team_frame, stretch=4)
         
         # 添加间隙
         spacer = QWidget()
@@ -191,6 +195,12 @@ class MainWindow(QMainWindow):
         self.result_window = ResultWindow()
         self.result_window.show()
         self.close()
+
+    def _open_character_window(self, slot_idx):
+        """打开角色配置窗口"""
+        if slot_idx not in self.character_windows:
+            self.character_windows[slot_idx] = CharacterWindow(self)
+        self.character_windows[slot_idx].show()
 
     def _add_action_card(self):
         """添加动作卡片"""

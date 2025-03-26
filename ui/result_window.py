@@ -7,7 +7,6 @@ from PySide6.QtGui import QPainter
 import numpy as np
 
 from setup.DataHandler import get_next_frame
-from test import test_a
 
         # 角色槽位类
 class CharacterSlot(QWidget):
@@ -259,7 +258,6 @@ class ResultWindow(QMainWindow):
         
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.Antialiasing)
-        test_a()
         return chart_view
     
     def update_chart(self):
