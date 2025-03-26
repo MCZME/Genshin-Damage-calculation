@@ -3,6 +3,7 @@ from weapon.weapon import Weapon
 from setup.Event import EventBus, EventType, EventHandler
 from setup.BaseEffect import AttackBoostEffect
 
+polearm = ['且住亭御咄','渔获']
 
 class TamayurateinoOhanashi(Weapon, EventHandler):
     ID = 161

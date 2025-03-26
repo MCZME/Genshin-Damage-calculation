@@ -3,6 +3,7 @@ from setup.Event import EventBus, EventHandler, EventType
 from setup.BaseEffect import Effect
 from weapon.weapon import Weapon
 
+catalyst = ['溢彩心念']
 
 class MorningGlowEffect(Effect,EventHandler):
     """初霞之彩效果(28%暴伤)"""

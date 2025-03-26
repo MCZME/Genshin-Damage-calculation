@@ -17,7 +17,7 @@ class CharacterWindow(QWidget):
             border-radius: 6px;
         """)
         self.init_ui()
-        self.load_demo_data()
+        self.load_data()
 
     def init_ui(self):
         # 主布局
@@ -496,11 +496,13 @@ class CharacterWindow(QWidget):
                     card.add_sub_btn.show()
                 break
 
-    def load_demo_data(self):
-        # 模拟后端数据
-        characters = ["雷电将军", "钟离", "甘雨", "胡桃", "枫原万叶"] * 5
+    def load_data(self):
+        from character import character_table
+
+        characters = list(character_table.keys())
         self.char_combo.addItems(characters)
         
-        # 武器数据
-        weapons = ["天空之脊", "护摩之杖", "终末嗟叹之诗"] * 6
+        from weapon import weapon_table
+
+        weapons = weapon_table
         self.weapon_combo.addItems(weapons)

@@ -2,6 +2,7 @@ from setup.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
 from .weapon import Weapon
 
+claymore = ['螭骨剑','焚曜千阳']
 
 class SerpentSpine(Weapon):
     ID = 1
