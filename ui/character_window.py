@@ -1,13 +1,16 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
                               QLabel, QPushButton, QComboBox, QSpinBox, QCompleter,
-                              QListWidget, QFormLayout, QTabWidget, QFrame,
-                              QDialog, QDialogButtonBox, QDoubleSpinBox)
-from PySide6.QtCore import Qt
+                              QWidget, QFormLayout, QTabWidget, QFrame,
+                              QDialogButtonBox, QDoubleSpinBox, QLineEdit)
+from PySide6.QtCore import Qt, Signal
+from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
 
-class CharacterWindow(QWidget):
+class CharacterWindow(QDialog):
     """角色信息设置窗口"""
+    finished = Signal(dict)  # 自定义信号用于返回数据
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.result_data = None
         self.setWindowTitle("角色配置")
         self.setMinimumSize(800, 500)
         self.setAttribute(Qt.WA_TranslucentBackground, False)
@@ -30,10 +33,10 @@ class CharacterWindow(QWidget):
             background-color: #e3f2fd;
             border-radius: 6px;
         """)
-        char_layout = QHBoxLayout(char_frame)
-        char_layout.setContentsMargins(10, 5, 10, 5)
-        char_layout.setSpacing(5)
-        char_layout.addWidget(QWidget(), stretch=1)
+        self.char_layout = QHBoxLayout(char_frame)
+        self.char_layout.setContentsMargins(10, 5, 10, 5)
+        self.char_layout.setSpacing(5)
+        self.char_layout.addWidget(QWidget(), stretch=1)
         
         # 头像区域
         self.avatar_label = QLabel()
@@ -42,15 +45,15 @@ class CharacterWindow(QWidget):
             background-color: #f0f0f0;
             border-radius: 30px;
         """)
-        char_layout.addWidget(self.avatar_label, stretch=2)
+        self.char_layout.addWidget(self.avatar_label, stretch=2)
         
         # 角色名称
         self.char_combo = QComboBox()
         self.char_combo.setEditable(True)
         self.char_combo.setFixedWidth(120)
         self.char_combo.completer().setCompletionMode(QCompleter.PopupCompletion)
-        char_layout.addWidget(self.char_combo, stretch=1)
-        char_layout.addWidget(QWidget(), stretch=1)
+        self.char_layout.addWidget(self.char_combo, stretch=1)
+        self.char_layout.addWidget(QWidget(), stretch=1)
 
         # 等级
         self.level_spin = QSpinBox()
@@ -63,14 +66,15 @@ class CharacterWindow(QWidget):
                 height: 0px;
             }
         """)
-        char_layout.addWidget(QLabel("等级:", styleSheet="color: #333;"))
-        char_layout.addWidget(self.level_spin, stretch=1)
-        char_layout.addWidget(QWidget(), stretch=1)
+        self.char_layout.addWidget(QLabel("等级:", styleSheet="color: #333;"))
+        self.char_layout.addWidget(self.level_spin, stretch=1)
+        self.char_layout.addWidget(QWidget(), stretch=1)
         
         # 天赋
-        char_layout.addWidget(QLabel("天赋:", styleSheet="color: #333;"))
+        self.char_layout.addWidget(QLabel("天赋:", styleSheet="color: #333;"))
         for i in range(3):
             spin = QSpinBox()
+            spin.setObjectName(f"talent_spin_{i}")
             spin.setRange(1, 15)
             spin.setFixedWidth(15)
             spin.setStyleSheet("""
@@ -80,10 +84,10 @@ class CharacterWindow(QWidget):
                     height: 0px;
                 }
             """)
-            char_layout.addWidget(spin, stretch=1)
+            self.char_layout.addWidget(spin, stretch=1)
             if i < 2:
-                char_layout.addWidget(QLabel("/", styleSheet="color: #333;"))
-        char_layout.addWidget(QWidget(), stretch=1)
+                self.char_layout.addWidget(QLabel("/", styleSheet="color: #333;"))
+        self.char_layout.addWidget(QWidget(), stretch=1)
         # 命座
         self.constellation_spin = QSpinBox()
         self.constellation_spin.setRange(0, 6)
@@ -95,9 +99,9 @@ class CharacterWindow(QWidget):
                 height: 0px;
             }
         """)
-        char_layout.addWidget(QLabel("命座:", styleSheet="color: #333;"))
-        char_layout.addWidget(self.constellation_spin,stretch=1)
-        char_layout.addWidget(QWidget(), stretch=1)
+        self.char_layout.addWidget(QLabel("命座:", styleSheet="color: #333;"))
+        self.char_layout.addWidget(self.constellation_spin,stretch=1)
+        self.char_layout.addWidget(QWidget(), stretch=1)
         
         main_layout.addWidget(char_frame, stretch=1)
 
@@ -197,6 +201,8 @@ class CharacterWindow(QWidget):
                 color: #333;
             """)
             name_label.setAlignment(Qt.AlignCenter)
+            name_label.mousePressEvent = lambda e, c=card, s=slot: self.show_name_dialog(c, s)
+            name_label.setCursor(Qt.PointingHandCursor)
             card_layout.addWidget(name_label, stretch=1)
             
             # 主属性
@@ -265,7 +271,7 @@ class CharacterWindow(QWidget):
                 background-color: #5a7fb5;
             }
         """)
-        confirm_btn.clicked.connect(self.close)
+        confirm_btn.clicked.connect(self.accept)
 
         main_layout.addWidget(confirm_btn, stretch=1)
         self.setLayout(main_layout)
@@ -496,6 +502,44 @@ class CharacterWindow(QWidget):
                     card.add_sub_btn.show()
                 break
 
+    def show_name_dialog(self, card, slot):
+        """显示名称设置弹窗"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"设置{slot}名称")
+        dialog.setFixedSize(300, 200)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # 名称选择
+        form_layout = QFormLayout()
+        name_combo = QComboBox()
+        name_combo.addItems(list(ArtfactSetEffectDict.keys()))
+        form_layout.addRow("套装名称:", name_combo)
+        
+        layout.addLayout(form_layout)
+        
+        # 确认按钮
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn_box.setStyleSheet("""
+            QPushButton {
+                background-color: #4a6fa5;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+                min-width: 60px;
+            }
+            QPushButton:hover {
+                background-color: #5a7fb5;
+            }
+        """)
+        btn_box.accepted.connect(dialog.accept)
+        btn_box.rejected.connect(dialog.reject)
+        layout.addWidget(btn_box)
+        
+        if dialog.exec() == QDialog.Accepted:
+            card.layout().itemAt(1).widget().setText(name_combo.currentText())
+
     def load_data(self):
         from character import character_table
 
@@ -506,3 +550,57 @@ class CharacterWindow(QWidget):
 
         weapons = weapon_table
         self.weapon_combo.addItems(weapons)
+
+    def accept(self):
+        """确认按钮点击事件"""
+        self.result_data = self.get_character_data()
+        self.finished.emit(self.result_data)
+        super().accept()
+
+    def get_character_data(self):
+        """获取角色配置数据"""
+        # 获取天赋spinbox的值
+        talent_spins = []
+        # 天赋spinbox位于char_layout中索引7,9,11的位置
+        for i in [8,10,12]:
+            spin = self.char_layout.itemAt(i).widget()
+            if isinstance(spin, QSpinBox):
+                talent_spins.append(str(spin.value()))
+        
+        data = {
+            "character": {
+                "name": self.char_combo.currentText(),
+                "level": self.level_spin.value(),
+                "constellation": self.constellation_spin.value(),
+                "talents": "/".join(talent_spins) if talent_spins else "0/0/0"
+            },
+            "weapon": {
+                "name": self.weapon_combo.currentText(),
+                "level": self.weapon_level_spin.value(),
+                "refinement": self.refinement_spin.value()
+            },
+            "artifacts": []
+        }
+
+        # 收集圣遗物数据
+        slots = ["生之花", "死之羽", "时之沙", "空之杯", "理之冠"]
+        for i, card in enumerate(self.artifact_cards):
+            artifact_data = {
+                "slot": slots[i],
+                "set_name": card.layout().itemAt(1).widget().text(),
+                "main_stat": card.main_stat_btn.text(),
+                "sub_stats": []
+            }
+
+            # 收集副属性
+            sub_stat_widget = card.layout().itemAt(3).widget()
+            for j in range(sub_stat_widget.layout().count() - 1):  # 排除添加按钮
+                item = sub_stat_widget.layout().itemAt(j)
+                if item and item.widget():
+                    row = item.widget()
+                    label = row.layout().itemAt(0).widget()
+                    artifact_data["sub_stats"].append(label.text())
+
+            data["artifacts"].append(artifact_data)
+
+        return data

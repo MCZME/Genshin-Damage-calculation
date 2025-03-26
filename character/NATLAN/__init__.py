@@ -10,3 +10,5 @@ from character.NATLAN.VARESA import Varesa_table
 add('瓦雷莎','Varesa',Varesa_table)
 from character.NATLAN.MAVUIKA import mavuika_table
 add('玛维卡','MAVUIKA',mavuika_table)
+from character.NATLAN.IANSAN import iansan_table
+add('伊安珊','IANSAN',iansan_table)

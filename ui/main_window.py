@@ -56,22 +56,81 @@ class MainWindow(QMainWindow):
         char_slots = QHBoxLayout()
         char_slots.setSpacing(20)  # 增加角色间距
         for i in range(4):
-            slot = QPushButton(f"角色{i+1}")
-            slot.setFixedSize(200, 140)  # 进一步扩宽角色方形
-            slot.setStyleSheet("""
-                QPushButton {
+            # 创建角色槽容器
+            slot_container = QWidget()
+            slot_container.setFixedHeight(140)
+            slot_container.setStyleSheet("""
+                QWidget {
                     border: 2px dashed #aaa;
                     background-color: white;
-                    font-weight: normal;
                 }
-                QPushButton:hover {
+                QWidget:hover {
                     border: 2px dashed #3b82f6;
                     background-color: #f0f0f0;
                 }
             """)
-            slot.setCursor(Qt.PointingHandCursor)
-            slot.clicked.connect(lambda _, idx=i: self._open_character_window(idx))
-            char_slots.addWidget(slot)
+            slot_container.setCursor(Qt.PointingHandCursor)
+            
+            # 主布局
+            slot_layout = QHBoxLayout(slot_container)
+            slot_layout.setContentsMargins(10, 10, 10, 10)
+            slot_layout.setSpacing(10)
+            
+            # 左侧区域 - 角色信息
+            left_widget = QWidget()
+            left_layout = QVBoxLayout(left_widget)
+            left_layout.setContentsMargins(0, 0, 0, 0)
+            left_layout.setSpacing(5)
+            
+            # 角色头像
+            self.avatar_label = QLabel()
+            self.avatar_label.setFixedSize(50, 50)
+            self.avatar_label.setStyleSheet("""
+                background-color: #e9ecef;
+                border-radius: 25px;
+            """)
+            left_layout.addWidget(self.avatar_label, 0, Qt.AlignCenter)
+            
+            # 等级和天赋
+            self.char_info = QLabel("Lv.0\n天赋:0/0/0")
+            self.char_info.setStyleSheet("""
+                font-size: 12px;
+                color: #333;
+            """)
+            self.char_info.setAlignment(Qt.AlignCenter)
+            left_layout.addWidget(self.char_info)
+            
+            slot_layout.addWidget(left_widget, stretch=2)
+            
+            # 右侧区域 - 武器和圣遗物
+            right_widget = QWidget()
+            right_layout = QVBoxLayout(right_widget)
+            right_layout.setContentsMargins(0, 0, 0, 0)
+            right_layout.setSpacing(5)
+            
+            # 武器
+            self.weapon_label = QLabel("无武器")
+            self.weapon_label.setStyleSheet("""
+                font-size: 12px;
+                color: #333;
+            """)
+            self.weapon_label.setAlignment(Qt.AlignCenter)
+            right_layout.addWidget(self.weapon_label)
+            
+            # 圣遗物套装
+            self.artifact_label = QLabel("无套装")
+            self.artifact_label.setStyleSheet("""
+                font-size: 12px;
+                color: #666;
+            """)
+            self.artifact_label.setAlignment(Qt.AlignCenter)
+            right_layout.addWidget(self.artifact_label)
+            
+            slot_layout.addWidget(right_widget, stretch=1)
+            
+            # 点击事件
+            slot_container.mousePressEvent = lambda _, idx=i: self._open_character_window(idx)
+            char_slots.addWidget(slot_container, stretch=1)
         team_layout.addLayout(char_slots)
         
         team_frame.setLayout(team_layout)
@@ -102,7 +161,7 @@ class MainWindow(QMainWindow):
         title_layout.addWidget(action_label)
         title_layout.addStretch()
         
-        action_layout.addWidget(title_widget)
+        action_layout.addWidget(title_widget, stretch=1)
         
         # 动作序列内容区域 (4/5高度)
         scroll_area = QScrollArea()
@@ -124,7 +183,7 @@ class MainWindow(QMainWindow):
         
         # 初始提示容器 (与卡片大小相同)
         self.hint_container = QWidget()
-        self.hint_container.setFixedSize(160, 140)
+        self.hint_container.setFixedWidth(160)
         hint_layout = QVBoxLayout(self.hint_container)
         hint_label = QLabel("点击添加按钮\n创建动作序列")
         hint_label.setAlignment(Qt.AlignCenter)
@@ -142,7 +201,7 @@ class MainWindow(QMainWindow):
         
         # 添加动作按钮 (与卡片大小相同)
         self.add_btn = QPushButton("+")
-        self.add_btn.setFixedSize(160, 140)
+        # self.add_btn.setFixedWidth(160)
         self.add_btn.clicked.connect(self._add_action_card)
         self.add_btn.setStyleSheet("""
             QPushButton {
@@ -159,7 +218,7 @@ class MainWindow(QMainWindow):
         self.action_container_layout.addWidget(self.add_btn)
         
         scroll_area.setWidget(self.action_container)
-        action_layout.addWidget(scroll_area)
+        action_layout.addWidget(scroll_area, stretch=7)
         
         action_frame.setLayout(action_layout)
         main_layout.addWidget(action_frame, stretch=5)  # 动作序列占5/10
@@ -200,7 +259,98 @@ class MainWindow(QMainWindow):
         """打开角色配置窗口"""
         if slot_idx not in self.character_windows:
             self.character_windows[slot_idx] = CharacterWindow(self)
+            # 连接窗口关闭信号到更新方法
+            self.character_windows[slot_idx].finished.connect(
+                lambda data, idx=slot_idx: self._update_slot_display(idx))
         self.character_windows[slot_idx].show()
+
+    def _update_slot_display(self, slot_idx):
+        """更新角色槽显示"""
+        print(f"开始更新槽位 {slot_idx} 的显示")  # 调试日志
+        
+        if slot_idx not in self.character_windows:
+            print(f"错误: 槽位 {slot_idx} 没有对应的角色窗口")
+            return
+            
+        char_window = self.character_windows[slot_idx]
+        
+        # 获取角色槽容器 - 在初始化时保存引用
+        team_frame = self.centralWidget().layout().itemAt(2).widget()  # 队伍配置区域
+        if not team_frame:
+            print("错误: 找不到队伍配置区域")
+            return
+            
+        char_slots = team_frame.layout().itemAt(0)  # 角色槽布局
+        if not char_slots or slot_idx >= char_slots.count():
+            print(f"错误: 无效的槽位索引 {slot_idx}")
+            return
+            
+        slot_container = char_slots.itemAt(slot_idx).widget()
+        if not slot_container:
+            print(f"错误: 槽位 {slot_idx} 容器无效")
+            return
+        
+        # 获取子部件 - 使用初始化时保存的引用
+        left_widget = slot_container.layout().itemAt(0).widget()
+        right_widget = slot_container.layout().itemAt(1).widget()
+        
+        if not left_widget or not right_widget:
+            print("错误: 找不到左右部件")
+            return
+            
+        # 获取左侧子部件
+        avatar_label = left_widget.layout().itemAt(0).widget()
+        char_info = left_widget.layout().itemAt(1).widget()
+        
+        # 获取右侧子部件
+        weapon_label = right_widget.layout().itemAt(0).widget()
+        artifact_label = right_widget.layout().itemAt(1).widget()
+        
+        if not all([avatar_label, char_info, weapon_label, artifact_label]):
+            print("错误: 找不到所有必需的标签部件")
+            return
+        
+        # 检查并更新UI
+        if hasattr(char_window, 'result_data') and char_window.result_data:
+            data = char_window.result_data
+            print(f"更新槽位 {slot_idx} 的数据: {data}")  # 调试日志
+            
+            try:
+                # 更新角色信息
+                char_info.setText(f"Lv.{data['character']['level']}\n"
+                                f"天赋:{data['character']['talents']}")
+                
+                # 更新武器信息
+                weapon_label.setText(f"{data['weapon']['name']}\n"
+                                   f"Lv.{data['weapon']['level']}")
+                
+                # 更新圣遗物套装效果
+                artifact_sets = {}
+                for artifact in data['artifacts']:
+                    set_name = artifact['set_name']
+                    artifact_sets[set_name] = artifact_sets.get(set_name, 0) + 1
+                
+                set_effects = [
+                    f"{set_name} {count}件" 
+                    for set_name, count in artifact_sets.items() 
+                    if count >= 2
+                ]
+                
+                artifact_label.setText("\n".join(set_effects) if set_effects else "无套装")
+                print(f"槽位 {slot_idx} 更新成功")
+            except Exception as e:
+                print(f"更新UI时出错: {str(e)}")
+                # 出错时重置为初始状态
+                self._reset_slot_display(char_info, weapon_label, artifact_label)
+        else:
+            print(f"槽位 {slot_idx} 没有有效数据，重置显示")
+            self._reset_slot_display(char_info, weapon_label, artifact_label)
+
+    def _reset_slot_display(self, char_info, weapon_label, artifact_label):
+        """重置角色槽显示为初始状态"""
+        char_info.setText("Lv.0\n天赋:0/0/0")
+        weapon_label.setText("无武器")
+        artifact_label.setText("无套装")
 
     def _add_action_card(self):
         """添加动作卡片"""

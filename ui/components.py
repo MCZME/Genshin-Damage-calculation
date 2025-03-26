@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QFrame, QVBoxLayout, QLabel, QComboBox, QPushButton,
-                               QVBoxLayout)
+                               QVBoxLayout,QSizePolicy)
 from random import choice
 
 class ActionCard(QFrame):
@@ -13,7 +13,7 @@ class ActionCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
-        self.setFixedSize(160, 140)  # 调整卡片大小
+        self.setFixedWidth(160)  # 调整卡片大小
         
         # 随机选择颜色
         bg_color = choice(self.COLORS)
@@ -38,13 +38,11 @@ class ActionCard(QFrame):
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        
-        # 动作标签和下拉框
-        action_label = QLabel("动作:")
-        layout.addWidget(action_label)
-        self.action_combo = QComboBox()
-        self.action_combo.addItems(["普通攻击", "元素战技", "元素爆发"])
-        layout.addWidget(self.action_combo)
+
+        self.setSizePolicy(
+            QSizePolicy.Policy.Fixed,  # 水平方向固定宽度（已设置 setFixedWidth(160)）
+            QSizePolicy.Policy.Expanding  # 垂直方向尽可能扩展
+        )
         
         # 角色标签和下拉框
         char_label = QLabel("角色:")
