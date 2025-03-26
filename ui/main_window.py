@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
 from PySide6.QtCore import Qt
 from .styles import MODERN_STYLE
 from .components import ActionCard
+from .result_window import ResultWindow
 
 class MainWindow(QMainWindow):
     """主窗口类"""
@@ -171,6 +172,7 @@ class MainWindow(QMainWindow):
         save_btn.setFixedWidth(60)
         calc_btn = QPushButton("开始计算") 
         calc_btn.setFixedWidth(120)
+        calc_btn.clicked.connect(self._start_calculation)
         reset_btn = QPushButton("重置")
         reset_btn.setFixedWidth(60)
         
@@ -184,6 +186,12 @@ class MainWindow(QMainWindow):
         """添加部件到主布局"""
         self.centralWidget().layout().addWidget(widget)
         
+    def _start_calculation(self):
+        """开始计算按钮点击处理"""
+        self.result_window = ResultWindow()
+        self.result_window.show()
+        self.close()
+
     def _add_action_card(self):
         """添加动作卡片"""
         print("_add_action_card被调用")  # 调试用

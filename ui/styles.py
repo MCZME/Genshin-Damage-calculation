@@ -84,9 +84,4 @@ QComboBox {
     padding: 6px 10px;
     background-color: white;
 }
-
-/* 动画效果 */
-QPushButton, QLineEdit, QComboBox {
-    transition: all 0.2s ease;
-}
 """

@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QComboBox, QPushButton
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QFrame, QVBoxLayout, QLabel, QComboBox, QPushButton,
+                               QVBoxLayout)
 from random import choice
 
 class ActionCard(QFrame):
