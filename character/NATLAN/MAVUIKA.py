@@ -719,8 +719,8 @@ class MAVUIKA(Natlan):
 mavuika_table = {
     'id': MAVUIKA.ID,
     'name': '玛薇卡',
-    'normalAttack':'普通攻击',
+    'normalAttack':{'攻击次数':5},
     'chargedAttack':'重击',
-    'skill':'元素战技',
+    'skill':{'时间':['长按','点按']},
     'burst':'元素爆发'
 }

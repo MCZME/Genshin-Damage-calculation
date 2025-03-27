@@ -689,7 +689,7 @@ class Iansan(Natlan):
 iansan_table = {
     'id':Iansan.ID,
     'name':'伊安珊',
-    'normalAttack':'普通攻击',
+    'normalAttack':{'攻击次数':3},
     'chargedAttack':'重击',
     'skill':'元素战技',
     'burst':'元素爆发'

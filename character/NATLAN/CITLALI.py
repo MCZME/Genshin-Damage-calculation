@@ -9,3 +9,8 @@ class CITLALI(Natlan):
     def _init_character(self):
         super()._init_character()
         
+
+citlali_table = {
+    'id':CITLALI.ID,
+    'name':'茜特菈莉',
+}
