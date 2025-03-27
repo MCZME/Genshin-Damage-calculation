@@ -689,8 +689,12 @@ class Iansan(Natlan):
 iansan_table = {
     'id':Iansan.ID,
     'name':'伊安珊',
+    'type': '长柄武器',
+    'rarity': 4,
+    'element': '雷',
+    'association': '纳塔',
     'normalAttack':{'攻击次数':3},
-    'chargedAttack':'重击',
-    'skill':'元素战技',
-    'burst':'元素爆发'
+    'chargedAttack':{},
+    'skill':{},
+    'burst':{}
 }

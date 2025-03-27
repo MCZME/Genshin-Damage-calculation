@@ -13,4 +13,8 @@ class CITLALI(Natlan):
 citlali_table = {
     'id':CITLALI.ID,
     'name':'茜特菈莉',
+    'type': '法器',
+    'element': '冰',
+    'rarity': 5,
+    'association':'纳塔',
 }

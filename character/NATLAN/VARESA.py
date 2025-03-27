@@ -682,9 +682,13 @@ class Varesa(Natlan):
 Varesa_table = {
     'id': Varesa.ID,
     'name': '瓦雷莎',
+    'type': '法器',
+    'element': '雷',
+    'rarity': 5,
+    'association':'纳塔',
     'normalAttack': {'攻击次数': 3},
-    'chargedAttack': '重击',
+    'chargedAttack': {},
     'plungingAttack': {'攻击距离':['高空', '低空']},
-    'skill': '元素战技',
-    'burst': '元素爆发'
+    'skill': {},
+    'burst': {}
 }
