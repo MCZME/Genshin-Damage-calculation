@@ -181,13 +181,46 @@ class MainWindow(QMainWindow):
             background-color: white;
         """)
         
-        # 动作卡片容器 - 横向布局
+        # 动作卡片容器 - 横向布局（支持拖拽）
         self.action_container = QWidget()
+        self.action_container.setAcceptDrops(True)
         self.action_container_layout = QHBoxLayout(self.action_container)
-        self.action_container_layout.setSpacing(10)  # 减少卡片间距
+        self.action_container_layout.setSpacing(10)
         self.action_container_layout.setContentsMargins(10, 10, 10, 10)
         self.action_container_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+
+        # 拖拽相关变量
+        self.drag_card = None
+        self.drag_pos = None
         
+        # 拖拽事件处理
+        def dragEnterEvent(event):
+            if event.mimeData().hasText():
+                event.acceptProposedAction()
+        self.action_container.dragEnterEvent = dragEnterEvent
+
+        def dropEvent(event):
+            if not self.drag_card:
+                return
+                
+            # 获取拖拽位置
+            pos = event.pos()
+            target_index = -1
+            
+            # 查找插入位置
+            for i in range(self.action_container_layout.count()):
+                item = self.action_container_layout.itemAt(i)
+                if item.widget() and item.widget().geometry().contains(pos):
+                    target_index = i
+                    break
+                    
+            if target_index >= 0:
+                # 移动卡片
+                self.action_container_layout.removeWidget(self.drag_card)
+                self.action_container_layout.insertWidget(target_index, self.drag_card)
+                event.accept()
+        self.action_container.dropEvent = dropEvent
+
         # 初始提示容器 (与卡片大小相同)
         self.hint_container = QWidget()
         self.hint_container.setFixedWidth(160)

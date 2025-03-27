@@ -1,9 +1,105 @@
 from PySide6.QtWidgets import (QFrame, QVBoxLayout, QLabel, QComboBox, QPushButton,
                                QVBoxLayout,QSizePolicy, QWidget)
+from PySide6.QtCore import Qt, QMimeData, QPoint
+from PySide6.QtGui import QDrag, QCursor, QPixmap
 from random import choice
 
 class ActionCard(QFrame):
     """动作卡片组件"""
+    def dragEnterEvent(self, event):
+        """拖拽进入事件"""
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+            self.setStyleSheet(f"""
+                ActionCard {{
+                    border: 2px dashed #3b82f6;
+                    border-radius: 4px;
+                    background-color: {self.bg_color};
+                    padding: 8px;
+                }}
+                QComboBox {{
+                    min-width: 120px;
+                    width: 120px;
+                    font-size: 12px;
+                    margin-bottom: 5px;
+                }}
+                QLabel {{
+                    font-size: 12px;
+                    margin-bottom: 2px;
+                }}
+            """)
+
+    def dragLeaveEvent(self, event):
+        """拖拽离开事件"""
+        self.setStyleSheet(f"""
+            ActionCard {{
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: {self.bg_color};
+                padding: 8px;
+            }}
+            QComboBox {{
+                min-width: 120px;
+                width: 120px;
+                font-size: 12px;
+                margin-bottom: 5px;
+            }}
+            QLabel {{
+                font-size: 12px;
+                margin-bottom: 2px;
+            }}
+        """)
+
+    def dropEvent(self, event):
+        """放置事件"""
+        self.setStyleSheet(f"""
+            ActionCard {{
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: {self.bg_color};
+                padding: 8px;
+            }}
+            QComboBox {{
+                min-width: 120px;
+                width: 120px;
+                font-size: 12px;
+                margin-bottom: 5px;
+            }}
+            QLabel {{
+                font-size: 12px;
+                margin-bottom: 2px;
+            }}
+        """)
+        
+        # 获取拖拽源卡片
+        source = event.source()
+        if not isinstance(source, ActionCard):
+            return
+            
+        # 获取容器布局
+        container = None
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, 'action_container_layout'):
+                container = parent
+                break
+            parent = parent.parent()
+            
+        if not container:
+            return
+            
+        layout = container.action_container_layout
+        
+        # 交换卡片位置
+        source_index = layout.indexOf(source)
+        target_index = layout.indexOf(self)
+        
+        if source_index != -1 and target_index != -1:
+            # 移除源卡片
+            layout.removeWidget(source)
+            # 重新插入到目标位置
+            layout.insertWidget(target_index, source)
+
     COLORS = [
         "#FFEBEE", "#F3E5F5", "#E8EAF6", 
         "#E3F2FD", "#E0F7FA", "#E8F5E9",
@@ -14,15 +110,20 @@ class ActionCard(QFrame):
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
         self.setFixedWidth(180)  # 调整卡片大小
+        self.setAcceptDrops(True)
         
-        # 随机选择颜色
-        bg_color = choice(self.COLORS)
+        # 随机选择颜色并保存
+        self.bg_color = choice(self.COLORS)
+        
+        # 拖拽相关设置
+        self.setMouseTracking(True)
+        self.drag_start_pos = None
         
         self.setStyleSheet(f"""
             ActionCard {{
                 border: 1px solid #d1d5db;
                 border-radius: 4px;
-                background-color: {bg_color};
+                background-color: {self.bg_color};
                 padding: 8px;
             }}
             QComboBox {{
@@ -102,6 +203,37 @@ class ActionCard(QFrame):
             no_params = QLabel("无特殊参数", self.param_widget)
             no_params.setObjectName("no_params_label")
             self.param_layout.addWidget(no_params)
+
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 开始拖拽"""
+        if event.button() == Qt.LeftButton:
+            self.drag_start_pos = event.pos()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 处理拖拽"""
+        if not (event.buttons() & Qt.LeftButton) or not self.drag_start_pos:
+            return
+            
+        # 检查是否达到拖拽阈值
+        if (event.pos() - self.drag_start_pos).manhattanLength() < 10:
+            return
+            
+        # 开始拖拽
+        drag = QDrag(self)
+        mime_data = QMimeData()
+        mime_data.setText(str(id(self)))
+        drag.setMimeData(mime_data)
+        
+        # 设置拖拽视觉效果
+        pixmap = QPixmap(self.size())
+        self.render(pixmap)
+        drag.setPixmap(pixmap)
+        drag.setHotSpot(event.pos())
+        
+        # 执行拖拽
+        drag.exec(Qt.MoveAction)
+        self.drag_start_pos = None
 
     def _delete_self(self):
         """删除当前卡片"""
