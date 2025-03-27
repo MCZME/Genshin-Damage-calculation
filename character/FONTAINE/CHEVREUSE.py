@@ -18,9 +18,6 @@ class HealingFieldEffect(Effect, EventHandler):
         self.last_heal_time = 0
         self.current_char = caster
         
-        # 订阅领域相关事件
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        
         self.multipiler = [
             (2.67, 256.76), (2.87, 282.47), (3.07, 310.3), (3.33, 340.26), (3.53, 372.36),
             (3.73, 406.61), (4, 442.99), (4.27, 481.52), (4.53, 522.18), (4.8, 564.98),
@@ -28,9 +25,16 @@ class HealingFieldEffect(Effect, EventHandler):
         ]
 
     def apply(self):
+        healingFieldEffect = next((effect for effect in self.current_char.active_effects if isinstance(effect, HealingFieldEffect)), None)
+        if healingFieldEffect:
+            healingFieldEffect.duration = self.duration
+            return
+
         print("🩺 获得生命恢复效果！")
         self.current_char.add_effect(self)
         self._apply_heal(self.current_char)
+         # 订阅领域相关事件
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def _apply_heal(self, target):
         """应用治疗逻辑"""
@@ -55,7 +59,8 @@ class HealingFieldEffect(Effect, EventHandler):
             if old_char == self.current_char:
                 self.current_char.remove_effect(self)
                 self.current_char = new_char
-                self._apply_heal(new_char)
+                self.apply()
+
 
     def update(self, target):
         if self.duration > 0:
@@ -273,6 +278,11 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
         self.duration = 60
 
     def apply(self):
+        coordinatedTacticsEffect = next((effect for effect in self.current_character.active_effects 
+                                         if isinstance(effect, CoordinatedTacticsEffect)), None)
+        if coordinatedTacticsEffect:
+            coordinatedTacticsEffect.duration = self.duration
+            return
         EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
         self.current_character.add_effect(self)
 
@@ -540,3 +550,18 @@ class CHEVREUSE(Fontaine):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self,GetCurrentTime())
             EventBus.publish(skillEvent)
+
+
+chevreuse_table = {
+    'id': CHEVREUSE.ID,
+    'name': '夏沃蕾',
+    'type': '长柄武器',
+    'rarity': 4,
+    'element': '火',
+    'association': '枫丹',
+    'normalAttack': {'攻击次数': 4},
+    # 'chargedAttack': {},
+    # 'plungingAttack': {'攻击距离':['高空', '低空']},
+    'skill': {'释放时间':['长按','点按']},
+    'burst': {}
+}

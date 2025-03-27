@@ -1,74 +1,76 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QFrame, QScrollArea,
                               QSizePolicy)
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer,QMargins
 from PySide6.QtCharts import (QChart, QChartView, QLineSeries, QValueAxis,
                              QBarSeries, QBarSet, QBarCategoryAxis)
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPainter, QColor,QFont
 
 from setup.DataHandler import send_to_window
 
 class ResultWindow(QMainWindow):
-    """结果窗口类"""
     def __init__(self):
         super().__init__()
-        self.damage_chart = None
-        self.damage_chart_view = None
-        
-        # 主窗口布局
-        self.main_widget = QWidget()
-        self.main_layout = QVBoxLayout()
-        self.main_widget.setLayout(self.main_layout)
-        self.setCentralWidget(self.main_widget)
-        
-        # 初始化图表
-        self.init_damage_chart()
-        self.main_layout.addWidget(self.damage_chart_view)
-        
-    def init_damage_chart(self):
-        """初始化伤害柱状图"""
-        self.damage_chart = QChart()
-        self.damage_chart.setAnimationOptions(QChart.SeriesAnimations)
-        self.damage_chart_view = QChartView(self.damage_chart)
-        self.damage_chart_view.setRenderHint(QPainter.Antialiasing)
-        self.damage_chart_view.setMinimumSize(600, 400)
-        self.update_damage_chart()
+        self.chart = None
+        self.chart_view = None
+        self.setup_chart()  # 初始化图表
+
+    def setup_chart(self):
+        """初始化折线图"""
+        self.chart = QChart()
+        self.chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.chart_view = QChartView(self.chart)
+        self.chart_view.setRenderHint(QPainter.Antialiasing)
+        self.chart_view.setMinimumSize(800, 500)  # 增大显示区域
+        self.setCentralWidget(self.chart_view)
+        self.update_damage_chart()  # 初始化数据
 
     def update_damage_chart(self):
-        """更新伤害柱状图数据
-        Args:
-            damage_data (dict): {时间: 伤害}格式的伤害数据
-        """
-        damage_data=send_to_window('damage')
-        if not self.damage_chart:
-            self.init_damage_chart()
-            
+        damage_data = send_to_window('damage')
+        if not damage_data:
+            return
+
+        # 过滤非零数据
+        non_zero_data = {time: dmg for time, dmg in damage_data.items() if dmg > 0}
+        if not non_zero_data:
+            return
+
         # 清除旧数据
-        self.damage_chart.removeAllSeries()
-        
-        # 创建柱状图系列
-        series = QBarSeries()
-        bar_set = QBarSet("伤害值")
-        
-        # 提取并排序数据
-        sorted_times = sorted(damage_data.keys())
-        damages = [damage_data[time] for time in sorted_times]
-        
-        # 添加数据
-        bar_set.append(damages)
-        series.append(bar_set)
-        self.damage_chart.addSeries(series)
-        
-        # 设置X轴(时间)
-        axis_x = QBarCategoryAxis()
-        axis_x.append([str(time) for time in sorted_times])
-        self.damage_chart.createDefaultAxes()
-        self.damage_chart.setAxisX(axis_x, series)
-        
-        # 设置Y轴(伤害值)
+        self.chart.removeAllSeries()
+
+        # 创建折线系列
+        series = QLineSeries()
+        series.setName("伤害值")
+        series.setColor(QColor(255, 0, 0))  # 红色线条
+        series.setPointsVisible(True)       # 显示数据点
+        series.setPointLabelsVisible(True)  # 启用标签
+        series.setPointLabelsFormat("@yPoint")  # 关键修改：仅显示Y值
+
+        # 填充数据
+        sorted_times = sorted(non_zero_data.keys())
+        for time in sorted_times:
+            series.append(time, non_zero_data[time])
+
+        self.chart.addSeries(series)
+
+        # 设置坐标轴（X轴仍保留帧号，但点标签不显示）
+        axis_x = QValueAxis()
+        axis_x.setTitleText("帧号")
+        axis_x.setRange(min(sorted_times) - 10, max(sorted_times) + 10)
+        axis_x.setLabelFormat("%d")
+
         axis_y = QValueAxis()
         axis_y.setTitleText("伤害值")
-        self.damage_chart.setAxisY(axis_y, series)
-        
-        # 设置图表标题
-        self.damage_chart.setTitle("伤害随时间变化")
+        axis_y.setRange(0, max(non_zero_data.values()) * 1.2)
+
+        self.chart.addAxis(axis_x, Qt.AlignBottom)
+        self.chart.addAxis(axis_y, Qt.AlignLeft)
+        series.attachAxis(axis_x)
+        series.attachAxis(axis_y)
+
+        # 图表样式
+        self.chart.setTitle("伤害值分布（仅显示数值）")
+        self.chart.legend().setVisible(True)
+        series.setPointLabelsFont(QFont("Arial", 8))  # 设置标签字体
+        series.setPointLabelsColor(QColor(0, 0, 0))   # 黑色标签
+        self.chart.setAnimationOptions(QChart.NoAnimation)

@@ -94,7 +94,8 @@ class DamageEvent(GameEvent):
             super().__init__(EventType.BEFORE_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
         else:
             super().__init__(EventType.AFTER_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_DAMAGE:damage}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_DAMAGE,
+                                             'damage':damage}})
 
 class CharacterSwitchEvent(GameEvent):
     def __init__(self, old_character, new_character, frame, before=True, **kwargs):
@@ -103,9 +104,9 @@ class CharacterSwitchEvent(GameEvent):
         else:
             super().__init__(EventType.AFTER_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
             send_to_handler(frame, 
-                            {'event':{EventType.AFTER_CHARACTER_SWITCH:{
-                                    'old_character':old_character,
-                                    'new_character':new_character}}})
+                            {'event':{'type':EventType.AFTER_CHARACTER_SWITCH,
+                                     'old_character':old_character,
+                                     'new_character':new_character}})
 
 class NightSoulBlessingEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
@@ -113,7 +114,8 @@ class NightSoulBlessingEvent(GameEvent):
             super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_NIGHTSOUL_BLESSING:character}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_NIGHTSOUL_BLESSING,
+                                             'character':character}})
 
 class NormalAttackEvent(GameEvent):
     def __init__(self, character, frame, segment, before=True, **kwargs):
@@ -121,9 +123,9 @@ class NormalAttackEvent(GameEvent):
             super().__init__(EventType.BEFORE_NORMAL_ATTACK, frame=frame, segment=segment, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_NORMAL_ATTACK, frame=frame, segment=segment, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_NORMAL_ATTACK:{
-                                    'character':character,
-                                    'segment':segment}}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_NORMAL_ATTACK,
+                                             'character':character,
+                                             'segment':segment}})
 
 class ChargedAttackEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
@@ -131,7 +133,8 @@ class ChargedAttackEvent(GameEvent):
             super().__init__(EventType.BEFORE_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_CHARGED_ATTACK:character}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_CHARGED_ATTACK,
+                                             'character':character}})
 
 class PlungingAttackEvent(GameEvent):
     def __init__(self, character, frame, is_plunging_impact=True, before=True, **kwargs):
@@ -139,9 +142,10 @@ class PlungingAttackEvent(GameEvent):
             super().__init__(EventType.BEFORE_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_PLUNGING_ATTACK:{
-                                    'character':character,
-                                    'is_plunging_impact':is_plunging_impact}}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_PLUNGING_ATTACK,
+                                            'character':character,
+                                            'is_plunging_impact':is_plunging_impact
+                                             }})
 
 class NightSoulChangeEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
@@ -149,9 +153,9 @@ class NightSoulChangeEvent(GameEvent):
             super().__init__(EventType.BEFORE_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
             super().__init__(EventType.AFTER_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_NIGHT_SOUL_CHANGE:{
-                                    'character':character,
-                                    'amount':amount}}}) 
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_NIGHT_SOUL_CHANGE, 
+                                     'character':character,
+                                     'amount':amount}}) 
 
 class ElementalBurstEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
@@ -159,7 +163,8 @@ class ElementalBurstEvent(GameEvent):
             super().__init__(EventType.BEFORE_BURST, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_BURST, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_BURST:character}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_BURST,
+                                     'character':character}})
 
 class ElementalSkillEvent(GameEvent):
     def __init__(self, character, frame, before=True, **kwargs):
@@ -167,7 +172,8 @@ class ElementalSkillEvent(GameEvent):
             super().__init__(EventType.BEFORE_SKILL, frame=frame, character=character, **kwargs)
         else:
             super().__init__(EventType.AFTER_SKILL, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_SKILL:character}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_SKILL,
+                                     'character':character}})
 
 class HealChargeEvent(GameEvent):
     def __init__(self, character, amount, frame, before=True, **kwargs):
@@ -175,9 +181,9 @@ class HealChargeEvent(GameEvent):
             super().__init__(EventType.BEFORE_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
             super().__init__(EventType.AFTER_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_HEALTH_CHANGE:{
-                                    'character':character,
-                                    'amount':amount}}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_HEALTH_CHANGE, 
+                                     'character':character,
+                                     'amount':amount}})
 
 class ElementalReactionEvent(GameEvent):
     def __init__(self,elementalReaction, frame, before=True, **kwargs):
@@ -185,7 +191,8 @@ class ElementalReactionEvent(GameEvent):
             super().__init__(EventType.BEFORE_ELEMENTAL_REACTION, frame=frame, elementalReaction=elementalReaction, **kwargs)
         else:
             super().__init__(EventType.AFTER_ELEMENTAL_REACTION, frame=frame, elementalReaction=elementalReaction, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_ELEMENTAL_REACTION:elementalReaction}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_ELEMENTAL_REACTION,
+                                     'elementalReaction':elementalReaction}})
 
 class HealEvent(GameEvent):
     def __init__(self, source, target, healing, frame, before=True, **kwargs):
@@ -195,7 +202,8 @@ class HealEvent(GameEvent):
             super().__init__(EventType.BEFORE_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
         else:
             super().__init__(EventType.AFTER_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_HEAL:healing}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_HEAL,
+                                             'healing':healing,}})
 
 class ShieldEvent(GameEvent):
     def __init__(self, source, target, shield, frame, before=True, **kwargs):
@@ -208,11 +216,11 @@ class EnergyChargeEvent(GameEvent):
             super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone,amount=amount, is_fixed=is_fixed, **kwargs)
         else:
             super().__init__(EventType.AFTER_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone, amount=amount, is_fixed=is_fixed, **kwargs)
-            send_to_handler(frame, {'event':{EventType.AFTER_ENERGY_CHANGE:{
-                                    'character':character,
-                                    'amount':amount,
-                                    'is_fixed':is_fixed,
-                                    'is_alone':is_alone}}})
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_ENERGY_CHANGE,
+                                     'character':character,
+                                     'amount':amount,
+                                     'is_fixed':is_fixed,
+                                     'is_alone':is_alone}})
 # --------------------------
 # 事件处理器接口
 # --------------------------

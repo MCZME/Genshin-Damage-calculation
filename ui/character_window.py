@@ -640,3 +640,105 @@ class CharacterWindow(QDialog):
             data["artifacts"].append(artifact_data)
 
         return data
+
+    def _update_ui_from_data(self):
+        """根据数据更新UI界面"""
+        data = self.result_data
+        if not data:
+            return
+            
+        try:
+            # 更新角色信息
+            char_data = data.get("character", {})
+            if char_data:
+                self.char_combo.setCurrentText(char_data.get("name", ""))
+                self.level_spin.setValue(char_data.get("level", 1))
+                
+                # 设置天赋值
+                talents = char_data.get("talents", "0/0/0").split("/")
+                for i, val in enumerate(talents[:3]):
+                    spin = self.char_layout.itemAt(8 + i*2).widget()
+                    if isinstance(spin, QSpinBox):
+                        spin.setValue(int(val))
+                
+                self.constellation_spin.setValue(char_data.get("constellation", 0))
+            
+            # 更新武器信息
+            weapon_data = data.get("weapon", {})
+            if weapon_data:
+                self.weapon_combo.setCurrentText(weapon_data.get("name", ""))
+                self.weapon_level_spin.setValue(weapon_data.get("level", 1))
+                self.refinement_spin.setValue(weapon_data.get("refinement", 1))
+            
+            # 更新圣遗物信息
+            artifacts_data = data.get("artifacts", [])
+            for i, artifact in enumerate(artifacts_data[:5]):  # 最多5个圣遗物
+                card = self.artifact_cards[i]
+                
+                # 设置套装名称
+                name_label = card.layout().itemAt(1).widget()
+                name_label.setText(artifact.get("set_name", ""))
+                
+                # 设置主属性
+                main_stat = artifact.get("main_stat", {})
+                if main_stat:
+                    for stat, value in main_stat.items():
+                        card.main_stat_btn.setText(f"{stat}: {value}%")
+                
+                # 清除现有副属性
+                sub_stat_widget = card.layout().itemAt(3).widget()
+                for j in reversed(range(sub_stat_widget.layout().count() - 1)):
+                    item = sub_stat_widget.layout().itemAt(j)
+                    if item and item.widget():
+                        item.widget().deleteLater()
+                card.sub_stats.clear()
+                
+                # 添加新副属性
+                sub_stats = artifact.get("sub_stats", {})
+                for stat, value in sub_stats.items():
+                    # 创建副属性行
+                    stat_row = QWidget()
+                    stat_row_layout = QHBoxLayout(stat_row)
+                    stat_row_layout.setContentsMargins(0, 0, 0, 0)
+                    stat_row_layout.setSpacing(5)
+                    
+                    # 副属性标签
+                    stat_label = QLabel(f"{stat}: {value}%")
+                    stat_label.setStyleSheet("""
+                        font-size: 12px;
+                        color: #6c757d;
+                        border: 0px solid #ced4da;
+                    """)
+                    stat_label.setAlignment(Qt.AlignLeft)
+                    
+                    # 删除按钮
+                    delete_btn = QPushButton("×")
+                    delete_btn.setFixedSize(12, 12)
+                    delete_btn.setStyleSheet("""
+                        QPushButton {
+                            background-color: #ffebee;
+                            color: #c62828;
+                            border: none;
+                            border-radius: 6px;
+                            font-size: 8px;
+                        }
+                        QPushButton:hover {
+                            background-color: #ffcdd2;
+                        }
+                    """)
+                    delete_btn.clicked.connect(lambda _, c=card, l=stat_label: self.remove_sub_stat(c, l))
+                    
+                    stat_row_layout.addWidget(stat_label, stretch=9)
+                    stat_row_layout.addWidget(delete_btn, stretch=1)
+                    stat_row_layout.addStretch()
+                    
+                    # 添加到副属性区域
+                    sub_stat_layout = sub_stat_widget.layout()
+                    sub_stat_layout.insertWidget(len(card.sub_stats), stat_row)
+                    card.sub_stats.append((stat_row, stat_label))
+                
+                # 根据副属性数量显示/隐藏添加按钮
+                card.add_sub_btn.setVisible(len(card.sub_stats) < 4)
+                
+        except Exception as e:
+            print(f"更新UI时出错: {str(e)}")

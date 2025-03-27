@@ -1,8 +1,4 @@
-from character.FONTAINE.CHEVREUSE import CHEVREUSE
 from character.GAMING import GaMing
-from character.LIYUE import Xiangling
-from character.MONDSTADT.BENNETT import BENNETT
-from character.NATLAN.CITLALI import CITLALI
 from character import *
 from weapon.Catalyst import *
 from weapon.Claymore import *
@@ -16,14 +12,14 @@ CharacterClassMap = {
     97:Iansan,
     93:CITLALI,
     19:BENNETT,
-    11:Xiangling,
+    11:XiangLing,
     76:CHEVREUSE,
 }
 
 WeaponClassMap = {
-    1:SerpentSpine,
-    92:AThousandBlazingSuns,
-    161:TamayurateinoOhanashi,
-    151:TheCatch,
-    215:VividNotions
+    '螭骨剑':SerpentSpine,
+    '焚曜千阳':AThousandBlazingSuns,
+    '且住亭御咄':TamayurateinoOhanashi,
+    '渔获':TheCatch,
+    '溢彩心念':VividNotions
 }

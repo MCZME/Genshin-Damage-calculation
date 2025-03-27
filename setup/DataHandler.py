@@ -12,3 +12,19 @@ def send_to_handler(frame, data:dict):
             total_frame_data[frame][k].append(data[k])
         else:
             total_frame_data[frame][k] = data[k] 
+
+def send_to_window(type):
+    if type == 'damage':
+        return generate_damage_report()
+
+
+def generate_damage_report():
+    d = {}
+    from setup.Event import EventType
+    for frame in range(1,len(total_frame_data)):
+        d[frame] = 0
+        for event in total_frame_data[frame]['event']:
+            if event['type'] == EventType.AFTER_DAMAGE:
+                d[frame] += event['damage'].damage
+    return d
+

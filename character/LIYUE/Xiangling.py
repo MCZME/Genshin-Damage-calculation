@@ -342,8 +342,8 @@ class ConstellationEffect_6(ConstellationEffect):
 # 添加一个控制参数，用于控制释放捡起辣椒
 class XiangLing(Character):
     ID = 11
-    def __init__(self,lv,skill_params,constellation=0):
-        super().__init__(XiangLing.ID,lv,skill_params,constellation)
+    def __init__(self,level,skill_params,constellation=0):
+        super().__init__(XiangLing.ID,level,skill_params,constellation)
         self.association = "璃月"
 
     def _init_character(self):
@@ -367,3 +367,17 @@ class XiangLing(Character):
         self.constellation_effects[3] = ConstellationEffect_4()
         self.constellation_effects[4] = ConstellationEffect_5()
         self.constellation_effects[5] = ConstellationEffect_6()
+
+xiangling_table  = {
+    'id': XiangLing.ID,
+    'name': '香菱',
+    'type': '长柄武器',
+    'association': '璃月',
+    'element': '火',
+    'rarity': 5,
+    'normalAttack': {'攻击次数': 5},
+    # 'chargedAttack': {},
+    # 'plungingAttack': {'攻击距离':['高空', '低空']},
+    'skill': {},
+    'burst': {}
+}

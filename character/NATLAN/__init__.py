@@ -4,6 +4,7 @@ natlan_character = {}
 
 def add(name,character,table):
     __all__.append(character)
+    table['skip'] = {'时间':9999}
     natlan_character[name] = table
 
 from character.NATLAN.VARESA import Varesa_table

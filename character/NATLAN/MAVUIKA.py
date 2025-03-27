@@ -725,6 +725,6 @@ mavuika_table = {
     'association': '纳塔',
     'normalAttack':{'攻击次数':5},
     'chargedAttack':{},
-    'skill':{'时间':['长按','点按']},
+    'skill':{'释放时间':['长按','点按']},
     'burst':{}
 }

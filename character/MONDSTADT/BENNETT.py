@@ -275,3 +275,17 @@ class BENNETT(Character):
         self.constellation_effects[1] = ConstellationEffect_2()
         self.constellation_effects[4] = ConstellationEffect_5()
         self.constellation_effects[5] = ConstellationEffect_6()
+
+bennett_table = {
+    'id':BENNETT.ID,
+    'name':'班尼特',
+    'element':'火',
+    'association':'蒙德',
+    'rarity':4,
+    'type':'单手剑',
+    'normalAttack': {'攻击次数': 5},
+    # 'chargedAttack': {},
+    # 'plungingAttack': {'攻击距离':['高空', '低空']},
+    # 'skill': {},
+    'burst': {}
+}

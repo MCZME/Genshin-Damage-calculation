@@ -447,10 +447,10 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         self.last_trigger_time = -9999
         self.trigger_interval = 18 * 60  # 18秒
         self.night_soul_consumed = 0  # 累计消耗的夜魂值
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         
     def apply(self, character):
         self.character = character
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         
     def handle_event(self, event: GameEvent):
         if not self.character.Nightsoul_Blessing:

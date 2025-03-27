@@ -1,6 +1,9 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
                               QLabel, QPushButton, QComboBox, QFrame, QScrollArea,
-                              QDialog)
+                              QDialog, QFileDialog)
+import json
+import os
+from datetime import datetime
 from PySide6.QtCore import Qt
 
 from Emulation import start_simulation
@@ -235,14 +238,21 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout(button_widget)
         button_layout.setSpacing(20)
         
+        load_btn = QPushButton("加载")
+        load_btn.setFixedWidth(60)
+        load_btn.clicked.connect(self._load_data)
+        
         save_btn = QPushButton("保存")
         save_btn.setFixedWidth(60)
+        save_btn.clicked.connect(self._save_data)
+        
         calc_btn = QPushButton("开始计算") 
         calc_btn.setFixedWidth(120)
         calc_btn.clicked.connect(self._start_calculation)
         reset_btn = QPushButton("重置")
         reset_btn.setFixedWidth(60)
         
+        button_layout.addWidget(load_btn)
         button_layout.addWidget(save_btn)
         button_layout.addWidget(calc_btn)
         button_layout.addWidget(reset_btn)
@@ -255,50 +265,7 @@ class MainWindow(QMainWindow):
         
     def _start_calculation(self):
         """开始计算按钮点击处理"""
-        # 1. 收集队伍信息
-        team_data = []
-        for slot_idx in range(4):  # 遍历4个角色槽
-            if slot_idx in self.character_windows:
-                char_window = self.character_windows[slot_idx]
-                if hasattr(char_window, 'result_data') and char_window.result_data:
-                    team_data.append(char_window.result_data)
-                else:
-                    team_data.append({"error": f"角色槽 {slot_idx+1} 未配置有效数据"})
-            else:
-                team_data.append({"error": f"角色槽 {slot_idx+1} 未配置"})
-
-        # 2. 收集动作序列
-        action_sequence = []
-        for i in range(self.action_container_layout.count()):
-            widget = self.action_container_layout.itemAt(i).widget()
-            if isinstance(widget, ActionCard):
-                # 从卡片UI反向提取数据
-                action_data = {
-                    "character": widget.char_label.text().replace("角色: ", ""),
-                    "action": widget.action_label.text().replace("动作: ", ""),
-                    "params": {}
-                }
-                
-                # 提取参数
-                for j in range(widget.param_layout.count()):
-                    param_widget = widget.param_layout.itemAt(j).widget()
-                    if isinstance(param_widget, QLabel) and ":" in param_widget.text():
-                        name, value = param_widget.text().split(":", 1)
-                        action_data["params"][name.strip()] = value.strip()
-
-                action_sequence.append(action_data)
-
-        # 3. 验证数据
-        if not any(data.get("character") for data in team_data if isinstance(data, dict)):
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "错误", "至少需要配置一个角色")
-            return
-
-        if not action_sequence:
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "错误", "请添加至少一个动作")
-            return
-
+        team_data,action_sequence = self.get_data()
         start_simulation(team_data, action_sequence)
         self.result_window = ResultWindow()
         self.result_window.show()
@@ -456,3 +423,134 @@ class MainWindow(QMainWindow):
             card.update_data(data)
         except Exception as e:
             print(f"更新卡片出错: {str(e)}")
+
+    def _save_data(self):
+        """保存数据到文件"""
+        try:
+            # 确保data目录存在
+            os.makedirs("./data", exist_ok=True)
+            
+            # 获取当前时间作为文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"./data/config_{timestamp}.json"
+            
+            # 获取数据
+            team_data, action_sequence = self.get_data()
+            
+            # 保存到文件
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump({
+                    "team_data": team_data,
+                    "action_sequence": action_sequence
+                }, f, ensure_ascii=False, indent=2)
+                
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "保存成功", f"配置已保存到: {filename}")
+            
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "保存失败", f"保存配置时出错: {str(e)}")
+
+    def _load_data(self):
+        """从文件加载数据"""
+        try:
+            # 选择文件
+            filename, _ = QFileDialog.getOpenFileName(
+                self, "选择配置文件", "./data", "JSON文件 (*.json)")
+            
+            if not filename:
+                return
+                
+            # 读取文件
+            with open(filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                
+            # 1. 恢复角色数据
+            for slot_idx, char_data in enumerate(data["team_data"]):
+                if "error" in char_data:
+                    continue
+                    
+                # 创建或获取角色窗口
+                if slot_idx not in self.character_windows:
+                    self.character_windows[slot_idx] = CharacterWindow(self)
+                    self.character_windows[slot_idx].finished.connect(
+                        lambda data, idx=slot_idx: self._update_slot_display(idx))
+                
+                # 设置角色数据
+                char_window = self.character_windows[slot_idx]
+                char_window.result_data = char_data
+                char_window._update_ui_from_data()
+                self._update_slot_display(slot_idx)
+            
+            # 2. 恢复动作序列
+            # 清除现有动作卡片
+            for i in reversed(range(self.action_container_layout.count())):
+                widget = self.action_container_layout.itemAt(i).widget()
+                if isinstance(widget, ActionCard):
+                    widget.deleteLater()
+            
+            # 重建动作卡片
+            self.hint_container.setVisible(False)
+            for action_data in data["action_sequence"]:
+                card = ActionCard(self)
+                self.action_container_layout.insertWidget(
+                    self.action_container_layout.count()-1, card)
+                card.update_data({
+                    "character": action_data["character"],
+                    "action": action_data["action"],
+                    "params": action_data["params"]
+                })
+            
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "加载成功", f"已从 {filename} 加载配置")
+            
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "加载失败", f"加载配置时出错: {str(e)}")
+
+    def get_data(self):
+        # 1. 收集队伍信息
+        team_data = []
+        for slot_idx in range(4):  # 遍历4个角色槽
+            if slot_idx in self.character_windows:
+                char_window = self.character_windows[slot_idx]
+                if hasattr(char_window, 'result_data') and char_window.result_data:
+                    team_data.append(char_window.result_data)
+                else:
+                    team_data.append({"error": f"角色槽 {slot_idx+1} 未配置有效数据"})
+            else:
+                team_data.append({"error": f"角色槽 {slot_idx+1} 未配置"})
+
+        # 2. 收集动作序列
+        action_sequence = []
+        for i in range(self.action_container_layout.count()):
+            widget = self.action_container_layout.itemAt(i).widget()
+            if isinstance(widget, ActionCard):
+                # 从卡片UI反向提取数据
+                action_data = {
+                    "character": widget.char_label.text().replace("角色: ", ""),
+                    "action": widget.action_label.text().replace("动作: ", ""),
+                    "params": {}
+                }
+                
+                # 提取参数
+                for j in range(widget.param_layout.count()):
+                    param_widget = widget.param_layout.itemAt(j).widget()
+                    if isinstance(param_widget, QLabel) and ":" in param_widget.text():
+                        name, value = param_widget.text().split(":", 1)
+                        action_data["params"][name.strip()] = value.strip()
+
+                action_sequence.append(action_data)
+
+        # 3. 验证数据
+        if not any(data.get("character") for data in team_data if isinstance(data, dict)):
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "至少需要配置一个角色")
+            return
+
+        if not action_sequence:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "请添加至少一个动作")
+            return
+
+        return team_data, action_sequence
