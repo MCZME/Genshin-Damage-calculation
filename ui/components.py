@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QFrame, QVBoxLayout, QLabel, QComboBox, QPushButton,
-                               QVBoxLayout,QSizePolicy)
+                               QVBoxLayout,QSizePolicy, QWidget)
 from random import choice
 
 class ActionCard(QFrame):
@@ -13,7 +13,7 @@ class ActionCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
-        self.setFixedWidth(160)  # 调整卡片大小
+        self.setFixedWidth(180)  # 调整卡片大小
         
         # 随机选择颜色
         bg_color = choice(self.COLORS)
@@ -40,16 +40,23 @@ class ActionCard(QFrame):
         layout.setContentsMargins(8, 8, 8, 8)
 
         self.setSizePolicy(
-            QSizePolicy.Policy.Fixed,  # 水平方向固定宽度（已设置 setFixedWidth(160)）
+            QSizePolicy.Policy.Fixed,  # 水平方向固定宽度（已设置 setFixedWidth(180)）
             QSizePolicy.Policy.Expanding  # 垂直方向尽可能扩展
         )
         
-        # 角色标签和下拉框
-        char_label = QLabel("角色:")
-        layout.addWidget(char_label)
-        self.char_combo = QComboBox()
-        self.char_combo.addItems(["角色1", "角色2", "角色3", "角色4"])
-        layout.addWidget(self.char_combo)
+        # 角色名称
+        self.char_label = QLabel("角色: 未设置")
+        layout.addWidget(self.char_label)
+        
+        # 动作  
+        self.action_label = QLabel("动作: 未设置")
+        layout.addWidget(self.action_label)
+        
+        # 参数区域
+        self.param_widget = QWidget()
+        self.param_layout = QVBoxLayout(self.param_widget)
+        self.param_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.param_widget)
         
         # 删除按钮
         delete_btn = QPushButton("删除")
@@ -61,6 +68,7 @@ class ActionCard(QFrame):
                 font-size: 12px;
                 border-radius: 4px;
                 background-color: white;
+                padding: 2px;
             }
             QPushButton:hover {
                 color: white;
@@ -70,6 +78,31 @@ class ActionCard(QFrame):
         delete_btn.clicked.connect(self._delete_self)
         layout.addWidget(delete_btn)
         
+    def update_data(self, data):
+        """更新卡片数据"""
+        self.char_label.setText(f"角色: {data.get('character', '未设置')}")
+        self.action_label.setText(f"动作: {data.get('action', '未设置')}")
+        
+        # 清空现有参数
+        while self.param_layout.count():
+            item = self.param_layout.takeAt(0)
+            if item.widget():
+                widget = item.widget()
+                widget.setParent(None)
+                widget.deleteLater()
+        
+        # 添加参数显示
+        params = data.get('params', {})
+        if params:
+            for name, value in params.items():
+                param_label = QLabel(f"{name}: {value}", self.param_widget)
+                param_label.setObjectName(f"param_label_{name}")  # 设置唯一对象名称
+                self.param_layout.addWidget(param_label)
+        else:
+            no_params = QLabel("无特殊参数", self.param_widget)
+            no_params.setObjectName("no_params_label")
+            self.param_layout.addWidget(no_params)
+
     def _delete_self(self):
         """删除当前卡片"""
         print(f"正在删除卡片: {self}")  # 调试用

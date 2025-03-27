@@ -21,6 +21,7 @@ class CharacterWindow(QDialog):
         """)
         self.init_ui()
         self.load_data()
+        self.char_combo.currentTextChanged.connect(self.update_weapons)
 
     def init_ui(self):
         # 主布局
@@ -114,6 +115,10 @@ class CharacterWindow(QDialog):
         weapon_layout = QHBoxLayout(weapon_frame)
         weapon_layout.setContentsMargins(10, 5, 10, 5)
         weapon_layout.setSpacing(10)
+        weapon_layout.addWidget(QLabel("类型:", styleSheet="color: #333;"))
+        self.weapon_type_label = QLabel("--")
+        self.weapon_type_label.setStyleSheet("color: #666;")
+        weapon_layout.addWidget(self.weapon_type_label)
         
         # 武器图片
         self.weapon_icon = QLabel()
@@ -542,14 +547,41 @@ class CharacterWindow(QDialog):
 
     def load_data(self):
         from character import character_table
-
-        characters = list(character_table.keys())
-        self.char_combo.addItems(characters)
-        
         from weapon import weapon_table
+        
+        # 加载角色数据
+        self.char_combo.addItems(character_table.keys())
+        
+        # 加载武器数据（按类型分类）
+        self.all_weapons = weapon_table.copy()  # 直接存储分类数据
+        
+        # 初始化默认武器列表
+        first_char = self.char_combo.itemText(0)
+        self.update_weapons(first_char)
 
-        weapons = weapon_table
-        self.weapon_combo.addItems(weapons)
+    def update_weapons(self, char_name):
+        """根据角色类型更新武器列表"""
+        from character import character_table
+        
+        # 获取角色武器类型
+        weapon_type = character_table[char_name]["type"]
+        
+        # 获取对应类型武器列表
+        available_weapons = self.all_weapons.get(weapon_type, [])
+        
+        # 更新武器下拉框
+        current_selection = self.weapon_combo.currentText()
+        self.weapon_combo.clear()
+        self.weapon_combo.addItems(available_weapons)
+        
+        # 保留有效选择或重置
+        if current_selection in available_weapons:
+            self.weapon_combo.setCurrentText(current_selection)
+        elif available_weapons:
+            self.weapon_combo.setCurrentIndex(0)
+
+        # 更新类型提示
+        self.weapon_type_label.setText(weapon_type.capitalize())
 
     def accept(self):
         """确认按钮点击事件"""

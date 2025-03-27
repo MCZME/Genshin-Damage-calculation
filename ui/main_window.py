@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
-                              QLabel, QPushButton, QComboBox, QFrame, QScrollArea)
+                              QLabel, QPushButton, QComboBox, QFrame, QScrollArea,
+                              QDialog)
 from PySide6.QtCore import Qt
 from .styles import MODERN_STYLE
 from .components import ActionCard
 from .result_window import ResultWindow
 from .character_window import CharacterWindow
+from .action_setting_dialog import ActionSettingDialog
 
 class MainWindow(QMainWindow):
     """主窗口类"""
@@ -355,15 +357,40 @@ class MainWindow(QMainWindow):
     def _add_action_card(self):
         """添加动作卡片"""
         print("_add_action_card被调用")  # 调试用
+        # 检查是否有角色
+        has_character = False
+        character_names = []
+        for window in self.character_windows.values():
+            if hasattr(window, 'result_data') and window.result_data:
+                has_character = True
+                character_names.append(window.result_data['character']['name'])
+        
+        if not has_character:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "警告", "请先设置角色")
+            return
+            
+        # 弹出设置对话框
+        from character import character_table
+        dialog = ActionSettingDialog({k: character_table[k] for k in character_names}, parent=self)
+        dialog.setting_completed.connect(lambda data: self._handle_action_data(data))
+        dialog.exec()
+            
+    def _handle_action_data(self, data):
+        """处理动作数据并创建卡片"""
         try:
             # 隐藏初始提示
             if hasattr(self, 'hint_container') and self.hint_container:
                 self.hint_container.setVisible(False)
             
+            # 创建卡片
             card = ActionCard(self)
             # 在添加按钮之前插入新卡片
             insert_pos = max(0, self.action_container_layout.count()-1)
             self.action_container_layout.insertWidget(insert_pos, card)
+            
+            # 更新卡片数据
+            self._update_action_card(card, data)
             
             # 确保滚动到最右侧
             scroll_area = self.findChild(QScrollArea)
@@ -375,3 +402,10 @@ class MainWindow(QMainWindow):
             print("动作卡片添加成功")  # 调试用
         except Exception as e:
             print(f"添加卡片出错: {str(e)}")  # 调试用
+
+    def _update_action_card(self, card, data):
+        """更新动作卡片显示"""
+        try:
+            card.update_data(data)
+        except Exception as e:
+            print(f"更新卡片出错: {str(e)}")
