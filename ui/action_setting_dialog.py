@@ -12,7 +12,8 @@ class ActionSettingDialog(QDialog):
         "chargedAttack": "重击",
         "plungingAttack": "下落攻击",
         "skill": "元素战技",
-        "burst": "元素爆发"
+        "burst": "元素爆发",
+        'skip': '跳过'
     }
 
     def __init__(self, character_data: dict, parent=None):

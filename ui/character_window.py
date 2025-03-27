@@ -4,6 +4,8 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
                               QDialogButtonBox, QDoubleSpinBox, QLineEdit)
 from PySide6.QtCore import Qt, Signal
 from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
+from character import character_table
+from weapon import weapon_table
 
 class CharacterWindow(QDialog):
     """角色信息设置窗口"""
@@ -546,9 +548,6 @@ class CharacterWindow(QDialog):
             card.layout().itemAt(1).widget().setText(name_combo.currentText())
 
     def load_data(self):
-        from character import character_table
-        from weapon import weapon_table
-        
         # 加载角色数据
         self.char_combo.addItems(character_table.keys())
         
@@ -560,9 +559,7 @@ class CharacterWindow(QDialog):
         self.update_weapons(first_char)
 
     def update_weapons(self, char_name):
-        """根据角色类型更新武器列表"""
-        from character import character_table
-        
+        """根据角色类型更新武器列表"""       
         # 获取角色武器类型
         weapon_type = character_table[char_name]["type"]
         
@@ -601,6 +598,7 @@ class CharacterWindow(QDialog):
         
         data = {
             "character": {
+                "id": character_table[self.char_combo.currentText()]["id"],
                 "name": self.char_combo.currentText(),
                 "level": self.level_spin.value(),
                 "constellation": self.constellation_spin.value(),
@@ -617,11 +615,16 @@ class CharacterWindow(QDialog):
         # 收集圣遗物数据
         slots = ["生之花", "死之羽", "时之沙", "空之杯", "理之冠"]
         for i, card in enumerate(self.artifact_cards):
+            if card.layout().itemAt(2).widget().text() == "主属性":
+                state = {}
+            else:
+                s = card.layout().itemAt(2).widget().text().split(":")
+                state = {s[0]: float(s[1].strip('%'))}
             artifact_data = {
                 "slot": slots[i],
                 "set_name": card.layout().itemAt(1).widget().text(),
-                "main_stat": card.main_stat_btn.text(),
-                "sub_stats": []
+                "main_stat": state,
+                "sub_stats": {}
             }
 
             # 收集副属性
@@ -631,7 +634,8 @@ class CharacterWindow(QDialog):
                 if item and item.widget():
                     row = item.widget()
                     label = row.layout().itemAt(0).widget()
-                    artifact_data["sub_stats"].append(label.text())
+                    artifact_data["sub_stats"][label.text().split(":")[0]] = float(label.text().split(":")[1].strip('%'))
+
 
             data["artifacts"].append(artifact_data)
 

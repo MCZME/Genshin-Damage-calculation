@@ -1,3 +1,4 @@
+from Emulation import Emulation
 from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler
 from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
@@ -8,7 +9,6 @@ from PySide6.QtWidgets import QApplication
 
 # 初始化
 def init():
-    
     EventBus.subscribe(EventType.BEFORE_DAMAGE,DamageCalculateEventHandler())
     EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
     EventBus.subscribe(EventType.BEFORE_HEAL,HealingCalculateEventHandler())
@@ -28,6 +28,7 @@ def init():
 # 9. 茜特菈莉
 if __name__ == '__main__':
     init()
+    emulation = Emulation(None,0,101)
     
     # 初始化UI
     app = QApplication([])

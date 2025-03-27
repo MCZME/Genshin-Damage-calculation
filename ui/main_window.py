@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
                               QLabel, QPushButton, QComboBox, QFrame, QScrollArea,
                               QDialog)
 from PySide6.QtCore import Qt
+
+from Emulation import start_simulation
 from .styles import MODERN_STYLE
 from .components import ActionCard
 from .result_window import ResultWindow
@@ -253,6 +255,51 @@ class MainWindow(QMainWindow):
         
     def _start_calculation(self):
         """开始计算按钮点击处理"""
+        # 1. 收集队伍信息
+        team_data = []
+        for slot_idx in range(4):  # 遍历4个角色槽
+            if slot_idx in self.character_windows:
+                char_window = self.character_windows[slot_idx]
+                if hasattr(char_window, 'result_data') and char_window.result_data:
+                    team_data.append(char_window.result_data)
+                else:
+                    team_data.append({"error": f"角色槽 {slot_idx+1} 未配置有效数据"})
+            else:
+                team_data.append({"error": f"角色槽 {slot_idx+1} 未配置"})
+
+        # 2. 收集动作序列
+        action_sequence = []
+        for i in range(self.action_container_layout.count()):
+            widget = self.action_container_layout.itemAt(i).widget()
+            if isinstance(widget, ActionCard):
+                # 从卡片UI反向提取数据
+                action_data = {
+                    "character": widget.char_label.text().replace("角色: ", ""),
+                    "action": widget.action_label.text().replace("动作: ", ""),
+                    "params": {}
+                }
+                
+                # 提取参数
+                for j in range(widget.param_layout.count()):
+                    param_widget = widget.param_layout.itemAt(j).widget()
+                    if isinstance(param_widget, QLabel) and ":" in param_widget.text():
+                        name, value = param_widget.text().split(":", 1)
+                        action_data["params"][name.strip()] = value.strip()
+
+                action_sequence.append(action_data)
+
+        # 3. 验证数据
+        if not any(data.get("character") for data in team_data if isinstance(data, dict)):
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "至少需要配置一个角色")
+            return
+
+        if not action_sequence:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "请添加至少一个动作")
+            return
+
+        start_simulation(team_data, action_sequence)
         self.result_window = ResultWindow()
         self.result_window.show()
         self.close()
