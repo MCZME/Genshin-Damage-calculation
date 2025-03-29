@@ -91,10 +91,9 @@ class ElementalSkill(SkillBase,EventHandler):
 
 class FurnaceEffect(Effect, EventHandler):
     def __init__(self, character, consumed_will, burst_instance):
-        super().__init__(character)
+        super().__init__(character, duration=7 * 60)
         self.consumed_will = consumed_will
         self.burst = burst_instance  # 持有元素爆发实例引用
-        self.duration = 7 * 60
         
     def apply(self):
         print(f'玛薇卡获得死生之炉')
@@ -552,8 +551,7 @@ class ConstellationEffect_1(ConstellationEffect):
 
 class MavuikaAttackScalingEffect(Effect):
     def __init__(self, character):
-        super().__init__(character)
-        self.duration = 10
+        super().__init__(character,10)
 
     def apply(self):
         existing = next((e for e in self.character.active_effects 

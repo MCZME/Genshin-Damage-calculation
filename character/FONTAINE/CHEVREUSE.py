@@ -12,7 +12,7 @@ from setup.Tool import GetCurrentTime
 class HealingFieldEffect(Effect, EventHandler):
     """持续恢复生命值效果"""
     def __init__(self, caster, max_hp, duration):
-        super().__init__(caster)
+        super().__init__(caster,duration)
         self.max_hp = max_hp
         self.duration = duration
         self.last_heal_time = 0
@@ -271,7 +271,7 @@ class ElementalBurst(SkillBase):
 
 class CoordinatedTacticsEffect(Effect, EventHandler):
     def __init__(self, source, target):
-        super().__init__(source)
+        super().__init__(source,duration=60)
         self.current_character = target
         self.name = '协同战法'
         self.elements = ['火', '雷']

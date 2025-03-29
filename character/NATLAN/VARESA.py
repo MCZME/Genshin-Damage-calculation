@@ -241,9 +241,8 @@ class VaresaChargedAttack(ChargedAttackSkill):
 class RainbowPlungeEffect(Effect, EventHandler):
     """虹色坠击效果"""
     def __init__(self, caster):
-        super().__init__(caster)
+        super().__init__(caster,duration=5*60)
         self.name = '虹色坠击'
-        self.duration = 5 * 60  # 5秒
         
     def apply(self):
         rainbowPlungeEffect = next((e for e in self.character.active_effects if isinstance(e, RainbowPlungeEffect)), None)
@@ -266,9 +265,8 @@ class RainbowPlungeEffect(Effect, EventHandler):
 class ChaseEffect(Effect,EventHandler):
     """逐击效果"""
     def __init__(self, caster):
-        super().__init__(caster)
+        super().__init__(caster,duration=5*60)
         self.name = '逐击'
-        self.duration = 5 * 60 
         
     def apply(self):
         self.character.add_effect(self)
@@ -399,9 +397,8 @@ class ElementalSkill(SkillBase):
 class PassionEffect(Effect, EventHandler):
     """炽热激情效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character, 15*60)
         self.name = '炽热激情'
-        self.duration = 15 * 60  # 15秒，以帧为单位
         self.character = character
         self.start_time = GetCurrentTime()
               
@@ -450,9 +447,8 @@ class PassionEffect(Effect, EventHandler):
 class LimitDriveEffect(Effect):
     """极限驱动效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character, 1.5*60)
         self.name = '极限驱动'
-        self.duration = 1.5 * 60 
         self.character = character
         
     def apply(self):
@@ -564,9 +560,8 @@ class PassiveSkillEffect_1(TalentEffect):
 class HeroReturnsEffect(Effect):
     """英雄二度归来效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character, 12 * 60)
         self.name = '英雄二度归来'
-        self.duration = 12 * 60  # 12秒
         self.attack_bonus = 35  # 35%攻击力提升
         self.stacks = [0,0] 
         self.max_stacks = 2  # 最大层数

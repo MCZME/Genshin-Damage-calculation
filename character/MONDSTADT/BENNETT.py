@@ -9,7 +9,7 @@ from setup.Tool import GetCurrentTime
 class InspirationFieldEffect(Effect, EventHandler):
     """鼓舞领域效果"""
     def __init__(self, caster, base_atk, max_hp, duration):
-        super().__init__(caster)
+        super().__init__(caster,duration*60)
         self.base_atk = base_atk
         self.max_hp = max_hp
         self.duration = duration * 60  # 转换为帧数

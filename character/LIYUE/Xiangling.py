@@ -181,7 +181,7 @@ class ElementalBurst(EnergySkill):
 class ExplosionEffect(Effect):
     """内爆效果"""
     def __init__(self, source, damage):
-        super().__init__(source)
+        super().__init__(source,2*60)
         self.damage = damage
         self.duration = 2 * 60  # 2秒
         self.name = '内爆'
@@ -290,7 +290,7 @@ class ConstellationEffect_5(ConstellationEffect):
 class PyroDamageBoostEffect(Effect):
     """火元素伤害加成效果"""
     def __init__(self, source):
-        super().__init__(source)
+        super().__init__(source,0)
         self.name = "大龙卷旋火轮"
         self.bonus = 15
         self.duration = 0

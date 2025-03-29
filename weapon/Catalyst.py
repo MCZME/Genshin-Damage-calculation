@@ -8,9 +8,8 @@ catalyst = ['溢彩心念']
 class MorningGlowEffect(Effect,EventHandler):
     """初霞之彩效果(28%暴伤)"""
     def __init__(self, character,lv):
-        super().__init__(character)
+        super().__init__(character,duration=900)
         self.bonus = [28,35,42,49,56] 
-        self.duration = 900
         self.name = "初霞之彩"
         self.lv = lv
         
@@ -46,9 +45,8 @@ class MorningGlowEffect(Effect,EventHandler):
 class DuskGlowEffect(Effect,EventHandler):
     """苍暮之辉效果(40%暴伤)"""
     def __init__(self, character,lv):
-        super().__init__(character)
+        super().__init__(character,duration=900)
         self.bonus = [40,50,60,70,80] 
-        self.duration = 900 
         self.name = "苍暮之辉"
         self.lv = lv
         

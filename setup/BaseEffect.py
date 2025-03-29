@@ -1,9 +1,11 @@
 from setup.Tool import GetCurrentTime
 
 class Effect:
-    def __init__(self, character):
+    def __init__(self, character,duration=0):
         self.character = character
-        self.duration = 0
+        self.duration = duration
+        self.max_duration = self.duration
+        self.name = f"{self.__class__.__name__}"
         
     def apply(self):
         """应用效果"""
@@ -23,9 +25,8 @@ class Effect:
 class DamageBoostEffect(Effect):
     """伤害提升效果"""
     def __init__(self, character, name, bonus, duration):
-        super().__init__(character)
+        super().__init__(character, duration)
         self.bonus = bonus  # 伤害提升
-        self.duration = duration  # 持续时间（秒）
         self.name = name
         self.attribute_name = '伤害加成'  # 属性名称
         
@@ -69,9 +70,8 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""
     def __init__(self, character, name, bonus, duration):
-        super().__init__(character)
+        super().__init__(character, duration)
         self.bonus = bonus  # 攻击力提升
-        self.duration = duration  # 持续时间
         self.name = name
         
     def apply(self):
@@ -94,9 +94,8 @@ class AttackBoostEffect(Effect):
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
     def __init__(self, character, name, bonus, duration):
-        super().__init__(character)
+        super().__init__(character,duration)
         self.bonus = bonus  # 攻击力固定值提升
-        self.duration = duration  # 持续时间（秒）
         self.name = name
         
     def apply(self):
@@ -119,9 +118,8 @@ class AttackValueBoostEffect(Effect):
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
     def __init__(self, character, name, bonus, duration):
-        super().__init__(character)
+        super().__init__(character,duration)
         self.bonus = bonus  # 生命值提升百分比
-        self.duration = duration  # 持续时间
         self.name = name
         
     def apply(self):
@@ -143,10 +141,9 @@ class HealthBoostEffect(Effect):
 
 class DefenseDebuffEffect(Effect):
     def __init__(self, source, target, debuff_rate, duration):
-        super().__init__(source)
+        super().__init__(source,duration)
         self.target = target
         self.debuff_rate = debuff_rate
-        self.duration = duration  # 持续时间（帧数）
         self.source_signature = f"c2_def_debuff_{source.id}"  # 唯一标识
         
     def apply(self):
@@ -166,12 +163,11 @@ class DefenseDebuffEffect(Effect):
 class ResistanceDebuffEffect(Effect):
     """元素抗性降低效果"""
     def __init__(self, name, source, target, elements, debuff_rate, duration):
-        super().__init__(source)
+        super().__init__(source,duration)
         self.name = name
         self.target = target
         self.elements = elements
         self.debuff_rate = debuff_rate
-        self.duration = duration
         
     def apply(self):
         # 检查现有效果
@@ -196,10 +192,9 @@ class ResistanceDebuffEffect(Effect):
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""
     def __init__(self, character, name, element_type, duration, is_unoverridable=False):
-        super().__init__(character)
+        super().__init__(character,duration)
         self.name = name
         self.element_type = element_type
-        self.duration = duration
         self.is_unoverridable = is_unoverridable
         self.apply_time = None
         # 冷却控制参数

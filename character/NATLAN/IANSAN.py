@@ -12,7 +12,7 @@ from setup.Event import EventHandler
 class LightningDashEffect(Effect, EventHandler):
     """电掣雷驰效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character,5*60)
         self.name = '电掣雷驰'
         self.duration = 5*60
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
@@ -339,7 +339,7 @@ class ElementalBurst(EnergySkill):
 class WarmUpEffect(Effect, EventHandler):
     """热身效应"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character,10 * 60)
         self.name = '热身效应'
         self.duration = 10 * 60  # 10秒
         self.last_heal_time = -9999
@@ -378,7 +378,7 @@ class WarmUpEffect(Effect, EventHandler):
 class StandardActionEffect(Effect, EventHandler):
     """标准动作效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character, 15 * 60)
         self.name = '标准动作'
         self.duration = 15 * 60  # 15秒
         self.attack_boost = 20  # 攻击力提升20%
@@ -537,7 +537,7 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
 class ForceExcitationEffect(Effect):
     """原力激扬效果"""
     def __init__(self, character):
-        super().__init__(character)
+        super().__init__(character,0)
         self.name = '原力激扬'
         self.stacks = 0
         self.max_stacks = 2
