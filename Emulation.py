@@ -42,7 +42,7 @@ class Emulation:
         Emulation.team.update(target)
         Emulation.target.update()
 
-        event = FrameEndEvent(self.current_frame)
+        event = FrameEndEvent(Emulation.current_frame)
         EventBus.publish(event)
 
         if self.next_character is not None and Emulation.team.swap(self.next_character):

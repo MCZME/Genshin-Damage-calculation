@@ -13,6 +13,11 @@ class FrameEndEventHandler(EventHandler):
             for character in Emulation.team.team:
                 name = character.name
                 character_data[name] = {
+                    'maxHP': character.maxHP,
+                    'currentHP': character.currentHP,
+                    'level': character.level,
+                    'skill_params': character.skill_params,
+                    'constellation': character.constellation,
                     'panel': character.attributePanel,
                     'effect' : character.active_effects,
                     'elemental_energy': character.elemental_energy,

@@ -574,7 +574,7 @@ class HeroReturnsEffect(Effect):
             s = self.get_stacks()
             self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
             min_stack = min(existing.stacks)
-            min_stack.duration = self.duration
+            min_stack = self.duration
             s = self.get_stacks()
             self.character.attributePanel['攻击力%'] += self.attack_bonus * s
             print(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
@@ -620,6 +620,8 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
 
 # todo
 # 1.命座1——6
+# 2.元素战技次数逻辑，cd不独立，每隔一段时间恢复一次
+# 3.天赋英雄二度归来层数测试
 class Varesa(Natlan):
     ID = 96
     def __init__(self, level=1, skill_params=..., constellation=0):

@@ -13,6 +13,7 @@ class HealingFieldEffect(Effect, EventHandler):
     """持续恢复生命值效果"""
     def __init__(self, caster, max_hp, duration):
         super().__init__(caster,duration)
+        self.name = "生命恢复"
         self.max_hp = max_hp
         self.duration = duration
         self.last_heal_time = 0
