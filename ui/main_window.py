@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
-                              QLabel, QPushButton, QComboBox, QFrame, QScrollArea,
-                              QDialog, QFileDialog)
+                              QLabel, QPushButton, QFrame, QScrollArea,
+                              QFileDialog)
 import json
 import os
 from datetime import datetime
@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 
 from Emulation import start_simulation
 from .styles import MODERN_STYLE
-from .components import ActionCard
+from .widget.action_card import ActionCard
 from .result_window import ResultWindow
 from .character_window import CharacterWindow
 from .action_setting_dialog import ActionSettingDialog
@@ -292,6 +292,51 @@ class MainWindow(QMainWindow):
         
         main_layout.addWidget(button_widget, stretch=1)  # 按钮占1份
         
+        # 自动加载上次配置
+        self._auto_load_last_config()
+        
+    def _auto_load_last_config(self):
+        """自动加载上次保存的配置文件"""
+        last_config = "./data/config_20250327_125839.json"
+        if os.path.exists(last_config):
+            try:
+                with open(last_config, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                
+                # 1. 恢复角色数据
+                for slot_idx, char_data in enumerate(data["team_data"]):
+                    if "error" in char_data:
+                        continue
+                        
+                    if slot_idx not in self.character_windows:
+                        self.character_windows[slot_idx] = CharacterWindow(self)
+                        self.character_windows[slot_idx].finished.connect(
+                            lambda data, idx=slot_idx: self._update_slot_display(idx))
+                    
+                    char_window = self.character_windows[slot_idx]
+                    char_window.result_data = char_data
+                    char_window._update_ui_from_data()
+                    self._update_slot_display(slot_idx)
+                
+                # 2. 恢复动作序列
+                for i in reversed(range(self.action_container_layout.count())):
+                    widget = self.action_container_layout.itemAt(i).widget()
+                    if isinstance(widget, ActionCard):
+                        widget.deleteLater()
+                
+                self.hint_container.setVisible(False)
+                for action_data in data["action_sequence"]:
+                    card = ActionCard(self)
+                    self.action_container_layout.insertWidget(
+                        self.action_container_layout.count()-1, card)
+                    card.update_data({
+                        "character": action_data["character"],
+                        "action": action_data["action"], 
+                        "params": action_data["params"]
+                    })
+            except Exception as e:
+                print(f"自动加载配置失败: {str(e)}")
+
     def add_widget(self, widget):
         """添加部件到主布局"""
         self.centralWidget().layout().addWidget(widget)
@@ -542,6 +587,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "加载失败", f"加载配置时出错: {str(e)}")
 
     def get_data(self):
+        """获取当前配置数据"""
         # 1. 收集队伍信息
         team_data = []
         for slot_idx in range(4):  # 遍历4个角色槽
