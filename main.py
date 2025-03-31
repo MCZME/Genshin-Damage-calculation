@@ -28,7 +28,6 @@ def init():
 # 9. 茜特菈莉
 if __name__ == '__main__':
     init()
-    emulation = Emulation(None,0,101)
     
     # 初始化UI
     app = QApplication([])

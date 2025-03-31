@@ -115,3 +115,8 @@ class Target:
         # 更新其他效果状态
         for effect in self.effects:
             effect.update(self)
+
+    def clear(self):
+        self.elementalAura.clear()
+        self.effects.clear()
+        self.current_frame = 0

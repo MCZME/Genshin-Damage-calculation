@@ -1,5 +1,8 @@
 total_frame_data = {}
 
+def clear_data():
+    total_frame_data.clear()
+
 def send_to_handler(frame, data:dict):
     if frame not in total_frame_data and frame > 0:
         total_frame_data[frame] = {
@@ -16,6 +19,8 @@ def send_to_handler(frame, data:dict):
 def send_to_window(type):
     if type == 'damage':
         return generate_damage_report()
+    elif type == 'character':
+        return generate_character_report()
 
 def generate_damage_report():
     d = {}

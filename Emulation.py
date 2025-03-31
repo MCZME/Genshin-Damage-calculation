@@ -1,5 +1,6 @@
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
+from setup.DataHandler import clear_data
 from setup.Event import EventBus, FrameEndEvent
 from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
@@ -58,6 +59,9 @@ class Emulation:
             return True
         return False
 
+    def init():
+        Emulation.current_frame = 0
+
 def start_simulation(team_data, action_sequence):
     """
     开始模拟伤害计算
@@ -65,6 +69,8 @@ def start_simulation(team_data, action_sequence):
         team_data: 从MainWindow收集的队伍信息列表
         action_sequence: 从MainWindow收集的动作序列列表
     """
+    clear_data()
+    Emulation.init()
     # 1. 创建角色和队伍
     characters = []
     for char_data in team_data:
@@ -144,6 +150,7 @@ def start_simulation(team_data, action_sequence):
         emulator.simulate(formatted_actions)
     except Exception as e:
         print(f"模拟过程中出错: {str(e)}")
+        Emulation.init()
         raise
 
 def get_param(param):
