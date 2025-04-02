@@ -18,9 +18,13 @@ class FrameEndEventHandler(EventHandler):
                     'level': character.level,
                     'skill_params': character.skill_params,
                     'constellation': character.constellation,
-                    'panel': character.attributePanel,
-                    'effect' : character.active_effects,
-                    'elemental_energy': character.elemental_energy,
+                    'panel': character.attributePanel.copy(),
+                    'effect' : {e.name:{
+                        'duration':e.duration,
+                        'max_duration':e.max_duration,} for e in character.active_effects},
+                    'elemental_energy': {'element':character.elemental_energy.elemental_energy[0],
+                                        'max_energy':character.elemental_energy.elemental_energy[1],
+                                        'energy':character.elemental_energy.current_energy},
                     }
             target_data = {}
             target_data['name'] = Emulation.target.name

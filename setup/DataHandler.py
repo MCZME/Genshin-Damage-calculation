@@ -4,17 +4,20 @@ def clear_data():
     total_frame_data.clear()
 
 def send_to_handler(frame, data:dict):
-    if frame not in total_frame_data and frame > 0:
+    if frame == 0:
+        return
+    if frame not in total_frame_data:
         total_frame_data[frame] = {
             'character':{},
             'target':{},
             'event':[]
         }
-        for k in data.keys():
-            if k == 'event':
-                total_frame_data[frame][k].append(data[k])
-            else:
-                total_frame_data[frame][k] = data[k] 
+        
+    for k in data.keys():
+        if k == 'event':
+            total_frame_data[frame][k].append(data[k])
+        else:
+            total_frame_data[frame][k] = data[k] 
 
 def send_to_window(type):
     if type == 'damage':
@@ -38,17 +41,7 @@ def generate_character_report():
         cc = {}
         for k in value['character'].keys():
             cc[k] = value['character'][k]
-            effects = {}
-            for effect in value['character'][k]['effect']:
-                effects[effect.name] = {
-                    'duration':effect.duration,
-                    'max_duration':effect.max_duration,
-                }
-            e = value['character'][k]['elemental_energy']
-            elemental_energy = {'element':e.elemental_energy[0],
-                                'max_energy':e.elemental_energy[1],
-                                'energy':e.current_energy}
-            cc[k]['effect'] = effects
-            cc[k]['elemental_energy'] = elemental_energy
+            cc[k]['effect'] = value['character'][k]['effect']
+            cc[k]['elemental_energy'] = value['character'][k]['elemental_energy']
         c[frame] = cc
     return c
