@@ -1,105 +1,17 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
-                              QPushButton, QHBoxLayout, QStackedWidget, QStyle)
-from .widget.character_status_dialog import CharacterStatusDialog
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+                              QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
 
-from setup.DataHandler import generate_character_report, send_to_window
+from ui.widget.character_status_card import CharacterCardManager
+from ui.widget.vertical_label_chart import VerticalLabelChart
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QPixmap, QIcon
 
-class CharacterStatusCard(QWidget):
-    """单个角色状态卡片组件"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("""
-            background-color: #ffffff;
-            border-radius: 0px;
-            padding: 8px;
-            border-top: 1px solid #e0e0e0;
-            border-bottom: 1px solid #e0e0e0;
-        """)
-        
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(3, 8, 3, 8)
-        self.layout.setSpacing(6)
-        
-        self.data = None
-        self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogDetailedView')))
-        self.settings_btn.setFixedSize(24, 24)
-        self.settings_btn.setStyleSheet("""
-            QPushButton {
-                border: none;
-                background: transparent;
-            }
-            QPushButton:hover {
-                background: rgba(0, 0, 0, 0.05);
-            }
-        """)
-
-    def set_data(self, data):
-        """设置角色数据"""
-        self.data = data
-        
-        # 清空现有内容
-        for i in reversed(range(self.layout.count())): 
-            self.layout.itemAt(i).widget().setParent(None)
-        
-        # 第一行：角色信息 + 设置按钮
-        top_row = QHBoxLayout()
-        top_row.setContentsMargins(0, 0, 0, 0)
-        top_row.setSpacing(10)
-        
-        # 角色基本信息
-        info_layout = QHBoxLayout()
-        info_layout.setSpacing(10)
-        
-        if 'name' in data:
-            name_label = QLabel(data['name'])
-            name_label.setStyleSheet("font-weight: bold; font-size: 14px; color: #333333;")
-            info_layout.addWidget(name_label)
-            
-        if 'constellation' in data:
-            const_label = QLabel(f"命座: {data['constellation']}")
-            const_label.setStyleSheet("color: #4a90e2;")
-            info_layout.addWidget(const_label)
-            
-        if 'level' in data:
-            level_label = QLabel(f"等级: {data['level']}")
-            level_label.setStyleSheet("color: #4a90e2;")
-            info_layout.addWidget(level_label)
-            
-        if 'skill_params' in data:
-            skills_label = QLabel(f"技能: {', '.join(map(str, data['skill_params']))}")
-            skills_label.setStyleSheet("color: #4a90e2;")
-            info_layout.addWidget(skills_label)
-            
-        top_row.addLayout(info_layout)
-        top_row.addStretch()
-        top_row.addWidget(self.settings_btn)
-        
-        self.layout.addLayout(top_row)
-        
-        # 设置按钮点击事件 - 显示详情弹窗
-        def show_detail_dialog():
-            dialog = CharacterStatusDialog(self)
-            dialog.set_data(data)
-            dialog.exec()
-            
-        self.settings_btn.clicked.connect(show_detail_dialog)
-
-    def update_data(self, new_data):
-        """更新角色数据"""
-        if self.data:
-            for i in range(self.layout.count()):
-                widget = self.layout.itemAt(i).widget()
-                if isinstance(widget, QLabel) and i % 2 == 1:
-                    key = self.layout.itemAt(i-1).widget().text()[:-1]
-                    widget.setText(str(new_data.get(key, '')))
-
+from setup.DataHandler import send_to_window
 class CharacterStatusWidget(QWidget):
     """角色状态显示组件"""
-    def __init__(self, parent=None):
+    def __init__(self, data, parent=None):
         super().__init__(parent)
+        self.data = data
         self.setStyleSheet("""
             QWidget {
                 background-color: #f5f7fa;
@@ -112,46 +24,59 @@ class CharacterStatusWidget(QWidget):
                 font-family: "Microsoft YaHei";
             }
         """)
-        
-        # 主布局：左右1:4比例
+        # 主布局：左右独立布局
         self.main_layout = QHBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setContentsMargins(10, 0, 10, 10)
         self.main_layout.setSpacing(10)
         
-        # 左侧角色头像区域 (1/5宽度)
+        # 左侧角色头像区域 - 固定宽度和高度
         self.avatar_area = QWidget()
+        self.avatar_area.setFixedWidth(80)  # 固定宽度
+        self.avatar_area.setFixedHeight(270)  # 固定高度
+        self.avatar_area.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.avatar_layout = QVBoxLayout(self.avatar_area)
         self.avatar_layout.setSpacing(10)
-        self.main_layout.addWidget(self.avatar_area, stretch=1)
+        self.avatar_layout.setAlignment(Qt.AlignTop)  # 内容顶部对齐
+        self.main_layout.addWidget(self.avatar_area, 0, Qt.AlignTop)  # 固定在顶部
         
-        # 右侧状态卡片区域 (4/5宽度)
-        self.card_stack = QStackedWidget()
-        self.main_layout.addWidget(self.card_stack, stretch=4)
+        # 右侧状态卡片区域
+        self.card_area = QWidget()
+        self.card_area.setMinimumHeight(270)  # 设置与左侧相同的高度
+        self.card_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)  # 宽度扩展，高度固定
+        card_area_layout = QVBoxLayout(self.card_area)
+        card_area_layout.setContentsMargins(10, 0, 10, 0)
+        card_area_layout.setSpacing(12)  # 卡片间距12px
+        card_area_layout.setAlignment(Qt.AlignTop)
+        self.main_layout.addWidget(self.card_area, 1)  # 使用伸缩因子1让卡片区域占据剩余空间
+        
+        # 初始化卡片管理器
+        self.card_manager = CharacterCardManager(self.card_area)
         
         # 初始化4个角色头像占位
         self.avatars = []
+        self.avatar_click_handlers = []
         for i in range(4):
-            avatar = QLabel()
-            avatar.setAlignment(Qt.AlignCenter)
+            avatar = QPushButton()
+            avatar.setCursor(Qt.PointingHandCursor)
             avatar.setFixedSize(60, 60)
             avatar.setStyleSheet("""
-                border: 2px solid #4a90e2;
-                border-radius: 30px;
-                background-color: #ffffff;
+                QPushButton {
+                    border: 2px solid #4a90e2;
+                    border-radius: 30px;
+                    background-color: #ffffff;
+                    padding: 0px;
+                }
+                QPushButton:hover {
+                    border: 2px solid #2a70c2;
+                    background-color: #f0f7ff;
+                }
             """)
-            self.avatar_layout.addWidget(avatar)
+            avatar.setVisible(False)
+            self.avatar_layout.addWidget(avatar, stretch=1)
             self.avatars.append(avatar)
-        
-        # 初始化4个状态卡片
-        self.cards = []
-        for i in range(4):
-            card = CharacterStatusCard()
-            self.card_stack.addWidget(card)
-            self.cards.append(card)
-        
-        self.character_data = None
+        self.set_data()
 
-    def set_data(self, data):
+    def set_data(self):
         """设置角色状态数据
         data结构: {frame: {角色名称: 角色数据}}
         角色数据: {
@@ -163,71 +88,249 @@ class CharacterStatusWidget(QWidget):
             "elemental_energy": dict
         }
         """
-        if not data:
+        if not self.data:
             return
             
         # 获取第一帧数据作为初始显示
-        first_frame = next(iter(data.values()))
-        self.character_data = data
+        first_frame = self.data[1]
         
         # 获取角色名称列表
         character_names = list(first_frame.keys())
         
-        # 更新角色头像和卡片
+        # 清除旧的点击处理器
+        for handler in self.avatar_click_handlers:
+            try:
+                handler.disconnect()
+            except:
+                pass
+        self.avatar_click_handlers = []
+        
+        # 更新角色头像
         for i in range(min(4, len(character_names))):
             char_name = character_names[i]
             char_data = first_frame[char_name]
             # 添加角色名称到数据中
             char_data['name'] = char_name
+            
             # 设置头像
             if 'avatar' in char_data:
                 pixmap = QPixmap(char_data['avatar'])
-                self.avatars[i].setPixmap(pixmap.scaled(50, 50, Qt.KeepAspectRatio))
+                icon = QIcon(pixmap.scaled(50, 50, Qt.KeepAspectRatio))
+                self.avatars[i].setIcon(icon)
+                self.avatars[i].setIconSize(QSize(50, 50))
+            self.avatars[i].setVisible(True)
             
-            # 设置卡片数据
-            self.cards[i].set_data(char_data)
+            # 设置点击事件
+            handler = lambda checked, name=char_name: \
+                self.card_manager.toggle_card(name)
+            self.avatars[i].clicked.connect(handler)
+            self.avatar_click_handlers.append(handler)
             
+        # 初始化所有卡片
+        self.card_manager.initialize_cards(first_frame)
+
     def update_frame(self, frame):
-        """更新当前帧的角色状态显示
-        frame: 要显示的帧标识符
-        """
-        if self.character_data and frame in self.character_data:
-            frame_data = self.character_data[frame]
-            character_names = list(frame_data.keys())
-            for i in range(min(4, len(character_names))):
-                char_name = character_names[i]
-                self.cards[i].update_data(frame_data[char_name])
+        """更新到指定帧的数据"""
+        # 获取完整角色数据
+        frame_data = self.data.get(frame, {})
+        
+        # 更新头像状态
+        for char_name in frame_data:
+            if 'elemental_energy' in frame_data[char_name]:
+                self._update_avatar_border(char_name, frame_data[char_name])
+        
+        # 更新卡片数据
+        self.card_manager.update_cards(frame_data)
+
+    def _update_avatar_border(self, char_name, data):
+        """根据元素能量更新头像边框"""
+        element = data['elemental_energy'].get('element', '')
+        color = self._get_element_color(element)
+        for avatar in self.avatars:
+            if avatar.property('char_name') == char_name:
+                avatar.setStyleSheet(f"""
+                    border: 2px solid {color};
+                    border-radius: 30px;
+                    background-color: #ffffff;
+                """)
+
+    def _get_element_color(self, element):
+        """获取元素对应颜色"""
+        colors = {
+            '火': '#FF6666',
+            '水': '#66B3FF',
+            '雷': '#D966FF',
+            # ...其他元素颜色
+        }
+        return colors.get(element, '#4a90e2')
 
 class ResultWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("战斗数据分析")
+        self.resize(900, 700)  # 设置初始窗口大小
         
-        # 主布局
-        self.main_widget = QWidget()
-        self.main_layout = QVBoxLayout(self.main_widget)
+        # 主滚动区域
+        self.main_widget = QScrollArea()
+        self.main_widget.setWidgetResizable(True)
+        self.main_widget.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: #f5f7fa;
+            }
+        """)
         
-        # 角色状态显示区域
-        self.character_status = CharacterStatusWidget()
-        self.main_layout.addWidget(self.character_status)
-        self.set_character_data()
+        # 主容器
+        self.container = QWidget()
+        self.main_layout = QVBoxLayout(self.container)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(10)
+        self.main_widget.setWidget(self.container)
+        
+        # 标题区域
+        self.title_label = QLabel("战斗数据分析报告")
+        self.title_label.setStyleSheet("""
+            QLabel {
+                font-size: 24px;
+                font-weight: bold;
+                color: #333333;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #4a90e2;
+            }
+        """)
+        self.main_layout.addWidget(self.title_label)
         
         # 图表区域
-        # self.chart = VerticalLabelChart()
-        # self.main_layout.addWidget(self.chart)
+        self.chart_section = QWidget()
+        self.chart_section.setStyleSheet("""
+            QWidget {
+                background: white;
+                border-radius: 8px;
+                padding: 10px;
+            }
+        """)
+        chart_layout = QVBoxLayout(self.chart_section)
+        chart_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.chart_title = QLabel("伤害数据统计")
+        self.chart_title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #333333;
+                margin-bottom: 5px;
+            }
+        """)
+        chart_layout.addWidget(self.chart_title)
+        
+        self.chart = VerticalLabelChart()
+        self.chart.setMinimumSize(400, 300)
+        self.chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.chart.set_data(send_to_window('damage'))
+        self.chart.bar_clicked.connect(self.on_chart_bar_clicked)
+        chart_layout.addWidget(self.chart)
+        
+        self.main_layout.addWidget(self.chart_section)
+        
+        # 角色状态区域
+        self.character_section = QWidget()
+        self.character_section.setStyleSheet("""
+            QWidget {
+                background: white;
+                border-radius: 8px;
+                padding: 15px;
+            }
+        """)
+        character_layout = QVBoxLayout(self.character_section)
+        character_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 创建标题行布局
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 10)
+        
+        self.character_title = QLabel("角色状态分析")
+        self.character_title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #333333;
+            }
+        """)
+        title_row.addWidget(self.character_title)
+        
+        # 添加输入框和按钮
+        self.frame_input = QLineEdit()
+        self.frame_input.setPlaceholderText("输入帧数")
+        self.frame_input.setFixedWidth(100)
+        self.frame_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #4a90e2;
+            }
+        """)
+        title_row.addWidget(self.frame_input)
+        
+        self.frame_button = QPushButton("确定")
+        self.frame_button.setFixedWidth(60)
+        self.frame_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4a90e2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 5px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #3a80d2;
+            }
+            QPushButton:pressed {
+                background-color: #2a70c2;
+            }
+        """)
+        title_row.addWidget(self.frame_button)
+        
+        title_row.addStretch()
+        character_layout.addLayout(title_row)
+        
+        self.character_status = CharacterStatusWidget(send_to_window('character'))
+        self.character_status.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        character_layout.addWidget(self.character_status)
+        
+        self.main_layout.addWidget(self.character_section)
+        self.main_layout.addStretch(1)
+        
+        # 连接按钮信号
+        self.frame_button.clicked.connect(self.on_frame_button_clicked)
         
         self.setCentralWidget(self.main_widget)
-        # self.update_damage_chart()
+        self.update_damage_chart()
+    
+    def on_frame_button_clicked(self):
+        """处理帧数输入按钮点击事件"""
+        try:
+            frame = int(self.frame_input.text())
+            self.update_character_frame(frame)
+        except ValueError:
+            print("请输入有效的帧数")
+    
 
     def update_damage_chart(self):
         damage_data = send_to_window('damage')
         if not damage_data:
             return
         self.chart.set_data(damage_data)
-        
-    def set_character_data(self):
-        """设置角色状态数据"""
-        data = generate_character_report()
-        self.character_status.set_data(data)
             
+    def on_chart_bar_clicked(self, frame):
+        """处理图表柱子点击事件"""
+        self.frame_input.setText(str(frame))
+        self.update_character_frame(frame)
+
     def update_character_frame(self, frame):
         """更新当前帧的角色状态显示"""
+        self.character_status.update_frame(frame)
