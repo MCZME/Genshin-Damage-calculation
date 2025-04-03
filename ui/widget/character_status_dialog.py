@@ -293,7 +293,7 @@ class CharacterStatusDialog(QDialog):
             effects_layout.addWidget(effect_group)
             parent_radio = self.link_to_radio_btn(effects_container, effects_layout, is_parent=True)
             parent_radio.child_radios = []
-            parent_radio.child_radios_data = []
+            self.effects_data = {}
             self.content_layout.addWidget(effects_container)
             
             effect_container = QWidget()
@@ -323,7 +323,7 @@ class CharacterStatusDialog(QDialog):
                     "max_duration": value.get('max_duration', 0)
                     }
                 self.effect_layout.addWidget(effect_widget, row, col)
-                parent_radio.child_radios_data.append(effect_widget.data)
+                self.effects_data[key] = effect_widget.data
                 self.effect_widgets[key] = effect_widget
                 
                 col += 1
@@ -358,7 +358,7 @@ class CharacterStatusDialog(QDialog):
             category_layout.addWidget(energy_group)
             parent_radio = self.link_to_radio_btn(category_container, category_layout, is_parent=True)
             parent_radio.child_radios = []
-            parent_radio.child_radios_data = []
+            self.energy_data = {}
             self.content_layout.addWidget(category_container)
             
             energy_container = QWidget()
@@ -385,7 +385,7 @@ class CharacterStatusDialog(QDialog):
                     "max": data['elemental_energy'].get('max_energy')
                     }
             energy_layout.addWidget(self.energy_widget)
-            parent_radio.child_radios_data.append(self.energy_widget.data)
+            self.energy_data = self.energy_widget.data
             
             self.content_layout.addWidget(energy_container)
 
@@ -453,8 +453,11 @@ class CharacterStatusDialog(QDialog):
                 if parent_container.data.get("type") in ["HP"]:
                     selected_data.append(parent_container.data)
 
-            if parent_container and parent_container.data.get("type") in ["Elemental Energy",'Effects']:
-                selected_data.extend(radio.child_radios_data)
+            if parent_container and parent_container.data.get("type") == "Elemental Energy":
+                selected_data.append(self.energy_data)
+                continue
+            if parent_container and parent_container.data.get("type") == "Effects":
+                selected_data.extend(self.effects_data.values())
                 continue
 
             # 收集所有子级数据
@@ -596,6 +599,12 @@ class CharacterStatusDialog(QDialog):
                 new_data['elemental_energy']['energy'],
                 new_data['elemental_energy']['max_energy']
             )
+            self.energy_data = {
+                "type": "Energy",
+                "element": new_data['elemental_energy'].get('element'),
+                "current": new_data['elemental_energy'].get('energy'),
+                "max": new_data['elemental_energy'].get('max_energy')
+            }
         
         # 更新效果持续时间
         if 'effect' in new_data:
@@ -610,6 +619,7 @@ class CharacterStatusDialog(QDialog):
                     widget.setParent(None)
                     widget.deleteLater()
                     # 从字典中移除
+                    del self.effects_data[effect_name]
                     del self.effect_widgets[effect_name]
             
             # 更新或添加效果
@@ -621,6 +631,13 @@ class CharacterStatusDialog(QDialog):
                         effect_data['max_duration']
                     )
                     
+                    self.effects_data[effect_name] = {
+                        "type": "Effect",
+                        "name": effect_name,
+                        "duration": effect_data.get('duration', 0),
+                        "max_duration": effect_data.get('max_duration', 0)
+                    }
+
                     # 如果效果已结束，也移除它
                     if effect_data['duration'] <= 0:
                         widget = self.effect_widgets[effect_name]
@@ -642,6 +659,7 @@ class CharacterStatusDialog(QDialog):
                             "duration": effect_data.get('duration', 0),
                             "max_duration": effect_data.get('max_duration', 0)
                         }
+                        self.effects_data[effect_name]=effect_widget.data
                         
                         # 直接访问效果网格布局容器
                         effect_grid_container = self.effect_layout

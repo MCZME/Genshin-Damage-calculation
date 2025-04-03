@@ -143,8 +143,7 @@ class CharacterStatusCard(QWidget):
                 hp_container = QWidget()
                 hp_container.setStyleSheet('''
                     border: none;
-                    margin-bottom: 10px;
-                ''')
+                    background: transparent;''')
                 hp_layout = QHBoxLayout(hp_container)
                 hp_layout.setContentsMargins(0, 0, 0, 0)
                 hp_layout.setSpacing(0)
@@ -234,8 +233,9 @@ class CharacterStatusCard(QWidget):
                     
                     self.effects_container = QWidget()
                     self.effects_container.setStyleSheet("""
-                        border: none;
-                        margin-bottom: 10px;
+                        background-color: rgba(74, 144, 226, 0.1);
+                        border-radius: 8px;
+                        padding: 2px;
                     """)
                     self.effects_layout = QGridLayout(self.effects_container)
                     self.effects_layout.setHorizontalSpacing(10)
@@ -272,7 +272,7 @@ class CharacterStatusCard(QWidget):
                 energy_container = QWidget()
                 energy_container.setStyleSheet("""
                     border: none;
-                    margin-bottom: 10px;
+                    margin-bottom: 5px;
                 """)
                 energy_layout = QVBoxLayout(energy_container)
                 energy_layout.setContentsMargins(0, 0, 0, 0)
@@ -282,10 +282,6 @@ class CharacterStatusCard(QWidget):
                     energy=item["current"],
                     max_energy=item["max"]
                 )
-                self.energy_widget.setStyleSheet("""
-                    border: none;
-                    margin: 2px;
-                """)
                 
                 energy_layout.addWidget(self.energy_widget)
                 self.card_layout.addWidget(energy_container)
