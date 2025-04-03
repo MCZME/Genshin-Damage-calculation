@@ -10,7 +10,7 @@ from Emulation import start_simulation
 from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
 from .result_window import ResultWindow
-from .character_window import CharacterWindow
+from .widget.character_window import CharacterWindow
 from .action_setting_dialog import ActionSettingDialog
 
 class MainWindow(QMainWindow):

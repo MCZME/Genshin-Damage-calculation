@@ -360,12 +360,13 @@ class CharacterWindow(QDialog):
         form_layout = QFormLayout()
         stat_combo = QComboBox()
         stat_combo.addItems(["攻击力%", "生命值%", "防御力%", "元素精通", 
-                           "暴击率", "暴击伤害", "元素充能效率"])
+                           "暴击率", "暴击伤害", "元素充能效率", "防御力",
+                           "攻击力", "生命值"])
         form_layout.addRow("属性:", stat_combo)
         
         # 数值输入
         value_spin = QDoubleSpinBox()
-        value_spin.setRange(0, 100)
+        value_spin.setRange(0, 2000)
         value_spin.setDecimals(1)
         value_spin.setSingleStep(0.1)
         form_layout.addRow("数值:", value_spin)
@@ -414,7 +415,7 @@ class CharacterWindow(QDialog):
             # 数值输入
             form_layout = QFormLayout()
             value_spin = QDoubleSpinBox()
-            value_spin.setRange(0, 1000)
+            value_spin.setRange(0, 4780)
             value_spin.setDecimals(0)
             value_spin.setSingleStep(1)
             form_layout.addRow(f"{fixed_stats[slot]}:", value_spin)
@@ -455,7 +456,9 @@ class CharacterWindow(QDialog):
             form_layout = QFormLayout()
             stat_combo = QComboBox()
             stat_combo.addItems(["攻击力%", "生命值%", "防御力%", "元素精通", 
-                               "元素伤害加成", "物理伤害加成", "治疗加成", "暴击率", "暴击伤害"])
+                               "火元素伤害加成", "水元素伤害加成", "雷元素伤害加成",
+                                "冰元素伤害加成", "岩元素伤害加成", "草元素伤害加成", "风元素伤害加成", 
+                               "物理伤害加成", "治疗加成", "暴击率", "暴击伤害"])
             form_layout.addRow("属性:", stat_combo)
             
             # 数值输入
