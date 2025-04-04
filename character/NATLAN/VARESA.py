@@ -143,9 +143,9 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             base_damage,
             self.element,
             DamageType.PLUNGING,
-            f'夜魂·{damage_type_key}' if not passion_effect else f'炽热激情·夜魂·{damage_type_key}',
-            is_nightsoul=True
+            f'夜魂·{damage_type_key}' if not passion_effect else f'炽热激情·夜魂·{damage_type_key}'
         )
+        damage.setDamageData('夜魂伤害',True)
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
@@ -216,7 +216,6 @@ class VaresaChargedAttack(ChargedAttackSkill):
                 element=self.element,
                 damageType=DamageType.CHARGED,
                 name=f'炽热激情·{self.name}',
-                is_nightsoul=True
             )
         else:
             damage = Damage(
@@ -224,9 +223,9 @@ class VaresaChargedAttack(ChargedAttackSkill):
                 element=self.element,
                 damageType=DamageType.CHARGED,
                 name=self.name,
-                is_nightsoul=True
             )
-        
+
+        damage.setDamageData('夜魂伤害',True)
         # 发布伤害事件
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
@@ -502,8 +501,8 @@ class SpecialElementalBurst(EnergySkill):
                 element=self.element,
                 damageType=DamageType.BURST,
                 name=self.name,
-                is_nightsoul=True
             )
+            damage.setDamageData('夜魂伤害',True)
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
         self.caster.movement += 1.627
@@ -539,8 +538,8 @@ class ElementalBurst(EnergySkill):
                 element=self.element,
                 damageType=DamageType.BURST,
                 name=f'{self.name} {damage_key}',
-                is_nightsoul=True
             )
+            damage.setDamageData('夜魂伤害',True)
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
             

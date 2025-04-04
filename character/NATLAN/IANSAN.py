@@ -104,10 +104,9 @@ class IansanChargedAttack(ChargedAttackSkill):
             damageMultipiler=self.damageMultipiler[clamped_lv],
             element=self.element if self.caster.Nightsoul_Blessing else ('物理',0),
             damageType=DamageType.CHARGED,
-            name='雷霆飞缒' if self.caster.Nightsoul_Blessing else self.name,
-            is_nightsoul=True if self.caster.Nightsoul_Blessing else False
+            name='雷霆飞缒' if self.caster.Nightsoul_Blessing else self.name
         )
-        
+        damage.setDamageData('夜魂伤害',True if self.caster.Nightsoul_Blessing else False)
         # 触发天赋1效果
         if self.caster.Nightsoul_Blessing and self.caster.level >= 20:
             StandardActionEffect(self.caster).apply()
@@ -143,8 +142,8 @@ class ElementalSkill(SkillBase):
                 self.element,
                 DamageType.SKILL,
                 '电掣雷驰',
-                is_nightsoul=True
             )
+            damage.setDamageData('夜魂伤害',True)
             EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
             
             # 恢复夜魂值

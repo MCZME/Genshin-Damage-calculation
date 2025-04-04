@@ -9,12 +9,12 @@ from setup.Logger import get_emulation_logger
 
 # 定义一个枚举类，表示伤害类型
 class DamageType(Enum):
-    NORMAL = auto()
-    CHARGED = auto()
-    SKILL = auto()
-    BURST = auto()
-    PLUNGING = auto()  # 下落攻击
-    REACTION = auto()  # 剧变反应伤害
+    NORMAL = "普通攻击"
+    CHARGED = "重击"
+    SKILL = "元素战技"
+    BURST = "元素爆发"
+    PLUNGING = "下落攻击"
+    REACTION = "剧变反应"
 
 class Damage():
     def __init__(self,damageMultipiler,element,damageType:DamageType,name,**kwargs):
@@ -24,7 +24,7 @@ class Damage():
         self.name = name
         self.damage = 0
         self.baseValue = '攻击力'
-        self.reaction = None # (reaction_Type,ElementalReactionType)
+        self.reaction = None # ElementalReaction class
         self.data = kwargs
         self.panel = {}
 
@@ -56,6 +56,7 @@ class Calculation:
         attributePanel = self.source.attributePanel
         atk0 = attributePanel['攻击力']
         atk1 = atk0 * attributePanel['攻击力%']/100 + attributePanel['固定攻击力']
+        self.damage.setPanel('攻击力',atk0+atk1)
         return atk0+atk1
 
     def health(self):
@@ -63,6 +64,7 @@ class Calculation:
         attribute = self.source.attributePanel
         hp0 = attribute['生命值']
         hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
+        self.damage.setPanel('生命值',hp0+hp1)
         return hp0 + hp1
 
     def DEF(self):
@@ -70,9 +72,11 @@ class Calculation:
         attribute = self.source.attributePanel
         def0 = attribute['防御力']
         def1 = def0 * attribute['防御力%'] / 100 + attribute['固定防御力']
+        self.damage.setPanel('防御力',def0+def1)
         return def0 + def1
 
     def damageMultipiler(self):
+        self.damage.setPanel('伤害倍率',self.damage.damageMultipiler)
         return self.damage.damageMultipiler/100
 
     def damageBonus(self):
@@ -111,15 +115,19 @@ class Calculation:
         return self.damage.panel['暴击伤害']/100
 
     def defense(self):
+        self.damage.setPanel('防御力减免',(5*self.source.level+500)/(self.target.defense+5*self.source.level+500))
         return (5*self.source.level+500)/(self.target.defense+5*self.source.level+500)
 
     def resistance(self):
         r = self.target.element_resistance[self.damage.element[0]]
         if r>75:
+            self.damage.setPanel('元素抗性',(1/(1+4*r))/100)
             return (1/(1+4*r))/100
         elif r>=0 and r<=75:
+            self.damage.setPanel('元素抗性',(100-r)/100)
             return (100-r)/100
         else:
+            self.damage.setPanel('元素抗性',(100-r/2)/100)
             return (100-r/2)/100
         
     # 待补充
@@ -137,11 +145,16 @@ class Calculation:
                 event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
                 EventBus.publish(event)
                 self.damage.reaction = event.data['elementalReaction']
+                if self.damage.reaction.reaction_Type == "剧变反应":
+                    self.damage.setPanel('反应系数',1)
+                    return 1
                 if self.damage.reaction.reaction_type in list(r.keys()):
                     r1 = r[self.damage.reaction.reaction_type]
                 else:
                     r1 = 0
+                self.damage.setPanel('反应系数',self.damage.reaction.reaction_ratio * (1+(2.78*e)/(e+1400)+r1))
                 return self.damage.reaction.reaction_ratio * (1+(2.78*e)/(e+1400)+r1)
+        self.damage.setPanel('反应系数',1)
         return 1
 
 
@@ -167,8 +180,8 @@ class Calculation:
             r1 = r[self.damage.name]
         else:
             r1 = 0
-        inc = self.damage.data['reaction_ratio'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
-        value = self.damage.data['lv_ratio'] * (inc+r1) * self.resistance()
+        inc = self.damage.panel['反应系数'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
+        value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         self.damage.damage = value
 
 # todo
@@ -238,9 +251,9 @@ class DamageCalculateEventHandler(EventHandler):
             EventBus.publish(GameEvent(EventType.BEFORE_OVERLOAD, GetCurrentTime(),
                                        character = character, 
                                        target = target))
-            e_damage = Damage(0,('火',0),DamageType.REACTION, '超载',
-                              lv_ratio = damage.reaction.lv_ratio,
-                              reaction_ratio = damage.reaction.reaction_ratio)
+            e_damage = Damage(0,('火',0),DamageType.REACTION, '超载')
+            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
+            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
             EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
             EventBus.publish(GameEvent(EventType.AFTER_OVERLOAD, GetCurrentTime(), 
                                         character = character, 
