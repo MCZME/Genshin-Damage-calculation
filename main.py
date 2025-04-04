@@ -1,5 +1,5 @@
-from Emulation import Emulation
 from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler
+from setup.Config import Config
 from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication
 
 # 初始化
 def init():
+    Config()
     EventBus.subscribe(EventType.BEFORE_DAMAGE,DamageCalculateEventHandler())
     EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
     EventBus.subscribe(EventType.BEFORE_HEAL,HealingCalculateEventHandler())
@@ -34,3 +35,5 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     app.exec()
+
+    Config.save()

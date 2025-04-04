@@ -297,8 +297,9 @@ class MainWindow(QMainWindow):
         
     def _auto_load_last_config(self):
         """自动加载上次保存的配置文件"""
-        last_config = "./data/config_20250327_125839.json"
-        if os.path.exists(last_config):
+        from setup.Config import Config
+        last_config = Config.get("ui.last_save_file")
+        if last_config and os.path.exists(last_config):
             try:
                 with open(last_config, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -521,6 +522,11 @@ class MainWindow(QMainWindow):
                     "team_data": team_data,
                     "action_sequence": action_sequence
                 }, f, ensure_ascii=False, indent=2)
+            
+            # 更新最后保存的文件路径配置
+            from setup.Config import Config
+            Config.set("ui.last_save_file", filename)
+            Config.save()
                 
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, "保存成功", f"配置已保存到: {filename}")
