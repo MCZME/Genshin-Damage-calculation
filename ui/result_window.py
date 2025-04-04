@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
 
 from ui.widget.character_status_widget import CharacterStatusWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
+from ui.widget.detail_info_widget import DetailInfoWidget
 
 from setup.DataHandler import send_to_window
 
@@ -68,11 +69,16 @@ class ResultWindow(QMainWindow):
         self.chart = VerticalLabelChart()
         self.chart.setMinimumSize(400, 400)
         self.chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.chart.set_data(send_to_window('damage'))
         self.chart.bar_clicked.connect(self.on_chart_bar_clicked)
         chart_layout.addWidget(self.chart)
         
         self.main_layout.addWidget(self.chart_section)
+        
+        # 角色状态和详细信息区域容器
+        self.status_info_container = QWidget()
+        status_info_layout = QHBoxLayout(self.status_info_container)
+        status_info_layout.setContentsMargins(0, 0, 0, 0)
+        status_info_layout.setSpacing(10)
         
         # 角色状态区域
         self.character_section = QWidget()
@@ -144,7 +150,15 @@ class ResultWindow(QMainWindow):
         self.character_status.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         character_layout.addWidget(self.character_status)
         
-        self.main_layout.addWidget(self.character_section)
+        # 详细信息区域
+        self.detail_info_section = DetailInfoWidget()
+        self.detail_info_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        # 将两个区域添加到容器
+        status_info_layout.addWidget(self.character_section,1)
+        status_info_layout.addWidget(self.detail_info_section,1)
+        
+        self.main_layout.addWidget(self.status_info_container)
         self.main_layout.addStretch(1)
         
         # 连接按钮信号
@@ -157,7 +171,7 @@ class ResultWindow(QMainWindow):
         """处理帧数输入按钮点击事件"""
         try:
             frame = int(self.frame_input.text())
-            self.update_character_frame(frame)
+            self.update_frame(frame)
         except ValueError:
             print("请输入有效的帧数")
     
@@ -166,13 +180,15 @@ class ResultWindow(QMainWindow):
         damage_data = send_to_window('damage')
         if not damage_data:
             return
-        self.chart.set_data(damage_data)
+        self.chart.set_data({frame: data['value'] for frame, data in damage_data.items()})
+        self.detail_info_section.set_data({frame: data['damage'] for frame, data in damage_data.items()})
             
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""
         self.frame_input.setText(str(frame))
-        self.update_character_frame(frame)
+        self.update_frame(frame)
 
-    def update_character_frame(self, frame):
+    def update_frame(self, frame):
         """更新当前帧的角色状态显示"""
         self.character_status.update_frame(frame)
+        self.detail_info_section.update_info(frame)

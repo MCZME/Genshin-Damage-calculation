@@ -29,10 +29,21 @@ def generate_damage_report():
     d = {}
     from setup.Event import EventType
     for frame in range(1,len(total_frame_data)+1):
-        d[frame] = 0
+        d[frame] = {'value':0, 'damage':[]}
         for event in total_frame_data[frame]['event']:
             if event['type'] == EventType.AFTER_DAMAGE:
-                d[frame] += event['damage'].damage
+                d[frame]['value'] += event['damage'].damage
+                d[frame]['damage'].append({
+                    'name':event['damage'].name,
+                    'value':event['damage'].damage,
+                    'source':event['damage'].source.name,
+                    'target':event['damage'].target.name,
+                    'element':event['damage'].element[0],
+                    'type':event['damage'].damageType.value,
+                    'data':event['damage'].data,
+                    'panel':event['damage'].panel,
+                    'reaction': event['damage'].reaction.reaction_type.value if event['damage'].reaction else "",
+                })
     return d
 
 def generate_character_report():
