@@ -4,7 +4,7 @@ from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
 from setup.HealingCalculation import HealingCalculateEventHandler
-from setup.Logger import logger_init
+from setup.Logger import logger_init, manage_log_files
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 
@@ -39,3 +39,4 @@ if __name__ == '__main__':
     app.exec()
 
     Config.save()
+    # manage_log_files()

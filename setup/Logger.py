@@ -12,8 +12,9 @@ class BaseLogger:
         log_entry = f"[{GetCurrentTime()}][{level}][{self.name}] {message}\n"
         
         # 写入文件
-        with open(self.log_file, 'a', encoding='utf-8') as f:
-            f.write(log_entry)
+        if Config.get('logging.file'):
+            with open(self.log_file, 'a', encoding='utf-8') as f:
+                f.write(log_entry)
             
         # 同时输出到控制台
         print(log_entry.strip())
@@ -95,3 +96,47 @@ def get_emulation_logger():
 
 def get_ui_logger():
     return _ui_logger
+
+def manage_log_files(max_files=50):
+    """管理日志文件，当日志文件过多时按日期打包压缩
+    
+    Args:
+        max_files (int): 触发压缩的日志文件数量阈值，默认50
+    """
+    import os
+    import glob
+    import zipfile
+    from datetime import datetime
+    
+    log_dir = Config.get('logging.Emulation.file_path')
+    if not log_dir or not os.path.exists(log_dir):
+        return
+        
+    # 获取所有日志文件
+    log_files = glob.glob(os.path.join(log_dir, 'emulation_*.log'))
+    if len(log_files) <= max_files:
+        return
+        
+    # 按日期分组文件
+    date_groups = {}
+    for file_path in log_files:
+        try:
+            # 从文件名提取日期部分 (emulation_YYYYMMDD_HHMMSS.log)
+            date_str = os.path.basename(file_path).split('_')[1][:8]
+            date = datetime.strptime(date_str, '%Y%m%d').date()
+            if date not in date_groups:
+                date_groups[date] = []
+            date_groups[date].append(file_path)
+        except (IndexError, ValueError):
+            continue
+            
+    # 为每个日期创建压缩包
+    for date, files in date_groups.items():
+        if len(files) < 2:  # 同一天少于2个文件不压缩
+            continue
+            
+        zip_name = os.path.join(log_dir, f'logs_{date.strftime("%Y%m%d")}.zip')
+        with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file in files:
+                zipf.write(file, os.path.basename(file))
+                os.remove(file)  # 压缩后删除原文件
