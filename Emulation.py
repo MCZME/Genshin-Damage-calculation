@@ -2,6 +2,7 @@ from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
 from setup.DataHandler import clear_data
 from setup.Event import EventBus, FrameEndEvent
+from setup.Logger import get_emulation_logger
 from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
 from setup.Team import Team
@@ -25,6 +26,7 @@ class Emulation:
         actions (list): 要执行的动作列表。
         {Name:actionName}
         """
+        get_emulation_logger().new_log_file()
         action = iter(actions)
         Emulation.team.swap(next(action))
         Emulation.team.current_frame = 0 # 初始化当前帧数
@@ -76,14 +78,14 @@ def start_simulation(team_data, action_sequence):
     for char_data in team_data:
         if not char_data or "error" in char_data:
             continue  # 跳过未配置的角色槽
-            
+        talents = char_data['character']['talents'].split('/')
         # 创建角色
         character = CharacterClassMap[char_data['character']['id']](
             level=char_data['character']['level'],
             skill_params=[
-                 int(char_data['character']['talents'][0]) ,
-                 int(char_data['character']['talents'][2]),
-                 int(char_data['character']['talents'][4])
+                 int(talents[0]) ,
+                 int(talents[1]),
+                 int(talents[2])
             ],
             constellation=char_data['character'].get('constellation', 0)
         )

@@ -4,6 +4,7 @@ from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
 from setup.HealingCalculation import HealingCalculateEventHandler
+from setup.Logger import logger_init
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 
@@ -16,6 +17,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_ELEMENTAL_REACTION,ElementalReactionHandler())
     EventBus.subscribe(EventType.BEFORE_ENERGY_CHANGE, ElementalEnergyEventHandler())
     EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
+    logger_init()
 
 # todo:
 # 1. 暴击率系统

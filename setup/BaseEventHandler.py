@@ -3,6 +3,7 @@ from setup.DataHandler import send_to_handler
 from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
+from setup.Logger import get_emulation_logger
 
 
 class FrameEndEventHandler(EventHandler):
@@ -75,7 +76,7 @@ class ElementalEnergyEventHandler(EventHandler):
                                            character.elemental_energy.elemental_energy[1] -
                                            character.elemental_energy.current_energy)
                     character.elemental_energy.current_energy += emergy_value
-                print(f'🔋 {character.name}恢复{emergy_value:.2f}点元素能量')
+                get_emulation_logger().log_energy(character, emergy_value)
                 e_event = EnergyChargeEvent(character, (amount[0],emergy_value),
                                             GetCurrentTime(),
                                             before=False,
@@ -93,7 +94,7 @@ class ElementalEnergyEventHandler(EventHandler):
                                            character.elemental_energy.elemental_energy[1] -
                                            character.elemental_energy.current_energy)
                         character.elemental_energy.current_energy += emergy_value
-                        print(f'🔋 {character.name}恢复{emergy_value:.2f}点元素能量')
+                        get_emulation_logger().log_energy(character, emergy_value)
                     e_event = EnergyChargeEvent(character, (amount[0],emergy_value),
                                             GetCurrentTime(),
                                             before=False,

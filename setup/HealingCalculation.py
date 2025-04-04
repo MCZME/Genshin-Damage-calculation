@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from character.character import Character
 from setup.Event import EventBus, EventHandler, EventType, HealEvent
+from setup.Logger import get_emulation_logger
 
 class HealingType(Enum):
     NORMAL = auto()      # 普通治疗
@@ -93,7 +94,11 @@ class HealingCalculateEventHandler(EventHandler):
             
             event.data['target'].heal(event.data['healing'].final_value)
 
-            print(f'💚 {event.data["character"].name} 使用 {event.data["healing"].name} 治疗 {event.data["target"].name} {event.data["healing"].final_value:.2f} 生命值')
+            get_emulation_logger().log_heal(
+                event.data["character"], 
+                event.data["target"], 
+                event.data["healing"]
+            )
             
             # 发布治疗后事件
             after_event = HealEvent(

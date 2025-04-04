@@ -5,6 +5,7 @@ from setup.ElementalReaction import ElementalReaction, ElementalReactionType
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Target import Target
 from setup.Tool import GetCurrentTime
+from setup.Logger import get_emulation_logger
 
 # 定义一个枚举类，表示伤害类型
 class DamageType(Enum):
@@ -193,18 +194,7 @@ class DamageCalculateEventHandler(EventHandler):
             elif damage.baseValue == '防御力':
                 calculation.calculation_by_def()
 
-            element_icons = {
-                '物理': '⚔️',
-                '水': '🌊',
-                '火': '🔥',
-                '冰': '❄️',
-                '风': '🌪️',
-                '雷': '⚡',
-                '岩': '⛰️',
-                '草': '🌿'
-            }
-            e = element_icons.get(damage.element[0], '❓')
-            print(f'{e} {character.name}使用 {damage.name} 造成{damage.damage:.2f}点 {damage.element[0]+"元素" if damage.element[0] != "物理" else damage.element[0]} 伤害')
+            get_emulation_logger().log_damage(character, event.data['target'], damage)
                 
             damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
             EventBus.publish(damageEvent)
