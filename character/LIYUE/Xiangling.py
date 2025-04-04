@@ -27,7 +27,7 @@ class GuobaObject(baseObject):
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
 
-        energy_event = EnergyChargeEvent(self.caster,('火', 6), GetCurrentTime())
+        energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
         EventBus.publish(energy_event)
 
         # 命座1效果：锅巴攻击降低火抗

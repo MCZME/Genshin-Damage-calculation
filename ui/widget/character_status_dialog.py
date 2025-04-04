@@ -528,7 +528,7 @@ class CharacterStatusDialog(QDialog):
                         display_text = f"<b>{prop}:</b> {int(value)} + {int(new_data['panel']['固定'+prop] + value*new_data['panel'][prop+'%']/100)}"
                         self.prop_widgets[prop].data['value'] = int(value) + new_data['panel']['固定'+prop]+value*new_data['panel'][prop+'%']/100
                     else:
-                        display_text = f"<b>{prop}:</b> {value}"
+                        display_text = f"<b>{prop}:</b> {value:.1f}"
                         self.prop_widgets[prop].data['value'] = value
                     # 获取部件中的QLabel并更新文本
                     for child in self.prop_widgets[prop].children():

@@ -1,6 +1,6 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
@@ -18,6 +18,7 @@ class HealingFieldEffect(Effect, EventHandler):
         self.duration = duration
         self.last_heal_time = 0
         self.current_char = caster
+        self.heal_triggered = False
         
         self.multipiler = [
             (2.67, 256.76), (2.87, 282.47), (3.07, 310.3), (3.33, 340.26), (3.53, 372.36),
@@ -61,7 +62,6 @@ class HealingFieldEffect(Effect, EventHandler):
                 self.current_char.remove_effect(self)
                 self.current_char = new_char
                 self.apply()
-
 
     def update(self, target):
         if self.duration > 0:
@@ -192,7 +192,7 @@ class ElementalSkill(SkillBase, EventHandler):
                 surge.apply()
                 print(f"🌊 生成流涌之刃")
                 for _ in range(4):
-                    energy_event = EnergyChargeEvent(self.caster,('火', 6), GetCurrentTime())
+                    energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
                     EventBus.publish(energy_event)
         return False
     
@@ -218,7 +218,7 @@ class DoubleDamageBullet(baseObject):
     def on_frame_update(self, target):
         return super().on_frame_update(target)
        
-class ElementalBurst(SkillBase):
+class ElementalBurst(EnergySkill):
     """元素爆发：轰烈子母弹"""
     def __init__(self, lv):
         super().__init__(name="轰烈子母弹", total_frames=60, cd=15*60, lv=lv,
@@ -487,7 +487,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
         # 在HealingFieldEffect添加12秒后全队治疗
         original_remove = HealingFieldEffect.remove
         def new_remove(self):
-            original_remove()
+            original_remove(self)
             if self.character.constellation >= 6 and not self.heal_triggered:
                 self.heal_triggered = True
                 # 12秒后触发全队治疗

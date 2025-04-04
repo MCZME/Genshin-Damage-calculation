@@ -28,7 +28,7 @@ def send_to_window(type):
 def generate_damage_report():
     d = {}
     from setup.Event import EventType
-    for frame in range(1,len(total_frame_data)):
+    for frame in range(1,len(total_frame_data)+1):
         d[frame] = 0
         for event in total_frame_data[frame]['event']:
             if event['type'] == EventType.AFTER_DAMAGE:

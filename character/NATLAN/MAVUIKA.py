@@ -59,7 +59,7 @@ class ElementalSkill(SkillBase,EventHandler):
             EventBus.publish(damageEvent)
             self.ttt = False
             for _ in range(5):
-                energy_event = EnergyChargeEvent(self.caster,('火', 6), GetCurrentTime())
+                energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
                 EventBus.publish(energy_event)
         if self.caster.mode == '正常模式':
             return True

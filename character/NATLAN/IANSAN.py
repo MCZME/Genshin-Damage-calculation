@@ -154,7 +154,7 @@ class ElementalSkill(SkillBase):
             LightningDashEffect(self.caster).apply()
 
             for _ in range(4):
-                energy_event = EnergyChargeEvent(self.caster,('雷', 6), GetCurrentTime())
+                energy_event = EnergyChargeEvent(self.caster,('雷', 2), GetCurrentTime())
                 EventBus.publish(energy_event)
 
         self.caster.movement += 3.6
@@ -408,7 +408,6 @@ class StandardActionEffect(Effect, EventHandler):
         self.character.attributePanel['攻击力%'] -= self.attack_boost
         self.character.remove_effect(self)
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
-        EventBus.unsubscribe(EventType.NIGHTSOUL_BLESSING_END, self)
         print(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):

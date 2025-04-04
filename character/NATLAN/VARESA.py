@@ -383,7 +383,7 @@ class ElementalSkill(SkillBase):
                 effect = RainbowPlungeEffect(self.caster)
                 effect.apply()
             for _ in range(3):
-                energy_event = EnergyChargeEvent(self.caster,('雷', 6), GetCurrentTime())
+                energy_event = EnergyChargeEvent(self.caster,('雷', 2), GetCurrentTime())
                 EventBus.publish(energy_event)
             
         self.caster.movement += 4.347
