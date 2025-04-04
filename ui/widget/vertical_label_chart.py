@@ -46,7 +46,7 @@ class VerticalLabelChart(QWidget):
 
         series = QBarSeries()
         series.setLabelsVisible(True)
-        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsCenter)
+        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
         bar_set = QBarSet("伤害值")
         bar_set.setLabelColor(Qt.black)

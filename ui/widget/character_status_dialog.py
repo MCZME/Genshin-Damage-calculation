@@ -525,7 +525,7 @@ class CharacterStatusDialog(QDialog):
                     # 更新现有属性
                     value = new_data['panel'][prop]
                     if prop in ['生命值','攻击力','防御力']:
-                        display_text = f"<b>{prop}:</b> {int(value)}"
+                        display_text = f"<b>{prop}:</b> {int(value)} + {int(new_data['panel']['固定'+prop] + value*new_data['panel'][prop+'%']/100)}"
                         self.prop_widgets[prop].data['value'] = int(value) + new_data['panel']['固定'+prop]+value*new_data['panel'][prop+'%']/100
                     else:
                         display_text = f"<b>{prop}:</b> {value}"

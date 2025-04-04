@@ -79,7 +79,7 @@ class CharacterWindow(QDialog):
             spin = QSpinBox()
             spin.setObjectName(f"talent_spin_{i}")
             spin.setRange(1, 15)
-            spin.setFixedWidth(15)
+            spin.setFixedWidth(20)
             spin.setStyleSheet("""
                 QSpinBox::up-button, 
                 QSpinBox::down-button {
@@ -593,7 +593,7 @@ class CharacterWindow(QDialog):
         """获取角色配置数据"""
         # 获取天赋spinbox的值
         talent_spins = []
-        # 天赋spinbox位于char_layout中索引7,9,11的位置
+        # 天赋spinbox位于char_layout中索引8,10,12的位置
         for i in [8,10,12]:
             spin = self.char_layout.itemAt(i).widget()
             if isinstance(spin, QSpinBox):
@@ -637,7 +637,13 @@ class CharacterWindow(QDialog):
                 if item and item.widget():
                     row = item.widget()
                     label = row.layout().itemAt(0).widget()
-                    artifact_data["sub_stats"][label.text().split(":")[0]] = float(label.text().split(":")[1].strip('%'))
+                    stat_text = label.text()
+                    try:
+                        stat_name, stat_value = stat_text.split(":") 
+                        stat_value = stat_value.strip().replace('%','')
+                        artifact_data["sub_stats"][stat_name.strip()] = float(stat_value)
+                    except (ValueError, IndexError) as e:
+                        print(f"解析副属性错误: {stat_text}, 错误: {str(e)}")
 
 
             data["artifacts"].append(artifact_data)
@@ -706,7 +712,11 @@ class CharacterWindow(QDialog):
                     stat_row_layout.setSpacing(5)
                     
                     # 副属性标签
-                    stat_label = QLabel(f"{stat}: {value}%")
+                    # 统一副属性显示格式
+                    if stat in ["攻击力%", "生命值%", "防御力%", "暴击率", "暴击伤害", "元素充能效率"]:
+                        stat_label = QLabel(f"{stat}: {value}%")
+                    else:
+                        stat_label = QLabel(f"{stat}: {value}")
                     stat_label.setStyleSheet("""
                         font-size: 12px;
                         color: #6c757d;
@@ -714,9 +724,10 @@ class CharacterWindow(QDialog):
                     """)
                     stat_label.setAlignment(Qt.AlignLeft)
                     
-                    # 删除按钮
                     delete_btn = QPushButton("×")
                     delete_btn.setFixedSize(12, 12)
+                    delete_btn.setMinimumSize(12, 12)
+                    delete_btn.setMaximumSize(12, 12)
                     delete_btn.setStyleSheet("""
                         QPushButton {
                             background-color: #ffebee;
@@ -724,6 +735,12 @@ class CharacterWindow(QDialog):
                             border: none;
                             border-radius: 6px;
                             font-size: 8px;
+                            min-width: 12px;
+                            max-width: 12px;
+                            min-height: 12px;
+                            max-height: 12px;
+                            padding: 0px;
+                            margin: 0px;
                         }
                         QPushButton:hover {
                             background-color: #ffcdd2;

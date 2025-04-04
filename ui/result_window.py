@@ -224,7 +224,7 @@ class ResultWindow(QMainWindow):
         chart_layout.addWidget(self.chart_title)
         
         self.chart = VerticalLabelChart()
-        self.chart.setMinimumSize(400, 300)
+        self.chart.setMinimumSize(400, 400)
         self.chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.chart.set_data(send_to_window('damage'))
         self.chart.bar_clicked.connect(self.on_chart_bar_clicked)
