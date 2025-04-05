@@ -146,7 +146,12 @@ class InfoCardWidget(QWidget):
                         main_layout.addWidget(group_label)
                         add_dict_items(val, indent + 10)
                     else:
-                        item = QLabel(f"{key}: {val:.2f}")
+                        if isinstance(val, (bool)):
+                            item = QLabel(f"{key}: {val}")
+                        elif isinstance(val, (int, float)):
+                            item = QLabel(f"{key}: {val:.2f}")
+                        else:
+                            item = QLabel(f"{key}: {val}")
                         item.setStyleSheet(f"""
                             QLabel {{
                                 font-size: 13px;

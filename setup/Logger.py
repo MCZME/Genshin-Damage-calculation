@@ -64,17 +64,37 @@ class EmulationLogger(BaseLogger):
             message = f"🔋 {character.name} 恢复 {energy_value:.2f} 点元素能量"
             self._write_log("ENERGY", message)
 
+    def log_error(self, error_msg):
+        """记录错误日志"""
+        self._write_log("ERROR", error_msg)
+
 class UILogger(BaseLogger):
     def __init__(self):
         super().__init__("UI")
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        self.log_file = Config.get('logging.UI.file_path')+f"ui_{timestamp}.log"
+        
+    def _write_log(self, level, message):
+        """重写日志写入方法，使用现实时间"""
+        log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}][{level}][{self.name}] {message}\n"
+        
+        # 写入文件
+        if Config.get('logging.save_file'):
+            with open(self.log_file, 'a', encoding='utf-8') as f:
+                f.write(log_entry)
+            
+        # 同时输出到控制台
+        print(log_entry.strip())
         
     def log_button_click(self, button_name):
         """记录按钮点击日志"""
-        self._write_log("INFO", f"点击按钮: {button_name}")
+        if Config.get('logging.UI.button_click', True):
+            self._write_log("INFO", f"点击按钮: {button_name}")
         
     def log_window_open(self, window_name):
         """记录窗口打开日志"""
-        self._write_log("INFO", f"打开窗口: {window_name}")
+        if Config.get('logging.UI.window_open', True):
+            self._write_log("INFO", f"打开窗口: {window_name}")
         
     def log_ui_error(self, error_msg):
         """记录UI错误日志"""

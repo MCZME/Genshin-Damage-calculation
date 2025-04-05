@@ -12,11 +12,13 @@ from .widget.action_card import ActionCard
 from .result_window import ResultWindow
 from .widget.character_window import CharacterWindow
 from .action_setting_dialog import ActionSettingDialog
+from setup.Logger import get_ui_logger
 
 class MainWindow(QMainWindow):
     """主窗口类"""
     def __init__(self):
         super().__init__()
+        self.logger = get_ui_logger()
         self.setWindowTitle("原神伤害计算器")
         self.setMinimumSize(960, 700)
         self.character_windows = {}  # 存储每个角色槽位的窗口
@@ -395,14 +397,23 @@ class MainWindow(QMainWindow):
         
     def _start_calculation(self):
         """开始计算按钮点击处理"""
-        team_data,action_sequence = self.get_data()
-        start_simulation(team_data, action_sequence)
-        self.result_window = ResultWindow()
-        self.result_window.show()
-        self.close()
+        self.logger.log_button_click("开始计算")
+        try:
+            team_data, action_sequence = self.get_data()
+            self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
+            start_simulation(team_data, action_sequence)
+            self.result_window = ResultWindow()
+            self.result_window.show()
+            self.close()
+        except Exception as e:
+            error_msg = f"计算过程中出错: {str(e)}"
+            self.logger.log_ui_error(error_msg)
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "计算错误", error_msg)
 
     def _open_character_window(self, slot_idx):
         """打开角色配置窗口"""
+        self.logger.log_window_open(f"角色配置窗口(槽位{slot_idx+1})")
         if slot_idx not in self.character_windows:
             self.character_windows[slot_idx] = CharacterWindow(self)
             # 连接窗口关闭信号到更新方法
@@ -525,6 +536,7 @@ class MainWindow(QMainWindow):
 
     def _reset_data(self):
         """重置数据"""
+        self.logger.log_button_click("重置配置")
         from PySide6.QtWidgets import QMessageBox
         
         # 创建选择对话框
@@ -539,13 +551,13 @@ class MainWindow(QMainWindow):
         clicked_button = msg_box.clickedButton()
         
         if clicked_button == reset_chars:  # 重置角色
-            print("执行角色重置")  # 调试日志
+            self.logger.log_button_click("执行角色重置")
             # 清空所有角色数据并更新显示
             for slot_idx in range(4):
                 self._clear_character_slot(slot_idx)
         
         elif clicked_button == reset_actions:  # 重置动作序列
-            print("执行动作序列重置")  # 调试日志
+            self.logger.log_button_click("执行动作序列重置")
             # 删除所有动作卡片
             for i in reversed(range(self.action_container_layout.count())):
                 widget = self.action_container_layout.itemAt(i).widget()
@@ -590,7 +602,7 @@ class MainWindow(QMainWindow):
 
     def _add_action_card(self):
         """添加动作卡片"""
-        print("_add_action_card被调用")  # 调试用
+        self.logger.log_button_click("添加动作卡片")
         # 检查是否有角色
         has_character = False
         character_names = []
@@ -600,8 +612,10 @@ class MainWindow(QMainWindow):
                 character_names.append(window.result_data['character']['name'])
         
         if not has_character:
+            error_msg = "添加动作卡片失败: 请先设置角色"
+            self.logger.log_ui_error(error_msg)
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "警告", "请先设置角色")
+            QMessageBox.warning(self, "警告", error_msg)
             return
             
         # 弹出设置对话框
@@ -626,6 +640,13 @@ class MainWindow(QMainWindow):
             # 更新卡片数据
             self._update_action_card(card, data)
             
+            # 记录成功创建动作卡片
+            action_info = f"角色:{data['character']} 动作:{data['action']}"
+            if data.get('params'):
+                params_str = ', '.join(f"{k}:{v}" for k,v in data['params'].items())
+                action_info += f" 参数:{params_str}"
+            self.logger.log_button_click(f"成功创建动作卡片 - {action_info}")
+            
             # 确保滚动到最右侧
             scroll_area = self.findChild(QScrollArea)
             if scroll_area:
@@ -633,19 +654,26 @@ class MainWindow(QMainWindow):
                 # 使用定时器确保在布局更新后执行滚动
                 from PySide6.QtCore import QTimer
                 QTimer.singleShot(100, lambda: scroll_bar.setValue(scroll_bar.maximum()))
-            print("动作卡片添加成功")  # 调试用
         except Exception as e:
-            print(f"添加卡片出错: {str(e)}")  # 调试用
+            error_msg = f"创建动作卡片失败: {str(e)}"
+            self.logger.log_ui_error(error_msg)
 
     def _update_action_card(self, card, data):
         """更新动作卡片显示"""
         try:
             card.update_data(data)
+            action_info = f"角色:{data['character']} 动作:{data['action']}"
+            if data.get('params'):
+                params_str = ', '.join(f"{k}:{v}" for k,v in data['params'].items())
+                action_info += f" 参数:{params_str}"
+            self.logger.log_button_click(f"成功更新动作卡片 - {action_info}")
         except Exception as e:
-            print(f"更新卡片出错: {str(e)}")
+            error_msg = f"更新动作卡片失败: {str(e)}"
+            self.logger.log_ui_error(error_msg)
 
     def _save_data(self):
         """保存数据到文件"""
+        self.logger.log_button_click("保存配置")
         try:
             # 确保data目录存在
             os.makedirs("./data", exist_ok=True)
@@ -671,13 +699,17 @@ class MainWindow(QMainWindow):
                 
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, "保存成功", f"配置已保存到: {filename}")
+            self.logger.log_button_click(f"成功保存配置到: {filename}")
             
         except Exception as e:
+            error_msg = f"保存配置时出错: {str(e)}"
+            self.logger.log_ui_error(error_msg)
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "保存失败", f"保存配置时出错: {str(e)}")
+            QMessageBox.critical(self, "保存失败", error_msg)
 
     def _load_data(self):
         """从文件加载数据"""
+        self.logger.log_button_click("加载配置")
         try:
             # 选择文件
             filename, _ = QFileDialog.getOpenFileName(
@@ -728,10 +760,13 @@ class MainWindow(QMainWindow):
             
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, "加载成功", f"已从 {filename} 加载配置")
+            self.logger.log_button_click(f"成功加载配置: {filename}")
             
         except Exception as e:
+            error_msg = f"加载配置时出错: {str(e)}"
+            self.logger.log_ui_error(error_msg)
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "加载失败", f"加载配置时出错: {str(e)}")
+            QMessageBox.critical(self, "加载失败", error_msg)
 
     def get_data(self):
         """获取当前配置数据"""
