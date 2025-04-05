@@ -144,7 +144,7 @@ def start_simulation(team_data, action_sequence):
     emulator = Emulation(
         team=team,
         target_id=0,  # 可配置化
-        target_level=90  # 可配置化
+        target_level=103  # 可配置化
     )
     
     # 4. 执行模拟

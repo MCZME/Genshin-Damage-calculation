@@ -36,7 +36,7 @@ class MorningGlowEffect(Effect,EventHandler):
         if event.data['character'] != self.character:
             return
         if event.event_type == EventType.AFTER_PLUNGING_ATTACK and event.data['is_plunging_impact']:
-            self.duration = 6
+            self.duration = 43
         elif event.event_type == EventType.BEFORE_CRITICAL:
             if event.data['damage'].damageType == DamageType.PLUNGING:
                 event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]

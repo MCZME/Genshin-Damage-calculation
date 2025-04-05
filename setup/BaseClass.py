@@ -304,10 +304,9 @@ class PlungingAttackSkill(SkillBase):
         )
         EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
 
-        EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
-
     def on_finish(self):
         super().on_finish()
+        EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
         print(f"💥 {self.caster.name} 下落攻击完成")
 
     def on_interrupt(self):
