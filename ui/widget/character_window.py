@@ -265,6 +265,26 @@ class CharacterWindow(QDialog):
         
         main_layout.addLayout(artifact_layout, stretch=5)
 
+        # 按钮区域
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+        
+        # 重置按钮
+        reset_btn = QPushButton("重置", styleSheet="""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #e53935;
+            }
+        """)
+        reset_btn.clicked.connect(self.reset)
+        btn_layout.addWidget(reset_btn)
+        
         # 确认按钮
         confirm_btn = QPushButton("确认", styleSheet="""
             QPushButton {
@@ -279,8 +299,9 @@ class CharacterWindow(QDialog):
             }
         """)
         confirm_btn.clicked.connect(self.accept)
-
-        main_layout.addWidget(confirm_btn, stretch=1)
+        btn_layout.addWidget(confirm_btn)
+        
+        main_layout.addLayout(btn_layout, stretch=1)
         self.setLayout(main_layout)
 
     def create_spinbox(self, min_val, max_val, label, layout, row):
@@ -586,6 +607,36 @@ class CharacterWindow(QDialog):
 
         # 更新类型提示
         self.weapon_type_label.setText(weapon_type.capitalize())
+
+    def reset(self):
+        """重置所有数据"""
+        # 重置角色数据
+        self.char_combo.setCurrentIndex(0)
+        self.level_spin.setValue(1)
+        for i in [8,10,12]:  # 天赋spinbox
+            spin = self.char_layout.itemAt(i).widget()
+            if isinstance(spin, QSpinBox):
+                spin.setValue(1)
+        self.constellation_spin.setValue(0)
+        
+        # 重置武器数据
+        self.weapon_combo.setCurrentIndex(0)
+        self.weapon_level_spin.setValue(1)
+        self.refinement_spin.setValue(1)
+        
+        # 重置圣遗物数据
+        for card in self.artifact_cards:
+            # 重置主属性
+            card.main_stat_btn.setText("主属性")
+            
+            # 清除副属性
+            sub_stat_widget = card.layout().itemAt(3).widget()
+            for j in reversed(range(sub_stat_widget.layout().count() - 1)):
+                item = sub_stat_widget.layout().itemAt(j)
+                if item and item.widget():
+                    item.widget().deleteLater()
+            card.sub_stats.clear()
+            card.add_sub_btn.show()
 
     def accept(self):
         """确认按钮点击事件"""

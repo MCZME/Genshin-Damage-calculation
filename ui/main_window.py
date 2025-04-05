@@ -89,14 +89,64 @@ class MainWindow(QMainWindow):
             left_layout.setContentsMargins(0, 0, 0, 0)
             left_layout.setSpacing(5)
             
-            # 角色头像
+            # 角色头像容器
+            avatar_container = QWidget()
+            avatar_container.setStyleSheet("""
+                border: none;
+                padding: 0;
+                margin: 0;
+            """)
+            avatar_container.setFixedSize(50, 50)
+            avatar_layout = QVBoxLayout(avatar_container)
+            avatar_layout.setContentsMargins(0, 0, 0, 0)
+            avatar_layout.setSpacing(0)
+            
+            # 删除按钮 (初始隐藏)
+            delete_btn = QPushButton("×")
+            delete_btn.setFixedSize(12, 12)
+            delete_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ef4444;
+                    color: white;
+                    border-radius: 5px;
+                    font-size: 8px;
+                    font-weight: bold;
+                    border: none;
+                    margin: 0;
+                    padding: 0;
+                }
+                QPushButton:hover {
+                    background-color: #dc2626;
+                }
+            """)
+            delete_btn.clicked.connect(lambda _, idx=i: self._clear_character_slot(idx))
+            
+            # 头像标签
             self.avatar_label = QLabel()
             self.avatar_label.setFixedSize(50, 50)
             self.avatar_label.setStyleSheet("""
                 background-color: #e9ecef;
                 border-radius: 25px;
             """)
-            left_layout.addWidget(self.avatar_label, 0, Qt.AlignCenter)
+            
+            # 将按钮覆盖在头像上
+            overlay = QWidget()
+            overlay.setFixedHeight(15)
+            overlay.setStyleSheet("""
+                border: none;
+                margin: 0;
+                padding: 0;
+                background-color: transparent;
+            """)
+            overlay_layout = QHBoxLayout(overlay)
+            overlay_layout.setContentsMargins(0, 3, 3, 0)
+            overlay_layout.setAlignment(Qt.AlignRight)
+            overlay_layout.setSpacing(0)
+            overlay_layout.addWidget(delete_btn, 0)
+            left_layout.addWidget(overlay, 0, Qt.AlignRight)
+
+            avatar_layout.addWidget(self.avatar_label)
+            left_layout.addWidget(avatar_container, 0, Qt.AlignCenter)
             
             # 等级和天赋
             self.char_info = QLabel("Lv.0\n天赋:0/0/0")
@@ -284,6 +334,7 @@ class MainWindow(QMainWindow):
         calc_btn.clicked.connect(self._start_calculation)
         reset_btn = QPushButton("重置")
         reset_btn.setFixedWidth(60)
+        reset_btn.clicked.connect(self._reset_data)
         
         button_layout.addWidget(load_btn)
         button_layout.addWidget(save_btn)
@@ -394,8 +445,8 @@ class MainWindow(QMainWindow):
             return
             
         # 获取左侧子部件
-        avatar_label = left_widget.layout().itemAt(0).widget()
-        char_info = left_widget.layout().itemAt(1).widget()
+        avatar_label = left_widget.layout().itemAt(1).widget()
+        char_info = left_widget.layout().itemAt(2).widget()
         
         # 获取右侧子部件
         weapon_label = right_widget.layout().itemAt(0).widget()
@@ -441,11 +492,101 @@ class MainWindow(QMainWindow):
             print(f"槽位 {slot_idx} 没有有效数据，重置显示")
             self._reset_slot_display(char_info, weapon_label, artifact_label)
 
+    def _clear_character_slot(self, slot_idx):
+        """清除指定槽位的角色数据"""
+        if slot_idx in self.character_windows:
+            # 删除角色窗口实例
+            self.character_windows[slot_idx].deleteLater()
+            del self.character_windows[slot_idx]
+            # 立即重置槽位显示
+            self._reset_slot_display_by_index(slot_idx)
+        else:
+            # 对于未初始化的槽位，手动重置显示
+            team_frame = self.centralWidget().layout().itemAt(2).widget()
+            if not team_frame:
+                return
+                
+            char_slots = team_frame.layout().itemAt(0)
+            if not char_slots or slot_idx >= char_slots.count():
+                return
+                
+            slot_container = char_slots.itemAt(slot_idx).widget()
+            if not slot_container:
+                return
+            
+            left_widget = slot_container.layout().itemAt(0).widget()
+            right_widget = slot_container.layout().itemAt(1).widget()
+            
+            if left_widget and right_widget:
+                char_info = left_widget.layout().itemAt(2).widget()
+                weapon_label = right_widget.layout().itemAt(0).widget()
+                artifact_label = right_widget.layout().itemAt(1).widget()
+                self._reset_slot_display(char_info, weapon_label, artifact_label)
+
+    def _reset_data(self):
+        """重置数据"""
+        from PySide6.QtWidgets import QMessageBox
+        
+        # 创建选择对话框
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("重置选项")
+        msg_box.setText("请选择要重置的内容:")
+        reset_chars = msg_box.addButton("重置角色", QMessageBox.ActionRole)
+        reset_actions = msg_box.addButton("重置动作序列", QMessageBox.ActionRole)
+        msg_box.addButton("取消", QMessageBox.RejectRole)
+        
+        msg_box.exec()
+        clicked_button = msg_box.clickedButton()
+        
+        if clicked_button == reset_chars:  # 重置角色
+            print("执行角色重置")  # 调试日志
+            # 清空所有角色数据并更新显示
+            for slot_idx in range(4):
+                self._clear_character_slot(slot_idx)
+        
+        elif clicked_button == reset_actions:  # 重置动作序列
+            print("执行动作序列重置")  # 调试日志
+            # 删除所有动作卡片
+            for i in reversed(range(self.action_container_layout.count())):
+                widget = self.action_container_layout.itemAt(i).widget()
+                if isinstance(widget, ActionCard):
+                    widget.deleteLater()
+            
+            # 显示初始提示并确保布局更新
+            if hasattr(self, 'hint_container') and self.hint_container:
+                self.hint_container.setVisible(True)
+                self.action_container.layout().update()
+
     def _reset_slot_display(self, char_info, weapon_label, artifact_label):
         """重置角色槽显示为初始状态"""
         char_info.setText("Lv.0\n天赋:0/0/0")
         weapon_label.setText("无武器")
         artifact_label.setText("无套装")
+
+    def _reset_slot_display_by_index(self, slot_idx):
+        """通过槽位索引重置显示"""
+        # 获取角色槽容器
+        team_frame = self.centralWidget().layout().itemAt(2).widget()
+        if not team_frame:
+            return
+            
+        char_slots = team_frame.layout().itemAt(0)
+        if not char_slots or slot_idx >= char_slots.count():
+            return
+            
+        slot_container = char_slots.itemAt(slot_idx).widget()
+        if not slot_container:
+            return
+            
+        # 获取左右部件
+        left_widget = slot_container.layout().itemAt(0).widget()
+        right_widget = slot_container.layout().itemAt(1).widget()
+        
+        if left_widget and right_widget:
+            char_info = left_widget.layout().itemAt(2).widget()
+            weapon_label = right_widget.layout().itemAt(0).widget()
+            artifact_label = right_widget.layout().itemAt(1).widget()
+            self._reset_slot_display(char_info, weapon_label, artifact_label)
 
     def _add_action_card(self):
         """添加动作卡片"""
