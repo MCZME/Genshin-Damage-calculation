@@ -1,9 +1,9 @@
 from setup.DamageCalculation import DamageType
 from weapon.weapon import Weapon
-from setup.Event import EventBus, EventType, EventHandler
+from setup.Event import EnergyChargeEvent, EventBus, EventType, EventHandler
 from setup.BaseEffect import AttackBoostEffect
 
-polearm = ['且住亭御咄','渔获']
+polearm = ['且住亭御咄','渔获','沙中伟贤的对答']
 
 class TamayurateinoOhanashi(Weapon, EventHandler):
     ID = 161
@@ -38,4 +38,33 @@ class TheCatch(Weapon, EventHandler):
         # 只处理元素爆发类型的伤害
         if event.data['damage'].damageType == DamageType.BURST:
             event.data['damage'].panel['伤害加成'] += self.burst_bonus[self.lv-1]
-            event.data['damage'].setDamageData('渔获',{'伤害加成': self.burst_bonus[self.lv-1]})
+            event.data['damage'].setDamageData("渔获_伤害加成", self.burst_bonus[self.lv-1])
+
+class DialoguesOfTheDesertSages(Weapon, EventHandler):
+    ID = 157
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, DialoguesOfTheDesertSages.ID, level, lv)
+        self.energy_restore = [8, 10, 12, 14, 16]
+        self.last_trigger_frame = -600  # 初始化为-600确保第一次可以触发
+        
+        EventBus.subscribe(EventType.AFTER_HEAL, self)
+
+    def handle_event(self, event):
+        if event.data['healing'].source != self.character:
+            return
+            
+        current_frame = event.frame
+        if current_frame - self.last_trigger_frame < 600:  # 10秒=600帧
+            return
+            
+        # 触发能量恢复
+        energy_event = EnergyChargeEvent(
+            character=self.character,
+            amount=('无',self.energy_restore[self.lv-1]),
+            frame=current_frame,
+            is_fixed=True,
+            is_alone=True
+        )
+        EventBus.publish(energy_event)
+        
+        self.last_trigger_frame = current_frame

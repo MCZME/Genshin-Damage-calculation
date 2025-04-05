@@ -21,5 +21,6 @@ WeaponClassMap = {
     '焚曜千阳':AThousandBlazingSuns,
     '且住亭御咄':TamayurateinoOhanashi,
     '渔获':TheCatch,
-    '溢彩心念':VividNotions
+    '溢彩心念':VividNotions,
+    '沙中伟贤的对答':DialoguesOfTheDesertSages,
 }
