@@ -33,7 +33,6 @@ class InfoCardWidget(QWidget):
                 padding: 10px;
                 margin: 8px 5px;
                 border: 2px solid {border_color};  
-                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             }}
             
             /* 标题样式 */

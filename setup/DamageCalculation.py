@@ -160,15 +160,51 @@ class Calculation:
 
               
     def calculation_by_attack(self):
-        value = self.attack() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+        self.damage.setPanel('固定伤害基础值加成',0)
+        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value = self.attack() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
+        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
     
     def calculation_by_hp(self):
-        value = self.health() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+        self.damage.setPanel('固定伤害基础值加成',0)
+        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value = self.health() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
+        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
 
     def calculation_by_def(self):
-        value = self.DEF() * self.damageMultipiler() * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+        self.damage.setPanel('固定伤害基础值加成',0)
+        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value = self.DEF() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
+        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
         self.damage.damage = value
 
     def calculation_by_reaction(self):

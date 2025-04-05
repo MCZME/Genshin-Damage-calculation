@@ -12,7 +12,7 @@ class BaseLogger:
         log_entry = f"[{GetCurrentTime()}][{level}][{self.name}] {message}\n"
         
         # 写入文件
-        if Config.get('logging.file'):
+        if Config.get('logging.save_file'):
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(log_entry)
             

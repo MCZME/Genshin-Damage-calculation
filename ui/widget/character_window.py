@@ -416,6 +416,10 @@ class CharacterWindow(QDialog):
             form_layout = QFormLayout()
             value_spin = QDoubleSpinBox()
             value_spin.setRange(0, 4780)
+            if slot == "生之花":
+                value_spin.setValue(4780)
+            else:
+                value_spin.setValue(311)
             value_spin.setDecimals(0)
             value_spin.setSingleStep(1)
             form_layout.addRow(f"{fixed_stats[slot]}:", value_spin)
@@ -458,7 +462,7 @@ class CharacterWindow(QDialog):
             stat_combo.addItems(["攻击力%", "生命值%", "防御力%", "元素精通", 
                                "火元素伤害加成", "水元素伤害加成", "雷元素伤害加成",
                                 "冰元素伤害加成", "岩元素伤害加成", "草元素伤害加成", "风元素伤害加成", 
-                               "物理伤害加成", "治疗加成", "暴击率", "暴击伤害"])
+                               "物理伤害加成", "治疗加成", "暴击率", "暴击伤害", "元素充能效率"])
             form_layout.addRow("属性:", stat_combo)
             
             # 数值输入

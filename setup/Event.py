@@ -43,6 +43,8 @@ class EventType(Enum):
     AFTER_BURNING = auto()       # 燃烧反应后
     BEFORE_SUPERCONDUCT = auto()  # 超导反应前
     AFTER_SUPERCONDUCT = auto()   # 超导反应后
+    BEFORE_FIXED_DAMAGE = auto()  # 固定伤害加成计算前
+    AFTER_FIXED_DAMAGE = auto()   # 固定伤害加成计算后
 
     BEFORE_HEALTH_CHANGE = auto()  # 角色血量变化前
     AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
