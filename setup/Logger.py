@@ -68,6 +68,15 @@ class EmulationLogger(BaseLogger):
         """记录错误日志"""
         self._write_log("ERROR", error_msg)
 
+    def log_effect(self, effect_msg):
+        """记录效果应用日志"""
+        if Config.get('logging.Emulation.effect'):
+            self._write_log("EFFECT", effect_msg)
+
+    def log(self, level, message):
+        """自定义日志"""
+        self._write_log(level, message)
+
 class UILogger(BaseLogger):
     def __init__(self):
         super().__init__("UI")

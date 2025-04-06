@@ -1,9 +1,11 @@
+from unittest.mock import seal
 from character.character import Character
 from setup.BaseEffect import  Effect, ElementalDamageBoostEffect
 from setup.DamageCalculation import DamageType
 from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
+from setup.Logger import get_emulation_logger
 
 class ArtifactEffect(EventHandler):
     def __init__(self,name):
@@ -54,65 +56,64 @@ class ObsidianCodex(ArtifactEffect):
 
 class CinderCityEffect(ElementalDamageBoostEffect):
     """烬城勇者绘卷效果"""
-    def __init__(self, character,element_type):
+    def __init__(self, character,current_character,element_type):
         super().__init__(character, '烬城勇者绘卷', element_type, 12, 12*60)
         self.stacks = {}
         self.nightsoul_stacks = {}
         self.nightsoul_duration = 20*60
         self.nightsoul_bonus = 28
+        self.current_character = current_character
 
     def apply(self,element_type):
         # 防止重复应用
-        for character in Team.team:
-            existing = next((e for e in character.active_effects 
-                        if isinstance(e, CinderCityEffect) and e.name == self.name), None)
-            if existing:
-                for i in element_type:
-                    if i in existing.stacks.keys():
-                        existing.stacks[i] = self.duration
-                    else:
-                        existing.apply_element(i)
-                    if self.character.Nightsoul_Blessing:
-                        if i in existing.nightsoul_stacks.keys():
-                            existing.nightsoul_stacks[i] = self.nightsoul_bonus
-                        else:
-                            existing.apply_nightsoul(i)
-                return
-            for element in self.element_type:
-                character.attributePanel[element+'元素伤害加成'] += self.bonus
-                character.add_effect(self)
-                self.stacks[element] = self.duration
+        existing = next((e for e in self.current_character.active_effects 
+                    if isinstance(e, CinderCityEffect)), None)
+        if existing:
+            for i in element_type:
+                if i in existing.stacks.keys():
+                    existing.stacks[i] = self.duration
+                else:
+                    existing.apply_element(i)
                 if self.character.Nightsoul_Blessing:
-                    character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
-                    self.nightsoul_stacks[element] = self.nightsoul_bonus
-            print(f"{character.name}获得{element_type}烬城勇者绘卷效果")
+                    if i in existing.nightsoul_stacks.keys():
+                        existing.nightsoul_stacks[i] = self.nightsoul_bonus
+                    else:
+                        existing.apply_nightsoul(i)
+            return
+        for element in self.element_type:
+            self.current_character.attributePanel[element+'元素伤害加成'] += self.bonus
+            self.stacks[element] = self.duration
+            if self.character.Nightsoul_Blessing:
+                self.current_character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
+                self.nightsoul_stacks[element] = self.nightsoul_duration
+        self.current_character.add_effect(self)
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}获得{element_type}烬城勇者绘卷效果")
 
     def apply_element(self,element):
-        for character in Team.team:
-            character.attributePanel[element+'元素伤害加成'] += self.bonus
-            self.stacks[element] = self.duration
+        self.current_character.attributePanel[element+'元素伤害加成'] += self.bonus
+        self.stacks[element] = self.duration
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}触发烬城勇者绘卷 效果")
 
     def apply_nightsoul(self,element):
-        for character in Team.team:
-            character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
-            self.nightsoul_stacks[element] = self.nightsoul_bonus
+        self.current_character.attributePanel[element+'元素伤害加成'] += self.nightsoul_bonus
+        self.nightsoul_stacks[element] = self.nightsoul_duration
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}触发烬城勇者绘卷 夜魂效果")
         
     def remove(self):
-        for character in Team.team:
-            for element in self.element_type:
-                character.attributePanel[element+'元素伤害加成'] -= self.bonus
-            character.remove_effect(self)
-            print(f"{character.name}: {self.name}效果结束")
+        for element in self.element_type:
+            self.current_character.attributePanel[element+'元素伤害加成'] -= self.bonus
+        self.current_character.remove_effect(self)
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}失去{self.name}效果")
 
     def remove_element(self,element):
-        for character in Team.team:
-            character.attributePanel[element+'元素伤害加成'] -= self.bonus
+        self.current_character.attributePanel[element+'元素伤害加成'] -= self.bonus
         del self.stacks[element]
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}失去{element}烬城勇者绘卷 效果")
 
     def remove_nightsoul(self,element):
-        for character in Team.team:
-            character.attributePanel[element+'元素伤害加成'] -= self.nightsoul_bonus
+        self.current_character.attributePanel[element+'元素伤害加成'] -= self.nightsoul_bonus
         del self.nightsoul_stacks[element]
+        get_emulation_logger().log_effect(f"🌋 {self.current_character.name}失去{element}烬城勇者绘卷 夜魂效果")
 
     def update(self,target):
         keys_to_remove = [elemment for elemment, time in self.stacks.items() if time <= 0]
@@ -147,7 +148,9 @@ class ScrolloftheHeroOfCinderCity(ArtifactEffect):
         elif event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             reaction = event.data['elementalReaction']
             if reaction.source == self.character:
-                CinderCityEffect(self.character,[reaction.target_element, reaction.damage.element[0]]).apply([reaction.target_element, reaction.damage.element[0]])
+                for character in Team.team:
+                    effect = CinderCityEffect(self.character,character,[reaction.target_element, reaction.damage.element[0]])
+                    effect.apply([reaction.target_element, reaction.damage.element[0]])
 
 class EmblemOfSeveredFate(ArtifactEffect):
     def __init__(self):

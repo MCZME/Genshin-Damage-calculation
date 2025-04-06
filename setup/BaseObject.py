@@ -1,5 +1,6 @@
 from abc import ABC,abstractmethod
-from setup.Event import DamageEvent, EventBus
+from setup.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent
+from setup.Logger import get_emulation_logger
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
 
@@ -43,3 +44,43 @@ class ArkheObject(baseObject):
 
     def on_frame_update(self, target):
         ...
+
+class LightningBladeObject(baseObject):
+    def __init__(self):
+        super().__init__("强能之雷", float('inf'))
+        self.cooldown = 5 * 60  # 5秒冷却(单位:帧)
+        self.last_trigger_time = 0  # 上次触发时间
+        
+    def apply(self):
+        super().apply()
+        # 注册事件监听
+        EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
+        EventBus.subscribe(EventType.AFTER_SUPERCONDUCT, self)
+
+    def on_finish(self, target):
+        EventBus.unsubscribe(EventType.AFTER_OVERLOAD, self)
+        EventBus.unsubscribe(EventType.AFTER_SUPERCONDUCT, self)
+
+    def on_frame_update(self, target):
+        pass
+
+    def handle_event(self, event: GameEvent):
+        """处理元素反应事件"""
+        current_time = event.frame
+        
+        # 检查冷却
+        if current_time - self.last_trigger_time < self.cooldown:
+            return
+            
+        # 恢复2点能量
+        self.last_trigger_time = current_time
+        
+        # 创建能量恢复事件
+        energy_event = EnergyChargeEvent(
+            character=Team.current_character,
+            amount=('雷',2),
+            frame=event.frame,
+            before=False
+        )
+        EventBus.publish(energy_event)
+        get_emulation_logger().log_effect('🔋 触发强能之雷，获得一个雷元素微粒')

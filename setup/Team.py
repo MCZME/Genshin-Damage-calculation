@@ -60,7 +60,13 @@ class Team:
                     effect.apply()
                 Team.active_resonances['愈疗之水'] = True
 
-        # 其他元素共鸣占位结构...
+        # 雷元素共鸣（强能之雷）
+        if Team.element_counts.get('雷', 0) >= 2 and len(Team.team) >= 4:
+            if '强能之雷' not in Team.active_resonances:
+                from setup.BaseObject import LightningBladeObject
+                LightningBladeobject = LightningBladeObject()
+                LightningBladeobject.apply()
+                Team.active_resonances['强能之雷'] = True
         
     def _check_resonance_condition(self, resonance_name):
         # 各共鸣的触发条件检查
@@ -68,7 +74,8 @@ class Team:
             return Team.element_counts.get('火', 0) >= 2 and len(Team.team) >= 4
         elif resonance_name == '愈疗之水':
             return Team.element_counts.get('水', 0) >= 2 and len(Team.team) >= 4
-        # 其他共鸣条件检查...
+        elif resonance_name == '强能之雷':
+            return Team.element_counts.get('雷', 0) >= 2 and len(Team.team) >= 4
         return False
 
     def _remove_resonance(self, resonance_name):
@@ -82,6 +89,11 @@ class Team:
                 effects = [e for e in char.active_effects if e.name == "愈疗之水"]
                 for effect in effects:
                     effect.remove()
+        elif resonance_name == '强能之雷':
+            for obj in Team.active_objects:
+                from setup.BaseObject import LightningBladeObject
+                if isinstance(obj, LightningBladeObject):
+                    obj.remove()
         Team.active_resonances.pop(resonance_name, None)
     
     def clear(self):

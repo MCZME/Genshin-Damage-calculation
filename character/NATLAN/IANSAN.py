@@ -194,14 +194,12 @@ class KineticMarkObject(baseObject):
             self._night_soul_recovery()
 
     def _apply_boost(self):
-        if self.caster.current_night_soul > 42:
-            # 夜魂值少于42点时的加成
-            boost = self._get_attack() * self.caster.current_night_soul * 0.5
-            t='高夜魂'
-        else:
-            # 夜魂值至少42点时的炽烈声援模式
-            boost = self._get_attack() * 0.27
+        if self.caster.current_night_soul < 42:
+            boost = self._get_attack() * self.caster.current_night_soul * 0.5 / 100
             t='低夜魂'
+        else:
+            boost = self._get_attack() * 0.27
+            t='高夜魂'
         if boost > self.max_boost:
             boost = self.max_boost
         self.current_character.attributePanel['固定攻击力'] += boost
@@ -483,7 +481,7 @@ class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
     
     def apply(self):
         # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
@@ -502,7 +500,7 @@ class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             # 角色切换后，检查伊安珊是否在后台
-            if event.data['old_character'] == self.character:
+            if not self.character.on_field:
                 self.remove() 
                 self.current_character = event.data['new_character']
                 if self.character != Team.current_character:
