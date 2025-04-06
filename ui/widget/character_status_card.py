@@ -192,7 +192,7 @@ class CharacterStatusCard(QWidget):
                 prop = item["prop"]
                 value = item["value"]
                 
-                display_text = f"<b>{prop}:</b> {value:.0f}"
+                display_text = f"<b>{prop}:</b> {value:.1f}"
                 
                 prop_container = QWidget()
                 prop_container.setStyleSheet("""

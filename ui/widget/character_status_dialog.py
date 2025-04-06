@@ -220,19 +220,14 @@ class CharacterStatusDialog(QDialog):
 
                     if prop in ['生命值','攻击力','防御力']:
                         display_text = f"<b>{prop}:</b> {int(value)} + {(data['panel']['固定'+prop]+value*data['panel'][prop+'%']/100):.0f}"
-                        value = data['panel']['固定'+prop]+value*data['panel'][prop+'%']/100 + value
-                        prop_container.data = { 
-                                "category": category,
-                                "prop": prop,
-                                "value": value,
-                                }
+                        value = data['panel']['固定'+prop]+ value*data['panel'][prop+'%']/100 + value
                     else:
                         display_text = f"<b>{prop}:</b> {value}"
-                        prop_container.data = { 
-                                "category": category,
-                                "prop": prop,
-                                "value": value
-                                }
+                    prop_container.data = { 
+                            "category": category,
+                            "prop": prop,
+                            "value": value
+                            }
                     
                     prop_container.setStyleSheet("""
                         border: none;

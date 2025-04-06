@@ -151,7 +151,7 @@ def start_simulation(team_data, action_sequence):
     try:
         emulator.simulate(formatted_actions)
     except Exception as e:
-        print(f"模拟过程中出错: {str(e)}")
+        get_emulation_logger().log_error(f"模拟过程中出错: {str(e)}")
         Emulation.init()
         raise
 
@@ -164,8 +164,10 @@ def get_param(param):
                 return int(v)
             elif k == '攻击距离':
                 return True if v == '高空' else False
-            elif k == '时间':
+            elif k == '释放时间':
                 return True if v == '长按' else False
+            elif k == '时间':
+                return int(v)
             else:
                 return None
             

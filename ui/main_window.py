@@ -678,9 +678,18 @@ class MainWindow(QMainWindow):
             # 确保data目录存在
             os.makedirs("./data", exist_ok=True)
             
-            # 获取当前时间作为文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"./data/config_{timestamp}.json"
+            # 让用户选择保存位置和文件名
+            filename, _ = QFileDialog.getSaveFileName(
+                self, 
+                "保存配置", 
+                "./data", 
+                "JSON文件 (*.json)"
+            )
+            
+            # 如果用户取消选择，使用自动生成的文件名
+            if not filename:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"./data/config_{timestamp}.json"
             
             # 获取数据
             team_data, action_sequence = self.get_data()
