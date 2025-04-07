@@ -17,8 +17,10 @@ class EventType(Enum):
     AFTER_DAMAGE_MULTIPLIER = auto()   # 伤害倍率计算后
     BEFORE_DAMAGE_BONUS = auto()  # 伤害加成计算前
     AFTER_DAMAGE_BONUS = auto()   # 伤害加成计算后
-    BEFORE_CRITICAL = auto()      # 暴击伤害计算前
-    AFTER_CRITICAL = auto()       # 暴击伤害计算后
+    BEFORE_CRITICAL = auto()     # 暴击率计算前
+    AFTER_CRITICAL = auto()      # 暴击率计算后
+    BEFORE_CRITICAL_BRACKET = auto()      # 暴击伤害计算前
+    AFTER_CRITICAL_BRACKET = auto()       # 暴击伤害计算后
     BEFORE_DEFENSE = auto()       # 防御力计算前
     AFTER_DEFENSE = auto()       # 防御力计算后
     BEFORE_RESISTANCE = auto()   # 抗性计算前

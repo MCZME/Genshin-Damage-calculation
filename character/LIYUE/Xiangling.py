@@ -97,9 +97,7 @@ class PyronadoObject(baseObject):
             base_duration = int(base_duration * 1.4)
             
         super().__init__(name="旋火轮", life_frame=base_duration)
-        character = Character(id=caster.id, level=caster.level, skill_params=caster.skill_params, constellation=caster.constellation)
-        character.attributePanel = caster.attributePanel.copy()
-        self.caster = character
+        self.caster = caster
         self.damage_multiplier = damage_multiplier
         self.lv = lv
         self.interval = 72  # 0.6秒攻击间隔（72帧）

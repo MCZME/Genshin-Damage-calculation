@@ -1,4 +1,5 @@
 from setup.Tool import GetCurrentTime
+from setup.Logger import get_emulation_logger
 
 class Effect:
     def __init__(self, character,duration=0):
@@ -43,7 +44,7 @@ class DamageBoostEffect(Effect):
 
     def setEffect(self):
         self.character.attributePanel[self.attribute_name] += self.bonus
-        print(f"{self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
 
     def remove(self):
         self.romoveEffect()
@@ -51,7 +52,38 @@ class DamageBoostEffect(Effect):
 
     def romoveEffect(self):
         self.character.attributePanel[self.attribute_name] -= self.bonus
-        print(f"{self.character.name}: {self.name}的伤害加成效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的伤害加成效果结束")
+
+class CritRateBoostEffect(Effect):
+    """暴击率提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character, duration)
+        self.bonus = bonus  # 暴击率提升值
+        self.name = name
+        self.attribute_name = '暴击率'  # 属性名称
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, CritRateBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.setEffect()
+
+    def setEffect(self):
+        self.character.attributePanel[self.attribute_name] += self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，暴击率提升{self.bonus}%")
+
+    def remove(self):
+        self.removeEffect()
+        self.character.remove_effect(self)
+
+    def removeEffect(self):
+        self.character.attributePanel[self.attribute_name] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的暴击率提升效果结束")
 
 class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""
@@ -61,11 +93,11 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
     
     def setEffect(self):
         self.character.attributePanel[self.element_type+'元素伤害加成'] += self.bonus
-        print(f"{self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
     
     def romoveEffect(self):
         self.character.attributePanel[self.element_type+'元素伤害加成'] -= self.bonus
-        print(f"{self.character.name}: {self.name}的{self.element_type}元素伤害提升效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的{self.element_type}元素伤害提升效果结束")
 
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""
@@ -84,12 +116,12 @@ class AttackBoostEffect(Effect):
             
         self.character.add_effect(self)
         self.character.attributePanel['攻击力%'] += self.bonus
-        print(f"{self.character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
+        get_emulation_logger().log_effect(f"{self.character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
 
     def remove(self):
         self.character.attributePanel['攻击力%'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"{self.character.name}: {self.name}攻击力提升效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}攻击力提升效果结束")
 
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
@@ -108,12 +140,12 @@ class AttackValueBoostEffect(Effect):
             
         self.character.add_effect(self)
         self.character.attributePanel['固定攻击力'] += self.bonus
-        print(f"{self.character.name}的攻击力提升了{self.bonus:.2f}点")
+        get_emulation_logger().log_effect(f"{self.character.name}的攻击力提升了{self.bonus:.2f}点")
 
     def remove(self):
         self.character.attributePanel['固定攻击力'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"{self.character.name}: {self.name}基础攻击力提升效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础攻击力提升效果结束")
 
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
@@ -132,12 +164,12 @@ class HealthBoostEffect(Effect):
             
         self.character.add_effect(self)
         self.character.attributePanel['生命值%'] += self.bonus
-        print(f"{self.character.name}的生命值提升了{self.bonus}%")
+        get_emulation_logger().log_effect(f"{self.character.name}的生命值提升了{self.bonus}%")
 
     def remove(self):
         self.character.attributePanel['生命值%'] -= self.bonus
         self.character.remove_effect(self)
-        print(f"{self.character.name}: {self.name} 生命值提升效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name} 生命值提升效果结束")
 
 class DefenseDebuffEffect(Effect):
     def __init__(self, source, target, debuff_rate, duration):
@@ -181,13 +213,13 @@ class ResistanceDebuffEffect(Effect):
         for element in self.elements:
             self.target.element_resistance[element] -= self.debuff_rate
         self.target.add_effect(self)
-        print(f"🛡️ {self.character.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
+        get_emulation_logger().log_effect(f"🛡️ {self.character.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
         
     def remove(self):
         self.target.remove_effect(self)
         for element in self.elements:
             self.target.element_resistance[element] += self.debuff_rate
-        print(f"🛡️ {self.target.name} 的抗性降低效果结束")
+        get_emulation_logger().log_effect(f"🛡️ {self.target.name} 的抗性降低效果结束")
 
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""
@@ -232,8 +264,8 @@ class ElementalInfusionEffect(Effect):
             
         self.apply_time = GetCurrentTime()
         self.character.add_effect(self)
-        print(f"{self.character.name}获得{self.element_type}元素附魔")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.element_type}元素附魔")
         
     def remove(self):
         self.character.remove_effect(self)
-        print(f"{self.character.name}: {self.name}元素附魔效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}元素附魔效果结束")

@@ -1,6 +1,5 @@
-from unittest.mock import seal
 from character.character import Character
-from setup.BaseEffect import  Effect, ElementalDamageBoostEffect
+from setup.BaseEffect import  CritRateBoostEffect, Effect, ElementalDamageBoostEffect
 from setup.DamageCalculation import DamageType
 from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType
 from setup.Team import Team
@@ -44,7 +43,9 @@ class ObsidianCodex(ArtifactEffect):
         EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
 
     def four_SetEffect(self,character):
-        ...
+        self.character = character
+        EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
+        self.last_trigger_time = 0  # 记录上次触发时间
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
@@ -53,6 +54,16 @@ class ObsidianCodex(ArtifactEffect):
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
             attributePanel = event.data['character'].attributePanel
             attributePanel['伤害加成'] -= 15
+        elif event.event_type == EventType.BEFORE_NIGHT_SOUL_CHANGE:
+            # 检查是否是当前角色且夜魂值减少
+            if (event.data['character'] == self.character and 
+                event.data['amount'] < 0 and
+                GetCurrentTime() - self.last_trigger_time >= 60):  # 1秒冷却
+                
+                # 使用CritRateBoostEffect应用暴击率提升效果
+                effect = CritRateBoostEffect(self.character, '黑曜秘典', 40, 6 * 60)
+                effect.apply()
+                self.last_trigger_time = GetCurrentTime()
 
 class CinderCityEffect(ElementalDamageBoostEffect):
     """烬城勇者绘卷效果"""

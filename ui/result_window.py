@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
-
 from ui.widget.character_status_widget import CharacterStatusWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
+from ui.widget.analysis_result_widget import AnalysisResultWidget
 
 from setup.DataHandler import send_to_window
 
@@ -163,6 +163,10 @@ class ResultWindow(QMainWindow):
         
         # 连接按钮信号
         self.frame_button.clicked.connect(self.on_frame_button_clicked)
+
+        # 数据分析结果区域
+        self.analysis_section = AnalysisResultWidget()
+        self.main_layout.addWidget(self.analysis_section)
         
         self.setCentralWidget(self.main_widget)
         self.update_damage_chart()
@@ -182,6 +186,21 @@ class ResultWindow(QMainWindow):
             return
         self.chart.set_data({frame: data['value'] for frame, data in damage_data.items()})
         self.detail_info_section.set_data({frame: data['damage'] for frame, data in damage_data.items()})
+        
+        # 更新分析结果
+        max_hit = max(data['value'] for data in damage_data.values())
+        total_dmg = sum(data['value'] for data in damage_data.values())
+        duration_sec = len(damage_data) / 60
+        duration_str = f"{duration_sec:.2f}"
+        
+        analysis_data = {
+            "总伤害": total_dmg,
+            "DPS": 60 * total_dmg / len(damage_data),
+            "最大伤害": max_hit,
+            "持续时间": duration_str,
+            "暴击比率": 0  
+        }
+        self.analysis_section.set_data(analysis_data)
             
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""

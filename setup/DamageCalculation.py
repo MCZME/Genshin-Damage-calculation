@@ -1,6 +1,8 @@
-from enum import Enum, auto
+from enum import Enum
+import random
 from character.character import Character
 from setup.BaseEffect import ElementalInfusionEffect, ResistanceDebuffEffect
+from setup.Config import Config
 from setup.ElementalReaction import ElementalReaction, ElementalReactionType
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Target import Target
@@ -98,21 +100,48 @@ class Calculation:
         EventBus.publish(event)
         return self.damage.panel['伤害加成']/100
 
+    def critical(self):
+        self.damage.setPanel('暴击率',0)
+        event = GameEvent(EventType.BEFORE_CRITICAL,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target,
+                          damage = self.damage)
+        EventBus.publish(event)
+        attributePanel = self.source.attributePanel
+        self.damage.panel['暴击率'] += attributePanel['暴击率']
+        event = GameEvent(EventType.AFTER_CRITICAL,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target,
+                          damage = self.damage)
+        EventBus.publish(event)
+        if random.randint(1,100) <= self.damage.panel['暴击率']:
+            self.damage.setDamageData('暴击',True)
+            return 1
+        else:
+            self.damage.setDamageData('暴击',False)
+            return 0
+
     def criticalBracket(self):
         self.damage.setPanel('暴击伤害',0)
-        event = GameEvent(EventType.BEFORE_CRITICAL,GetCurrentTime(),
+        event = GameEvent(EventType.BEFORE_CRITICAL_BRACKET,GetCurrentTime(),
                           character = self.source,
                           target = self.target, 
                           damage = self.damage)
         EventBus.publish(event)
         attributePanel = self.source.attributePanel
         self.damage.panel['暴击伤害'] += attributePanel['暴击伤害']   
-        event = GameEvent(EventType.AFTER_CRITICAL,GetCurrentTime(),
+        event = GameEvent(EventType.AFTER_CRITICAL_BRACKET,GetCurrentTime(),
                           character = self.source,
                           target = self.target, 
                           damage = self.damage)
         EventBus.publish(event)
-        return self.damage.panel['暴击伤害']/100
+        if Config.get('emulation.open_critical'):
+            if self.critical():
+                return self.damage.panel['暴击伤害']/100
+            else:
+                return 0
+        else:
+            return self.damage.panel['暴击伤害']/100
 
     def defense(self):
         self.damage.setPanel('防御力减免',(5*self.source.level+500)/(self.target.defense+5*self.source.level+500))

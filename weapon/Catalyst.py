@@ -24,20 +24,20 @@ class MorningGlowEffect(Effect,EventHandler):
         self.character.add_effect(self)
         print(f"{self.character.name}获得{self.name}效果")
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+        EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def remove(self):
         self.character.remove_effect(self)
         print(f"{self.character.name}: {self.name}效果结束")
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        EventBus.unsubscribe(EventType.BEFORE_CRITICAL, self)
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def handle_event(self, event):
         if event.data['character'] != self.character:
             return
         if event.event_type == EventType.AFTER_PLUNGING_ATTACK and event.data['is_plunging_impact']:
             self.duration = 43
-        elif event.event_type == EventType.BEFORE_CRITICAL:
+        elif event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
             if event.data['damage'].damageType == DamageType.PLUNGING:
                 event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
                 event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})
@@ -61,20 +61,20 @@ class DuskGlowEffect(Effect,EventHandler):
         self.character.add_effect(self)
         print(f"{self.character.name}获得{self.name}效果")
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+        EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def remove(self):
         self.character.remove_effect(self)
         print(f"{self.character.name}: {self.name}效果结束")
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        EventBus.unsubscribe(EventType.BEFORE_CRITICAL, self)
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def handle_event(self, event):
         if event.data['character'] != self.character:
             return
         if event.event_type == EventType.AFTER_PLUNGING_ATTACK and event.data['is_plunging_impact']:
             self.duration = 6
-        elif event.event_type == EventType.BEFORE_CRITICAL:
+        elif event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
             if event.data['damage'].damageType == DamageType.PLUNGING:
                 event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
                 event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})
