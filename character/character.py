@@ -90,6 +90,7 @@ class Character:
         self.talent2 = None
         self.talent_effects = []  # 天赋效果列表
         self.active_effects = []  # 激活效果列表
+        self.shield_effects = []  # 盾效果列表
         self.constellation_effects = [None, None, None, None, None, None]  # 命座效果列表
         self.elemental_energy = None
 
@@ -263,6 +264,12 @@ class Character:
     def remove_effect(self, effect):
         self.active_effects.remove(effect)
 
+    def add_shield(self, shield):
+        self.shield_effects.append(shield)
+
+    def remove_shield(self, shield):
+        self.shield_effects.remove(shield)
+    
     def to_dict(self):
         return {
             'id': self.id,

@@ -210,9 +210,9 @@ class HealEvent(GameEvent):
                                              'healing':healing,}})
 
 class ShieldEvent(GameEvent):
-    def __init__(self, source, target, shield, frame, before=True, **kwargs):
+    def __init__(self, source, shield, frame, before=True, **kwargs):
         event_type = EventType.BEFORE_SHIELD_CREATION if before else EventType.AFTER_SHIELD_CREATION
-        super().__init__(event_type, frame=frame, source=source, target=target, shield=shield, **kwargs)
+        super().__init__(event_type, frame=frame, character=source, shield=shield, **kwargs)
 
 class EnergyChargeEvent(GameEvent):
     def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):

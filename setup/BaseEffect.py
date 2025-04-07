@@ -269,3 +269,28 @@ class ElementalInfusionEffect(Effect):
     def remove(self):
         self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}元素附魔效果结束")
+
+class ShieldEffect(Effect):
+    """护盾效果基类"""
+    def __init__(self, character, name, element_type, shield_value, duration):
+        super().__init__(character, duration)
+        self.name = name
+        self.element_type = element_type
+        self.shield_value = shield_value
+        self.max_shield_value = shield_value  # 记录最大护盾值
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, ShieldEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            existing.shield_value = self.shield_value  # 更新护盾值
+            return
+            
+        self.character.add_shield(self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
+        
+    def remove(self):
+        self.character.remove_shield(self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
