@@ -6,7 +6,6 @@ import os
 from datetime import datetime
 from PySide6.QtCore import Qt
 
-from Emulation import start_simulation
 from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
 from .result_window import ResultWindow
@@ -397,19 +396,11 @@ class MainWindow(QMainWindow):
         
     def _start_calculation(self):
         """开始计算按钮点击处理"""
-        self.logger.log_button_click("开始计算")
-        try:
-            team_data, action_sequence = self.get_data()
-            self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
-            start_simulation(team_data, action_sequence)
-            self.result_window = ResultWindow()
-            self.result_window.show()
-            self.close()
-        except Exception as e:
-            error_msg = f"计算过程中出错: {str(e)}"
-            self.logger.log_ui_error(error_msg)
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "计算错误", error_msg)
+        team_data, action_sequence = self.get_data()
+        self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
+        self.close()
+        self.result_window = ResultWindow(team_data, action_sequence)
+        self.result_window.show()
 
     def _open_character_window(self, slot_idx):
         """打开角色配置窗口"""

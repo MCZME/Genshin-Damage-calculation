@@ -1,17 +1,42 @@
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
+from Emulation import Emulation
 from ui.widget.character_status_widget import CharacterStatusWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
+from ui.widget.loading_widget import LoadingWidget
 
 from setup.DataHandler import send_to_window
+from setup.Logger import get_ui_logger
 
 class ResultWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, team_data, action_sequence):
         super().__init__()
         self.setWindowTitle("战斗数据分析")
         self.resize(900, 700)  # 设置初始窗口大小
+        try:
+            # 创建模拟线程
+            self.simulation_thread = Emulation(team_data, action_sequence)
+            self.simulation_thread.finished.connect(self._on_simulation_finished)
+            self.simulation_thread.error_occurred.connect(self._on_simulation_error)
+            self.simulation_thread.progress_updated.connect(self._on_simulation_progress_updated)
+            self.simulation_thread.start()
+        except Exception as e:
+            error_msg = f"模拟过程中出错: {str(e)}"
+            get_ui_logger().log_ui_error(error_msg)
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "模拟错误", error_msg)
+        
+        # 创建并显示加载组件
+        self.loading_widget = LoadingWidget(self)
+        self.loading_widget.resize(self.size())
+        self.loading_widget.show()
+           
+    def init_ui(self):
+        # 隐藏加载组件
+        self.loading_widget.hide()
+        self.loading_widget.deleteLater()
         
         # 主滚动区域
         self.main_widget = QScrollArea()
@@ -170,7 +195,7 @@ class ResultWindow(QMainWindow):
         
         self.setCentralWidget(self.main_widget)
         self.update_damage_chart()
-    
+
     def on_frame_button_clicked(self):
         """处理帧数输入按钮点击事件"""
         try:
@@ -179,7 +204,6 @@ class ResultWindow(QMainWindow):
         except ValueError:
             print("请输入有效的帧数")
     
-
     def update_damage_chart(self):
         damage_data = send_to_window('damage')
         if not damage_data:
@@ -211,3 +235,33 @@ class ResultWindow(QMainWindow):
         """更新当前帧的角色状态显示"""
         self.character_status.update_frame(frame)
         self.detail_info_section.update_info(frame)
+
+    def _on_simulation_finished(self):
+        self.init_ui()
+
+    def _on_simulation_error(self, error_msg):
+        get_ui_logger().error(f"模拟过程中出错: {error_msg}")
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.critical(self, "计算错误", f"模拟过程中出错: {error_msg}")
+
+    def _on_simulation_progress_updated(self, data):
+        """更新模拟进度"""
+        if not hasattr(self, 'loading_widget') or not self.loading_widget.isVisible():
+            return
+            
+        if "start" in data:
+            # 初始化进度
+            progress_data = data["start"]
+            self.loading_widget.update_progress(
+                progress_data["current"],
+                progress_data["length"],
+                progress_data["msg"]
+            )
+        elif "update" in data:
+            # 更新进度
+            progress_data = data["update"]
+            self.loading_widget.update_progress(
+                progress_data["current"],
+                len(Emulation._actions),  # 总长度从Emulation类获取
+                progress_data["msg"]
+            )
