@@ -1,4 +1,3 @@
-from time import sleep
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, 
                               QProgressBar)
 from PySide6.QtCore import Qt
@@ -45,7 +44,6 @@ class LoadingWidget(QWidget):
             font-size: 14px;
             color: #333333;
             font-weight: 500;
-            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
             margin-top: 5px;
         """)
         layout.addWidget(self.progress_text)
@@ -57,13 +55,9 @@ class LoadingWidget(QWidget):
             font-size: 16px;
             color: #333333;
             font-weight: bold;
-            text-shadow: 0 1px 3px rgba(255, 255, 255, 0.5);
             margin-top: 5px;
         """)
         layout.addWidget(self.text_label)
-        
-        # 初始隐藏
-        self.hide()
         
     def showEvent(self, event):
         """显示时启动动画"""
@@ -90,7 +84,17 @@ class LoadingWidget(QWidget):
     def update_progress(self, current, total, message):
         """更新进度显示"""
         progress = int((current / total) * 100) if total > 0 else 0
+        
+        # 确保在主线程更新UI
+        from PySide6.QtWidgets import QApplication
         self.progress_bar.setValue(progress)
         self.progress_text.setText(f"{progress}%")
-        self.text_label.setText(message)
-        # sleep(1)
+        self.text_label.setText(message)        
+        # 确保组件在最前并可见
+        self.raise_()
+        self.show()        
+        # 强制处理事件队列并刷新
+        QApplication.instance().processEvents()
+        self.progress_bar.repaint()
+        self.repaint()
+

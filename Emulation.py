@@ -6,13 +6,11 @@ from setup.Logger import get_emulation_logger
 from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
 from setup.Team import Team
-from PySide6.QtCore import QThread, Signal
-   
-class Emulation(QThread):
-    progress_updated = Signal(dict)
-    finished = Signal(dict)
-    error_occurred = Signal(str)
+import threading
+import queue
 
+class Emulation():
+    
     # 游戏参数设计
     fps = 60  # 帧率
     target = None
@@ -27,8 +25,11 @@ class Emulation(QThread):
         self.n = 0
         self.set_data()
 
-    def run(self):
-        self.simulate(Emulation._actions)
+    def set_quueue(self,queue):
+        self.progress_queue = queue
+
+    def thread(self):
+        return threading.Thread(target=self.simulate, args=(self._actions,))
 
     def simulate(self,actions):
         """
@@ -42,11 +43,17 @@ class Emulation(QThread):
         self.next_character = next(action)
         Emulation.team.swap(self.next_character)
         Emulation.team.current_frame = 0 # 初始化当前帧数
-        self.progress_updated.emit({"start": {
-            "length": len(actions),
-            "current": self.n + 1,
-            "msg": f"{Emulation.team.current_character.name} 执行 {self.next_character}"
-        }})
+        if hasattr(self, 'progress_queue') and self.progress_queue:
+            try:
+                self.progress_queue.put({
+                    "start": {
+                        "length": len(actions),
+                        "current": self.n + 1,
+                        "msg": f"{Emulation.team.current_character.name} 执行 {self.next_character}"
+                    }
+                })
+            except Exception as e:
+                get_emulation_logger().log_error(f"发送进度失败: {str(e)}")
         self.n += 1
         try:
             self.next_character = next(action)
@@ -57,7 +64,7 @@ class Emulation(QThread):
         while True:
             Emulation.current_frame += 1
             if self._update(self.target,action):
-                self.finished.emit({"result": "模拟完成"})
+                self.progress_queue.put(None)
                 break
 
     def _update(self, target, action):
@@ -69,10 +76,17 @@ class Emulation(QThread):
 
         if self.next_character is not None and Emulation.team.swap(self.next_character):
             get_emulation_logger().log("Team","切换成功")
-            self.progress_updated.emit({"update": {
-                "current": self.n + 1,
-                "msg": f"{Emulation.team.current_character.name} 执行 {self.next_character[1]}"
-            }})
+            if hasattr(self, 'progress_queue') and self.progress_queue:
+                try:
+                    self.progress_queue.put({
+                        "update": {
+                            "current": self.n + 1,
+                            "length": len(Emulation._actions),
+                            "msg": f"{Emulation.team.current_character.name} 执行 {self.next_character[1]}"
+                        }
+                    })
+                except Exception as e:
+                    get_emulation_logger().log_error(f"发送进度更新失败: {str(e)}")
             self.n += 1
             try:
                 self.next_character = next(action)

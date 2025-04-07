@@ -29,10 +29,9 @@ class EmulationLogger(BaseLogger):
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.log_file = Config.get('logging.Emulation.file_path')+f"emulation_{timestamp}.log"
         
-    def log_skill_use(self, character, skill_name):
+    def log_skill_use(self,skill_msg):
         """记录技能使用日志"""
-        message = f"{character.name} 使用 {skill_name}"
-        self._write_log("INFO", message)
+        self._write_log("INFO", skill_msg)
         
     def log_damage(self, source, target, damage):
         """记录伤害计算日志"""
@@ -108,6 +107,10 @@ class UILogger(BaseLogger):
     def log_ui_error(self, error_msg):
         """记录UI错误日志"""
         self._write_log("ERROR", error_msg)
+
+    def log_info(self, message):
+        """记录信息日志"""
+        self._write_log("INFO", message)
 
 # 全局日志实例
 _ui_logger = None

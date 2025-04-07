@@ -1,3 +1,4 @@
+from queue import Queue
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
                               QLabel, QPushButton, QFrame, QScrollArea,
                               QFileDialog)
@@ -5,6 +6,8 @@ import json
 import os
 from datetime import datetime
 from PySide6.QtCore import Qt
+
+from Emulation import Emulation
 
 from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
@@ -399,8 +402,21 @@ class MainWindow(QMainWindow):
         team_data, action_sequence = self.get_data()
         self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
         self.close()
-        self.result_window = ResultWindow(team_data, action_sequence)
+        self.result_window = ResultWindow()
         self.result_window.show()
+        try:
+            # 创建模拟线程
+            emulation = Emulation(team_data, action_sequence)
+            emulation.set_quueue(Queue())
+            simulation_thread = emulation.thread()
+            simulation_thread.start()
+            self.result_window._on_simulation_progress_updated(emulation.progress_queue)
+            simulation_thread.join()
+        except Exception as e:
+            error_msg = f"模拟过程中出错: {str(e)}"
+            get_ui_logger().log_ui_error(error_msg)
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "模拟错误", error_msg)
 
     def _open_character_window(self, slot_idx):
         """打开角色配置窗口"""
