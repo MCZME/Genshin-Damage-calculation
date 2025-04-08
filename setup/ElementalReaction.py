@@ -1,5 +1,6 @@
 from enum import Enum
-from setup.Event import EventBus, EventHandler, EventType, ElementalReactionEvent
+from setup.Event import EventBus, EventHandler, EventType, ElementalReactionEvent, GameEvent
+from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime, get_reaction_coefficient
 
 class ElementalReactionType(Enum):
@@ -58,6 +59,7 @@ class ElementalReaction:
         self.reaction_ratio = None
         self.reaction_Type = None
         self.lv_ratio = None
+        self.target = None
     
     def setReaction(self, reaction_type, reaction_ratio):
         self.reaction_type = reaction_type
@@ -69,15 +71,23 @@ class ElementalReactionHandler(EventHandler):
             self._process_reaction(event)
             elemental_event = ElementalReactionEvent(event.data['elementalReaction'],GetCurrentTime(),before=False)
             EventBus.publish(elemental_event)
-            print(f"🔁{elemental_event.data['elementalReaction'].source.name}触发了 {elemental_event.data['elementalReaction'].reaction_type.value} 反应")
+            get_emulation_logger().log_reaction(f"🔁{elemental_event.data['elementalReaction'].source.name}触发了 {elemental_event.data['elementalReaction'].reaction_type.value} 反应")
 
     def _process_reaction(self, event):
         r = event.data['elementalReaction']
         r.setReaction(*ReactionMMap[(r.damage.element[0], r.target_element)])
         if r.reaction_type in [ElementalReactionType.VAPORIZE,ElementalReactionType.MELT]:
             r.reaction_Type = '增幅反应'
+            self.publish_reaction_event(r)
         elif r.reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
                                  ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON]:
             r.reaction_Type = '剧变反应'
             r.lv_ratio = get_reaction_coefficient(event.data['elementalReaction'].source.level)
 
+    def publish_reaction_event(self, reaction):
+        if reaction.reaction_type is ElementalReactionType.MELT:
+            event = GameEvent(EventType.BEFORE_MELT, GetCurrentTime(), reaction = reaction)
+            EventBus.publish(event)
+        elif reaction.reaction_type is ElementalReactionType.VAPORIZE:
+            event = GameEvent(EventType.BEFORE_VAPORIZE, GetCurrentTime(), reaction = reaction)
+            EventBus.publish(event)

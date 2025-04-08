@@ -32,7 +32,6 @@ class LoadingWidget(QWidget):
                 background: qlineargradient(
                     spread:pad, x1:0, y1:0.5, x2:1, y2:0.5, 
                     stop:0 #4a90e2, stop:1 #50e3c2);
-                animation: pulse 1s infinite;
             }
         """)
         layout.addWidget(self.progress_bar)

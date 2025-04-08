@@ -9,7 +9,7 @@ class BaseLogger:
         
     def _write_log(self, level, message):
         """基础日志写入方法"""
-        log_entry = f"[{GetCurrentTime()}][{level}][{self.name}] {message}\n"
+        log_entry = f"[{GetCurrentTime()}][{self.name}][{level}] {message}\n"
         
         # 写入文件
         if Config.get('logging.save_file'):
@@ -72,6 +72,11 @@ class EmulationLogger(BaseLogger):
         if Config.get('logging.Emulation.effect'):
             self._write_log("EFFECT", effect_msg)
 
+    def log_reaction(self, reaction_msg):
+        """记录反应日志"""
+        if Config.get('logging.Emulation.reaction'):
+            self._write_log("REACTION", reaction_msg)
+
     def log(self, level, message):
         """自定义日志"""
         self._write_log(level, message)
@@ -84,7 +89,7 @@ class UILogger(BaseLogger):
         
     def _write_log(self, level, message):
         """重写日志写入方法，使用现实时间"""
-        log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}][{level}][{self.name}] {message}\n"
+        log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}][{self.name}][{level}] {message}\n"
         
         # 写入文件
         if Config.get('logging.save_file'):

@@ -174,9 +174,11 @@ class Calculation:
                 event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
                 EventBus.publish(event)
                 self.damage.reaction = event.data['elementalReaction']
+                self.damage.reaction.target = self.target
                 if self.damage.reaction.reaction_Type == "剧变反应":
                     self.damage.setPanel('反应系数',1)
                     return 1
+                # 获取反应系数提高
                 if self.damage.reaction.reaction_type in list(r.keys()):
                     r1 = r[self.damage.reaction.reaction_type]
                 else:
@@ -279,6 +281,8 @@ class DamageCalculateEventHandler(EventHandler):
 
             if damage.reaction is not None and damage.reaction.reaction_Type == '剧变反应':
                 self.extra_damage(character, event.data['target'], damage)
+            elif damage.reaction is not None and damage.reaction.reaction_Type == '增幅反应':
+                self.publish_reaction_event(damage.reaction)
     
     def handle_elemental_infusion(self, character, damage):
         # 获取所有元素附魔效果
@@ -333,3 +337,11 @@ class DamageCalculateEventHandler(EventHandler):
             EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, GetCurrentTime(), 
                                         character = character, 
                                         target = target))
+
+    def publish_reaction_event(self, reaction):
+        if reaction.reaction_type == ElementalReactionType.MELT:
+            EventBus.publish(GameEvent(EventType.AFTER_MELT, GetCurrentTime(), 
+                                        reaction = reaction))
+        elif reaction.reaction_type == ElementalReactionType.VAPORIZE:
+            EventBus.publish(GameEvent(EventType.AFTER_VAPORIZE, GetCurrentTime(), 
+                                        reaction = reaction))
