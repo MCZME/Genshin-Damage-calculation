@@ -2,8 +2,8 @@ from character.NATLAN.natlan import Natlan
 from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import Effect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, EnergyChargeEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, ElementalSkillEvent, EventType, GameEvent
-from setup.Tool import GetCurrentTime
+from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
+from setup.Tool import GetCurrentTime, summon_energy
 
 class VaresaNormalAttack(NormalAttackSkill):
     def __init__(self, lv):
@@ -371,9 +371,7 @@ class ElementalSkill(SkillBase):
             if self.caster.level >= 20:
                 effect = RainbowPlungeEffect(self.caster)
                 effect.apply()
-            for _ in range(3):
-                energy_event = EnergyChargeEvent(self.caster,('雷', 2), GetCurrentTime())
-                EventBus.publish(energy_event)
+            summon_energy(3, self.caster,('雷', 2))
             
         self.caster.movement += 4.347
 

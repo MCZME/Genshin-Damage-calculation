@@ -28,3 +28,10 @@ reaction_coefficients = {
 
 def get_reaction_coefficient(level):
     return reaction_coefficients[level]
+
+def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False):
+    from setup.Event import EnergyChargeEvent, EventBus
+    for _ in range(num):
+        energy_event = EnergyChargeEvent(character,element_energy, GetCurrentTime(),
+                                        is_fixed=is_fixed, is_alone=is_alone)
+        EventBus.publish(energy_event)

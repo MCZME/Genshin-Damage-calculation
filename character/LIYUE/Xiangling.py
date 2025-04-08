@@ -3,8 +3,8 @@ from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, N
 from setup.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EnergyChargeEvent, EventBus
-from setup.Tool import GetCurrentTime
+from setup.Event import DamageEvent, EventBus
+from setup.Tool import GetCurrentTime, summon_energy
 from setup.Team import Team
 
 class GuobaObject(baseObject):
@@ -27,8 +27,7 @@ class GuobaObject(baseObject):
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
 
-        energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
-        EventBus.publish(energy_event)
+        summon_energy(1, self.caster, ('火', 2))
 
         # 命座1效果：锅巴攻击降低火抗
         if self.constellation >= 1:

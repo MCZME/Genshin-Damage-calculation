@@ -2,10 +2,10 @@ from character.NATLAN.natlan import Natlan
 from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate, TalentEffect
 from setup.BaseObject import baseObject
 from setup.BaseEffect import AttackBoostEffect, DamageBoostEffect
-from setup.Event import ChargedAttackEvent, DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, HealEvent, NightSoulChangeEvent, NormalAttackEvent
+from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
 from setup.Team import Team
-from setup.Tool import GetCurrentTime
+from setup.Tool import GetCurrentTime, summon_energy
 from setup.BaseEffect import Effect
 from setup.Event import EventHandler
 
@@ -152,9 +152,7 @@ class ElementalSkill(SkillBase):
             # 添加掣雷驰效果
             LightningDashEffect(self.caster).apply()
 
-            for _ in range(4):
-                energy_event = EnergyChargeEvent(self.caster,('雷', 2), GetCurrentTime())
-                EventBus.publish(energy_event)
+            summon_energy(4,self.caster,('雷', 2))
 
         self.caster.movement += 3.6
 
@@ -461,14 +459,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
             self.night_soul_consumed += abs(event.data['amount'])
             if self.night_soul_consumed >= 6:
                 # 恢复15点元素能量
-                energy_event = EnergyChargeEvent(
-                    self.character,
-                    ('雷', 15),
-                    GetCurrentTime(),
-                    is_fixed=True,
-                    is_alone=True,
-                )
-                EventBus.publish(energy_event)
+                summon_energy(1, self.character, ('雷', 15),True,True)
                 self.last_trigger_time = current_time
                 self.night_soul_consumed = 0  # 重置累计消耗
                 print(f"⚡ {self.character.name} 触发命座1效果，恢复15点元素能量")

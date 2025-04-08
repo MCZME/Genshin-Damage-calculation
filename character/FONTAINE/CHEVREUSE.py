@@ -3,11 +3,11 @@ from character.character import CharacterState
 from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
 from setup.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
 from setup.Team import Team
-from setup.Tool import GetCurrentTime
+from setup.Tool import GetCurrentTime, summon_energy
 
 class HealingFieldEffect(Effect, EventHandler):
     """持续恢复生命值效果"""
@@ -191,9 +191,7 @@ class ElementalSkill(SkillBase, EventHandler):
                 )
                 surge.apply()
                 print(f"🌊 生成流涌之刃")
-                for _ in range(4):
-                    energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
-                    EventBus.publish(energy_event)
+                summon_energy(4, self.caster, ('火', 2))
         return False
     
     def on_interrupt(self):
@@ -372,9 +370,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         if event.event_type == EventType.AFTER_OVERLOAD and event.data['character'] != self.character:
             if self.cooldown <= 0 and event.data['character'].level >= 20:
                 self.cooldown = 10 * 60  # 10秒冷却
-                energy_event = EnergyChargeEvent(self.character,('火', 6), GetCurrentTime(),
-                                                 is_alone=True, is_fixed=True)
-                EventBus.publish(energy_event)
+                summon_energy(1, self.character, ('火', 6),True,True)
 
 class ConstellationEffect_2(ConstellationEffect, EventHandler):
     def __init__(self):

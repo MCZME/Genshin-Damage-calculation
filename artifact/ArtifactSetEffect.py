@@ -1,9 +1,9 @@
 from character.character import Character
 from setup.BaseEffect import  CritRateBoostEffect, Effect, ElementalDamageBoostEffect
 from setup.DamageCalculation import DamageType
-from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType
+from setup.Event import EventBus, EventHandler, EventType
 from setup.Team import Team
-from setup.Tool import GetCurrentTime
+from setup.Tool import GetCurrentTime, summon_energy
 from setup.Logger import get_emulation_logger
 
 class ArtifactEffect(EventHandler):
@@ -153,9 +153,7 @@ class ScrolloftheHeroOfCinderCity(ArtifactEffect):
 
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
-            energy_event = EnergyChargeEvent(self.character,('无', 6), GetCurrentTime(),
-                                             is_alone=True,is_fixed=True)
-            EventBus.publish(energy_event)
+            summon_energy(5, self.caster, ('无', 6),True,True)
         elif event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             reaction = event.data['elementalReaction']
             if reaction.source == self.character:

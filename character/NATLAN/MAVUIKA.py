@@ -4,8 +4,8 @@ from character.character import CharacterState
 from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
-from setup.Tool import GetCurrentTime
+from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
+from setup.Tool import GetCurrentTime, summon_energy
 
 class ElementalSkill(SkillBase,EventHandler):
     def __init__(self, lv):
@@ -58,9 +58,7 @@ class ElementalSkill(SkillBase,EventHandler):
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
             self.ttt = False
-            for _ in range(5):
-                energy_event = EnergyChargeEvent(self.caster,('火', 2), GetCurrentTime())
-                EventBus.publish(energy_event)
+            summon_energy(5, self.caster, ('火', 2))
         if self.caster.mode == '正常模式':
             return True
         return False
