@@ -672,6 +672,13 @@ class Iansan(Natlan):
         super().update(target)
         if self.Nightsoul_Blessing:
             self.consume_night_soul(8/60)
+    
+    def consume_night_soul(self, amount):
+        a = super().consume_night_soul(amount)
+        if self.current_night_soul <= 0:
+            self.romve_NightSoulBlessing()
+            return True
+        return a
 
 iansan_table = {
     'id':Iansan.ID,

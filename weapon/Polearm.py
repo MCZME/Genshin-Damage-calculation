@@ -1,6 +1,7 @@
 from setup.DamageCalculation import DamageType
+from setup.Tool import summon_energy
 from weapon.weapon import Weapon
-from setup.Event import EnergyChargeEvent, EventBus, EventType, EventHandler
+from setup.Event import EventBus, EventType, EventHandler
 from setup.BaseEffect import AttackBoostEffect
 
 polearm = ['且住亭御咄','渔获','沙中伟贤的对答']
@@ -63,13 +64,6 @@ class DialoguesOfTheDesertSages(Weapon, EventHandler):
             return
             
         # 触发能量恢复
-        energy_event = EnergyChargeEvent(
-            character=self.character,
-            amount=('无',self.energy_restore[self.lv-1]),
-            frame=current_frame,
-            is_fixed=True,
-            is_alone=True
-        )
-        EventBus.publish(energy_event)
+        summon_energy(1,self.character,('无',self.energy_restore[self.lv-1]),True,True)
         
         self.last_trigger_frame = current_frame

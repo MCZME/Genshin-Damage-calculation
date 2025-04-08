@@ -203,13 +203,24 @@ class ResultWindow(QMainWindow):
         total_dmg = sum(data['value'] for data in damage_data.values())
         duration_sec = len(damage_data) / 60
         duration_str = f"{duration_sec:.2f}"
+        critical_ratio = 0
+        critical = 0
+        for damage in [data['damage'] for _, data in damage_data.items()]:
+            for d in damage:
+                v = d['data'].get('暴击', None)
+                if v != None:
+                    critical_ratio += 1
+                    if v:
+                        critical += 1
+        if critical_ratio > 0:
+            critical_ratio = critical / critical_ratio
         
         analysis_data = {
             "总伤害": total_dmg,
             "DPS": 60 * total_dmg / len(damage_data),
             "最大伤害": max_hit,
             "持续时间": duration_str,
-            "暴击比率": 0  
+            "暴击比率": critical_ratio * 100,
         }
         self.analysis_section.set_data(analysis_data)
             

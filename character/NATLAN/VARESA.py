@@ -656,27 +656,6 @@ class Varesa(Natlan):
         if self.current_night_soul >= self.max_night_soul and existing is None:
             self._enter_passion_state()
 
-    def consume_night_soul(self, amount):
-        """消耗夜魂值"""
-        # 发布消耗事件
-        actual_amount = min(amount, self.current_night_soul)
-        event =NightSoulChangeEvent(
-            character=self,
-            amount=-actual_amount,
-            frame=GetCurrentTime()
-        )
-        EventBus.publish(event)
-        if event.cancelled:
-            return True
-        
-        self.current_night_soul -= actual_amount
-        EventBus.publish(NightSoulChangeEvent(
-            character=self,
-            amount=-actual_amount,
-            frame=GetCurrentTime(),
-            before=False
-        ))
-
 Varesa_table = {
     'id': Varesa.ID,
     'name': '瓦雷莎',

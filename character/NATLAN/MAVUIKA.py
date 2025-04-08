@@ -712,6 +712,13 @@ class MAVUIKA(Natlan):
            self.chargeNightsoulBlessing()
        super().gain_night_soul(amount)
 
+    def consume_night_soul(self, amount):
+        a = super().consume_night_soul(amount)
+        if self.current_night_soul <= 0:
+            self.romve_NightSoulBlessing()
+            return True
+        return a
+
 mavuika_table = {
     'id': MAVUIKA.ID,
     'name': '玛薇卡',

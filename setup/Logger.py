@@ -112,6 +112,10 @@ class UILogger(BaseLogger):
         """记录信息日志"""
         self._write_log("INFO", message)
 
+    def log_error(self, message):
+        """记录错误日志"""
+        self._write_log("ERROR", message)
+
 # 全局日志实例
 _ui_logger = None
 _emulation_logger = None

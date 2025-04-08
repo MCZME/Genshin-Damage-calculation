@@ -1,5 +1,6 @@
 from character.character import Character
 from setup.Event import EventBus, NightSoulBlessingEvent, NightSoulChangeEvent
+from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime
 
 
@@ -35,11 +36,6 @@ class Natlan(Character):
             frame=GetCurrentTime(),
             before=False
         ))
-        
-        # 自动退出加持状态检测
-        if self.current_night_soul <= 0:
-            self.chargeNightsoulBlessing()
-        return True
     
     def gain_night_soul(self, amount):
         """获得夜魂值"""
@@ -70,9 +66,10 @@ class Natlan(Character):
         self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
         EventBus.publish(self.before_nightsoulBlessingevent)
         self.Nightsoul_Blessing = True
-        print(f"🌙 夜魂加持")
+        get_emulation_logger().log_effect(f"🌙 夜魂加持")
 
     def romve_NightSoulBlessing(self):
         self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
         EventBus.publish(self.after_nightsoulBlessingevent)
         self.Nightsoul_Blessing = False
+        get_emulation_logger().log_effect(f"🌙 夜魂加持结束")

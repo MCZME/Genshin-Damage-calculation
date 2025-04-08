@@ -28,8 +28,7 @@ class ShieldCalculationEventHandler(EventHandler):
     def handle_event(self, event: ShieldEvent):
         if event.event_type == EventType.BEFORE_SHIELD_CREATION:
             calculation = ShieldCalculation(
-                event.data['source'],
-                event.data['target'],
+                event.data['character'],
                 event.data['shield']
             )
 
@@ -37,8 +36,7 @@ class ShieldCalculationEventHandler(EventHandler):
             
             # 发布护盾生成后事件
             after_event = ShieldEvent(
-                source=event.data['source'],
-                target=event.data['target'],
+                source=event.data['character'],
                 shield=event.data['shield'],
                 frame=event.frame,
                 before=False
