@@ -1,9 +1,9 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ElementalEnergy, EnergySkill, SkillBase, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
 from setup.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, GameEvent, NightSoulChangeEvent, ShieldEvent, EventHandler, EventType
+from setup.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType
 from setup.ShieldCalculation import Shield
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
@@ -12,10 +12,14 @@ from setup.Logger import get_emulation_logger
 class FiveHeavensRainEffect(ResistanceDebuffEffect):
     """五重天的寒雨效果"""
     def __init__(self, character, traget):
-        super().__init__('五重天的寒雨', character, traget, ['火', '水'], 20, 20*60)  # 20秒持续时间
+        # 基础抗性降低20%，解锁命座2后额外降低20%
+        debuff_value = 20
+        if character.constellation >= 2:
+            debuff_value += 20
+        super().__init__('五重天的寒雨', character, traget, ['火', '水'], debuff_value, 12*60)  # 12秒持续时间
         self.name = '五重天的寒雨'
 
-class ItzpapalotlObject(baseObject):
+class ItzpapalotlObject(baseObject,EventHandler):
     """黑曜星魔·伊兹帕帕召唤物"""
     def __init__(self, character):
         super().__init__("伊兹帕帕", life_frame=20*60)  # 20秒持续时间
@@ -25,7 +29,24 @@ class ItzpapalotlObject(baseObject):
         self.last_damage_frame = -2*60  # 上次造成伤害的帧数
         self.storm_damage = [17.02, 18.3, 19.58, 21.28, 22.56, 23.83, 25.54, 
                            27.24, 28.94, 30.64, 32.35, 34.05, 36.18, 38.3, 40.43]
+        self.current_character = character
         
+    def apply(self):
+        super().apply()
+        if self.character.constellation >= 2:
+            self.current_character.attributePanel['元素精通'] += 250
+            get_emulation_logger().log_skill_use(f"❄️ {self.current_character.name} 获得 250 元素精通") 
+
+            EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+    
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            if event.data['old_character'] == self.current_character:
+                self.current_character.attributePanel['元素精通'] -= 250
+                self.current_character = event.data['new_character']
+                self.current_character.attributePanel['元素精通'] += 250
+                get_emulation_logger().log_skill_use(f"❄️ {self.current_character.name} 获得 250 元素精通")
+
     def on_frame_update(self, target):
         # 检查夜魂值决定是否进入白燧状态
         if self.character.current_night_soul >= 50 and not self.in_white_flint:
@@ -38,12 +59,8 @@ class ItzpapalotlObject(baseObject):
             if current_frame - self.last_damage_frame >= self.damage_interval:
                 # 造成霜陨风暴伤害(包含元素精通加成)
                 base_damage = self.storm_damage[self.character.skill_params[1]-1]
-                if self.character.level >= 60:
-                    em_bonus = self.character.attributePanel['元素精通'] * 0.9  # 天赋2:元素精通90%加成
-                else:
-                    em_bonus = 0
                 damage = Damage(
-                    base_damage + em_bonus,
+                    base_damage,
                     ('冰', 1),
                     DamageType.SKILL,
                     '霜陨风暴'
@@ -70,6 +87,13 @@ class ItzpapalotlObject(baseObject):
         if self.character.Nightsoul_Blessing:
             self.character.romve_NightSoulBlessing()
         get_emulation_logger().log_skill_use("❄️ 伊兹帕帕退场")
+        if self.character.constellation >= 1:
+            whiteStarDress = next((e for e in self.character.active_effects
+                             if isinstance(e, WhiteStarDressEffect)), None)
+            if whiteStarDress:
+                whiteStarDress.remove()
+        if self.character.constellation >= 2:
+            self.current_character.attributePanel['元素精通'] -= 250
 
 class ElementalSkill(SkillBase):
     """元素战技：霜昼黑星"""
@@ -194,12 +218,8 @@ class ElementalBurst(EnergySkill):
         if self.current_frame == self.hit_frame:
             # 冰风暴造成范围伤害(包含元素精通加成)
             base_damage = self.storm_damage[self.lv-1]
-            if self.caster.level >= 60:
-                em_bonus = self.caster.attributePanel['元素精通'] * 12
-            else:
-                em_bonus = 0
             damage = Damage(
-                base_damage + em_bonus,
+                base_damage,
                 self.element,
                 DamageType.BURST,
                 '诸曜饬令·冰风暴'
@@ -248,12 +268,91 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
     def apply(self, character):
         super().apply(character)
         EventBus.subscribe(EventType.NightsoulBurst, self)
+        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
             # 队伍角色触发夜魂迸发时恢复4点夜魂值
             self.character.gain_night_soul(4)
             get_emulation_logger().log_skill_use(f"❄️ 天赋「白燧蝶的星衣」触发，恢复4点夜魂值")
+        elif event.event_type == EventType.BEFORE_FIXED_DAMAGE and event.data['character'] == self.character:
+            if event.data['damage'].damageType == DamageType.BURST and event.data['damage'].name == '诸曜饬令·冰风暴':
+                event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 12
+                event.data['damage'].setDamageData('白燧蝶的星衣_伤害值加成', self.character.attributePanel['元素精通'] * 12)
+            elif event.data['damage'].damageType == DamageType.SKILL and event.data['damage'].name == '霜陨风暴':
+                event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 0.9
+                event.data['damage'].setDamageData('白燧蝶的星衣_伤害值加成', self.character.attributePanel['元素精通'] * 0.9)
+
+class WhiteStarDressEffect(Effect,EventHandler):
+    """白星之裙效果"""
+    def __init__(self, character):
+        super().__init__(character, 0)  # 持续时间由伊兹帕帕存在决定
+        self.name = '白星之裙'
+        self.star_blade_stacks = 0 # 星刃层数
+        self.last_reaction_time = -9999
+        self.reaction_cooldown = 8 * 60  # 8秒冷却
+        
+    def apply(self):
+        whiteStarDress = next((e for e in self.character.active_effects
+                             if isinstance(e, WhiteStarDressEffect)), None)
+        if whiteStarDress:
+            whiteStarDress.star_blade_stacks = 10
+            return
+
+        self.star_blade_stacks = 10
+        self.character.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        EventBus.subscribe(EventType.AFTER_MELT, self)
+        EventBus.subscribe(EventType.AFTER_FREEZE, self)
+        
+    def remove(self):
+        self.character.remove_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+    def update(self, target):
+        pass
+    
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_FIXED_DAMAGE:
+            if event.data['damage'].damageType != DamageType.REACTION and \
+               event.data['character'] != self.character and \
+               event.data['character'].on_field:
+                event.data['damage'].setDamageData('白星之裙', self.character.attributePanel['元素精通'] * 2)
+                event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 2
+                self.star_blade_stacks -= 1
+        elif event.event_type in (EventType.AFTER_MELT, EventType.AFTER_FREEZE):
+            if event.frame - self.last_reaction_time > self.reaction_cooldown:
+                self.last_reaction_time = event.frame
+                self.star_blade_stacks += 3
+
+class ConstellationEffect_1(ConstellationEffect, EventHandler):
+    """命座1：四百星的芒刃"""
+    def __init__(self):
+        super().__init__('四百星的芒刃')
+        
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        
+    def handle_event(self, event):
+        # 元素战技施放时触发
+        if event.event_type == EventType.AFTER_SKILL and \
+           event.data['character'] == self.character:
+            # 应用白星之裙效果
+            effect = WhiteStarDressEffect(self.character)
+            effect.apply()
+            get_emulation_logger().log_skill_use("✨ 命座1「四百星的芒刃」触发，获得10层星刃")
+
+class ConstellationEffect_2(ConstellationEffect):
+    """命座2：吞心者的巡行"""
+    def __init__(self):
+        super().__init__('吞心者的巡行')
+        
+    def apply(self, character):
+        super().apply(character)
+        # 常驻元素精通提升125点
+        character.attributePanel['元素精通'] += 125
     
 class CITLALI(Natlan):
     ID = 93
@@ -268,6 +367,8 @@ class CITLALI(Natlan):
         self.Burst = ElementalBurst(lv=self.skill_params[2])
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
     
 citlali_table = {
     'id': CITLALI.ID,
