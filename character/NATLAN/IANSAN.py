@@ -425,10 +425,10 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
     """动能梯度测验"""
     def __init__(self):
         super().__init__('动能梯度测验')
-        EventBus.subscribe(EventType.NightsoulBurst, self)
         
     def apply(self, character):
         self.character = character
+        EventBus.subscribe(EventType.NightsoulBurst, self)
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.NightsoulBurst:

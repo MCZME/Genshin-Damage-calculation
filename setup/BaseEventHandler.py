@@ -54,6 +54,7 @@ class NightsoulBurstEventHandler(EventHandler):
                         if i.association == '纳塔':
                             self.NATLAN_character += 1
                     self.last_nightsoul_burst_time = event.frame
+                    get_emulation_logger().log_effect('触发夜魂迸发')
                     NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
                     EventBus.publish(NightsoulBurstEvent)
 

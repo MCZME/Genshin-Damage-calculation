@@ -1,8 +1,9 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ElementalEnergy, NormalAttackSkill, SkillBase, SkillSate
-from setup.BaseEffect import Effect, ResistanceDebuffEffect
+from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType, NormalAttackEvent
+from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
+from setup.HealingCalculation import Healing, HealingType
 from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime
 from setup.Team import Team
@@ -196,6 +197,210 @@ class ElementalSkill(SkillBase):
     def on_interrupt(self):
         return super().on_interrupt()
 
+class JoyfulRhythmEffect(Effect, EventHandler):
+    """欢兴律动效果"""
+    def __init__(self, character):
+        super().__init__(character, 12 * 60)  # 12秒持续时间
+        self.name = "欢兴律动"
+        self.last_trigger_time = 0
+        self.interval = 1.5 * 60
+        self.healing_multiplier = [
+            (104, 500.74), (111.8, 550.82), (119.6, 605.07), (130, 663.5), (137.8, 726.1),
+            (145.6, 792.88), (156, 863.82), (166.4, 938.94), (176.8, 1018.24), (187.2, 1101.71),
+            (197.6, 1189.35), (208, 1281.16), (221, 1377.15), (234, 1477.31), (247, 1581.65)
+        ]
+        self.current_character = character
+
+    def apply(self):
+        existing = next((e for e in self.current_character.active_effects if isinstance(e, JoyfulRhythmEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        self.current_character.add_effect(self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            if event.data['old_character'] == self.current_character:
+                self.remove()
+                self.current_character = event.data['new_character']
+                self.apply()
+
+    def remove(self):
+        self.current_character.remove_effect(self)
+
+    def update(self, target):
+        super().update(target)
+        current_time = GetCurrentTime()
+        if current_time - self.last_trigger_time >= self.interval:
+            self.last_trigger_time = current_time
+            lv = self.character.skill_params[2] - 1
+            def_mult, flat = self.healing_multiplier[lv]
+            
+            heal = Healing((def_mult, flat), HealingType.BURST, '欢兴律动')
+            heal.base_value = '防御力'
+            heal_event = HealEvent(
+                self.character,
+                Team.current_character,
+                heal,
+                current_time
+            )
+            EventBus.publish(heal_event)
+            print("🎶 欢兴律动治疗触发")
+
+class FierceRhythmEffect(Effect):
+    """燥烈律动效果"""
+    def __init__(self, character):
+        super().__init__(character, 12 * 60)  # 12秒持续时间
+        self.name = "燥烈律动"
+        self.damage_multiplier = [
+            281.28, 302.38, 323.47, 351.6, 372.7, 393.79, 421.92, 450.05, 
+            478.18, 506.3, 534.43, 562.56, 597.72, 632.88, 668.04
+        ]
+        self.beat_count = 0
+        self.max_beats = 2
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects if isinstance(e, FierceRhythmEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        self.character.add_effect(self)
+
+    def remove(self):
+        self.character.remove_effect(self)
+
+    def update(self, target):
+        if self.beat_count < self.max_beats:
+            self.beat_count += 1
+            
+            # 设置命中帧 (33,69)
+            hit_frame = 33 if self.beat_count == 1 else 69
+            
+            damage = Damage(
+                self.damage_multiplier[self.character.skill_params[2]-1],
+                element=('岩', 1),
+                damageType=DamageType.BURST,
+                name='燥烈律动 节拍伤害'
+            )
+            damage.baseValue = "防御力"
+            damage.setDamageData('夜魂伤害', True)
+            
+            event = DamageEvent(self.character, target, damage, GetCurrentTime())
+            EventBus.publish(event)
+            print(f"🥁 燥烈律动第{self.beat_count}次节拍伤害")
+            if self.beat_count == self.max_beats:
+                self.remove()
+                print("🥁 燥烈律动结束")
+
+class ElementalBurst(EnergySkill):
+    """元素爆发：豹烈律动"""
+    def __init__(self, lv):
+        super().__init__(
+            name="豹烈律动",
+            total_frames=100,  # 技能动画帧数
+            cd=15 * 60,  # 15秒冷却
+            lv=lv,
+            element=('岩', 1),
+            interruptible=False,
+            state=SkillSate.OnField
+        )
+        self.damage_multiplier = [
+            281.28, 302.38, 323.47, 351.6, 372.7, 393.79, 421.92, 450.05, 
+            478.18, 506.3, 534.43, 562.56, 597.72, 632.88, 668.04
+        ]
+        self.hit_frame = 96  # 命中帧数
+
+    def on_frame_update(self, target):
+        if self.current_frame == self.hit_frame:
+            # 基础伤害
+            damage = Damage(
+                self.damage_multiplier[self.lv-1],
+                element=('岩', 1),
+                damageType=DamageType.BURST,
+                name='豹烈律动'
+            )
+            damage.baseValue = "防御力"
+            damage.setDamageData('夜魂伤害', True)
+            
+            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            EventBus.publish(event)
+            
+            # 根据源音采样类型触发不同效果
+            converted_count = sum(1 for s in self.caster.samplers if s['element'] != '岩')
+            if converted_count >= 2:
+                effect = JoyfulRhythmEffect(self.caster)
+                print("🎵 触发欢兴律动效果")
+            else:
+                effect = FierceRhythmEffect(self.caster)
+                print("🥁 触发燥烈律动效果")
+                
+            effect.apply()
+            
+            print("🎛️ 豹烈律动启动！")
+
+class PassiveSkillEffect_1(TalentEffect,EventHandler):
+    """天赋1：四境四象回声"""
+    def __init__(self):
+        super().__init__('四境四象回声')
+        self.last_trigger_time = 0
+        self.trigger_interval = 6  # 0.1秒CD (6帧)
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        EventBus.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        EventBus.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
+
+    def handle_event(self, event):
+        if not self.character.Nightsoul_Blessing:
+            return
+        
+        # 计算元素转化的源音采样数量
+        converted_count = sum(1 for s in self.character.samplers if s['element'] != '岩')
+            
+        # 检查是否为普攻或下落攻击伤害
+        if event.event_type in [EventType.BEFORE_NORMAL_ATTACK, EventType.BEFORE_PLUNGING_ATTACK]:
+            current_time = GetCurrentTime()
+            if current_time - self.last_trigger_time < self.trigger_interval:
+                return
+
+            if converted_count >= 2:
+                # 效果1：获得35点夜魂值
+                self.character.gain_night_soul(35)
+                self.last_trigger_time = current_time
+                get_emulation_logger().log_skill_use("🎵 天赋「四境四象回声」触发，获得35点夜魂值")
+        elif event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if converted_count <2 and event.data['damage'].damageType in [DamageType.NORMAL,DamageType.PLUNGING]:
+                event.data['damage'].panel['伤害加成'] += 30
+                event.data['damage'].setDamageData('四境四象回声_伤害加成', 30)
+
+class PassiveSkillEffect_2(TalentEffect,EventHandler):
+    """天赋2：便携铠装护层"""
+    def __init__(self):
+        super().__init__('便携铠装护层')
+        self.colddown = 14* 60
+        self.last_trigger_time = 0
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.NightsoulBurst, self)
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+    
+    def handle_event(self, event):
+        if event.event_type == EventType.NightsoulBurst:
+            effect = DefenseBoostEffect(self.character, '便携铠装护层', 20, 15*60)
+            effect.apply()
+        elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
+            if (event.data['character'] == self.character and
+                event.data['amount'] == -90 and 
+                GetCurrentTime() - self.last_trigger_time > self.colddown):
+                get_emulation_logger().log_effect('希诺宁 便携铠装护层 触发夜魂迸发')
+                NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
+                EventBus.publish(NightsoulBurstEvent)
+    
 # todo
 # 希诺宁的夜魂加持状态具有如下限制：处于夜魂加持状态下时，希诺宁的夜魂值有9秒的时间限制，超过时间限制后，希诺宁的夜魂值将立刻耗竭。
 # 处于夜魂加持状态下时，夜魂值耗竭后，希诺宁将无法通过固有天赋「四境四象回声」产生夜魂值。
@@ -210,6 +415,9 @@ class Xilonen(Natlan):
         self.max_night_soul = 90
         self.NormalAttack = XilonenNormalAttack(lv=self.skill_params[0])
         self.Skill = ElementalSkill(lv=self.skill_params[1])
+        self.Burst = ElementalBurst(lv=self.skill_params[2])
+        self.talent1 = PassiveSkillEffect_1()
+        self.talent2 = PassiveSkillEffect_2()
         
         # 初始化3个源音采样器
         self.samplers = [{'element': '岩', 'active': False} for _ in range(3)]
