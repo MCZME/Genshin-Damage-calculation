@@ -105,6 +105,8 @@ class AThousandBlazingSuns(Weapon, EventHandler):
             self.last_extension_frame = current_frame
 
     def update(self, target):
+        if not self.character.on_field:
+            return
         # 全局冷却计时
         if self.fen_guang_cooldown > 0:
             self.fen_guang_cooldown -= 1

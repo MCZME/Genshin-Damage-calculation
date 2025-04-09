@@ -72,4 +72,4 @@ class Natlan(Character):
         self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
         EventBus.publish(self.after_nightsoulBlessingevent)
         self.Nightsoul_Blessing = False
-        get_emulation_logger().log_effect(f"🌙 夜魂加持结束")
+        get_emulation_logger().log_effect(f"🌙 {self.name}夜魂加持结束")

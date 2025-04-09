@@ -1,121 +1,115 @@
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
+from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
+from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
+from setup.Logger import get_emulation_logger
 
-class ElementalSkill(SkillBase,EventHandler):
-    def __init__(self, lv):
-        super().__init__(name="诸火武装", total_frames=60*12.4, cd=15*60, lv=lv, 
-                        element=('火', 1), interruptible=False, state=SkillSate.OffField)
-        
-        self.night_soul_consumed = 0
-        self.attack_interval = 0 # 神环攻击计时器
-        self.ttt = False
-
-        self.damageMultipiler ={'焚曜之环':[128,137.6,147.2,160,169.6,179.2,192,204.8,217.6,230.4,243.2,256,272],
-                                '伤害':[74.4,79.98,85.56,93,98.58,104.16,111.6,119.04,126.48,133.92,141.36,148.8,158.1]}
-        
-        # 订阅角色切换事件
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-
-    def start(self, caster, hold=False):
-        if not super().start(caster):
-            return False
-        # 初始化形态
-        caster.gain_night_soul(80)
-        initial_mode = '驰轮车' if hold else '焚曜之环'
-        if caster.switch_to_mode(initial_mode):  # 新增角色方法
-            print(f"🔥 进入夜魂加持状态，初始形态：{initial_mode}")
-            self.ttt = True
-            return True
-        return True
-
-    def handle_event(self, event: GameEvent):
-        """处理角色切换事件"""
-        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
-            # 当玛薇卡被切出时自动转为焚曜之环
-            if event.data['old_character'] == self.caster and self.caster is not None:
-                print("🔄 角色切换，变为焚曜之环形态")
-                self.caster.mode = '焚曜之环'  # 直接设置形态
-                self.attack_interval = 0  # 重置攻击计时器
+class RingOfSearingRadianceObject(baseObject):
+    def __init__(self, caster, life_frame=0):
+        super().__init__('焚曜之环', life_frame)
+        self.caster = caster
+        self.damage_multiplier = [128,137.6,147.2,160,169.6,179.2,192,204.8,217.6,230.4,243.2,256,272]
 
     def update(self, target):
         self.current_frame += 1
-        if self.on_frame_update(target):
-            return True
-        return False
+        self.on_frame_update(target)
 
     def on_frame_update(self, target):
-        if self.current_frame == 1 and self.ttt:
+        if self.current_frame % (2*60) == 0:
+            if self.caster.current_night_soul <= 0: 
+                self.on_finish()
+                return 
+            self.caster.consume_night_soul(3)
+            damage = Damage(
+                damageMultipiler=self.damage_multiplier[self.caster.Skill.lv-1], 
+                element=('火',1),
+                damageType=DamageType.SKILL,
+                name='焚曜之环'
+            )
+            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
+            EventBus.publish(damageEvent)
+    
+    def on_finish(self):
+        print(f'{self.name} 存活时间结束')
+        Team.remove_object(self)
+
+class ElementalSkill(SkillBase):
+    def __init__(self, lv):
+        super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 
+                        element=('火', 1), interruptible=False)
+        
+        self.damageMultipiler ={'伤害':[74.4,79.98,85.56,93,98.58,104.16,111.6,119.04,126.48,133.92,141.36,148.8,158.1]}
+
+    def start(self, caster, hold=False):
+        if caster.Nightsoul_Blessing:
+            if caster.mode == '驰轮车':
+                caster.switch_to_mode('焚曜之环')
+            else:
+                caster.switch_to_mode('驰轮车')
+            return False
+        if self.cd_timer > 0:
+            get_emulation_logger().log_error(f'{self.name}技能还在冷却中')
+            return False  # 技能仍在冷却中
+        self.caster = caster
+        self.current_frame = 0
+        self.last_use_time = GetCurrentTime()
+        # 初始化形态
+        caster.gain_night_soul(self.caster.max_night_soul)
+        initial_mode = '驰轮车' if hold else '焚曜之环'
+        if caster.switch_to_mode(initial_mode):
+            get_emulation_logger().log("INFO", f"进入夜魂加持状态，初始形态：{initial_mode}")
+        return True
+
+    def on_frame_update(self, target):
+        if self.current_frame == 7:
             damage = Damage(damageMultipiler=self.damageMultipiler['伤害'][self.lv-1], 
                             element=('火',1), 
                             damageType=DamageType.SKILL,
                             name=self.name)
             damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
-            self.ttt = False
             summon_energy(5, self.caster, ('火', 2))
-        if self.caster.mode == '正常模式':
-            return True
-        return False
-    
-    def handle_sacred_ring(self, target):
-        """焚曜之环攻击逻辑（每2秒攻击一次）"""
-        self.attack_interval += 1
-        if self.attack_interval >= 120:
-            self.attack_interval = 0
-            if not self.caster.consume_night_soul(3): 
-                self.on_finish()
-                return
-
-            damage = Damage(damageMultipiler=self.damageMultipiler['焚曜之环'][self.lv-1], element=('火',1),
-                             damageType=DamageType.SKILL,
-                             name='焚曜之环')
-            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
-            EventBus.publish(damageEvent)
-            
+           
     def on_finish(self):
         super().on_finish()
-        self.caster.chargeNightsoulBlessing()
-        self.caster.mode = '正常模式'
-        print("🌙 夜魂加持结束")
 
     def on_interrupt(self):
         self.on_finish()
 
 class FurnaceEffect(Effect, EventHandler):
-    def __init__(self, character, consumed_will, burst_instance):
+    def __init__(self, character, consumed_will):
         super().__init__(character, duration=7 * 60)
         self.consumed_will = consumed_will
-        self.burst = burst_instance  # 持有元素爆发实例引用
         
     def apply(self):
-        print(f'玛薇卡获得死生之炉')
+        get_emulation_logger().log_effect('玛薇卡获得死生之炉')
         # 防止重复应用
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, FurnaceEffect)), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
-        EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
+        EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
         
     def remove(self):
-        print(f'死生之炉结束')
+        get_emulation_logger().log_effect('死生之炉结束')
         self.character.remove_effect(self)
         # 取消订阅
-        EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CONSUMPTION, self)
+        EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     
     def handle_event(self, event: GameEvent):
         # 阻止夜魂消耗
-        if event.event_type == EventType.BEFORE_NIGHT_SOUL_CONSUMPTION:
+        if event.event_type == EventType.BEFORE_NIGHT_SOUL_CHANGE:
             if event.data['character'] == self.character:
                 event.cancelled = True
                 
@@ -126,8 +120,8 @@ class FurnaceEffect(Effect, EventHandler):
 
 class ElementalBurst(SkillBase, EventHandler):
     def __init__(self, lv, caster=None):
-        super().__init__(name="燔天之时", total_frames=60*2.375, cd=18*60, lv=lv, caster=caster,
-                        element=('火', 1), state=SkillSate.OnField)
+        super().__init__(name="燔天之时", total_frames=141, cd=18*60, lv=lv, caster=caster,
+                        element=('火', 1))
         self.damageMultipiler = {
             '坠日斩':[444.8,478.16,511.52,556,589.36,622.72,667.2,711.68,756.16,800.64,845.12,889.6,945.2],
             '坠日斩伤害提升':[1.6,1.72,1.84,2,2.12,2.24,2.4,2.56,2.72,2.88,3.04,3.2,3.4],
@@ -136,7 +130,7 @@ class ElementalBurst(SkillBase, EventHandler):
         }
         # 战意系统属性
         self.max_battle_will = 200
-        self.battle_will = 0
+        self.battle_will = 200
         self.last_will_gain_time = -99  # 最后获得战意的时间戳
 
         # 控制标志
@@ -148,7 +142,7 @@ class ElementalBurst(SkillBase, EventHandler):
 
     def start(self, caster):
         if self.battle_will < 50:
-            print("❌ 战意不足，无法施放元素爆发")
+            get_emulation_logger().log_error("战意不足，无法施放元素爆发")
             return False
         if not super().start(caster):
             return False
@@ -156,6 +150,8 @@ class ElementalBurst(SkillBase, EventHandler):
         # 消耗所有战意
         self.consumed_will = self.battle_will
         self.battle_will = 0
+        self.caster.gain_night_soul(10)
+        self.caster.switch_to_mode('驰轮车')
         
         return True
 
@@ -177,23 +173,12 @@ class ElementalBurst(SkillBase, EventHandler):
             if event.data['amount'] < 0:
                 self.gain_battle_will(-event.data['amount'])
 
-    def update(self, target):
-        self.current_frame += 1
-        if self.current_frame == int(self.total_frames):
-            # 恢复夜魂值并切换形态
-            self.caster.gain_night_soul(10)
-            self.caster.switch_to_mode('驰轮车')
-             # 创建并应用死生之炉效果
-            furnace_effect = FurnaceEffect(self.caster, self.consumed_will, self)
+    def on_frame_update(self, target):
+        if self.current_frame == 106:
+            # 创建并应用死生之炉效果
+            furnace_effect = FurnaceEffect(self.caster, self.consumed_will)
             furnace_effect.apply()
             self._perform_plunge_attack(target)
-        elif self.current_frame > self.total_frames:
-            self.on_finish()
-            return True
-        return False
-
-    def on_frame_update(self, target):
-        return super().on_frame_update(target)
 
     def on_finish(self):
         super().on_finish()
@@ -204,7 +189,7 @@ class ElementalBurst(SkillBase, EventHandler):
     def gain_battle_will(self, amount):
         self.battle_will = min(self.max_battle_will, self.battle_will + amount)
         if self.ttt % 60 == 0:
-            print(f"🔥 获得战意：{self.battle_will:.2f}")
+            get_emulation_logger().log("INFO", f"获得战意：{self.battle_will:.2f}")
         self.ttt += 1
 
 class MavuikaNormalAttackSkill(NormalAttackSkill):
@@ -250,7 +235,7 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
         # 驰轮车状态下消耗夜魂
         if self.caster.mode == '驰轮车':
             if not self.caster.consume_night_soul(1):
-                print("⚠️ 夜魂不足，攻击中断")
+                get_emulation_logger().log_error("夜魂不足，攻击中断")
                 self.current_segment = self.max_segments  # 强制结束攻击
                 return True
         
@@ -334,16 +319,16 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
             return False
         
         # 检查夜魂值
-        if caster.mode == '驰轮车' and not caster.consume_night_soul(2):
-            print("⚠️ 夜魂不足，无法发动驰轮车重击")
+        if caster.mode == '驰轮车' and caster.current_night_soul < 2:
+            get_emulation_logger().log_error("夜魂不足，无法发动驰轮车重击")
             return False
-
+        caster.consume_night_soul(2)
         # 根据形态初始化参数
         if caster.mode == '驰轮车':
             self.total_frames = self.spin_interval * self.spin_total + self.finish_damage_frame + 1
             self.spin_count = 0
             self.sequence_index = 0
-            print("🌀 进入驰轮车重击-焰轮旋舞")
+            get_emulation_logger().log("INFO", "进入驰轮车重击-焰轮旋舞")
         else:
             # 普通重击参数
             self.total_frames = 45  # 默认45帧
@@ -363,7 +348,7 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
                 self.spin_count += 1
                 # 每次旋转消耗夜魂
                 if not self.caster.consume_night_soul(2):
-                    print("⚠️ 夜魂不足，重击中断")
+                    get_emulation_logger().log_error("夜魂不足，重击中断")
                     self.on_interrupt()
                     return True
         # 终结伤害阶段
@@ -430,16 +415,17 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
     def on_finish(self):
         super().on_finish()
         if self.caster.mode == '驰轮车':
-            print("🎇 焰轮旋舞结束")
+            get_emulation_logger().log("INFO", "焰轮旋舞结束")
 
     def on_interrupt(self):
         super().on_interrupt()
         if self.caster.mode == '驰轮车':
-            print("💢 焰轮旋舞被打断！")
+            get_emulation_logger().log_error("焰轮旋舞被打断！")
 
 class TwoPhaseDamageBoostEffect(Effect, EventHandler):
     def __init__(self, source, initial_boost, fixed_duration, decay_duration):
         super().__init__(source)
+        self.name = "「基扬戈兹」"
         self.current_boost = initial_boost
         self.max_boost = initial_boost
         self.fixed_duration = fixed_duration
@@ -452,7 +438,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
     def apply(self):
         self.current_holder = self.character
         self._apply_boost()
-        print(f"🔥「基扬戈兹」生效！初始加成：{self.current_boost*100:.1f}%")
+        get_emulation_logger().log_effect(f"「基扬戈兹」生效！初始加成：{self.current_boost*100:.1f}%")
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH and self in event.data['old_character'].active_effects:
@@ -464,7 +450,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
         self.current_holder = new_char
         new_char.active_effects.append(self)
         self._apply_boost()
-        print(f"🔄「基扬戈兹」转移至{new_char.name}")
+        get_emulation_logger().log_effect(f"「基扬戈兹」转移至{new_char.name}")
 
     def _apply_boost(self):
         if self.current_holder:
@@ -489,7 +475,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
             self.total_duration -= 1
         else:
             self.character.remove_effect(self)
-            print(f"🔥「基扬戈兹」效果结束！")
+            get_emulation_logger().log_effect("「基扬戈兹」效果结束！")
             
 class PassiveSkillEffect_2(TalentEffect, EventHandler):
     def __init__(self):
@@ -523,7 +509,7 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
     
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
-            print(f"🎉 炎花献礼：玛薇卡攻击力提升{self.boost_amount}%")
+            get_emulation_logger().log_effect(f"炎花献礼：玛薇卡攻击力提升{self.boost_amount}%")
             effect = AttackBoostEffect(self.character,  self.name, self.boost_amount, 10*60)
             effect.apply()
 
@@ -535,13 +521,13 @@ class ConstellationEffect_1(ConstellationEffect):
     def apply(self, character):
         super().apply(character)
         # 提升夜魂值上限
-        character.base_max_night_soul = 120
+        character.max_night_soul = 120
         
         # 添加战意效率提升和攻击力提升
         def f(self, amount):
             self.battle_will = min(self.max_battle_will, self.battle_will + amount*1.25)
             if self.ttt % 60 == 0:
-                print(f"🔥 获得战意：{self.battle_will:.2f}")
+                get_emulation_logger().log("INFO", f"获得战意：{self.battle_will:.2f}")
             self.ttt += 1
             effect = AttackBoostEffect(self.caster, '夜主的授记', 40, 8*60)
             effect.apply()
@@ -550,6 +536,7 @@ class ConstellationEffect_1(ConstellationEffect):
 class MavuikaAttackScalingEffect(Effect):
     def __init__(self, character):
         super().__init__(character,10)
+        self.name = "灰烬的代价"
 
     def apply(self):
         existing = next((e for e in self.character.active_effects 
@@ -619,6 +606,7 @@ class MAVUIKA(Natlan):
 
     def _init_character(self):
         super()._init_character()
+        self.elemental_energy = ElementalEnergy(self,('火',0))
         self.NormalAttack = MavuikaNormalAttackSkill(self.skill_params[0])
         self.ChargedAttack = MavuikaChargedAttackSkill(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
@@ -629,23 +617,16 @@ class MAVUIKA(Natlan):
         self.constellation_effects[0] = ConstellationEffect_1()
         self.constellation_effects[1] = ConstellationEffect_2()
 
-
     def update(self, target):
         if  self.mode != '正常模式':
             if self.mode == '焚曜之环':
-                if not self.consume_night_soul(5/60):  # 使用角色类方法
-                    self.Skill.on_finish()
-                    return True
-                self.Skill.handle_sacred_ring(target)
+                self.consume_night_soul(5/60)
             elif self.mode == '驰轮车':
-                if not self.consume_night_soul(9/60):  # 使用角色类方法
-                    self.Skill.on_finish()
-                    return True
-            
+                self.consume_night_soul(9/60)
             self.time_accumulator += 1
             if self.time_accumulator >= 60:
                 self.time_accumulator -= 60
-                print(f"🕒 夜魂剩余：{self.current_night_soul:.2f}")
+                get_emulation_logger().log("INFO", f"夜魂剩余：{self.current_night_soul:.2f}")
 
         super().update(target)
 
@@ -654,10 +635,7 @@ class MAVUIKA(Natlan):
 
     def _elemental_skill_impl(self,hold=False):
         # 已处于技能状态时切换形态
-        if self.mode != '正常模式':
-            self.switch_mode()
-            self._append_state(CharacterState.SKILL)
-        elif self._is_change_state() and self.Skill.start(self,hold):
+        if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self, frame=GetCurrentTime())
             EventBus.publish(skillEvent)
@@ -668,56 +646,53 @@ class MAVUIKA(Natlan):
             EventBus.publish(self.after_nightsoulBlessingevent)
             self.Nightsoul_Blessing = False
             self.switch_to_mode('正常模式')
+            get_emulation_logger().log("INFO", f"{self.name} 夜魂加持结束")
         else:
             self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
             EventBus.publish(self.before_nightsoulBlessingevent)
             self.Nightsoul_Blessing = True
-            print(f"🌙 夜魂加持")
-
-    def switch_mode(self):
-        """切换武装形态（仅在夜魂加持状态下可用）"""
-        if not self.Nightsoul_Blessing:
-            return False
-
-        new_mode = '驰轮车' if self.mode == '焚曜之环' else '焚曜之环'
-        self.Skill.caster = self
-        print(f"🔄 切换至形态：{new_mode}")
-        self.mode = new_mode
-        return True
+            get_emulation_logger().log("INFO", "夜魂加持")
     
     def switch_to_mode(self, new_mode):
-            """安全切换形态的方法"""
-            # 只能在夜魂加持状态下切换战斗形态
-            if not self.Nightsoul_Blessing and new_mode != '正常模式':
-                return False
-                
-            # 验证形态有效性
-            if new_mode not in ['正常模式', '焚曜之环', '驰轮车']:
-                return False
-                
-            if self.mode == new_mode:
-                return False
-                
-            # 执行形态切换
-            self.mode = new_mode
+        """安全切换形态的方法"""
+        # 只能在夜魂加持状态下切换战斗形态
+        if not self.Nightsoul_Blessing and new_mode != '正常模式':
+            return False
             
-            # 切换为正常模式时自动结束加持
-            if new_mode == '正常模式' and self.Nightsoul_Blessing:
-                self.chargeNightsoulBlessing()
-                
-            return True
+        # 验证形态有效性
+        if new_mode not in ['正常模式', '焚曜之环', '驰轮车']:
+            return False
+            
+        if self.mode == new_mode:
+            return False
+            
+        # 执行形态切换
+        self.mode = new_mode
+        
+        if self.mode == '焚曜之环':
+            ring = RingOfSearingRadianceObject(self)
+            ring.apply()
+        else:
+            ring = next((o for o in Team.active_objects if isinstance(o, RingOfSearingRadianceObject)), None)
+            if ring:
+                ring.on_finish()
+
+        # 切换为正常模式时自动结束加持
+        if new_mode == '正常模式' and self.Nightsoul_Blessing:
+            self.chargeNightsoulBlessing()
+            
+        return True
     
     def gain_night_soul(self, amount):
        if not self.Nightsoul_Blessing:
-           self.chargeNightsoulBlessing()
+           self.gain_NightSoulBlessing()
        super().gain_night_soul(amount)
 
     def consume_night_soul(self, amount):
-        a = super().consume_night_soul(amount)
+        super().consume_night_soul(amount)
         if self.current_night_soul <= 0:
             self.romve_NightSoulBlessing()
-            return True
-        return a
+            self.switch_to_mode('正常模式')
 
 mavuika_table = {
     'id': MAVUIKA.ID,
