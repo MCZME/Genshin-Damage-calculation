@@ -290,6 +290,8 @@ class DamageCalculateEventHandler(EventHandler):
                           if isinstance(e, ElementalInfusionEffect)]
         
         # 检查是否有不可覆盖的效果
+        if damage.data.get('不可覆盖', False):
+            return
         unoverridable = next((e for e in infusion_effects if e.is_unoverridable), None)
         if unoverridable:
             damage.element = (unoverridable.element_type, unoverridable.should_apply_infusion())

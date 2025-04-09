@@ -25,7 +25,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
         super().__init__("伊兹帕帕", life_frame=20*60)  # 20秒持续时间
         self.character = character
         self.in_white_flint = False  # 白燧状态
-        self.damage_interval = 2*60  # 伤害间隔帧数(1秒)
+        self.damage_interval = 2*60 
         self.last_damage_frame = -2*60  # 上次造成伤害的帧数
         self.storm_damage = [17.02, 18.3, 19.58, 21.28, 22.56, 23.83, 25.54, 
                            27.24, 28.94, 30.64, 32.35, 34.05, 36.18, 38.3, 40.43]
@@ -94,6 +94,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
                 whiteStarDress.remove()
         if self.character.constellation >= 2:
             self.current_character.attributePanel['元素精通'] -= 250
+        super().on_finish(target)
 
 class ElementalSkill(SkillBase):
     """元素战技：霜昼黑星"""
@@ -174,6 +175,7 @@ class SkeletonSpiritObject(baseObject):
                       215.04, 228.48, 241.92, 255.36, 268.8, 285.6, 302.4, 319.2]
         
     def on_finish(self, target):
+        super().on_finish(target)
         # 爆炸造成伤害并恢复夜魂值
         damage = Damage(
             self.damage[self.lv-1],
@@ -231,7 +233,7 @@ class ElementalBurst(EnergySkill):
             # 恢复24点夜魂值
             self.caster.gain_night_soul(24)
             
-        if self.current_frame == self.spawn_frame:
+        elif self.current_frame == self.spawn_frame:
             # 召唤1个宿灵之髑
             spirit = SkeletonSpiritObject(self.caster, self.lv)
             spirit.apply()

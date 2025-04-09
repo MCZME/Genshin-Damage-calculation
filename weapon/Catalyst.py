@@ -127,5 +127,3 @@ class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
                 effect = AttackBoostEffect(event.data['new_character'], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
                 effect.apply()
                 self.last_trigger_time = current_time
-                get_emulation_logger().log_effect(
-                    f"{event.data['new_character'].name}获得讨龙英杰谭效果，攻击力提升24%")

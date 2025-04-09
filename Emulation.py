@@ -24,6 +24,7 @@ class Emulation():
         Emulation.target = Target(0, 103)
         self.n = 0
         self.set_data()
+        get_emulation_logger().new_log_file()
 
     def set_quueue(self,queue):
         self.progress_queue = queue
@@ -38,11 +39,10 @@ class Emulation():
         actions (list): 要执行的动作列表。
         {Name:actionName}
         """
-        get_emulation_logger().new_log_file()
         action = iter(actions)
         self.next_character = next(action)
         Emulation.team.swap(self.next_character)
-        Emulation.team.current_frame = 0 # 初始化当前帧数
+        Team.current_frame = 0 # 初始化当前帧数
         if hasattr(self, 'progress_queue') and self.progress_queue:
             try:
                 self.progress_queue.put({
@@ -146,6 +146,7 @@ class Emulation():
                 character.setArtifact(am)
             
             characters.append(character)
+            get_emulation_logger().log("Team",f"角色 {character.name} 创建成功")
         
         if not characters:
             raise ValueError("没有有效的角色配置")

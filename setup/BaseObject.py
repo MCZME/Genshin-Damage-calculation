@@ -19,16 +19,15 @@ class baseObject(ABC):
         self.current_frame += 1
         if self.current_frame >= self.life_frame:
             self.on_finish(target)
-            Team.remove_object(self)
         self.on_frame_update(target)
 
     @abstractmethod
     def on_frame_update(self,target):
         ...
 
-    @abstractmethod
     def on_finish(self,target):
         print(f'{self.name} 存活时间结束')
+        Team.remove_object(self)
            
 class ArkheObject(baseObject):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):
@@ -38,6 +37,7 @@ class ArkheObject(baseObject):
         self.damage = damage
 
     def on_finish(self, target):
+        super().on_finish(target)
         event = DamageEvent(self.character, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
         print(f'💫 {self.name}对{target.name}造成{self.damage.damage:.2f}点伤害')
@@ -58,6 +58,7 @@ class LightningBladeObject(baseObject):
         EventBus.subscribe(EventType.AFTER_SUPERCONDUCT, self)
 
     def on_finish(self, target):
+        super().on_finish(target)
         EventBus.unsubscribe(EventType.AFTER_OVERLOAD, self)
         EventBus.unsubscribe(EventType.AFTER_SUPERCONDUCT, self)
 

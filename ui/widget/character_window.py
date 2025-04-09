@@ -488,7 +488,7 @@ class CharacterWindow(QDialog):
             
             # 数值输入
             value_spin = QDoubleSpinBox()
-            value_spin.setRange(0, 100)
+            value_spin.setRange(0, 200)
             value_spin.setDecimals(1)
             value_spin.setSingleStep(0.1)
             form_layout.addRow("数值:", value_spin)

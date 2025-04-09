@@ -27,7 +27,7 @@ class Natlan(Character):
         )
         EventBus.publish(event)
         if event.cancelled:
-            return True
+            return
         
         self.current_night_soul -= actual_amount
         EventBus.publish(NightSoulChangeEvent(

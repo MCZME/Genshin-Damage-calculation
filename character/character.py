@@ -84,6 +84,7 @@ class Character:
         """初始化角色特有属性"""
         self.NormalAttack = None
         self.ChargedAttack = None
+        self.PlungingAttack = None
         self.Skill = None
         self.Burst = None
         self.talent1 = None
@@ -127,7 +128,7 @@ class Character:
     @abstractmethod
     def _normal_attack_impl(self,n):
         """普攻具体实现"""
-        if self._is_change_state() and self.NormalAttack.start(self,n):
+        if self.NormalAttack.start(self,n):
             self._append_state(CharacterState.NORMAL_ATTACK)
 
     def charged_attack(self):
@@ -137,7 +138,7 @@ class Character:
     @abstractmethod
     def _charged_attack_impl(self):
         """重击具体实现"""
-        if self._is_change_state() and self.ChargedAttack.start(self):
+        if self.ChargedAttack.start(self):
             self._append_state(CharacterState.CHARGED_ATTACK)
 
     def plunging_attack(self,is_high=False):
@@ -147,7 +148,7 @@ class Character:
     @abstractmethod
     def _plunging_attack_impl(self,is_high):
         """下落攻击具体实现"""
-        if self._is_change_state() and self.PlungingAttack.start(self,is_high):
+        if self.PlungingAttack.start(self,is_high):
             self._append_state(CharacterState.PLUNGING_ATTACK)
 
     def elemental_skill(self):
@@ -157,7 +158,7 @@ class Character:
     @abstractmethod
     def _elemental_skill_impl(self):
         """元素战技具体实现"""
-        if self._is_change_state() and self.Skill.start(self):
+        if self.Skill.start(self):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self,T.GetCurrentTime())
             EventBus.publish(skillEvent)
@@ -169,7 +170,7 @@ class Character:
     @abstractmethod
     def _elemental_burst_impl(self):
         """元素爆发具体实现"""
-        if self._is_change_state() and self.Burst.start(self):
+        if self.Burst.start(self):
             self._append_state(CharacterState.BURST)
             burstEvent = ElementalBurstEvent(self,T.GetCurrentTime())
             EventBus.publish(burstEvent)
@@ -246,17 +247,6 @@ class Character:
         elif state is CharacterState.IDLE:
             self.state.clear()
             self.state.append(state)
-
-    def _is_change_state(self):
-        from setup.BaseClass import SkillSate
-        for i in self.state:
-            if i == CharacterState.IDLE:
-                return True
-            elif i == CharacterState.SKILL and self.Skill.state == SkillSate.OffField:
-                return True
-            elif i == CharacterState.BURST and self.Burst.state == SkillSate.OffField:
-                return True
-        return False
 
     def add_effect(self, effect):
         self.active_effects.append(effect)

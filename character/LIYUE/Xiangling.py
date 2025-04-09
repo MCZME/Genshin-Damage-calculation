@@ -46,7 +46,7 @@ class GuobaObject(baseObject):
             # 锅巴消失时触发辣椒效果
             effect = ChiliPepperEffect(Team.current_character)
             effect.apply()
-        return super().on_finish(target)
+        super().on_finish(target)
 
 class ElementalSkill(SkillBase):
     """元素战技：锅巴出击"""

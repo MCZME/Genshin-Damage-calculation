@@ -1,5 +1,6 @@
 from setup.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
+from setup.Logger import get_emulation_logger
 from .weapon import Weapon
 
 claymore = ['螭骨剑','焚曜千阳']
@@ -56,8 +57,10 @@ class AThousandBlazingSuns(Weapon, EventHandler):
         # 夜魂状态更新
         elif event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
             self.nightsoul_active = True
+            get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳获得夜魂加持")
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
             self.nightsoul_active = False
+            get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳失去夜魂加持")
 
     def _can_activate(self):
         """判断是否满足触发条件"""
@@ -73,6 +76,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
     def _activate_fen_guang(self, current_frame):
         """激活焚光效果"""
         lv = self.lv - 1
+        get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳激活焚光效果")
         base_cd = self.skill_param['暴击伤害'][lv]
         base_atk = self.skill_param['攻击力%'][lv]
         
@@ -95,6 +99,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
     def _extend_fen_guang(self, current_frame, frames):
         """延长焚光持续时间"""
         if self.max_extensions < 360:  # 最多延长6秒
+            get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳延长焚光持续时间 {frames/60:.1f}秒")
             self.fen_guang_duration += frames
             self.max_extensions += frames
             self.last_extension_frame = current_frame
@@ -116,6 +121,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
     def _deactivate_fen_guang(self):
         """移除焚光效果"""
         lv = self.lv - 1
+        get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳焚光效果结束")
         base_cd = self.skill_param['暴击伤害'][lv]
         base_atk = self.skill_param['攻击力%'][lv]
         

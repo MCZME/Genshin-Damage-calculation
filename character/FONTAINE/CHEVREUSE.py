@@ -211,6 +211,7 @@ class DoubleDamageBullet(baseObject):
         # 在二重毁伤弹结束时触发伤害
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
+        super().on_finish()
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)
@@ -571,7 +572,7 @@ class CHEVREUSE(Fontaine):
         self._elemental_skill_impl(hold)
     
     def _elemental_skill_impl(self,hold):
-        if self._is_change_state() and self.Skill.start(self, hold):
+        if self.Skill.start(self, hold):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self,GetCurrentTime())
             EventBus.publish(skillEvent)

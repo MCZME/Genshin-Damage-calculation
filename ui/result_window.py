@@ -15,6 +15,7 @@ class ResultWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("战斗数据分析")
         self.resize(900, 700)  # 设置初始窗口大小
+        get_ui_logger().log_window_open("战斗数据分析窗口")
         # 创建并显示加载组件
         self.loading_widget = LoadingWidget(self)
         self.loading_widget.resize(self.size())
@@ -187,9 +188,10 @@ class ResultWindow(QMainWindow):
         """处理帧数输入按钮点击事件"""
         try:
             frame = int(self.frame_input.text())
+            get_ui_logger().log_button_click("帧数确定按钮")
             self.update_frame(frame)
         except ValueError:
-            print("请输入有效的帧数")
+            get_ui_logger().log_error(f"无效的帧数输入: {self.frame_input.text()}")
     
     def update_damage_chart(self):
         damage_data = send_to_window('damage')
@@ -236,13 +238,13 @@ class ResultWindow(QMainWindow):
 
     def _on_simulation_progress_updated(self, queue):
         """更新模拟进度"""
-        get_ui_logger().log_info("开始监听模拟进度...")
+        get_ui_logger().log_info("开始监听模拟进度队列...")
         while True:
             try:
                 data = queue.get(block=True, timeout=0.1)  # 阻塞获取，避免CPU占用过高
                 
                 if data is None:
-                    get_ui_logger().log_info("收到模拟完成信号")
+                    get_ui_logger().log_info("收到模拟完成信号，准备初始化UI")
                     self.init_ui()
                     break
                 
@@ -261,8 +263,8 @@ class ResultWindow(QMainWindow):
                         msg = data[key].get('msg', '计算中...')
                         self.loading_widget.update_progress(current, length, msg)
             except q.Empty:
-                get_ui_logger().log_info("队列暂时为空")
+                get_ui_logger().log_info("模拟进度队列暂时为空，继续等待...")
                 continue
             except Exception as e:
-                get_ui_logger().log_error(f"进度更新错误: {str(e)}")
+                get_ui_logger().log_error(f"模拟进度更新错误: {str(e)}")
                 break
