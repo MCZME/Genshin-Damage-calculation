@@ -15,3 +15,6 @@ from character.NATLAN.IANSAN import iansan_table
 add('伊安珊','IANSAN',iansan_table)
 from character.NATLAN.CITLALI import citlali_table
 add('茜特菈莉','CITLALI',citlali_table)
+from character.NATLAN.XILONEN import Xilonen_table
+add('希诺宁','XILONEN',Xilonen_table)
+

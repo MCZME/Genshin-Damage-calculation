@@ -3,6 +3,9 @@ from character import *
 from weapon.Catalyst import *
 from weapon.Claymore import *
 from weapon.Polearm import *
+from weapon.Sword import *
+from weapon.Bow import *
+
 
 
 CharacterClassMap = {
@@ -14,6 +17,7 @@ CharacterClassMap = {
     19:BENNETT,
     11:XiangLing,
     76:CHEVREUSE,
+    89:Xilonen,
 }
 
 WeaponClassMap = {
@@ -23,4 +27,5 @@ WeaponClassMap = {
     '渔获':TheCatch,
     '溢彩心念':VividNotions,
     '沙中伟贤的对答':DialoguesOfTheDesertSages,
+    '息燧之笛':FluteOfEzpitzal,
 }

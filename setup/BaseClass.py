@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent, PlungingAttackEvent
 from enum import Enum, auto
+from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime
 
 # 效果基类
@@ -60,7 +61,7 @@ class SkillBase(ABC):
 
     def start(self, caster):
         if self.cd_timer > 0:
-            print(f'{self.name}技能还在冷却中')
+            get_emulation_logger().log_error(f'{self.name}技能还在冷却中')
             return False  # 技能仍在冷却中
         self.caster = caster
         self.current_frame = 0
@@ -100,7 +101,7 @@ class EnergySkill(SkillBase):
         if self.caster.elemental_energy.is_energy_full():
             self.caster.elemental_energy.clear_energy()
             return True
-        print(f'{self.name} 能量不够')
+        get_emulation_logger().log_error(f'{self.name} 能量不够')
         return False
     
     def on_finish(self):
@@ -125,7 +126,7 @@ class NormalAttackSkill(SkillBase):
         self.segment_progress = 0
         self.max_segments = min(n,len(self.segment_frames))           # 实际攻击段数
         self.total_frames = sum(self.segment_frames[:self.max_segments])
-        print(f"⚔️ 开始第{self.current_segment+1}段攻击")
+        get_emulation_logger().log_skill_use(f"⚔️ 开始第{self.current_segment+1}段攻击")
         
         # 发布普通攻击事件（前段）
         normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
@@ -157,12 +158,12 @@ class NormalAttackSkill(SkillBase):
         """完成当前段攻击"""
         # 执行段攻击效果
         self._apply_segment_effect(target)
-        print(f"✅ 第{self.current_segment+1}段攻击完成")
+        get_emulation_logger().log_skill_use(f"✅ 第{self.current_segment+1}段攻击完成")
         # 进入下一段
         if self.current_segment < self.max_segments - 1:
             self.current_segment += 1
             self.segment_progress = 0
-            print(f"⚔️ 开始第{self.current_segment+1}段攻击")
+            get_emulation_logger().log_skill_use(f"⚔️ 开始第{self.current_segment+1}段攻击")
             # 发布普通攻击事件（前段）
             normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
             EventBus.publish(normal_attack_event)
@@ -182,7 +183,7 @@ class NormalAttackSkill(SkillBase):
         EventBus.publish(normal_attack_event)
 
     def on_interrupt(self):
-        print(f"💢 第{self.current_segment+1}段攻击被打断！")
+        get_emulation_logger().log_error(f"💢 第{self.current_segment+1}段攻击被打断！")
         self.current_segment = self.max_segments  # 直接结束攻击链
  
 class ChargedAttackSkill(SkillBase):
@@ -202,7 +203,7 @@ class ChargedAttackSkill(SkillBase):
     def start(self, caster):
         if not super().start(caster):
             return False
-        print(f"💢 {caster.name} 开始重击")
+        get_emulation_logger().log_skill_use(f"💢 {caster.name} 开始重击")
         return True
 
     def on_frame_update(self, target): 
@@ -231,7 +232,7 @@ class ChargedAttackSkill(SkillBase):
 
     def on_finish(self):
         super().on_finish()
-        print("🎯 重击动作完成")
+        get_emulation_logger().log_skill_use("🎯 重击动作完成")
 
     def on_interrupt(self):
         super().on_interrupt()
@@ -257,7 +258,7 @@ class PlungingAttackSkill(SkillBase):
         if not super().start(caster):
             return False
         self.height_type = '高空' if is_high else '低空'
-        print(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
+        get_emulation_logger().log_skill_use(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
         event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(),is_plunging_impact=False)
         EventBus.publish(event)
         return True
@@ -307,8 +308,8 @@ class PlungingAttackSkill(SkillBase):
     def on_finish(self):
         super().on_finish()
         EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
-        print(f"💥 {self.caster.name} 下落攻击完成")
+        get_emulation_logger().log_skill_use(f"💥 {self.caster.name} 下落攻击完成")
 
     def on_interrupt(self):
-        print("💢 下落攻击被打断")
+        get_emulation_logger().log_error("💢 下落攻击被打断")
         super().on_interrupt()

@@ -171,6 +171,54 @@ class HealthBoostEffect(Effect):
         self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name} 生命值提升效果结束")
 
+class DefenseBoostEffect(Effect):
+    """防御力提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character, duration)
+        self.bonus = bonus  # 防御力提升百分比
+        self.name = name
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, DefenseBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.character.attributePanel['防御力%'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name} 获得 {self.name},防御力提升了{self.bonus}%")
+
+    def remove(self):
+        self.character.attributePanel['防御力%'] -= self.bonus
+        self.character.remove_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}防御力提升效果结束")
+
+class DefenseValueBoostEffect(Effect):
+    """防御力值提升效果（固定数值）"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character,duration)
+        self.bonus = bonus  # 防御力固定值提升
+        self.name = name
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, DefenseValueBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.character.attributePanel['固定防御力'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name}的防御力提升了{self.bonus:.2f}点")
+
+    def remove(self):
+        self.character.attributePanel['固定防御力'] -= self.bonus
+        self.character.remove_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础防御力提升效果结束")
+
 class DefenseDebuffEffect(Effect):
     def __init__(self, source, target, debuff_rate, duration):
         super().__init__(source,duration)
