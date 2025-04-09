@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import Effect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
@@ -277,7 +277,7 @@ class ElementalSkill(SkillBase):
     """元素战技：夜虹逐跃"""
     def __init__(self, lv):
         super().__init__(name="夜虹逐跃", total_frames=30, cd=15*60, lv=lv,
-                        element=('雷', 1), interruptible=True, state=SkillSate.OnField)
+                        element=('雷', 1), interruptible=True)
         self.max_charges = 2  # 最大使用次数
         self.current_charges = 2  # 当前使用次数
         self.last_use_time = [-self.cd] * self.max_charges  # 每个充能的最后使用时间
@@ -456,7 +456,6 @@ class SpecialElementalBurst(EnergySkill):
             lv=lv,
             element=('雷', 1),
             interruptible=False,
-            state=SkillSate.OnField,
             caster=caster
         )
         self.damageMultipiler = {
@@ -500,7 +499,6 @@ class ElementalBurst(EnergySkill):
             lv=lv,
             element=('雷', 1),
             interruptible=False,
-            state=SkillSate.OnField,
             caster=caster
         )
         self.original_cd = 20 * 60

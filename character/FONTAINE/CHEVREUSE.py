@@ -1,6 +1,6 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
@@ -78,7 +78,7 @@ class HealingFieldEffect(Effect, EventHandler):
 class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="近迫式急促拦射", total_frames=30, cd=15*60, lv=lv,
-                        element=('火', 1), interruptible=True, state=SkillSate.OnField)
+                        element=('火', 1), interruptible=True)
         self.cd_frame = 18
         self.scheduled_damage = None
         self.hold = False  # 添加长按状态标识
@@ -219,7 +219,7 @@ class ElementalBurst(EnergySkill):
     """元素爆发：轰烈子母弹"""
     def __init__(self, lv):
         super().__init__(name="轰烈子母弹", total_frames=60, cd=15*60, lv=lv,
-                        element=('火', 3), interruptible=False, state=SkillSate.OnField)
+                        element=('火', 3), interruptible=False)
         self.skill_frames = [59,60] # 命中帧 动画帧
         self.split_bullets = 8  # 分裂的二重毁伤弹数量
         

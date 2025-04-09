@@ -1,5 +1,5 @@
 from character.character import Character
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
@@ -58,7 +58,6 @@ class ElementalSkill(SkillBase):
             lv=lv,
             element=('火', 1),
             interruptible=False,
-            state=SkillSate.OffField
         )
         self.damageMultipiler = [
             111.28, 119.63, 127.97, 139.1, 147.45, 155.79, 166.92, 178.05, 189.18, 200.3, 211.43, 222.56, 236.47, 250.38, 264.29
@@ -131,7 +130,6 @@ class ElementalBurst(EnergySkill):
             lv=lv,
             element=('火', 1),
             interruptible=False,
-            state=SkillSate.OnField,
             caster=caster
         )
         self.cd_frame = 19

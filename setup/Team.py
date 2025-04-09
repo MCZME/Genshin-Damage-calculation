@@ -1,6 +1,5 @@
 from character.character import Character, CharacterState
 from setup.BaseEffect import AttackBoostEffect, HealthBoostEffect
-from setup.BaseClass import SkillSate
 from setup.Event import CharacterSwitchEvent, EventBus
 from setup.Tool import GetCurrentTime
 
@@ -104,17 +103,8 @@ class Team:
         Team.current_frame = 0
     
     def swap(self,action):
-         # 获取当前技能类型（SKILL或BURST）
-        if Team.current_character.state[-1] == CharacterState.SKILL:
-            current_skill = self.current_character.Skill
-        elif Team.current_character.state[-1] == CharacterState.BURST:
-            current_skill = Team.current_character.Burst
-        else:
-            current_skill = None
-
         if action[0] == Team.current_character.name: # 如果是当前角色，则执行动作
-            if (Team.current_character.state[-1] == CharacterState.IDLE or 
-                (current_skill is not None and current_skill.state == SkillSate.OffField)):
+            if (Team.current_character.state[-1] == CharacterState.IDLE):
                 if hasattr(Team.current_character, action[1]):
                     if action[2] is not None:
                         getattr(Team.current_character, action[1])(action[2])
@@ -126,8 +116,7 @@ class Team:
             if self.current_frame == 0:
                 for character in Team.team:
                     if character.name == action[0]:
-                        if (Team.current_character.state[0] == CharacterState.IDLE or 
-                           (current_skill is not None and current_skill.state == SkillSate.OffField)):
+                        if (Team.current_character.state[0] == CharacterState.IDLE):
                             
                             # 执行切换
                             character_switch_event = CharacterSwitchEvent(Team.current_character, character,frame=GetCurrentTime())

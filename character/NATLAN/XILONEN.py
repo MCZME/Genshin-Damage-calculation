@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, SkillSate, TalentEffect
+from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
@@ -115,6 +115,7 @@ class XilonenNormalAttack(NormalAttackSkill):
             )
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
+            damage.setDamageData('不可覆盖', True)
         else:
             damage = Damage(
                 damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
@@ -145,8 +146,7 @@ class ElementalSkill(SkillBase):
             cd=7 * 60,
             lv=lv,
             element=('岩', 1),
-            interruptible=False,
-            state=SkillSate.OnField
+            interruptible=False
         )
         self.damageMultipiler = [
             179.2, 192.64, 206.08, 224, 237.44, 250.88, 268.8, 286.72, 304.64,
@@ -190,6 +190,7 @@ class ElementalSkill(SkillBase):
             EventBus.publish(event)
             
             print("🎵 音火锻淬！")
+        self.caster.movement += 5.27
 
     def on_finish(self):
         super().on_finish()
@@ -305,7 +306,6 @@ class ElementalBurst(EnergySkill):
             lv=lv,
             element=('岩', 1),
             interruptible=False,
-            state=SkillSate.OnField
         )
         self.damage_multiplier = [
             281.28, 302.38, 323.47, 351.6, 372.7, 393.79, 421.92, 450.05, 
@@ -351,7 +351,7 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
     def apply(self, character):
         super().apply(character)
         EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
-        EventBus.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
         EventBus.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
 
     def handle_event(self, event):
@@ -362,7 +362,7 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
         converted_count = sum(1 for s in self.character.samplers if s['element'] != '岩')
             
         # 检查是否为普攻或下落攻击伤害
-        if event.event_type in [EventType.BEFORE_NORMAL_ATTACK, EventType.BEFORE_PLUNGING_ATTACK]:
+        if event.event_type in [EventType.AFTER_NORMAL_ATTACK, EventType.BEFORE_PLUNGING_ATTACK]:
             current_time = GetCurrentTime()
             if current_time - self.last_trigger_time < self.trigger_interval:
                 return

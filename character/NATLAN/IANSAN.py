@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, SkillSate, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
 from setup.BaseObject import baseObject
 from setup.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
@@ -297,7 +297,6 @@ class ElementalBurst(EnergySkill):
             lv=lv,
             element=('雷', 1),
             interruptible=False,
-            state=SkillSate.OnField,
             caster=caster
         )
         self.damageMultipiler = {

@@ -1,5 +1,5 @@
 from character.character import Character
-from setup.BaseClass import ElementalEnergy, NormalAttackSkill, SkillBase, SkillSate, ConstellationEffect
+from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect
 from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
@@ -10,6 +10,7 @@ class InspirationFieldEffect(Effect, EventHandler):
     """鼓舞领域效果"""
     def __init__(self, caster, base_atk, max_hp, duration):
         super().__init__(caster,duration*60)
+        self.name = "鼓舞领域"
         self.base_atk = base_atk
         self.max_hp = max_hp
         self.duration = duration * 60  # 转换为帧数
@@ -84,14 +85,13 @@ class InspirationFieldEffect(Effect, EventHandler):
         EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
         self.current_char.remove_effect(self)
 
-class ElementalBurst(SkillBase):
+class ElementalBurst(EnergySkill):
     def __init__(self, lv, caster=None):
         super().__init__(name="美妙旅程", 
                         total_frames=50, 
                         cd=15*60, 
                         lv=lv,
                         element=('火', 1), 
-                        state=SkillSate.OnField,
                         caster=caster)
         self.damageMultipiler = [232.8, 250.26, 267.72, 291, 308.46, 325.92, 349.2, 372.48,
                                   395.76, 419.04, 442.32, 465.6, 494.7, 523.8, 552.9]  # 爆发伤害倍率
@@ -102,7 +102,7 @@ class ElementalBurst(SkillBase):
     def on_frame_update(self, target):
         if self.current_frame == 37:
             # 计算领域参数
-            base_atk = self.caster.attributeData["攻击力"]  # 基础攻击力
+            base_atk = self.caster.attributePanel["攻击力"]
             max_hp = self.caster.maxHP
             
             # 创建领域效果
@@ -254,8 +254,8 @@ class ConstellationEffect_6(ConstellationEffect):
 # 命座3 4
 class BENNETT(Character):
     ID = 19
-    def __init__(self,lv,skill_params,constellation=0):
-        super().__init__(BENNETT.ID,lv,skill_params,constellation)
+    def __init__(self,level,skill_params,constellation=0):
+        super().__init__(BENNETT.ID,level,skill_params,constellation)
         self.association = '蒙德'
 
     def _init_character(self):

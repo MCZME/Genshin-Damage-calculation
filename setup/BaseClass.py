@@ -38,13 +38,9 @@ class ElementalEnergy():
     def clear_energy(self):
         self.current_energy = 0
 
-class SkillSate(Enum):
-    OnField = auto()
-    OffField = auto()
-
 # 技能基类
 class SkillBase(ABC):
-    def __init__(self, name, total_frames, cd, lv, element, caster=None,interruptible=False,state=SkillSate.OnField):
+    def __init__(self, name, total_frames, cd, lv, element, caster=None,interruptible=False):
         self.name = name
         self.total_frames = total_frames    # 总帧数
         self.current_frame = 0              # 当前帧
@@ -56,7 +52,6 @@ class SkillBase(ABC):
         self.element = element
         self.damageMultipiler = []
         self.interruptible = interruptible  # 是否可打断
-        self.state = state
         self.caster = caster
 
     def start(self, caster):
@@ -92,8 +87,8 @@ class SkillBase(ABC):
         ...
 
 class EnergySkill(SkillBase):
-    def __init__(self, name, total_frames, cd, lv, element, caster=None, interruptible=False, state=SkillSate.OnField):
-        super().__init__(name, total_frames, cd, lv, element, caster, interruptible, state)
+    def __init__(self, name, total_frames, cd, lv, element, caster=None, interruptible=False):
+        super().__init__(name, total_frames, cd, lv, element, caster, interruptible)
 
     def start(self, caster):
         if not super().start(caster):
