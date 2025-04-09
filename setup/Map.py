@@ -28,4 +28,6 @@ WeaponClassMap = {
     '溢彩心念':VividNotions,
     '沙中伟贤的对答':DialoguesOfTheDesertSages,
     '息燧之笛':FluteOfEzpitzal,
+    '风鹰剑':AquilaFavonia,
+    '讨龙英杰谭':ThrillingTalesOfDragonSlayers,
 }

@@ -66,7 +66,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
     def _is_valid_damage(self, damage):
         """检查是否为普攻/重击元素伤害"""
         return (
-            damage.damageType in (DamageType.NORMAL, DamageType.HEAVY) and 
+            damage.damageType in (DamageType.NORMAL, DamageType.CHARGED) and 
             damage.element[0] != '物理'  # 通过元组第一个元素判断元素类型
         )
 

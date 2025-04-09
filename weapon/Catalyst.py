@@ -1,9 +1,10 @@
 from setup.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
-from setup.BaseEffect import Effect
+from setup.BaseEffect import AttackBoostEffect, Effect
+from setup.Logger import get_emulation_logger
 from weapon.weapon import Weapon
 
-catalyst = ['溢彩心念']
+catalyst = ['溢彩心念','讨龙英杰谭']
 
 class MorningGlowEffect(Effect,EventHandler):
     """初霞之彩效果(28%暴伤)"""
@@ -106,4 +107,25 @@ class VividNotions(Weapon, EventHandler):
         # 下落攻击触发初霞之彩
         elif event.event_type == EventType.BEFORE_PLUNGING_ATTACK:
             self.morning_effect.duration = 900  # 重置持续时间
-            self.morning_effect.apply()          
+            self.morning_effect.apply() 
+
+class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
+    ID = 174
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, ThrillingTalesOfDragonSlayers.ID, level, lv)
+        self.last_trigger_time = -1200 
+        self.attack_boost = [24,30,36,42,48]
+       
+
+    def skill(self):
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event):
+        current_time = event.frame
+        if current_time - self.last_trigger_time >= 20*60:
+            if event.data['old_character'] == self.character:
+                effect = AttackBoostEffect(event.data['new_character'], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
+                effect.apply()
+                self.last_trigger_time = current_time
+                get_emulation_logger().log_effect(
+                    f"{event.data['new_character'].name}获得讨龙英杰谭效果，攻击力提升24%")
