@@ -43,12 +43,14 @@ class RingOfSearingRadianceObject(baseObject):
         print(f'{self.name} 存活时间结束')
         Team.remove_object(self)
 
-class ElementalSkill(SkillBase):
+class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 
                         element=('火', 1), interruptible=False)
         
         self.damageMultipiler ={'伤害':[74.4,79.98,85.56,93,98.58,104.16,111.6,119.04,126.48,133.92,141.36,148.8,158.1]}
+
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def start(self, caster, hold=False):
         if caster.Nightsoul_Blessing:
@@ -80,6 +82,11 @@ class ElementalSkill(SkillBase):
             EventBus.publish(damageEvent)
             summon_energy(5, self.caster, ('火', 2))
            
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            if event.data['old_character'] == self.caster:
+                if self.caster.mode == '驰轮车':
+                    self.caster.switch_to_mode('焚曜之环')
     def on_finish(self):
         super().on_finish()
 

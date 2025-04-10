@@ -1,18 +1,21 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
                               QLabel, QPushButton, QComboBox, QSpinBox, QCompleter,
                               QWidget, QFormLayout, QTabWidget, QFrame,
-                              QDialogButtonBox, QDoubleSpinBox, QLineEdit)
+                              QDialogButtonBox, QDoubleSpinBox, QLineEdit,QMenu)
 from PySide6.QtCore import Qt, Signal
 from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
 from character import character_table
 from weapon import weapon_table
+from setup.Logger import get_ui_logger
 
 class CharacterWindow(QDialog):
     """角色信息设置窗口"""
     finished = Signal(dict)  # 自定义信号用于返回数据
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.logger = get_ui_logger()
         self.result_data = None
+        self.logger.log_info("角色配置窗口初始化")
         self.setWindowTitle("角色配置")
         self.setMinimumSize(800, 500)
         self.setAttribute(Qt.WA_TranslucentBackground, False)
@@ -269,6 +272,38 @@ class CharacterWindow(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
         
+        # 保存按钮
+        save_btn = QPushButton("保存", styleSheet="""
+            QPushButton {
+                background-color: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #43a047;
+            }
+        """)
+        save_btn.clicked.connect(lambda: (self.logger.log_button_click("保存按钮"), self.show_save_dialog()))
+        btn_layout.addWidget(save_btn)
+        
+        # 加载按钮
+        load_btn = QPushButton("加载", styleSheet="""
+            QPushButton {
+                background-color: #ff9800;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #fb8c00;
+            }
+        """)
+        load_btn.clicked.connect(lambda: (self.logger.log_button_click("加载按钮"), self.show_load_dialog()))
+        btn_layout.addWidget(load_btn)
+        
         # 重置按钮
         reset_btn = QPushButton("重置", styleSheet="""
             QPushButton {
@@ -282,7 +317,7 @@ class CharacterWindow(QDialog):
                 background-color: #e53935;
             }
         """)
-        reset_btn.clicked.connect(self.reset)
+        reset_btn.clicked.connect(lambda: (self.logger.log_button_click("重置按钮"), self.reset()))
         btn_layout.addWidget(reset_btn)
         
         # 确认按钮
@@ -298,7 +333,7 @@ class CharacterWindow(QDialog):
                 background-color: #5a7fb5;
             }
         """)
-        confirm_btn.clicked.connect(self.accept)
+        confirm_btn.clicked.connect(lambda: (self.logger.log_button_click("确认按钮"), self.accept()))
         btn_layout.addWidget(confirm_btn)
         
         main_layout.addLayout(btn_layout, stretch=1)
@@ -638,11 +673,188 @@ class CharacterWindow(QDialog):
             card.sub_stats.clear()
             card.add_sub_btn.show()
 
+    def show_save_dialog(self):
+        """显示保存选项弹窗"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("保存选项")
+        dialog.setFixedSize(250, 150)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # 角色按钮
+        char_btn = QPushButton("保存角色")
+        char_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #43a047;
+            }
+        """)
+        char_btn.clicked.connect(lambda: (self.save_character_data(True), dialog.close()))
+        
+        # 圣遗物按钮
+        artifact_btn = QPushButton("仅保存圣遗物")
+        artifact_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196f3;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #1976d2;
+            }
+        """)
+        artifact_btn.clicked.connect(lambda: (self.save_character_data(False), dialog.close()))
+        
+        layout.addWidget(char_btn)
+        layout.addWidget(artifact_btn)
+        layout.addStretch()
+        
+        dialog.exec()
+
+    def show_load_dialog(self):
+        """显示加载选项弹窗"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("加载选项")
+        dialog.setFixedSize(250, 150)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # 角色按钮
+        char_btn = QPushButton("加载角色")
+        char_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #ff9800;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #fb8c00;
+            }
+        """)
+        char_btn.clicked.connect(lambda: (self.load_character_data(True), dialog.close()))
+        
+        # 圣遗物按钮
+        artifact_btn = QPushButton("仅加载圣遗物")
+        artifact_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9c27b0;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #7b1fa2;
+            }
+        """)
+        artifact_btn.clicked.connect(lambda: (self.load_character_data(False), dialog.close()))
+        
+        layout.addWidget(char_btn)
+        layout.addWidget(artifact_btn)
+        layout.addStretch()
+        
+        dialog.exec()
+
+    def save_character_data(self, save_all=True):
+        """保存角色数据到文件"""
+        from PySide6.QtWidgets import QFileDialog
+        from setup.Config import Config
+        
+        self.logger.log_info(f"开始保存角色数据，保存全部: {save_all}")
+        
+        # 获取默认保存路径
+        default_path = ""
+        if save_all:
+            default_path = Config.get("ui.character_file_path")
+        else:
+            default_path = Config.get("ui.artifact_file_path")
+            
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, 
+            "保存角色数据", 
+            default_path, 
+            "JSON Files (*.json);;All Files (*)", 
+            options=options
+        )
+        if fileName:
+            data = self.get_character_data()
+            if not save_all:
+                # 仅保存圣遗物信息
+                data = {"artifacts": data["artifacts"]}
+            
+            import json
+            with open(fileName, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            self.logger.log_info(f"成功保存数据到文件: {fileName}")
+
+    def load_character_data(self, load_all=True):
+        """从文件加载角色数据"""
+        from PySide6.QtWidgets import QFileDialog
+        from setup.Config import Config
+        
+        self.logger.log_info(f"开始加载角色数据，加载全部: {load_all}")
+        
+        # 获取默认加载路径
+        default_path = ""
+        if load_all:
+            default_path = Config.get("ui.character_file_path", "")
+        else:
+            default_path = Config.get("ui.artifact_file_path", "")
+            
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getOpenFileName(
+            self, 
+            "加载角色数据", 
+            default_path, 
+            "JSON Files (*.json);;All Files (*)", 
+            options=options
+        )
+        if fileName:
+            import json
+            with open(fileName, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            if load_all:
+                self.result_data = data
+            else:
+                # 仅加载圣遗物信息
+                if not self.result_data:
+                    self.result_data = self.get_character_data()
+                self.result_data["artifacts"] = data.get("artifacts", [])
+            
+            self._update_ui_from_data()
+            self.logger.log_info(f"成功从文件加载数据: {fileName}")
+
     def accept(self):
         """确认按钮点击事件"""
-        self.result_data = self.get_character_data()
-        self.finished.emit(self.result_data)
-        super().accept()
+        try:
+            self.result_data = self.get_character_data()
+            self.logger.log_info(f"确认配置: {self.result_data}")
+            self.finished.emit(self.result_data)
+            super().accept()
+        except Exception as e:
+            error_msg = f"确认配置时出错: {str(e)}"
+            self.logger.log_error(error_msg)
+            print(error_msg)
 
     def get_character_data(self):
         """获取角色配置数据"""

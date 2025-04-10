@@ -3,6 +3,8 @@ from PySide6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCatego
 from PySide6.QtGui import QPainter, QFont
 from PySide6.QtCore import Qt, Signal
 
+from setup.Logger import get_ui_logger
+
 class VerticalLabelChart(QWidget):
     bar_clicked = Signal(int)
 
@@ -79,5 +81,5 @@ class VerticalLabelChart(QWidget):
     def on_bar_clicked(self, index):
         if 0 <= index < len(self.frames):
             self.current_frame = self.frames[index]
-            print(f"点击了帧: {self.current_frame}")
+            get_ui_logger().log_info(f"点击了帧: {self.current_frame}")
             self.bar_clicked.emit(self.current_frame)

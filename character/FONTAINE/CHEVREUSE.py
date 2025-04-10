@@ -211,7 +211,7 @@ class DoubleDamageBullet(baseObject):
         # 在二重毁伤弹结束时触发伤害
         event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
-        super().on_finish()
+        super().on_finish(target)
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)

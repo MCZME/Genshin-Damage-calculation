@@ -74,6 +74,11 @@ class XilonenNormalAttack(NormalAttackSkill):
         
         # 普通攻击参数
         self.normal_segment_frames = [18, 24, 36]  # 三段剑击的帧数
+        
+        # 元素附着控制参数
+        self.attach_sequence = [1, 0, 0, 1, 0, 0]  # 元素附着序列
+        self.sequence_pos = 0  # 当前序列位置
+        self.last_attach_time = 0  # 上次元素附着时间(帧数)
         self.damageMultipiler = {
             1: [51.79, 56.01, 60.22, 66.25, 70.46, 75.28, 81.9, 88.53, 95.15, 102.38, 109.61, 116.83, 124.06, 131.29, 138.51],
             2: [27.37 + 27.37, 29.6 + 29.6, 31.83 + 31.83, 35.01 + 35.01, 37.24 + 37.24, 39.79 + 39.79, 43.29 + 43.29, 46.79 + 46.79, 50.29 + 50.29, 54.11 + 54.11, 57.93 + 57.93, 61.75 + 61.75, 65.57 + 65.57, 69.39 + 69.39, 73.21 + 73.21],
@@ -106,10 +111,32 @@ class XilonenNormalAttack(NormalAttackSkill):
 
     def _apply_segment_effect(self, target):
         if self.caster.Nightsoul_Blessing:
+            current_time = GetCurrentTime()
+            # 计算是否应该附着元素
+            should_attach = False
+            
+            # 序列控制检查
+            if self.sequence_pos < len(self.attach_sequence):
+                should_attach = self.attach_sequence[self.sequence_pos] == 1
+                self.sequence_pos += 1
+            else:
+                self.sequence_pos = 0
+                should_attach = self.attach_sequence[self.sequence_pos] == 1
+                self.sequence_pos += 1
+            
+            # 冷却时间控制检查 (2.5秒 = 150帧)
+            if current_time - self.last_attach_time >= 150:
+                should_attach = True
+            
+            # 更新上次附着时间
+            if should_attach:
+                self.last_attach_time = current_time
+            
             # 夜魂状态下基于防御力的岩元素伤害
+            element = ('岩', 1 if should_attach else 0)
             damage = Damage(
                 damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
-                element=self.element,
+                element=element,
                 damageType=DamageType.NORMAL,
                 name=f'刃轮巡猎·{self.name} 第{self.current_segment+1}段'
             )
