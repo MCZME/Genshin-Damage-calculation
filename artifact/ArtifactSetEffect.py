@@ -1,5 +1,5 @@
 from character.character import Character
-from setup.BaseEffect import  CritRateBoostEffect, Effect, ElementalDamageBoostEffect
+from setup.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, Effect, ElementalDamageBoostEffect, ElementalMasteryBoostEffect
 from setup.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Team import Team
@@ -270,3 +270,45 @@ class SongOfDaysPast(ArtifactEffect):
                 thirst.apply()
             # 记录治疗量
             thirst.add_heal(event.data['healing'].final_value)
+
+class Instructor(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('教官')
+
+    def tow_SetEffect(self, character):
+        attributrPanel = character.attributePanel
+        attributrPanel['元素精通'] += 80
+    
+    def four_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
+            if event.data['elementalReaction'].source == self.character:
+                for c in Team.team:
+                    effect = ElementalMasteryBoostEffect(self.character, '教官', 120, 8*60)
+                    effect.apply(c)
+
+class NoblesseOblige(ArtifactEffect):
+    def __init__(self):
+        super().__init__('昔日宗室之仪')
+    
+    def tow_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+
+    def four_SetEffect(self, character):
+        EventBus.subscribe(EventType.AFTER_BURST, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['character'] == self.character and event.data['damage'].damageType == DamageType.BURST:
+                event.data['damage'].panel['伤害加成'] += 20
+                event.data['damage'].setDamageData('昔日宗室之仪-伤害加成', 20)
+        if event.event_type == EventType.AFTER_BURST:
+            if event.data['character'] == self.character:
+                for c in Team.team:
+                    effect = AttackBoostEffect(c, '昔日宗室之仪', 20, 12*60)
+                    effect.apply()
+                

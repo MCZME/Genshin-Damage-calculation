@@ -4,6 +4,7 @@ from setup.Logger import get_emulation_logger
 class Effect:
     def __init__(self, character,duration=0):
         self.character = character
+        self.current_character = character
         self.duration = duration
         self.max_duration = self.duration
         self.name = f"{self.__class__.__name__}"
@@ -106,22 +107,23 @@ class AttackBoostEffect(Effect):
         self.bonus = bonus  # 攻击力提升
         self.name = name
         
-    def apply(self):
+    def apply(self,character=None):
+        self.current_character = character if character else self.character
         # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
             
-        self.character.add_effect(self)
-        self.character.attributePanel['攻击力%'] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel['攻击力%'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
 
     def remove(self):
-        self.character.attributePanel['攻击力%'] -= self.bonus
-        self.character.remove_effect(self)
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}攻击力提升效果结束")
+        self.current_character.attributePanel['攻击力%'] -= self.bonus
+        self.current_character.remove_effect(self)
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}攻击力提升效果结束")
 
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
@@ -345,3 +347,35 @@ class ShieldEffect(Effect):
     def remove(self):
         self.character.remove_shield(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
+
+class ElementalMasteryBoostEffect(Effect):
+    """元素精通提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character, duration)
+        self.bonus = bonus  # 元素精通提升值
+        self.name = name  # 效果名称
+        self.attribute_name = '元素精通'  # 属性名称
+        
+    def apply(self,character):
+        self.current_character = character
+        # 防止重复应用
+        existing = next((e for e in self.current_character.active_effects 
+                       if isinstance(e, ElementalMasteryBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.current_character.add_effect(self)
+        self.setEffect()
+
+    def setEffect(self):
+        self.current_character.attributePanel[self.attribute_name] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果，元素精通提升{self.bonus}点")
+
+    def remove(self):
+        self.removeEffect()
+        self.current_character.remove_effect(self)
+
+    def removeEffect(self):
+        self.current_character.attributePanel[self.attribute_name] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的元素精通提升效果结束")
