@@ -1,5 +1,6 @@
 from character.NATLAN.natlan import Natlan
 from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
+from setup.Logger import get_emulation_logger
 from setup.BaseEffect import Effect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
@@ -239,12 +240,12 @@ class RainbowPlungeEffect(Effect, EventHandler):
             rainbowPlungeEffect.duration = self.duration
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        print(f"🌈 {self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"🌈 {self.character.name}获得{self.name}效果")
         
     def remove(self):
         self.character.remove_effect(self)
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        print(f"🌈 {self.character.name}的{self.name}效果消失")
+        get_emulation_logger().log_effect(f"🌈 {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_PLUNGING_ATTACK:
@@ -260,11 +261,11 @@ class ChaseEffect(Effect,EventHandler):
     def apply(self):
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
-        print(f"✨ {self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"✨ {self.character.name}获得{self.name}效果")
         
     def remove(self):
         self.character.remove_effect(self)
-        print(f"✨ {self.character.name}的{self.name}效果消失")
+        get_emulation_logger().log_effect(f"✨ {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARGED_ATTACK:
@@ -304,7 +305,7 @@ class ElementalSkill(SkillBase):
     def start(self, caster):
         self.update_charges()
         if self.current_charges <= 0:
-            print("当前无可用充能")
+            get_emulation_logger().log_effect("当前无可用充能")
             return False
 
         # 找到第一个可用的充能槽位
@@ -404,14 +405,14 @@ class PassionEffect(Effect, EventHandler):
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        print("🔥 进入炽热激情状态！")
+        get_emulation_logger().log_effect("🔥 进入炽热激情状态！")
         
     def remove(self):
         self.character.remove_effect(self)
         self.character.romve_NightSoulBlessing()
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
-        print("🔥 炽热激情状态结束！")
+        get_emulation_logger().log_effect("🔥 炽热激情状态结束！")
         
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
@@ -440,11 +441,11 @@ class LimitDriveEffect(Effect):
             return
         
         self.character.add_effect(self)
-        print("⚡ 进入极限驱动状态！")
+        get_emulation_logger().log_effect("⚡ 进入极限驱动状态！")
         
     def remove(self):
         self.character.remove_effect(self)
-        print("⚡ 极限驱动状态结束！")
+        get_emulation_logger().log_effect("⚡ 极限驱动状态结束！")
 
 class SpecialElementalBurst(EnergySkill):
     """特殊元素爆发：闪烈降临·大火山崩落"""
@@ -525,7 +526,7 @@ class ElementalBurst(EnergySkill):
             damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(damage_event)
                 
-            print("⚡ 正义英雄的飞踢！")
+            get_emulation_logger().log_effect("⚡ 正义英雄的飞踢！")
         self.caster.movement += 1.09375
 
 class PassiveSkillEffect_1(TalentEffect):
@@ -555,19 +556,19 @@ class HeroReturnsEffect(Effect):
             min_stack = self.duration
             s = self.get_stacks()
             self.character.attributePanel['攻击力%'] += self.attack_bonus * s
-            print(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
+            get_emulation_logger().log_effect(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
             return
             
         self.character.add_effect(self)
         self.stacks[0] = self.duration
         self.character.attributePanel['攻击力%'] += self.attack_bonus
-        print(f"⚔️ {self.character.name} 获得英雄二度归来效果")
+        get_emulation_logger().log_effect(f"⚔️ {self.character.name} 获得英雄二度归来效果")
         
     def remove(self):
         self.character.remove_effect(self)
         s = self.get_stacks()
         self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
-        print(f"⚔️ {self.character.name} 的英雄二度归来效果消失")
+        get_emulation_logger().log_effect(f"⚔️ {self.character.name} 的英雄二度归来效果消失")
         
     def get_stacks(self):
         a=0

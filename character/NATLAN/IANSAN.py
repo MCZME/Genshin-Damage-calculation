@@ -4,6 +4,7 @@ from setup.BaseObject import baseObject
 from setup.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
+from setup.Logger import get_emulation_logger
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
 from setup.BaseEffect import Effect
@@ -26,12 +27,12 @@ class LightningDashEffect(Effect, EventHandler):
             return
             
         self.character.add_effect(self)
-        print(f"{self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
         
     def remove(self):
         self.character.remove_effect(self)
         EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
-        print(f"{self.character.name}: {self.name}效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_CHARGED_ATTACK and event.data['character'] == self.character:
@@ -201,7 +202,7 @@ class KineticMarkObject(baseObject):
         if boost > self.max_boost:
             boost = self.max_boost
         self.current_character.attributePanel['固定攻击力'] += boost
-        print(f"⚡ {self.current_character.name} 获得 {t} 动能标示攻击力加成")
+        get_emulation_logger().log_effect(f"⚡ {self.current_character.name} 获得 {t} 动能标示攻击力加成")
         self.original_boost = boost
 
     def _get_attack(self):
@@ -210,7 +211,7 @@ class KineticMarkObject(baseObject):
 
     def _romve_boost(self):
         self.current_character.attributePanel['固定攻击力'] -= self.original_boost
-        print(f"⚡ {self.current_character.name} 移除动能标示攻击力加成")
+        get_emulation_logger().log_effect(f"⚡ {self.current_character.name} 移除动能标示攻击力加成")
 
     def _night_soul_recovery(self):
         """根据移动距离恢复夜魂值"""
@@ -238,7 +239,7 @@ class KineticMarkObject(baseObject):
                     extra_gain = standard_action.enhanced_night_soul
                     standard_action.is_enhanced = False
                     standard_action.last_enhanced_time = current_time
-                    print(f"⚡ {self.caster.name} 触发强化夜魂恢复，额外恢复 {extra_gain} 点")
+                    get_emulation_logger().log_effect(f"⚡ {self.caster.name} 触发强化夜魂恢复，额外恢复 {extra_gain} 点")
                 
                 night_soul_gain += extra_gain
             
@@ -248,25 +249,25 @@ class KineticMarkObject(baseObject):
             if force_excitation and force_excitation.consume_stack():
                 # 消耗一层原力激扬，额外恢复4点夜魂值
                 night_soul_gain += 4
-                print(f"⚡ {self.caster.name} 消耗1层原力激扬，额外恢复4点夜魂值")
+                get_emulation_logger().log_effect(f"⚡ {self.caster.name} 消耗1层原力激扬，额外恢复4点夜魂值")
             
             # 检查夜魂值是否溢出
             overflow = (self.caster.current_night_soul + night_soul_gain) - self.caster.max_night_soul
             if overflow > 0:
                 # 记录溢出量
                 self.caster._last_overflow = overflow
-                print(f"⚡ {self.caster.name} 夜魂值溢出 {overflow:.1f} 点")
+                get_emulation_logger().log_effect(f"⚡ {self.caster.name} 夜魂值溢出 {overflow:.1f} 点")
                 LimitBreakEffect(Team.current_character).apply()
             
             # 如果有上次溢出，额外恢复50%
             if hasattr(self.caster, '_last_overflow') and self.caster._last_overflow > 0:
                 extra_recovery = self.caster._last_overflow * 0.5
                 night_soul_gain += extra_recovery
-                print(f"⚡ {self.caster.name} 基于上次溢出量额外恢复 {extra_recovery:.1f} 点夜魂值")
+                get_emulation_logger().log_effect(f"⚡ {self.caster.name} 基于上次溢出量额外恢复 {extra_recovery:.1f} 点夜魂值")
                 self.caster._last_overflow = 0
             
             self.caster.gain_night_soul(night_soul_gain)
-            print(f"⚡ {self.current_character.name} 移动距离 {movement_delta:.1f}，为伊安珊恢复 {night_soul_gain:.1f} 夜魂值")
+            get_emulation_logger().log_effect(f"⚡ {self.current_character.name} 移动距离 {movement_delta:.1f}，为伊安珊恢复 {night_soul_gain:.1f} 夜魂值")
 
     def on_finish(self, target):
         self.caster.romve_NightSoulBlessing()
@@ -326,7 +327,7 @@ class ElementalBurst(EnergySkill):
             # 召唤动能标示
             kinetic_mark = KineticMarkObject(self.caster,self.damageMultipiler['最大攻击力加成'][self.lv-1])
             kinetic_mark.apply()
-            print("⚡ 召唤动能标示！")
+            get_emulation_logger().log_effect("⚡ 召唤动能标示！")
 
         return False
 
@@ -348,12 +349,12 @@ class WarmUpEffect(Effect, EventHandler):
             return
             
         self.character.add_effect(self)
-        print(f"{self.character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
         
     def remove(self):
         self.character.remove_effect(self)
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
-        print(f"{self.character.name}: {self.name}效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
@@ -395,14 +396,14 @@ class StandardActionEffect(Effect, EventHandler):
         self.original_attack = self.character.attributePanel['攻击力%']
         self.character.attributePanel['攻击力%'] += self.attack_boost
         self.character.add_effect(self)
-        print(f"{self.character.name}获得{self.name}效果，攻击力提升{self.attack_boost}%")
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，攻击力提升{self.attack_boost}%")
         
     def remove(self):
         # 移除攻击力提升
         self.character.attributePanel['攻击力%'] -= self.attack_boost
         self.character.remove_effect(self)
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
-        print(f"{self.character.name}: {self.name}效果结束")
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
@@ -461,7 +462,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
                 summon_energy(1, self.character, ('雷', 15),True,True)
                 self.last_trigger_time = current_time
                 self.night_soul_consumed = 0  # 重置累计消耗
-                print(f"⚡ {self.character.name} 触发命座1效果，恢复15点元素能量")
+                get_emulation_logger().log_effect(f"⚡ {self.character.name} 触发命座1效果，恢复15点元素能量")
 
 class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
     """伊安珊攻击力提升效果"""
@@ -479,7 +480,7 @@ class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
             
         self.current_character.add_effect(self)
         self.current_character.attributePanel['攻击力%'] += self.bonus
-        print(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
+        get_emulation_logger().log_effect(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def remove(self):
@@ -539,12 +540,12 @@ class ForceExcitationEffect(Effect):
     def add_stack(self):
         if self.stacks < self.max_stacks:
             self.stacks += 1
-            print(f"{self.character.name} 获得1层{self.name}，当前层数：{self.stacks}")
+            get_emulation_logger().log_effect(f"{self.character.name} 获得1层{self.name}，当前层数：{self.stacks}")
             
     def consume_stack(self):
         if self.stacks > 0:
             self.stacks -= 1
-            print(f"{self.character.name} 消耗1层{self.name}，当前层数：{self.stacks}")
+            get_emulation_logger().log_effect(f"{self.character.name} 消耗1层{self.name}，当前层数：{self.stacks}")
             return True
         return False
     
@@ -609,12 +610,12 @@ class LimitBreakEffect(DamageBoostEffect, EventHandler):
         
         self.current_character.add_effect(self)
         self.current_character.attributePanel[self.attribute_name] += self.bonus
-        print(f"{self.current_character.name}获得{self.name}效果")
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
         EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
     
     def remove(self):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
-        print(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
         self.current_character.remove_effect(self)
         EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
 
