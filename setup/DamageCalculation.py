@@ -78,7 +78,17 @@ class Calculation:
         return def0 + def1
 
     def damageMultipiler(self):
+        event = GameEvent(EventType.BEFORE_DAMAGE_MULTIPLIER,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target,
+                          damage = self.damage)
+        EventBus.publish(event)
         self.damage.setPanel('伤害倍率',self.damage.damageMultipiler)
+        event = GameEvent(EventType.AFTER_DAMAGE_MULTIPLIER,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target,
+                          damage = self.damage)
+        EventBus.publish(event)
         return self.damage.damageMultipiler/100
 
     def damageBonus(self):

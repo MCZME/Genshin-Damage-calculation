@@ -11,9 +11,9 @@ from setup.Tool import GetCurrentTime, summon_energy
 from setup.Logger import get_emulation_logger
 
 class RingOfSearingRadianceObject(baseObject):
-    def __init__(self, caster, life_frame=0):
+    def __init__(self, character, life_frame=0):
         super().__init__('焚曜之环', life_frame)
-        self.caster = caster
+        self.character = character
         self.damage_multiplier = [128,137.6,147.2,160,169.6,179.2,192,204.8,217.6,230.4,243.2,256,272]
 
     def update(self, target):
@@ -22,19 +22,23 @@ class RingOfSearingRadianceObject(baseObject):
 
     def on_frame_update(self, target):
         if self.current_frame % (2*60) == 0:
-            if self.caster.current_night_soul <= 0: 
+            if self.character.current_night_soul <= 0: 
                 self.on_finish()
                 return 
-            self.caster.consume_night_soul(3)
+            self.character.consume_night_soul(3)
             damage = Damage(
-                damageMultipiler=self.damage_multiplier[self.caster.Skill.lv-1], 
+                damageMultipiler=self.damage_multiplier[self.character.Skill.lv-1], 
                 element=('火',1),
                 damageType=DamageType.SKILL,
                 name='焚曜之环'
             )
-            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
+            damageEvent = DamageEvent(source=self.character, target=target, damage=damage, frame=GetCurrentTime())
             EventBus.publish(damageEvent)
     
+        if self.character.constellation >= 2:
+            effect = DefenseDebuffEffect(self.character,target, 20, 2,'灰烬的代价-焚曜之环')
+            effect.apply()
+
     def on_finish(self):
         print(f'{self.name} 存活时间结束')
         Team.remove_object(self)
@@ -97,6 +101,7 @@ class FurnaceEffect(Effect, EventHandler):
             return
         EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
 
         
     def remove(self):
@@ -114,9 +119,22 @@ class FurnaceEffect(Effect, EventHandler):
                 event.cancelled = True
                 
         # 角色切换时移除效果
-        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+        elif event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             if event.data['old_character'] == self.character:
                 self.duration = 0  # 立即结束效果
+                
+        # 伤害倍率提升
+        elif event.event_type == EventType.BEFORE_DAMAGE_MULTIPLIER:
+            if event.data['character'] == self.character and self.character.mode == '驰轮车':
+                damage = event.data['damage']
+                if damage.damageType == DamageType.NORMAL:
+                    normal_bonus = self.character.Burst.damageMultipiler['驰轮车普通攻击伤害提升'][self.character.Burst.lv-1]
+                    damage.damageMultipiler += self.consumed_will * normal_bonus
+                    damage.setDamageData('死生之炉提升', self.consumed_will * normal_bonus)
+                elif damage.damageType == DamageType.CHARGED:
+                    heavy_bonus = self.character.Burst.damageMultipiler['驰轮车重击伤害提升'][self.character.Burst.lv-1]
+                    damage.damageMultipiler += self.consumed_will * heavy_bonus
+                    damage.setDamageData('死生之炉提升', self.consumed_will * heavy_bonus)
 
 class ElementalBurst(SkillBase, EventHandler):
     def __init__(self, lv, caster=None):
@@ -268,18 +286,9 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
         # 伤害计算与事件发布
         # --------------------------
         base_multiplier = self.damageMultipiler[self.current_segment+1][self.lv-1]
-        
-        # 检测死生之炉效果
-        furnace_bonus = 0
-        for effect in self.caster.active_effects:
-            if isinstance(effect, FurnaceEffect):
-                normal_bonus = effect.burst.damageMultipiler['驰轮车普通攻击伤害提升'][self.lv-1]
-                furnace_bonus = effect.consumed_will * normal_bonus
-                break
 
-        total_multiplier = base_multiplier + furnace_bonus
         damage = Damage(
-            damageMultipiler=total_multiplier,
+            damageMultipiler=base_multiplier,
             element=element,
             damageType=DamageType.NORMAL,
             name="驰轮车" if self.caster.mode == '驰轮车' else "普通攻击",
@@ -347,10 +356,7 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
                 self._apply_spin_damage(target)
                 self.spin_count += 1
                 # 每次旋转消耗夜魂
-                if not self.caster.consume_night_soul(2):
-                    get_emulation_logger().log_error("夜魂不足，重击中断")
-                    self.on_interrupt()
-                    return True
+                self.caster.consume_night_soul(2)
         # 终结伤害阶段
         elif self.current_frame == self.spin_total * self.spin_interval + self.finish_damage_frame:
             self._apply_finish_damage(target)
@@ -368,18 +374,9 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
         self.sequence_index += 1
 
         base_multiplier = self.chariot_multiplier['驰轮车重击循环伤害'][self.lv-1]
-        
-        # 检测死生之炉效果
-        furnace_bonus = 0
-        for effect in self.caster.active_effects:
-            if isinstance(effect, FurnaceEffect):
-                heavy_bonus = effect.burst.damageMultipiler['驰轮车重击伤害提升'][self.lv-1]
-                furnace_bonus = effect.consumed_will * heavy_bonus
-                break
 
-        total_multiplier = base_multiplier + furnace_bonus
         damage = Damage(
-            total_multiplier,
+            base_multiplier,
             element=element,
             damageType=DamageType.CHARGED,
             name='驰轮车重击'
@@ -393,18 +390,8 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
     def _apply_finish_damage(self, target):
         """应用终结伤害"""
         base_multiplier = self.chariot_multiplier['驰轮车重击终结伤害'][self.lv-1]
-        
-        # 检测死生之炉效果
-        furnace_bonus = 0
-        for effect in self.caster.active_effects:
-            if isinstance(effect, FurnaceEffect):
-                heavy_bonus = effect.burst.damageMultipiler['驰轮车重击伤害提升'][self.lv-1]
-                furnace_bonus = effect.consumed_will * heavy_bonus
-                break
-
-        total_multiplier = base_multiplier + furnace_bonus
         damage = Damage(
-            total_multiplier,
+            base_multiplier,
             element=('火', 1),  
             damageType=DamageType.CHARGED,
             name='驰轮车重击终结'
@@ -532,41 +519,7 @@ class ConstellationEffect_1(ConstellationEffect):
             effect = AttackBoostEffect(self.caster, '夜主的授记', 40, 8*60)
             effect.apply()
         character.Burst.gain_battle_will = types.MethodType(f, character.Burst)
-
-class MavuikaAttackScalingEffect(Effect):
-    def __init__(self, character):
-        super().__init__(character,10)
-        self.name = "灰烬的代价"
-
-    def apply(self):
-        existing = next((e for e in self.character.active_effects 
-                       if isinstance(e, MavuikaAttackScalingEffect)), None)
-        if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            return
-
-        for i in self.character.NormalAttack.chariot_damageMultipiler.values():
-            for j in i:
-                j += 60
-        for i in self.character.ChargedAttack.chariot_multiplier.values():
-            for j in i:
-                j += 90
-        for i in self.character.Burst.damageMultipiler['坠日斩']:
-            i += 120
-        
-        self.character.add_effect(self)
-    
-    def remove(self):
-        for i in self.character.NormalAttack.chariot_damageMultipiler.values():
-            for j in i:
-                j -= 60
-        for i in self.character.ChargedAttack.chariot_multiplier.values():
-            for j in i:
-                j -= 90
-        for i in self.character.Burst.damageMultipiler['坠日斩']:
-            i -= 120
-        self.character.remove_effect(self)
-        
+   
 class ConstellationEffect_2(ConstellationEffect, EventHandler):
     def __init__(self):
         super().__init__('灰烬的代价')
@@ -575,26 +528,28 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
         super().apply(character)
         EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
         EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
 
     def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
         if event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
             self.character.attributePanel['攻击力'] += 200
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
             self.character.attributePanel['攻击力'] -= 200
-
-    def update(self, target):
-        if self.character.Nightsoul_Blessing:
-            if self.character.mode == '焚曜之环':
-                effect = DefenseDebuffEffect(
-                    source=self.character,
-                    target=target,
-                    debuff_rate=0.2,
-                    duration=10 
-                )
-                effect.apply()
-            elif self.character.mode == '驰轮车':
-                effect = MavuikaAttackScalingEffect(self.character)
-                effect.apply()
+        elif event.event_type == EventType.BEFORE_DAMAGE_MULTIPLIER:
+            if self.character.mode != '驰轮车':
+                return
+            damage = event.data['damage']
+            if damage.damageType == DamageType.NORMAL:
+                damage.damageMultipiler += 60
+                damage.setDamageData('灰烬的代价', 60)
+            elif damage.damageType == DamageType.CHARGED:
+                damage.damageMultipiler += 90
+                damage.setDamageData('灰烬的代价', 90)
+            elif damage.damageType == DamageType.BURST:
+                damage.damageMultipiler += 120
+                damage.setDamageData('灰烬的代价', 120)
 
 # todo
 # 命座3，4，5，6

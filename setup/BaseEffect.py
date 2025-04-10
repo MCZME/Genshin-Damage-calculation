@@ -220,25 +220,28 @@ class DefenseValueBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础防御力提升效果结束")
 
 class DefenseDebuffEffect(Effect):
-    def __init__(self, source, target, debuff_rate, duration):
+    def __init__(self, source, target, debuff_rate, duration,name):
         super().__init__(source,duration)
         self.target = target
         self.debuff_rate = debuff_rate
-        self.source_signature = f"c2_def_debuff_{source.id}"  # 唯一标识
+        self.name = name
         
     def apply(self):
         # 检查现有效果
         existing = next((e for e in self.target.effects 
                        if isinstance(e, DefenseDebuffEffect) 
-                       and e.source_signature == self.source_signature), None)
+                       and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
-        self.target.defense = self.target.defense * (1 - self.debuff_rate)
+        self.target.defense = self.target.defense * (1 - self.debuff_rate/100)
         self.target.add_effect(self)
+        get_emulation_logger().log_effect(f"🛡️ {self.name} 降低目标防御力{self.debuff_rate}%")
         
     def remove(self):
+        self.target.defense = self.target.defense / (1 - self.debuff_rate/100)
         self.target.remove_effect(self)
+        get_emulation_logger().log_effect(f"🛡️ {self.target.name} 的 {self.name} 结束")
 
 class ResistanceDebuffEffect(Effect):
     """元素抗性降低效果"""
