@@ -2,6 +2,7 @@ import queue as q
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
 from ui.widget.character_status_widget import CharacterStatusWidget
+from ui.widget.dps_pie_widget import DpsPieWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
@@ -180,6 +181,11 @@ class ResultWindow(QMainWindow):
         # 数据分析结果区域
         self.analysis_section = AnalysisResultWidget()
         self.main_layout.addWidget(self.analysis_section)
+
+        # DPS饼图区域
+        self.dps_pie_section = DpsPieWidget()
+        self.dps_pie_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.main_layout.addWidget(self.dps_pie_section)
         
         self.setCentralWidget(self.main_widget)
         self.update_damage_chart()
@@ -197,8 +203,10 @@ class ResultWindow(QMainWindow):
         damage_data = send_to_window('damage')
         if not damage_data:
             return
+        damage_damage = {frame: data['damage'] for frame, data in damage_data.items()}
         self.chart.set_data({frame: data['value'] for frame, data in damage_data.items()})
-        self.detail_info_section.set_data({frame: data['damage'] for frame, data in damage_data.items()})
+        self.detail_info_section.set_data(damage_damage)
+        self.dps_pie_section.set_data(damage_damage)
         
         # 更新分析结果
         max_hit = max(data['value'] for data in damage_data.values())
@@ -225,7 +233,7 @@ class ResultWindow(QMainWindow):
             "暴击比率": critical_ratio * 100,
         }
         self.analysis_section.set_data(analysis_data)
-            
+
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""
         self.frame_input.setText(str(frame))
