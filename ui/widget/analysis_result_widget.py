@@ -1,12 +1,22 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy
 from PySide6.QtCore import Qt
+
+from ui.widget.dps_pie_widget import DpsLineWidget, DpsPieWidget
 
 class AnalysisResultWidget(QWidget):
     """数据分析结果组件"""
     def __init__(self):
         super().__init__()
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("""
+        self.main_layout = QVBoxLayout(self)
+        
+        self._init_crads()
+        self._init_chart()
+        
+        
+    def _init_crads(self):
+        widget = QWidget()
+        widget.setStyleSheet("""
             QWidget {
                 background: transparent;
                 border: none;
@@ -75,12 +85,11 @@ class AnalysisResultWidget(QWidget):
             QWidget.crit QLabel.value { color: #B388FF; }
             QWidget.crit QLabel.small { color: #B388FF; }
         """)
-        
-        self.setProperty("class", "AnalysisResult")
-        layout = QHBoxLayout(self)
+        widget.setProperty("class", "AnalysisResult")
+
+        layout = QHBoxLayout(widget)
         layout.setContentsMargins(50, 10, 50, 10)
         layout.setSpacing(8)
-        
         # 最大伤害卡片
         self.max_hit_card = self._create_card("max-hit", "最大伤害", "0", "0秒前")
         layout.addWidget(self.max_hit_card, 3)
@@ -100,7 +109,19 @@ class AnalysisResultWidget(QWidget):
         # 暴击比率卡片
         self.crit_card = self._create_card("crit", "暴击比率", "0%", "▼0%")
         layout.addWidget(self.crit_card, 3)
-        
+
+        self.main_layout.addWidget(widget)
+
+    def _init_chart(self):
+        # DPS饼图区域
+        self.dps_pie_section = DpsPieWidget()
+        self.dps_pie_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.main_layout.addWidget(self.dps_pie_section)
+
+        self.dps_bar = DpsLineWidget()
+        self.dps_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.main_layout.addWidget(self.dps_bar)
+
     def _create_card(self, card_type, label, value, small_text):
         """创建指标卡片"""
         card = QWidget()
@@ -139,15 +160,43 @@ class AnalysisResultWidget(QWidget):
         
         return card
         
-    def set_data(self, data):
+    def set_data(self, damage_data):
         """设置分析数据"""
+        max_hit = max(data['value'] for data in damage_data.values())
+        total_dmg = sum(data['value'] for data in damage_data.values())
+        duration_sec = len(damage_data) / 60
+        duration_str = f"{duration_sec:.2f}"
+        critical_ratio = 0
+        critical = 0
+        for damage in [data['damage'] for _, data in damage_data.items()]:
+            for d in damage:
+                v = d['data'].get('暴击', None)
+                if v != None:
+                    critical_ratio += 1
+                    if v:
+                        critical += 1
+        if critical_ratio > 0:
+            critical_ratio = critical / critical_ratio
+        
+        analysis_data = {
+            "总伤害": total_dmg,
+            "DPS": 60 * total_dmg / len(damage_data),
+            "最大伤害": max_hit,
+            "持续时间": duration_str,
+            "暴击比率": critical_ratio * 100,
+        }
+
+        # 更新图表
+        self.dps_pie_section.set_data({frame: data['damage'] for frame, data in damage_data.items()})
+        self.dps_bar.set_data({frame: data['damage'] for frame, data in damage_data.items()})
+
         # 更新所有卡片数据
         cards = [
-            (self.max_hit_card, "最大伤害", data.get("最大伤害", 0), "0秒前"),
-            (self.total_damage_card, "总伤害", data.get("总伤害", 0), "▲0%"),
-            (self.dps_card, "每秒伤害", data.get("DPS", 0), f"峰值: {data.get('DPS', 0)*1.2:,.1f}"),
-            (self.duration_card, "持续时间", f"{data.get('持续时间', 0)}s", "进行中"), 
-            (self.crit_card, "暴击比率", f"{data.get('暴击比率', 0):.1f}%", "▼0%")
+            (self.max_hit_card, "最大伤害", analysis_data.get("最大伤害", 0), "0秒前"),
+            (self.total_damage_card, "总伤害", analysis_data.get("总伤害", 0), "▲0%"),
+            (self.dps_card, "每秒伤害", analysis_data.get("DPS", 0), f"峰值: {analysis_data.get('DPS', 0)*1.2:,.1f}"),
+            (self.duration_card, "持续时间", f"{analysis_data.get('持续时间', 0)}s", "进行中"), 
+            (self.crit_card, "暴击比率", f"{analysis_data.get('暴击比率', 0):.1f}%", "▼0%")
         ]
         
         for card, _, value, small_text in cards:

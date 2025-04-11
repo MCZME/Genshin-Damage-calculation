@@ -2,7 +2,6 @@ import queue as q
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
 from ui.widget.character_status_widget import CharacterStatusWidget
-from ui.widget.dps_pie_widget import DpsPieWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
@@ -181,11 +180,6 @@ class ResultWindow(QMainWindow):
         # 数据分析结果区域
         self.analysis_section = AnalysisResultWidget()
         self.main_layout.addWidget(self.analysis_section)
-
-        # DPS饼图区域
-        self.dps_pie_section = DpsPieWidget()
-        self.dps_pie_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.main_layout.addWidget(self.dps_pie_section)
         
         self.setCentralWidget(self.main_widget)
         self.update_damage_chart()
@@ -206,33 +200,8 @@ class ResultWindow(QMainWindow):
         damage_damage = {frame: data['damage'] for frame, data in damage_data.items()}
         self.chart.set_data({frame: data['value'] for frame, data in damage_data.items()})
         self.detail_info_section.set_data(damage_damage)
-        self.dps_pie_section.set_data(damage_damage)
         
-        # 更新分析结果
-        max_hit = max(data['value'] for data in damage_data.values())
-        total_dmg = sum(data['value'] for data in damage_data.values())
-        duration_sec = len(damage_data) / 60
-        duration_str = f"{duration_sec:.2f}"
-        critical_ratio = 0
-        critical = 0
-        for damage in [data['damage'] for _, data in damage_data.items()]:
-            for d in damage:
-                v = d['data'].get('暴击', None)
-                if v != None:
-                    critical_ratio += 1
-                    if v:
-                        critical += 1
-        if critical_ratio > 0:
-            critical_ratio = critical / critical_ratio
-        
-        analysis_data = {
-            "总伤害": total_dmg,
-            "DPS": 60 * total_dmg / len(damage_data),
-            "最大伤害": max_hit,
-            "持续时间": duration_str,
-            "暴击比率": critical_ratio * 100,
-        }
-        self.analysis_section.set_data(analysis_data)
+        self.analysis_section.set_data(damage_data)
 
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""

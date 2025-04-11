@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QComboBox, QHBoxLayout
-from PySide6.QtCharts import QChart, QChartView, QPieSeries, QPieSlice
+from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QBarSeries,
+                              QBarSet, QBarCategoryAxis, QLineSeries, QValueAxis)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QFont
 
@@ -370,4 +371,164 @@ class DpsPieWidget(QWidget):
         
             
         chart.addSeries(series)
+        self.chart_view.setChart(chart)
+
+class DpsLineWidget(QWidget):
+    """DPS折线图展示组件"""
+    def __init__(self):
+        super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("""
+            QWidget {
+                background: transparent;
+                border: none;
+            }
+            QWidget.DpsBar {
+                background: #F8F9FA;
+                border-radius: 12px;
+                padding: 15px;
+            }
+            QChartView {
+                background: transparent;
+                border: none;
+            }
+        """)
+        self.setProperty("class", "DpsBar")
+        
+        # 创建图表视图
+        self.chart_view = QChartView()
+        self.chart_view.setRenderHint(QPainter.Antialiasing)
+        
+        # 创建布局
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.chart_view)
+        
+        # 初始化空图表
+        self._init_empty_chart()
+        
+    def _init_empty_chart(self):
+        chart = QChart()
+        chart.setTitle("伤害累加")
+        chart.setTitleFont(QFont("Helvetica Neue", 12, QFont.Weight.Bold))
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignBottom)
+        
+        series = QLineSeries()
+        series.append(0, 0)
+        series.setName("暂无数据")
+        chart.addSeries(series)
+        
+        axisX = QValueAxis()
+        axisX.setRange(0, 1)
+        axisY = QValueAxis()
+        axisY.setRange(0, 1)
+        chart.addAxis(axisX, Qt.AlignBottom)
+        chart.addAxis(axisY, Qt.AlignLeft)
+        for series in chart.series():
+            series.attachAxis(axisX)
+            series.attachAxis(axisY)
+        
+        self.chart_view.setChart(chart)
+        
+    def set_data(self, damage_data):
+        """
+        设置伤害数据
+        :param damage_data: 字典格式 {frame: [{'source':str, 'value':float}]} 帧数和伤害记录
+        """
+        if not damage_data:
+            self._init_empty_chart()
+            return
+            
+        # 转换为角色名到帧数据的映射
+        char_data = {}
+        team_data = {}
+        
+        for frame, records in damage_data.items():
+            for c in char_data.keys():
+                if frame not in char_data[c]:
+                    char_data[c][frame] = char_data[c][frame-1]
+            for record in records:
+                char_name = record['source']
+                value = record['value']
+
+                if char_name not in char_data:
+                    char_data[char_name] = {frame: value}
+                else:
+                    char_data[char_name][frame] += value
+            
+            team_data[frame] = sum([v[frame] for v in char_data.values()])
+                
+                
+        # 添加队伍数据
+        char_data['队伍'] = team_data
+        
+        chart = QChart()
+        chart.setTitle("伤害累加")
+        chart.setTitleFont(QFont("Helvetica Neue", 12, QFont.Weight.Bold))
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignBottom)
+        
+        # 定义颜色列表
+        colors = [
+            QColor("#FF4D6D"),  # 红色
+            QColor("#4D9FFF"),  # 蓝色
+            QColor("#2ED8A3"),  # 绿色
+            QColor("#FFD166"),  # 黄色
+            QColor("#B388FF"),  # 紫色
+            QColor("#06D6A0"),  # 青色
+            QColor("#EF476F"),  # 粉红
+            QColor("#118AB2")   # 深蓝
+        ]
+        
+        # 计算最大帧数和最大伤害值
+        max_frame = 0
+        max_damage = 0
+        for char_name, frame_data in char_data.items():
+            if not frame_data:
+                continue
+            # 只处理int类型的帧数
+            frames = [f for f in frame_data.keys() if isinstance(f, int)]
+            if frames:
+                current_max_frame = max(frames)
+                if current_max_frame > max_frame:
+                    max_frame = current_max_frame
+            # 只处理数值类型的伤害值
+            damages = [v for v in frame_data.values() if isinstance(v, (int, float))]
+            if damages:
+                current_max_damage = max(damages)
+                if current_max_damage > max_damage:
+                    max_damage = current_max_damage
+        
+        # 添加数据系列
+        for i, (char_name, frame_data) in enumerate(char_data.items()):
+            if not frame_data:
+                continue
+                
+            series = QLineSeries()
+            series.setName(char_name)
+            series.setColor(colors[i % len(colors)])
+            
+            # 按帧数排序并添加数据点(转换为秒)
+            sorted_frames = sorted(frame_data.items())
+            for frame, damage in sorted_frames:
+                series.append(frame/60, damage)  # 1秒=60帧
+                
+            chart.addSeries(series)
+        
+        # 设置坐标轴
+        axisX = QValueAxis()
+        axisX.setRange(0, max_frame/60 if max_frame/60 > 0 else 1)
+        axisX.setLabelFormat("%.1fs")  # 显示为25.0s格式
+        axisY = QValueAxis()
+        axisY.setRange(0, max_damage * 1.1 if max_damage > 0 else 1)  # 留10%空白
+        axisY.setTitleText("伤害值")
+        
+        chart.addAxis(axisX, Qt.AlignBottom)
+        chart.addAxis(axisY, Qt.AlignLeft)
+        
+        for series in chart.series():
+            series.attachAxis(axisX)
+            series.attachAxis(axisY)
+        
         self.chart_view.setChart(chart)
