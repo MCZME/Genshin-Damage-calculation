@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import (QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QSizePolicy)
+from PySide6.QtWidgets import (QVBoxLayout, QWidget, QHBoxLayout, QSizePolicy)
 
 from ui.widget.character_status_card import CharacterCardManager
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import Qt
+
+from ui.widget.image_loader_widget import ImageAvatarButton
 
 class CharacterStatusWidget(QWidget):
     """角色状态显示组件"""
@@ -53,7 +54,7 @@ class CharacterStatusWidget(QWidget):
         self.avatars = []
         self.avatar_click_handlers = []
         for i in range(4):
-            avatar = QPushButton()
+            avatar = ImageAvatarButton()
             avatar.setCursor(Qt.PointingHandCursor)
             avatar.setFixedSize(60, 60)
             avatar.setStyleSheet("""
@@ -62,6 +63,7 @@ class CharacterStatusWidget(QWidget):
                     border-radius: 30px;
                     background-color: #ffffff;
                     padding: 0px;
+                    margin: 0px;
                 }
                 QPushButton:hover {
                     border: 2px solid #2a70c2;
@@ -110,11 +112,7 @@ class CharacterStatusWidget(QWidget):
             char_data['name'] = char_name
             
             # 设置头像
-            if 'avatar' in char_data:
-                pixmap = QPixmap(char_data['avatar'])
-                icon = QIcon(pixmap.scaled(50, 50, Qt.KeepAspectRatio))
-                self.avatars[i].setIcon(icon)
-                self.avatars[i].setIconSize(QSize(50, 50))
+            self.avatars[i].load_image(char_data['name'])
             self.avatars[i].setVisible(True)
             
             # 设置点击事件

@@ -1,10 +1,10 @@
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
-                              QLabel, QPushButton, QComboBox, QSpinBox, QCompleter,
-                              QWidget, QFormLayout, QTabWidget, QFrame,
-                              QDialogButtonBox, QDoubleSpinBox, QLineEdit,QMenu)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QCompleter,
+                              QWidget, QFormLayout, QFrame,
+                              QDialogButtonBox, QDoubleSpinBox)
 from PySide6.QtCore import Qt, Signal
 from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
 from character import character_table
+from ui.widget.image_loader_widget import ImageAvatar
 from weapon import weapon_table
 from setup.Logger import get_ui_logger
 
@@ -45,7 +45,7 @@ class CharacterWindow(QDialog):
         self.char_layout.addWidget(QWidget(), stretch=1)
         
         # 头像区域
-        self.avatar_label = QLabel()
+        self.avatar_label = ImageAvatar()
         self.avatar_label.setFixedSize(60, 60)
         self.avatar_label.setStyleSheet("""
             background-color: #f0f0f0;
@@ -58,6 +58,7 @@ class CharacterWindow(QDialog):
         self.char_combo.setEditable(True)
         self.char_combo.setFixedWidth(120)
         self.char_combo.completer().setCompletionMode(QCompleter.PopupCompletion)
+        self.char_combo.currentIndexChanged.connect(self._update_avatar)
         self.char_layout.addWidget(self.char_combo, stretch=1)
         self.char_layout.addWidget(QWidget(), stretch=1)
 
@@ -647,6 +648,7 @@ class CharacterWindow(QDialog):
         """重置所有数据"""
         # 重置角色数据
         self.char_combo.setCurrentIndex(0)
+        self._update_avatar()
         self.level_spin.setValue(1)
         for i in [8,10,12]:  # 天赋spinbox
             spin = self.char_layout.itemAt(i).widget()
@@ -928,6 +930,7 @@ class CharacterWindow(QDialog):
             char_data = data.get("character", {})
             if char_data:
                 self.char_combo.setCurrentText(char_data.get("name", ""))
+                self._update_avatar()
                 self.level_spin.setValue(char_data.get("level", 1))
                 
                 # 设置天赋值
@@ -1029,3 +1032,7 @@ class CharacterWindow(QDialog):
                 
         except Exception as e:
             print(f"更新UI时出错: {str(e)}")
+
+    def _update_avatar(self):
+        name = self.char_combo.currentText()
+        self.avatar_label.load_image(name)

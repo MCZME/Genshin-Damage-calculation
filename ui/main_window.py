@@ -8,6 +8,7 @@ from datetime import datetime
 from PySide6.QtCore import Qt
 
 from Emulation import Emulation
+from ui.widget.image_loader_widget import ImageAvatar
 
 from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
@@ -126,7 +127,7 @@ class MainWindow(QMainWindow):
             delete_btn.clicked.connect(lambda _, idx=i: self._clear_character_slot(idx))
             
             # 头像标签
-            self.avatar_label = QLabel()
+            self.avatar_label = ImageAvatar()
             self.avatar_label.setFixedSize(50, 50)
             self.avatar_label.setStyleSheet("""
                 background-color: #e9ecef;
@@ -463,7 +464,8 @@ class MainWindow(QMainWindow):
             return
             
         # 获取左侧子部件
-        avatar_label = left_widget.layout().itemAt(1).widget()
+        avatar_label = left_widget.layout().itemAt(1).widget().layout().itemAt(0).widget()
+        avatar_label.load_image(char_window.result_data['character']['name'])
         char_info = left_widget.layout().itemAt(2).widget()
         
         # 获取右侧子部件

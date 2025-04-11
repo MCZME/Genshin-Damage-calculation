@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QComboBox, QHBoxLayout
-from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QBarSeries,
-                              QBarSet, QBarCategoryAxis, QLineSeries, QValueAxis)
+from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QLineSeries, QValueAxis)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QFont
+from setup.Logger import get_ui_logger
 
 class DpsPieSelectorWidget(QWidget):
     """带下拉选择框的双饼图组件"""
@@ -158,7 +158,6 @@ class DpsPieSelectorWidget(QWidget):
         # 添加队伍数据到_current_data
         self._current_data['队伍'] = team_data
             
-
     def _update_chart(self):
         """当下拉框选择变化时更新图表"""
         if not self._current_data:
@@ -238,6 +237,7 @@ class DpsPieSelectorWidget(QWidget):
         
         chart.addSeries(series)
         self.source_pie.setChart(chart)
+        get_ui_logger().log_info(f"更新DPS饼图数据: {name}")
 
 class DpsPieWidget(QWidget):
     """角色DPS饼图展示组件"""
@@ -372,6 +372,7 @@ class DpsPieWidget(QWidget):
             
         chart.addSeries(series)
         self.chart_view.setChart(chart)
+        get_ui_logger().log_info("更新饼图数据")
 
 class DpsLineWidget(QWidget):
     """DPS折线图展示组件"""
@@ -532,3 +533,5 @@ class DpsLineWidget(QWidget):
             series.attachAxis(axisY)
         
         self.chart_view.setChart(chart)
+
+        get_ui_logger().log_info("伤害累加图更新完成")
