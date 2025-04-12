@@ -216,3 +216,5 @@ class Emulation():
             return 'skip'
         elif action == '冲刺':
             return 'dash'
+        elif action == '跳跃':
+            return 'jump'

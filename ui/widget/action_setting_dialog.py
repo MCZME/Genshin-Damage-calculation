@@ -14,7 +14,8 @@ class ActionSettingDialog(QDialog):
         "skill": "元素战技",
         "burst": "元素爆发",
         'skip': '跳过',
-        'dash': '冲刺'
+        'dash': '冲刺',
+        'jump': '跳跃'
     }
 
     def __init__(self, character_data: dict, parent=None):

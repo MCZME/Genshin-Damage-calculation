@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
-from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, HealChargeEvent, NormalAttackEvent
+from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, HealChargeEvent
 import setup.Tool as T
 
 # 角色状态枚举

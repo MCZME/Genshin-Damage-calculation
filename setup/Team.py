@@ -11,7 +11,8 @@ action_state = {
     "elemental_burst": CharacterState.BURST,
     "skip": CharacterState.SKIP,
     "plunging_attack": CharacterState.PLUNGING_ATTACK,
-    "dash": CharacterState.DASH
+    "dash": CharacterState.DASH,
+    'jump': CharacterState.JUMP,
 }
 
 # 队伍系统
