@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
+from setup.BaseClass import DashSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
@@ -441,6 +441,7 @@ class Xilonen(Natlan):
         self.elemental_energy = ElementalEnergy(self,('岩',60))
         self.max_night_soul = 90
         self.NormalAttack = XilonenNormalAttack(lv=self.skill_params[0])
+        self.Dash = DashSkill(22,4.5)
         self.Skill = ElementalSkill(lv=self.skill_params[1])
         self.Burst = ElementalBurst(lv=self.skill_params[2])
         self.talent1 = PassiveSkillEffect_1()

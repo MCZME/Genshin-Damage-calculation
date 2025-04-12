@@ -1,7 +1,7 @@
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
@@ -14,7 +14,8 @@ class RingOfSearingRadianceObject(baseObject):
     def __init__(self, character, life_frame=0):
         super().__init__('焚曜之环', life_frame)
         self.character = character
-        self.damage_multiplier = [128,137.6,147.2,160,169.6,179.2,192,204.8,217.6,230.4,243.2,256,272]
+        self.damage_multiplier = [128, 137.6, 147.2, 160, 169.6, 179.2, 192, 
+                                  204.8, 217.6, 230.4, 243.2, 256, 272, 288, 304, ]
 
     def update(self, target):
         self.current_frame += 1
@@ -48,7 +49,8 @@ class ElementalSkill(SkillBase, EventHandler):
         super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 
                         element=('火', 1), interruptible=False)
         
-        self.damageMultipiler ={'伤害':[74.4,79.98,85.56,93,98.58,104.16,111.6,119.04,126.48,133.92,141.36,148.8,158.1]}
+        self.damageMultipiler ={'伤害':[74.4, 79.98, 85.56, 93, 98.58, 104.16, 111.6, 119.04, 
+                                      126.48, 133.92, 141.36, 148.8, 158.1, 167.4, 176.7, ]}
 
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
@@ -150,10 +152,11 @@ class ElementalBurst(SkillBase, EventHandler):
         super().__init__(name="燔天之时", total_frames=141, cd=18*60, lv=lv, caster=caster,
                         element=('火', 1))
         self.damageMultipiler = {
-            '坠日斩':[444.8,478.16,511.52,556,589.36,622.72,667.2,711.68,756.16,800.64,845.12,889.6,945.2],
-            '坠日斩伤害提升':[1.6,1.72,1.84,2,2.12,2.24,2.4,2.56,2.72,2.88,3.04,3.2,3.4],
-            '驰轮车普通攻击伤害提升':[0.26,0.28,0.3,0.33,0.35,0.37,0.41,0.44,0.47,0.51,0.55,0.58,0.62],
-            '驰轮车重击伤害提升':[0.52,0.56,0.6,0.66,0.7,0.75,0.82,0.88,0.95,1.02,1.09,1.16,1.24]
+            '坠日斩':[444.8, 478.16, 511.52, 556, 589.36, 622.72, 667.2, 711.68, 
+                   756.16, 800.64, 845.12, 889.6, 945.2, 1000.8, 1056.4, ],
+            '坠日斩伤害提升':[1.6,1.72,1.84,2,2.12,2.24,2.4,2.56,2.72,2.88,3.04,3.2,3.4,3.6,3.8],
+            '驰轮车普通攻击伤害提升':[0.26,0.28,0.3,0.33,0.35,0.37,0.41,0.44,0.47,0.51,0.55,0.58,0.62,0.65,0.69],
+            '驰轮车重击伤害提升':[0.52,0.56,0.6,0.66,0.7,0.75,0.82,0.88,0.95,1.02,1.09,1.16,1.24,1.31,1.38]
         }
         # 战意系统属性
         self.max_battle_will = 200
@@ -418,6 +421,39 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
         if self.caster.mode == '驰轮车':
             get_emulation_logger().log_error("焰轮旋舞被打断！")
 
+class MavuikaDashSkill(DashSkill):
+    def __init__(self):
+        super().__init__(22, 4.5, interruptible = False)
+        self.hit_frame = 20
+        self.damageMultipiler =[80.84, 87.42, 94, 103.4, 109.98, 117.5, 127.84, 
+                                138.18, 148.52, 159.8, 171.08, 182.36, 193.64, 204.92, 216.2]
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+
+        if self.caster.mode == '驰轮车':
+            self.total_frames = 24
+            self.v = 5
+        else:
+            self.total_frames = 22
+            self.v = 4.5
+        return True
+    
+    def on_frame_update(self, target):
+        if self.current_frame == self.hit_frame and self.caster.mode == '驰轮车':
+            damage = Damage(
+                self.damageMultipiler[self.caster.Skill.lv - 1],
+                element=('火', 1),
+                damageType=DamageType.NORMAL,
+                name='驰轮车冲刺伤害'
+            )
+            damage.setDamageData("夜魂伤害",True)
+            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            EventBus.publish(damage_event)
+            self.caster.consume_night_soul(10)
+        super().on_frame_update(target)
+
 class TwoPhaseDamageBoostEffect(Effect, EventHandler):
     def __init__(self, source, initial_boost, fixed_duration, decay_duration):
         super().__init__(source)
@@ -573,6 +609,7 @@ class MAVUIKA(Natlan):
         self.elemental_energy = ElementalEnergy(self,('火',0))
         self.NormalAttack = MavuikaNormalAttackSkill(self.skill_params[0])
         self.ChargedAttack = MavuikaChargedAttackSkill(self.skill_params[0])
+        self.Dash = MavuikaDashSkill()
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2],caster=self)
         self.talent1 = PassiveSkillEffect_1()
@@ -668,5 +705,6 @@ mavuika_table = {
     'normalAttack':{'攻击次数':5},
     'chargedAttack':{},
     'skill':{'释放时间':['长按','点按']},
-    'burst':{}
+    'burst':{},
+    'dash':{},
 }
