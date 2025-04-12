@@ -214,3 +214,5 @@ class Emulation():
             return 'elemental_burst'
         elif action == '跳过':
             return 'skip'
+        elif action == '冲刺':
+            return 'dash'

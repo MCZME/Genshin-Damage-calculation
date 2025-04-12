@@ -53,15 +53,6 @@ class SkillBase(ABC):
         self.damageMultipiler = []
         self.interruptible = interruptible  # 是否可打断
         self.caster = caster
-        self.action_to_actiom_frames = {
-            'normal_attack' : total_frames,
-            'charged_attack' : total_frames,
-            'plunging_attack' : total_frames,
-            'elemental_skill' : total_frames,
-            'elemental_burst' : total_frames,
-            'dash': total_frames,
-            'skip': total_frames
-        }
 
     def start(self, caster):
         if self.cd_timer > 0:
@@ -115,13 +106,25 @@ class EnergySkill(SkillBase):
         return super().on_interrupt()
 
 class DashSkill(SkillBase):
-    def __init__(self, total_frames, caster=None, interruptible=False):
+    def __init__(self, total_frames, v=0,caster=None, interruptible=False):
         super().__init__('冲刺', total_frames, 0, 0, ('无',0), caster, interruptible)
+        self.v = v
 
     def start(self, caster):
         if not super().start(caster):
             return False
+        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始冲刺")
         return True
+
+    def on_frame_update(self,target):
+        self.caster.movement += self.v
+    
+    def on_finish(self):
+        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 冲刺结束") 
+        return super().on_finish()
+    
+    def on_interrupt(self):
+        return super().on_interrupt()
 
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):

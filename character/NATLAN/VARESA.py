@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
+from setup.BaseClass import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from setup.Logger import get_emulation_logger
 from setup.BaseEffect import Effect
 from setup.DamageCalculation import Damage, DamageType
@@ -613,6 +613,7 @@ class Varesa(Natlan):
         self.NormalAttack = VaresaNormalAttack(lv=self.skill_params[0])
         self.PlungingAttack = VaresaPlungingAttackSkill(lv=self.skill_params[0])
         self.ChargedAttack = VaresaChargedAttack(lv=self.skill_params[0])
+        self.Dash = DashSkill(22,4.5)
         self.Skill = ElementalSkill(lv=self.skill_params[1])
         self.Burst = ElementalBurst(lv=self.skill_params[2], caster=self)
         self.NormalBurst = ElementalBurst(lv=self.skill_params[2], caster=self)
@@ -666,5 +667,6 @@ Varesa_table = {
     'chargedAttack': {},
     'plungingAttack': {'攻击距离':['高空', '低空']},
     'skill': {},
-    'burst': {}
+    'burst': {},
+    'dash' : {}
 }
