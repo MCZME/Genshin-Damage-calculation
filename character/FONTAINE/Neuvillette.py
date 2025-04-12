@@ -3,6 +3,7 @@ from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEn
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, NormalAttackEvent
+from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
 from setup.Logger import get_emulation_logger
 
@@ -67,9 +68,80 @@ class NormalAttack(NormalAttackSkill):
         EventBus.publish(normal_attack_event)
 
 class ChargedAttack(ChargedAttackSkill):
-
-    def __init__(self, lv, total_frames=30, cd=0):
+    def __init__(self, lv, total_frames=212, cd=0):
         super().__init__(lv, total_frames, cd)
+        self.damageMultipiler = {
+            '重击伤害': [136.8, 147.06, 157.32, 171.0, 181.26, 191.52, 205.2, 218.88, 232.56, 246.24, 259.92, 273.6, 290.7, 307.8, 324.9],
+            '衡平推裁伤害': [7.32, 7.91, 8.51, 9.36, 9.96, 10.64, 11.57, 12.51, 13.45, 14.47, 15.49, 16.51, 17.53, 18.55, 19.57]
+        }
+        self.interval = [9,31,55,80,105,130,154,173]
+        self.hp_cost_interval = [43,73,104,134,165]
+        self.hp_cost_per_half_second = 8
+        self.heal_per_droplet = 16
+        # 元素附着控制参数
+        self.attach_sequence = [1, 0, 0]  # 元素附着序列 (每3次攻击附着1次)
+        self.sequence_pos = 0  # 当前序列位置
+        self.last_attach_time = 0  # 上次元素附着时间(帧数)
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+        self.total_frames = 212
+        self.source_water_droplet = 0
+        for obj in Team.active_objects:
+            if isinstance(obj, SourceWaterDroplet):
+                obj.on_finish
+                self.source_water_droplet += 1
+            if self.source_water_droplet >= 3:
+                break
+        self.hit_frame = [212,155,101,31][self.source_water_droplet]
+        self.total_frames = self.hit_frame + 3*60
+        get_emulation_logger().log_skill_use(f"开始重击，吸收的源水之滴数量为：{self.source_water_droplet}")
+        return True
+
+    def on_frame_update(self, target):
+        current_time = GetCurrentTime()
+        
+        if self.current_frame == self.hit_frame + 11:
+            self.caster.heal((self.heal_per_droplet * self.source_water_droplet * self.caster.maxHP/100))
+            
+        if self.current_frame in [i + self.hit_frame for i in self.interval]:
+            # 重击伤害元素附着判断
+            should_attach = False
+            if self.sequence_pos < len(self.attach_sequence):
+                should_attach = self.attach_sequence[self.sequence_pos] == 1
+                self.sequence_pos += 1
+            else:
+                self.sequence_pos = 0
+                should_attach = self.attach_sequence[self.sequence_pos] == 1
+                self.sequence_pos += 1
+            
+            # 冷却时间控制检查 (2.5秒 = 150帧)
+            if current_time - self.last_attach_time >= 150:
+                should_attach = True
+            
+            # 更新上次附着时间
+            if should_attach:
+                self.last_attach_time = current_time
+            
+            element = ('水', 1 if should_attach else 0)
+            damage = Damage(
+                damageMultipiler=self.damageMultipiler['衡平推裁伤害'][self.lv-1],
+                element=element,
+                damageType=DamageType.CHARGED,
+                name='衡平推裁'
+            )
+            damage.setBaseValue('生命值')
+            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            
+        if self.current_frame in [i + self.hit_frame for i in self.hp_cost_interval]:
+            self.caster.heal(-(self.hp_cost_per_half_second * self.caster.maxHP)/100)
+
+    def on_finish(self):
+        return super().on_finish()
+    
+    def on_interrupt(self):
+        return super().on_interrupt()
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -206,6 +278,7 @@ class ElementalBurst(EnergySkill):
     
     def on_interrupt(self):
         return super().on_interrupt()
+    
 class PassiveSkillEffect_1(TalentEffect):
 
     def __init__(self, name):
@@ -231,6 +304,7 @@ class Neuvillette(Fontaine):
         super()._init_character()
         self.elemental_energy = ElementalEnergy(self,('水',70))
         self.NormalAttack = NormalAttack(self.skill_params[0])
+        self.ChargedAttack = ChargedAttack(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2])
 
@@ -242,7 +316,7 @@ Neuvillette_table = {
     'rarity': 5,
     'association':'枫丹',
     'normalAttack': {'攻击次数': 3},
-    # 'chargedAttack': {},
+    'chargedAttack': {},
     # 'plungingAttack': {'攻击距离':['高空', '低空']},
     'skill': {},
     'burst': {}

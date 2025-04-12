@@ -2,6 +2,7 @@ from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
 from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, HealChargeEvent
+from setup.Logger import get_emulation_logger
 import setup.Tool as T
 
 # 角色状态枚举
@@ -118,7 +119,12 @@ class Character:
         EventBus.publish(event)
         if event.cancelled:
             return
-        self.currentHP = max(self.maxHP,self.currentHP+event.data['amount'])
+        if event.data['amount'] > 0 :
+            self.currentHP = min(self.maxHP,self.currentHP+event.data['amount'])
+            get_emulation_logger().log('HEAL',f"💚 {self.name}受到治疗，当前生命值为{self.currentHP:.2f}，治疗量为{event.data['amount']}")
+        else:
+            self.currentHP = max(self.currentHP+event.data['amount'],0)
+            get_emulation_logger().log('HEAL',f"💔 {self.name}受到伤害，当前生命值为{self.currentHP:.2f}，伤害量为{-event.data['amount']}")
         event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 
