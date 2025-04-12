@@ -505,6 +505,12 @@ class CharacterStatusDialog(QDialog):
         # 更新生命值
         if 'currentHP' in new_data:
             self.hp_bar.setValue(new_data['currentHP'])
+            self.hp_bar.setFormat(f"生命值：{int(new_data['currentHP'])}/{int(new_data['maxHP'])}")
+            self.hp_bar.parent().data = { 
+                    "type": "HP",
+                    "current": new_data['currentHP'],
+                    "max": new_data['maxHP']
+                }
         
         # 更新面板属性
         if 'panel' in new_data:
