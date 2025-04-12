@@ -14,6 +14,7 @@ class CharacterState(Enum):
     PLUNGING_ATTACK = auto()    # 下落攻击
     SKIP = auto()           # 跳过
     DASH = auto()            # 冲刺
+    JUMP = auto()            # 跳跃
 
 
 class Character:
@@ -62,6 +63,7 @@ class Character:
         self.maxHP = self.attributePanel['生命值'] * (1 + self.attributePanel['生命值%'] / 100) + self.attributePanel['固定生命值']
         self.currentHP = self.maxHP
         self.movement = 0
+        self.height = 0
         self.weapon = None
         self.artifactManager = None
         self.state = [CharacterState.IDLE]
@@ -87,6 +89,7 @@ class Character:
         self.ChargedAttack = None
         self.PlungingAttack = None
         self.Dash = None
+        self.Jump = None
         self.Skill = None
         self.Burst = None
         self.talent1 = None
@@ -130,6 +133,14 @@ class Character:
     def _dash_impl(self):
         if self.Dash.start(self):
             self._append_state(CharacterState.DASH)
+
+    def jump(self):
+        '''跳跃'''
+        self._jump_impl()
+
+    def _jump_impl(self):
+        if self.Jump.start(self):
+            self._append_state(CharacterState.JUMP)
 
     def normal_attack(self,n):
         """普攻"""
@@ -230,6 +241,9 @@ class Character:
             elif i == CharacterState.DASH:
                 if self.Dash.update(target):
                     self.state.remove(CharacterState.DASH)
+            elif i == CharacterState.JUMP:
+                if self.Jump.update(target):
+                    self.state.remove(CharacterState.JUMP)
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:

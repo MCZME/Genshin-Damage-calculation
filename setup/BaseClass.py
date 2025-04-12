@@ -127,6 +127,14 @@ class DashSkill(SkillBase):
     def on_interrupt(self):
         return super().on_interrupt()
 
+class JumpSkill(SkillBase):
+    def __init__(self, total_frames, caster=None, interruptible=False):
+        super().__init__('跳跃', total_frames, 0, 0, ('无',0), caster, interruptible)
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):
         super().__init__(name="普通攻击",total_frames=0,lv=lv,cd=cd,element=('物理',0),interruptible=False)
