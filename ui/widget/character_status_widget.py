@@ -60,7 +60,7 @@ class CharacterStatusWidget(QWidget):
             avatar.setStyleSheet("""
                 QPushButton {
                     border: 2px solid #4a90e2;
-                    border-radius: 30px;
+                    border-radius: 0px;
                     background-color: #ffffff;
                     padding: 0px;
                     margin: 0px;

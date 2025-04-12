@@ -169,7 +169,23 @@ class DpsPieSelectorWidget(QWidget):
         elif name not in self._current_data:
             name = list(self._current_data.keys())[0]
 
-        # 定义颜色列表
+        # 定义元素到颜色的映射
+        element_colors = {
+            "火": QColor("#FF4D6D"),  # 红色
+            "水": QColor("#4D9FFF"),  # 蓝色
+            "雷": QColor("#B388FF"),  # 紫色
+            "冰": QColor("#2ED8A3"),  # 青色
+            "风": QColor("#06D6A0"),  # 绿色
+            "岩": QColor("#FFD166"),  # 黄色
+            "草": QColor("#7CFC00"),  # 草绿色
+            "物理": QColor("#A9A9A9")  # 灰色
+        }
+        # 默认颜色列表(当元素不在映射中时使用)
+        default_colors = [
+            QColor("#EF476F"),  # 粉红
+            QColor("#118AB2")   # 深蓝
+        ]
+                # 定义颜色列表
         colors = [
             QColor("#FF4D6D"),  # 红色
             QColor("#4D9FFF"),  # 蓝色
@@ -177,9 +193,10 @@ class DpsPieSelectorWidget(QWidget):
             QColor("#FFD166"),  # 黄色
             QColor("#B388FF"),  # 紫色
             QColor("#06D6A0"),  # 青色
-            QColor("#EF476F"),  # 粉红
-            QColor("#118AB2")   # 深蓝
+            QColor("#7CFC00"),  # 草绿色
+            QColor("#A9A9A9")  # 灰色
         ]
+
         
         # 创建元素伤害饼图
         element_values = []
@@ -201,9 +218,9 @@ class DpsPieSelectorWidget(QWidget):
         for i, (element, damage) in enumerate(items):
             percentage = (damage / total_damage) * 100
             # 使用HTML换行标签实现强制换行
-            label = f"<p align='center'>{element}{self._format_damage(damage)}<br>({percentage:.1f}%)</p>"
+            label = f"<p align='center'>{element} {self._format_damage(damage)}<br>({percentage:.1f}%)</p>"
             slice = series.append(label, damage)
-            slice.setColor(colors[i % len(colors)])
+            slice.setColor(element_colors.get(element, default_colors[i % len(default_colors)]))
             if percentage >= 1:
                 slice.setLabelVisible(True)
             else:
@@ -227,7 +244,7 @@ class DpsPieSelectorWidget(QWidget):
         for i, (type_, damage) in enumerate(items):
             percentage = (damage / total_damage) * 100
             # 使用HTML换行标签实现强制换行
-            label = f"<p align='center'>{type_}{self._format_damage(damage)}<br>({percentage:.1f}%)</p>"
+            label = f"<p align='center'>{type_} {self._format_damage(damage)}<br>({percentage:.1f}%)</p>"
             slice = series.append(label, damage)
             slice.setColor(colors[i % len(colors)])
             if percentage >= 1:

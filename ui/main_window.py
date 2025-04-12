@@ -14,7 +14,7 @@ from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
 from .result_window import ResultWindow
 from .widget.character_window import CharacterWindow
-from .action_setting_dialog import ActionSettingDialog
+from .widget.action_setting_dialog import ActionSettingDialog
 from setup.Logger import get_ui_logger
 
 class MainWindow(QMainWindow):
