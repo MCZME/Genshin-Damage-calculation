@@ -26,7 +26,7 @@ class baseObject(ABC):
         ...
 
     def on_finish(self,target):
-        print(f'{self.name} 存活时间结束')
+        get_emulation_logger().log_object(f'{self.name} 存活时间结束')
         Team.remove_object(self)
            
 class ArkheObject(baseObject):
@@ -38,9 +38,9 @@ class ArkheObject(baseObject):
 
     def on_finish(self, target):
         super().on_finish(target)
+        self.damage.setDamageData('始基力',self.arkhe_type)
         event = DamageEvent(self.character, target, self.damage, GetCurrentTime())
         EventBus.publish(event)
-        print(f'💫 {self.name}对{target.name}造成{self.damage.damage:.2f}点伤害')
 
     def on_frame_update(self, target):
         ...

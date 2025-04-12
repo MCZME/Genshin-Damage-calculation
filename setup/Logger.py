@@ -77,6 +77,11 @@ class EmulationLogger(BaseLogger):
         if Config.get('logging.Emulation.reaction'):
             self._write_log("REACTION", reaction_msg)
 
+    def log_object(self, object_msg):
+        """记录对象日志"""
+        if Config.get('logging.Emulation.object'):
+            self._write_log("OBJECT", object_msg)
+
     def log(self, level, message):
         """自定义日志"""
         self._write_log(level, message)

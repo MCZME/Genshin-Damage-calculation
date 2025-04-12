@@ -16,6 +16,9 @@ CharacterClassMap = {
     11:XiangLing,
     76:CHEVREUSE,
     89:Xilonen,
+    Neuvillette.ID:Neuvillette,
+    Furina.ID:Furina,
+    KaedeharaKazuha.ID:KaedeharaKazuha,
 }
 
 WeaponClassMap = {
