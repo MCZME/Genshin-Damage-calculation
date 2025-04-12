@@ -143,6 +143,7 @@ class JumpSkill(SkillBase):
     def on_frame_update(self, target):
         # 跳跃过程持续增加高度
         self.caster.height += self.v
+        self.caster.movement += self.v
         
     def on_finish(self):
         super().on_finish()
@@ -326,6 +327,7 @@ class PlungingAttackSkill(SkillBase):
             EventBus.publish(event)
             
         self.caster.height = max(0, self.caster.height - self.v)
+        self.caster.movement += min(self.v, self.caster.height)
 
     def _apply_during_damage(self, target):
         """下坠期间持续伤害"""

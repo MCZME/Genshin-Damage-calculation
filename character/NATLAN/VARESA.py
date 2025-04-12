@@ -1,4 +1,5 @@
 from character.NATLAN.natlan import Natlan
+from character.character import CharacterState
 from setup.BaseClass import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from setup.Logger import get_emulation_logger
 from setup.BaseEffect import Effect
@@ -93,6 +94,7 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             '低空坠地冲击伤害': [223.72, 241.93, 260.13, 286.15, 304.36, 325.17, 353.78, 382.4, 411.01, 442.23, 473.45, 504.66, 535.88, 567.09, 598.31],
             '高空坠地冲击伤害': [279.43, 302.18, 324.92, 357.41, 380.16, 406.15, 441.89, 477.64, 513.38, 552.37, 591.36, 630.35, 669.34, 708.33, 747.32]
         }
+        self.v = 1.7
     
     def start(self, caster, is_high=False):
         """启动下落攻击并设置高度类型"""
@@ -114,10 +116,6 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
         EventBus.publish(event)
         return True
-
-    def on_frame_update(self, target):
-        super().on_frame_update(target)
-        self.caster.movement += 1.7
 
     def _apply_impact_damage(self, target):
         clamped_lv = min(max(self.lv, 1), 15) - 1
@@ -227,6 +225,13 @@ class VaresaChargedAttack(ChargedAttackSkill):
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
             self._apply_attack(target)
+        elif self.current_frame > self.hit_frame:
+            self.caster.height += self.v
+        self.caster.movement += self.v
+
+    def on_finish(self):
+        super().on_finish()
+        self.caster._append_state(CharacterState.FALL)
 
 class RainbowPlungeEffect(Effect, EventHandler):
     """虹色坠击效果"""

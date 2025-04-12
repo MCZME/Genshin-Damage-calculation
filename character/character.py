@@ -245,7 +245,7 @@ class Character:
                 if self.Jump.update(target):
                     self.state.remove(CharacterState.JUMP)
             elif i == CharacterState.FALL:
-                self.height = max(0, self.height - 1.5)
+                self.height = max(0, self.height - 5)
                 if self.height <= 0:
                     self.state.remove(CharacterState.FALL)
         if self.constellation > 0:
