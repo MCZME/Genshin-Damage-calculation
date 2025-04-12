@@ -13,6 +13,7 @@ class CharacterState(Enum):
     BURST = auto()        # 元素爆发
     PLUNGING_ATTACK = auto()    # 下落攻击
     SKIP = auto()           # 跳过
+    DASH = auto()            # 冲刺
 
 
 class Character:
@@ -85,6 +86,7 @@ class Character:
         self.NormalAttack = None
         self.ChargedAttack = None
         self.PlungingAttack = None
+        self.Dash = None
         self.Skill = None
         self.Burst = None
         self.talent1 = None
@@ -120,6 +122,14 @@ class Character:
     def skip(self,n):
         self.skip_frame = n
         self._append_state(CharacterState.SKIP)
+
+    def dash(self):
+        '''冲刺'''
+        self._dash_impl()
+    
+    def _dash_impl(self):
+        if self.Dash.start(self):
+            self._append_state(CharacterState.DASH)
 
     def normal_attack(self,n):
         """普攻"""
@@ -217,6 +227,9 @@ class Character:
                 self.skip_frame -= 1
                 if self.skip_frame <= 0:
                     self.state.remove(CharacterState.SKIP)
+            elif i == CharacterState.DASH:
+                if self.Dash.update(target):
+                    self.state.remove(CharacterState.DASH)
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:
