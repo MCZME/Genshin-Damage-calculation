@@ -157,10 +157,6 @@ class ImageLoaderWidget(QWidget):
 
     def on_image_error(self, error):
         get_ui_logger().log_error(f"图片加载失败: {error}")
-        # 显示Qt内置错误图标
-        error_icon = self.style().standardIcon(QStyle.SP_MessageBoxWarning)
-        error_pixmap = error_icon.pixmap(self.width(), self.height())
-        self.label.setPixmap(error_pixmap)
 
 class ImageAvatar(ImageLoaderWidget):
     def __init__(self, parent=None):
@@ -170,6 +166,14 @@ class ImageAvatar(ImageLoaderWidget):
         SQL = f'SELECT url FROM `character_portrait` WHERE name = "{name}"'
         url = DR.read_data(SQL)[0][0]
         super().load_image(url)
+        
+    def clear_image(self):
+        """清除头像图片，恢复背景状态"""
+        self.label.clear()
+        self.label.setStyleSheet("""
+            background-color: #e9ecef;
+            border-radius: 25px;
+        """)
 
 class ImageButton(QPushButton):
     clicked_with_url = Signal(str)  # 新增信号，带URL参数

@@ -583,6 +583,10 @@ class MainWindow(QMainWindow):
         char_info.setText("Lv.0\n天赋:0/0/0")
         weapon_label.setText("无武器")
         artifact_label.setText("无套装")
+        # 重置头像显示为背景状态
+        avatar_container = char_info.parent().layout().itemAt(1).widget()
+        avatar_label = avatar_container.layout().itemAt(0).widget()
+        avatar_label.clear_image()
 
     def _reset_slot_display_by_index(self, slot_idx):
         """通过槽位索引重置显示"""
