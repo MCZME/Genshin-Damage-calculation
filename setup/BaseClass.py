@@ -128,12 +128,32 @@ class DashSkill(SkillBase):
         return super().on_interrupt()
 
 class JumpSkill(SkillBase):
-    def __init__(self, total_frames, caster=None, interruptible=False):
+    def __init__(self, total_frames, v,caster=None, interruptible=False):
         super().__init__('跳跃', total_frames, 0, 0, ('无',0), caster, interruptible)
+        self.v = v
 
     def start(self, caster):
         if not super().start(caster):
             return False
+
+        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始跳跃")
+        EventBus.publish(GameEvent(EventType.BEFORE_JUMP, GetCurrentTime(), character=self.caster))
+        return True
+    
+    def on_frame_update(self, target):
+        # 跳跃过程持续增加高度
+        self.caster.height += self.v
+        
+    def on_finish(self):
+        super().on_finish()
+        # 跳跃结束进入下落状态
+        from character.character import CharacterState
+        self.caster._append_state(CharacterState.FALL)
+        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 跳跃结束")
+        EventBus.publish(GameEvent(EventType.AFTER_JUMP, GetCurrentTime(), character=self.caster))
+
+    def on_interrupt(self):
+        return super().on_interrupt()
 
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):
@@ -277,11 +297,13 @@ class PlungingAttackSkill(SkillBase):
             '高空坠地冲击伤害': []
         }
         self.height_type = '低空'  # 默认低空
+        self.v = 0
         
     def start(self, caster, is_high=False):
         """启动下落攻击并设置高度类型"""
         if not super().start(caster):
             return False
+        # is_high = caster.height > 80
         self.height_type = '高空' if is_high else '低空'
         get_emulation_logger().log_skill_use(f"🦅 {caster.name} 发动{self.height_type}下落攻击")
         event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(),is_plunging_impact=False)
@@ -302,8 +324,8 @@ class PlungingAttackSkill(SkillBase):
             self._apply_impact_damage(target)
             event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
             EventBus.publish(event)
-            return True
-        return False
+            
+        self.caster.height = max(0, self.caster.height - self.v)
 
     def _apply_during_damage(self, target):
         """下坠期间持续伤害"""
@@ -334,6 +356,10 @@ class PlungingAttackSkill(SkillBase):
         super().on_finish()
         EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
         get_emulation_logger().log_skill_use(f"💥 {self.caster.name} 下落攻击完成")
+        self.caster.height = 0
+        from character.character import CharacterState
+        if CharacterState.FALL in self.caster.state:
+            self.caster.state.remove(CharacterState.FALL)
 
     def on_interrupt(self):
         get_emulation_logger().log_error("💢 下落攻击被打断")

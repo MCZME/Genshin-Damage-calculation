@@ -1,6 +1,7 @@
 from character.character import Character, CharacterState
 from setup.BaseEffect import AttackBoostEffect, HealthBoostEffect
 from setup.Event import CharacterSwitchEvent, EventBus
+from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime
 
 # 转化字典
@@ -106,7 +107,8 @@ class Team:
     
     def swap(self,action):
         if action[0] == Team.current_character.name: # 如果是当前角色，则执行动作
-            if (Team.current_character.state[-1] == CharacterState.IDLE):
+            if (Team.current_character.state[-1] == CharacterState.IDLE or 
+                (Team.current_character.state[-1] == CharacterState.FALL and action[1] == 'plunging_attack')):
                 if hasattr(Team.current_character, action[1]):
                     if action[2] is not None:
                         getattr(Team.current_character, action[1])(action[2])

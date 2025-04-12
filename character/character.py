@@ -15,7 +15,7 @@ class CharacterState(Enum):
     SKIP = auto()           # 跳过
     DASH = auto()            # 冲刺
     JUMP = auto()            # 跳跃
-
+    FALL = auto()            # 下落
 
 class Character:
 
@@ -244,6 +244,10 @@ class Character:
             elif i == CharacterState.JUMP:
                 if self.Jump.update(target):
                     self.state.remove(CharacterState.JUMP)
+            elif i == CharacterState.FALL:
+                self.height = max(0, self.height - 1.5)
+                if self.height <= 0:
+                    self.state.remove(CharacterState.FALL)
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:

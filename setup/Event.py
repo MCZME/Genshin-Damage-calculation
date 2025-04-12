@@ -67,7 +67,7 @@ class EventType(Enum):
     AFTER_BURST = auto()         # 爆发使用后
     BEFORE_DASH = auto()         # 冲刺前
     AFTER_DASH = auto()          # 冲刺后
-    BEFOR_JUMP = auto()         # 跳跃前
+    BEFORE_JUMP = auto()         # 跳跃前
     AFTER_JUMP = auto()          # 跳跃后
 
     BEFORE_ENERGY_CHANGE = auto()  # 能量变化前
