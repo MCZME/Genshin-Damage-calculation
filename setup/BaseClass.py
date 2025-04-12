@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, NormalAttackEvent, PlungingAttackEvent
-from enum import Enum, auto
+from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
 from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime
 
@@ -114,13 +113,15 @@ class DashSkill(SkillBase):
         if not super().start(caster):
             return False
         get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始冲刺")
+        EventBus.publish(GameEvent(EventType.BEFORE_DASH, GetCurrentTime(), character=self.caster))
         return True
 
     def on_frame_update(self,target):
         self.caster.movement += self.v
     
     def on_finish(self):
-        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 冲刺结束") 
+        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 冲刺结束")
+        EventBus.publish(GameEvent(EventType.AFTER_DASH, GetCurrentTime(), character=self.caster))
         return super().on_finish()
     
     def on_interrupt(self):
