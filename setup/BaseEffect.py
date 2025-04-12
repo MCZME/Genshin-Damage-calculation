@@ -63,28 +63,29 @@ class CritRateBoostEffect(Effect):
         self.name = name
         self.attribute_name = '暴击率'  # 属性名称
         
-    def apply(self):
+    def apply(self, character=None):
+        self.current_character = character if character else self.character
         # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, CritRateBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
             
-        self.character.add_effect(self)
+        self.current_character.add_effect(self)
         self.setEffect()
 
     def setEffect(self):
-        self.character.attributePanel[self.attribute_name] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，暴击率提升{self.bonus}%")
+        self.current_character.attributePanel[self.attribute_name] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果，暴击率提升{self.bonus}%")
 
     def remove(self):
         self.removeEffect()
-        self.character.remove_effect(self)
+        self.current_character.remove_effect(self)
 
     def removeEffect(self):
-        self.character.attributePanel[self.attribute_name] -= self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的暴击率提升效果结束")
+        self.current_character.attributePanel[self.attribute_name] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的暴击率提升效果结束")
 
 class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""

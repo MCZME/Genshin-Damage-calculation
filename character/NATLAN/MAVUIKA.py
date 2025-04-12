@@ -97,6 +97,7 @@ class FurnaceEffect(Effect, EventHandler):
     def __init__(self, character, consumed_will):
         super().__init__(character, duration=7 * 60)
         self.consumed_will = consumed_will
+        self.name = '死生之炉'
         
     def apply(self):
         get_emulation_logger().log_effect('玛薇卡获得死生之炉')
@@ -106,6 +107,7 @@ class FurnaceEffect(Effect, EventHandler):
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
+        self.character.add_effect(self)
         EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
@@ -117,7 +119,7 @@ class FurnaceEffect(Effect, EventHandler):
         # 取消订阅
         EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-
+        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
     
     def handle_event(self, event: GameEvent):
         # 阻止夜魂消耗

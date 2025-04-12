@@ -44,7 +44,7 @@ class ObsidianCodex(ArtifactEffect):
 
     def four_SetEffect(self,character):
         self.character = character
-        EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         self.last_trigger_time = 0  # 记录上次触发时间
 
     def handle_event(self, event):
@@ -54,11 +54,12 @@ class ObsidianCodex(ArtifactEffect):
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
             attributePanel = event.data['character'].attributePanel
             attributePanel['伤害加成'] -= 15
-        elif event.event_type == EventType.BEFORE_NIGHT_SOUL_CHANGE:
+        elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             # 检查是否是当前角色且夜魂值减少
             if (event.data['character'] == self.character and 
                 event.data['amount'] < 0 and
-                GetCurrentTime() - self.last_trigger_time >= 60):  # 1秒冷却
+                GetCurrentTime() - self.last_trigger_time >= 60 and
+                event.cancelled == False):  # 1秒冷却
                 
                 # 使用CritRateBoostEffect应用暴击率提升效果
                 effect = CritRateBoostEffect(self.character, '黑曜秘典', 40, 6 * 60)
