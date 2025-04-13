@@ -213,7 +213,7 @@ class Calculation:
         if self.damage.panel['独立伤害加成'] > 0:
             return self.damage.panel['独立伤害加成']/100
         else:
-            self.damage.panel.remove('独立伤害加成')
+            self.damage.panel.pop('独立伤害加成')
             return 1
               
     def calculation_by_attack(self):

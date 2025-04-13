@@ -117,7 +117,7 @@ class Team:
                     return True
             return False  # 状态不允许执行新动作
         else: # 如果不是当前角色，则切换角色
-            if self.current_frame == 0:
+            if Team.current_frame == 0:
                 for character in Team.team:
                     if character.name == action[0]:
                         if (Team.current_character.state[0] == CharacterState.IDLE):
@@ -129,7 +129,7 @@ class Team:
                             Team.current_character.on_field = False
                             character.on_field = True
                             Team.current_character = character
-                            self.current_frame = self.SwapCd
+                            Team.current_frame = self.SwapCd
                             
                             # 执行新角色动作
                             if hasattr(Team.current_character, action[1]):
@@ -141,8 +141,8 @@ class Team:
                                 EventBus.publish(character_switch_event)
                                 return True
             else:
-                if self.current_frame %30 == 0:
-                    print("切换角色CD中  {}".format(self.current_frame))
+                if Team.current_frame %30 == 0:
+                    print("切换角色CD中  {}".format(Team.current_frame))
         return False
 
     def update(self,target):
@@ -150,8 +150,8 @@ class Team:
             character.update(target)
         for object in Team.active_objects:
             object.update(target)
-        if self.current_frame > 0:
-            self.current_frame -= 1
+        if Team.current_frame > 0:
+            Team.current_frame -= 1
 
     @classmethod
     def add_object(self,object):

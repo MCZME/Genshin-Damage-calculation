@@ -248,12 +248,15 @@ class JoyfulRhythmEffect(Effect, EventHandler):
         self.current_character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
+    def change_character(self, character):
+        self.current_character.remove_effect(self)
+        self.current_character = character
+        self.current_character.add_effect(self)
+
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             if event.data['old_character'] == self.current_character:
-                self.remove()
-                self.current_character = event.data['new_character']
-                self.apply()
+                self.change_character(event.data['new_character'])
 
     def remove(self):
         self.current_character.remove_effect(self)
@@ -275,7 +278,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
                 current_time
             )
             EventBus.publish(heal_event)
-            print("🎶 欢兴律动治疗触发")
+            get_emulation_logger().log_effect("🎶 欢兴律动治疗触发")
 
 class FierceRhythmEffect(Effect):
     """燥烈律动效果"""

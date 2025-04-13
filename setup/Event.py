@@ -233,7 +233,7 @@ class ShieldEvent(GameEvent):
         if before:
             super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
         else:
-            super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
+            super().__init__(EventType.AFTER_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
             send_to_handler(frame, {'event':{'type':EventType.BEFORE_SHIELD_CREATION,
                                              'character':source,
                                              'shield':shield,}})

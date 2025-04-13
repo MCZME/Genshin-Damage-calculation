@@ -61,7 +61,7 @@ class HealingFieldEffect(Effect, EventHandler):
             if old_char == self.current_char:
                 self.current_char.remove_effect(self)
                 self.current_char = new_char
-                self.apply()
+                self.current_char.add_effect(self)
 
     def update(self, target):
         if self.duration > 0:
