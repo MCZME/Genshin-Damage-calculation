@@ -2,7 +2,8 @@ from character.FONTAINE.fontaine import Fontaine
 from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, NormalAttackEvent
+from setup.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
+from setup.HealingCalculation import Healing, HealingType
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
 from setup.Logger import get_emulation_logger
@@ -86,56 +87,95 @@ class ChargedAttack(ChargedAttackSkill):
     def start(self, caster):
         if not super().start(caster):
             return False
-        self.total_frames = 212
         self.source_water_droplet = 0
+        removed_objects = []
         for obj in Team.active_objects:
             if isinstance(obj, SourceWaterDroplet):
-                obj.on_finish
+                removed_objects.append(obj)
                 self.source_water_droplet += 1
             if self.source_water_droplet >= 3:
                 break
+        for obj in removed_objects:
+            obj.on_finish()
         self.hit_frame = [212,155,101,31][self.source_water_droplet]
         self.total_frames = self.hit_frame + 3*60
         get_emulation_logger().log_skill_use(f"开始重击，吸收的源水之滴数量为：{self.source_water_droplet}")
         return True
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
-        
         if self.current_frame == self.hit_frame + 11:
-            self.caster.heal((self.heal_per_droplet * self.source_water_droplet * self.caster.maxHP/100))
+            heal = Healing(self.heal_per_droplet*self.source_water_droplet,HealingType.PASSIVE,name='源水之滴')
+            heal.base_value = '生命值'
+            EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
             
         if self.current_frame in [i + self.hit_frame for i in self.interval]:
-            # 重击伤害元素附着判断
-            should_attach = False
-            if self.sequence_pos < len(self.attach_sequence):
-                should_attach = self.attach_sequence[self.sequence_pos] == 1
-                self.sequence_pos += 1
-            else:
-                self.sequence_pos = 0
-                should_attach = self.attach_sequence[self.sequence_pos] == 1
-                self.sequence_pos += 1
-            
-            # 冷却时间控制检查 (2.5秒 = 150帧)
-            if current_time - self.last_attach_time >= 150:
-                should_attach = True
-            
-            # 更新上次附着时间
-            if should_attach:
-                self.last_attach_time = current_time
-            
-            element = ('水', 1 if should_attach else 0)
             damage = Damage(
                 damageMultipiler=self.damageMultipiler['衡平推裁伤害'][self.lv-1],
-                element=element,
+                element=self.set_element_attach(),
                 damageType=DamageType.CHARGED,
                 name='衡平推裁'
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
             
-        if self.current_frame in [i + self.hit_frame for i in self.hp_cost_interval]:
-            self.caster.heal(-(self.hp_cost_per_half_second * self.caster.maxHP)/100)
+        if self.current_frame in [i + self.hit_frame for i in self.hp_cost_interval] and self.caster.currentHP/self.caster.maxHP > 0.5:
+            EventBus.publish(HurtEvent(self.caster,self.caster, 
+                                       self.hp_cost_per_half_second * self.caster.maxHP/100, 
+                                       GetCurrentTime()))
+        
+        if self.current_frame % 60 == 0 and self.current_frame > self.hit_frame:
+            self.update_c6()
+        if self.current_frame % (2*60) == 0 and self.current_frame > self.hit_frame:
+            self.apply_c6_damage(target)
+            self.apply_c6_damage(target)
+
+    def set_element_attach(self):
+        current_time = GetCurrentTime()
+        # 重击伤害元素附着判断
+        should_attach = False
+        if self.sequence_pos < len(self.attach_sequence):
+            should_attach = self.attach_sequence[self.sequence_pos] == 1
+            self.sequence_pos += 1
+        else:
+            self.sequence_pos = 0
+            should_attach = self.attach_sequence[self.sequence_pos] == 1
+            self.sequence_pos += 1
+        
+        # 冷却时间控制检查 (2.5秒 = 150帧)
+        if current_time - self.last_attach_time >= 150:
+            should_attach = True
+        
+        # 更新上次附着时间
+        if should_attach:
+            self.last_attach_time = current_time
+
+        return ('水', 1 if should_attach else 0)
+
+    def update_c6(self):
+        if self.caster.constellation >= 6:
+            for obj in Team.active_objects:
+                if isinstance(obj, SourceWaterDroplet):
+                    obj.on_finish()
+                    self.total_frames += 60
+                    while self.hit_frame + self.interval[-1]+0.4*60 < self.total_frames:
+                        self.interval.append(self.interval[-1]+0.4*60)
+                    while self.hit_frame + self.hp_cost_interval[-1]+0.5*60 < self.total_frames:
+                        self.hp_cost_interval.append(self.hp_cost_interval[-1]+0.5*60)
+                    heal = Healing(self.heal_per_droplet,HealingType.PASSIVE,name='源水之滴')
+                    heal.base_value = '生命值'
+                    EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
+                    break                   
+
+    def apply_c6_damage(self, target):
+        if self.caster.constellation >= 6:
+            damage = Damage(
+                damageMultipiler=10,
+                element=('水', 1),
+                damageType=DamageType.CHARGED,
+                name='衡平推裁_洪流'
+            )
+            damage.setBaseValue('生命值')
+            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
 
     def on_finish(self):
         return super().on_finish()
@@ -214,6 +254,10 @@ class SourceWaterDroplet(baseObject):
     def on_frame_update(self, target):
         pass
 
+    def on_finish(self):
+        get_emulation_logger().log_object(f'{self.name} 存活时间结束')
+        Team.remove_object(self)
+
 class ElementalBurst(EnergySkill):
     def __init__(self, lv):
         super().__init__(name="潮水啊，我已归来", total_frames=155, cd=18*60, lv=lv,
@@ -279,20 +323,179 @@ class ElementalBurst(EnergySkill):
     def on_interrupt(self):
         return super().on_interrupt()
     
-class PassiveSkillEffect_1(TalentEffect):
+class PassiveSkillEffect_1(TalentEffect,EventHandler):
+    """古海孑遗的权柄"""
+    def __init__(self):
+        super().__init__('古海孑遗的权柄')
+        self.reaction_dict ={
+            '绽放':0,
+            '蒸发':0,
+            '冻结':0,
+            '感电':0,
+            '扩散':0,
+            '结晶':0,
+            '登场':0
+        }
+        self.stack = 0
+        self.Multipiler = [100,110,125,160]
 
-    def __init__(self, name):
-        super().__init__(name)
+    def apply(self, character):
+        super().apply(character)
 
-class PassiveSkillEffect_2(TalentEffect):
+        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION,self)
+        EventBus.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE,self)
 
-    def __init__(self, name):
-        super().__init__(name)
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
+            reaction = event.data['elementalReaction']
+            if reaction.reaction_type.value in ['蒸发', '绽放', '感电', '冻结']:
+                self.reaction_dict[reaction.reaction_type.value] = 30*60
+                self.update_stack()
+                get_emulation_logger().log_effect(f"🌊 {self.character.name} 获得一层「遗龙之荣」当前层数为{self.stack}")
+            elif reaction.reaction_type.value in ['扩散', '结晶']:
+                if reaction.target_element == '水':
+                    self.reaction_dict[reaction.reaction_type.value] = 30*60
+                    self.update_stack()
+                    get_emulation_logger().log_effect(f"🌊 {self.character.name} 获得一层「遗龙之荣」当前层数为{self.stack}")
+        elif event.event_type == EventType.BEFORE_INDEPENDENT_DAMAGE:
+            self.update_stack()
+            event.data['damage'].setPanel('独立伤害加成',self.Multipiler[self.stack])
+            event.data['damage'].setDamageData('「遗龙之荣」独立伤害加成',self.Multipiler[self.stack])
 
-class ConstellationEffect_1(ConstellationEffect):
+    def update_stack(self):
+        s = 0
+        for i in self.reaction_dict.values():
+            if i > 0:
+                s += 1
+            if s == 3:
+                break
+        self.stack = s
 
-    def __init__(self, name):
-        super().__init__(name)
+    def update(self, target):
+        self.reaction_dict = {k:v-1 for k,v in self.reaction_dict.items() if v > 0}
+
+class PassiveSkillEffect_2(TalentEffect, EventHandler):
+    """至高仲裁的纪律"""
+    def __init__(self):
+        super().__init__('至高仲裁的纪律')
+        self.hydro_dmg_bonus = 0
+        self.last_hydro_dmg_bonus = 0
+
+    def apply(self, character):
+        super().apply(character)
+
+        hp_ratio = (self.character.currentHP / self.character.maxHP) * 100
+        excess_hp = max(0, hp_ratio - 30)
+        
+        # 每1%提供0.6%水伤加成，最多30%
+        self.hydro_dmg_bonus = min(excess_hp * 0.6, 30)
+        self.character.attributePanel['水元素伤害加成'] -= self.last_hydro_dmg_bonus
+        self.character.attributePanel['水元素伤害加成'] += self.hydro_dmg_bonus
+        self.last_hydro_dmg_bonus = self.hydro_dmg_bonus
+        
+        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_HEALTH_CHANGE:
+            # 计算当前生命值超出30%的部分
+            hp_ratio = (self.character.currentHP / self.character.maxHP) * 100
+            excess_hp = max(0, hp_ratio - 30)
+            
+            # 每1%提供0.6%水伤加成，最多30%
+            self.hydro_dmg_bonus = min(excess_hp * 0.6, 30)
+            self.character.attributePanel['水元素伤害加成'] -= self.last_hydro_dmg_bonus
+            self.character.attributePanel['水元素伤害加成'] += self.hydro_dmg_bonus
+            self.last_hydro_dmg_bonus = self.hydro_dmg_bonus
+            get_emulation_logger().log_debug(f"🌊 {self.character.name} 至高仲裁的纪律水伤加成为{self.hydro_dmg_bonus:.2f}%")
+
+class ConstellationEffect_1(ConstellationEffect,EventHandler):
+    '''尊荣的创定'''
+    def __init__(self):
+        super().__init__('尊荣的创定')
+
+    def apply(self, character):
+        super().apply(character)
+        if self.character.level >=20:
+            EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            if event.data['new_character'] == self.character:
+                self.character.talent1.reaction_dict['登场'] = 30*60
+                self.character.talent1.update_stack()
+                get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 尊荣的创定触发")
+
+class ConstellationEffect_2(ConstellationEffect,EventHandler):
+    """律法的命诫"""
+    def __init__(self):
+        super().__init__('律法的命诫')
+
+    def apply(self, character):
+        super().apply(character)
+        if self.character.level >=20:
+            EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
+            damage = event.data['damage']
+            if damage.name[:4] == '衡平推裁':
+                damage.panel['暴击伤害'] += self.character.talent1.stack * 14
+                damage.setDamageData('律法的命诫_暴击伤害',self.character.talent1.stack * 14)
+                get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 律法的命诫触发")
+
+class ConstellationEffect_3(ConstellationEffect):
+    """溯古的拟制"""
+    def __init__(self):
+        super().__init__('溯古的拟制')
+    
+    def apply(self, character):
+        super().apply(character)
+        if self.character.NormalAttack:
+            self.character.NormalAttack.lv = min(15, self.character.NormalAttack.lv + 3)
+        if self.character.ChargedAttack:
+            self.character.ChargedAttack.lv = min(15, self.character.ChargedAttack.lv + 3)
+        if self.character.PlungingAttack:
+            self.character.PlungingAttack.lv = min(15, self.character.PlungingAttack.lv + 3)
+        get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 溯古的拟制 触发")
+
+class ConstellationEffect_4(ConstellationEffect):
+    """悲悯的冠冕"""
+    def __init__(self):
+        super().__init__('悲悯的冠冕')
+        self.last_heal_time = -4*60
+        self.cd = 4 * 60
+
+    def apply(self, character):
+        super().apply(character)
+
+        EventBus.subscribe(EventType.AFTER_HEAL, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_HEAL:
+            if event.data['healing'].target == self.character and self.character.on_field:
+                if GetCurrentTime() - self.last_heal_time > self.cd:
+                    SourceWaterDroplet(self.character).apply()
+                    get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 悲悯的冠冕触发")
+                    self.last_heal_time = GetCurrentTime()
+
+class ConstellationEffect_5(ConstellationEffect):
+    """公理的决裁"""
+    def __init__(self):
+        super().__init__('公理的决裁')
+
+    def apply(self, character):
+        super().apply(character)
+        if self.character.Burst:
+            self.character.Burst.lv = min(15, self.character.Burst.lv + 3)
+        get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 公理的决裁 触发")
+                                   
+class ConstellationEffect_6(ConstellationEffect):
+    """忿怒的报偿"""
+    def __init__(self):
+        super().__init__('忿怒的报偿')
+
+    def apply(self, character):
+        super().apply(character)
 
 class Neuvillette(Fontaine):
     ID = 73
@@ -307,6 +510,14 @@ class Neuvillette(Fontaine):
         self.ChargedAttack = ChargedAttack(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2])
+        self.talent1 = PassiveSkillEffect_1()
+        self.talent2 = PassiveSkillEffect_2()
+        self.constellation_effects[0] = ConstellationEffect_1()
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[3] = ConstellationEffect_4()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
 
 Neuvillette_table = {
     'id': Neuvillette.ID,
