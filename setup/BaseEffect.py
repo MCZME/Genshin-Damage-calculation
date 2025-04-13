@@ -1,3 +1,4 @@
+from setup.Event import DamageEvent, EventBus
 from setup.Tool import GetCurrentTime
 from setup.Logger import get_emulation_logger
 
@@ -380,3 +381,37 @@ class ElementalMasteryBoostEffect(Effect):
     def removeEffect(self):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的元素精通提升效果结束")
+
+class ElectroChargedEffect(Effect):
+    """感电效果"""
+    def __init__(self, character, target,damage):
+        super().__init__(character, 0)
+        self.name = '感电'
+        self.target = target
+        self.current_frame = 0
+        self.damage = damage
+        
+    def apply(self):
+        electroCharged = next((e for e in self.target.effects if isinstance(e, ElectroChargedEffect)), None)
+        if electroCharged:
+            return
+        self.target.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.target.name}获得感电")
+
+    def remove(self):
+        self.target.remove_effect(self)
+        get_emulation_logger().log_effect(f"{self.target.name}: 感电结束")
+
+    def update(self, target):
+        if len([e for e in self.target.elementalAura if e['element'] == '雷' or e['element'] == '水']) != 2:
+            self.remove()
+            return
+        if self.current_frame % 60 == 0:
+            EventBus.publish(DamageEvent(self.character, self.target, self.damage,GetCurrentTime()))
+            for e in self.target.elementalAura:
+                if e['element'] == '雷':
+                    e['current_amount'] = max(0,e['current_amount']-0.4)
+                elif e['element'] == '水':
+                    e['current_amount'] = max(0,e['current_amount']-0.4)
+
+        self.current_frame += 1

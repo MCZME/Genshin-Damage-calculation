@@ -1,11 +1,10 @@
 from enum import Enum
 import random
 from character.character import Character
-from setup.BaseEffect import ElementalInfusionEffect, ResistanceDebuffEffect
+from setup.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
 from setup.Config import Config
 from setup.ElementalReaction import ElementalReaction, ElementalReactionType
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
-from setup.Target import Target
 from setup.Tool import GetCurrentTime
 from setup.Logger import get_emulation_logger
 
@@ -49,7 +48,7 @@ class Damage():
         self.panel[key] = value
 
 class Calculation:
-    def __init__(self,source:Character,target:Target,damage:Damage):
+    def __init__(self,source:Character,target,damage:Damage):
         self.source = source
         self.target = target
         self.damage = damage
@@ -181,6 +180,7 @@ class Calculation:
             target_element = self.target.apply_elemental_aura(self.damage.element)
             if target_element is not None:
                 elementalReaction = ElementalReaction(source=self.source,target_element=target_element,damage=self.damage)
+                elementalReaction.target = self.target
                 event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
                 EventBus.publish(event)
                 self.damage.reaction = event.data['elementalReaction']
@@ -360,9 +360,24 @@ class DamageCalculateEventHandler(EventHandler):
                                         character = character, 
                                         target = target))
             e_damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
+            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
+            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
             EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
             ResistanceDebuffEffect('超导',character,target,'物理',40,12*60).apply()
             EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, GetCurrentTime(), 
+                                        character = character, 
+                                        target = target))
+        elif damage.reaction.reaction_type == ElementalReactionType.ELECTRO_CHARGED:
+            EventBus.publish(GameEvent(EventType.BEFORE_ELECTRO_CHARGED, GetCurrentTime(),
+                                        character = character, 
+                                        target = target))
+            e_damage = Damage(0,('雷',0),DamageType.REACTION, '感电')
+            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
+            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
+
+            ElectroChargedEffect(character,target,e_damage).apply()
+            
+            EventBus.publish(GameEvent(EventType.AFTER_ELECTRO_CHARGED, GetCurrentTime(), 
                                         character = character, 
                                         target = target))
 

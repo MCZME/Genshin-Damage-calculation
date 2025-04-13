@@ -7,7 +7,6 @@ from setup.Map import CharacterClassMap, WeaponClassMap
 from setup.Target import Target
 from setup.Team import Team
 import threading
-import queue
 
 class Emulation():
     
