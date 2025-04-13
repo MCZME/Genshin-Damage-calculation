@@ -177,13 +177,15 @@ class NormalAttackSkill(SkillBase):
         # 发布普通攻击事件（前段）
         normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
+        self.total_frames = sum(self.segment_frames[:self.max_segments])
         return True
 
     def update(self, target):
         self.current_frame += 1
-        if self.on_frame_update(target):
+        if self.current_segment > self.max_segments-1 and self.current_frame >= self.total_frames:
             self.on_finish()
             return True
+        self.on_frame_update(target)
         return False
     
     def on_frame_update(self,target): 
@@ -191,9 +193,7 @@ class NormalAttackSkill(SkillBase):
         self.segment_progress += 1
         # 检测段结束
         if self.segment_progress >= self.segment_frames[self.current_segment]:
-            if self._on_segment_end(target):
-                return True
-        return False
+            self._on_segment_end(target)
     
     def on_finish(self): 
         # 结束后重置攻击计时器
@@ -207,16 +207,12 @@ class NormalAttackSkill(SkillBase):
         get_emulation_logger().log_skill_use(f"✅ 第{self.current_segment+1}段攻击完成")
         # 进入下一段
         if self.current_segment < self.max_segments - 1:
-            self.current_segment += 1
             self.segment_progress = 0
             get_emulation_logger().log_skill_use(f"⚔️ 开始第{self.current_segment+1}段攻击")
             # 发布普通攻击事件（前段）
             normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
             EventBus.publish(normal_attack_event)
-        else:
-            self.on_finish()
-            return True
-        return False
+        self.current_segment += 1
 
     def _apply_segment_effect(self,target):
         # 发布伤害事件
