@@ -198,7 +198,23 @@ class Calculation:
         self.damage.setPanel('反应系数',1)
         return 1
 
-
+    def independent_damage_multiplier(self):
+        self.damage.setPanel('独立伤害加成',0)
+        event = GameEvent(EventType.BEFORE_INDEPENDENT_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        event = GameEvent(EventType.AFTER_INDEPENDENT_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+        EventBus.publish(event)
+        if self.damage.panel['独立伤害加成'] > 0:
+            return self.damage.panel['独立伤害加成']/100
+        else:
+            self.damage.panel.remove('独立伤害加成')
+            return 1
               
     def calculation_by_attack(self):
         self.damage.setPanel('固定伤害基础值加成',0)
@@ -214,7 +230,7 @@ class Calculation:
                           damage = self.damage)
         EventBus.publish(event)
         value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value
+        self.damage.damage = value * self.independent_damage_multiplier()
     
     def calculation_by_hp(self):
         self.damage.setPanel('固定伤害基础值加成',0)
@@ -230,7 +246,7 @@ class Calculation:
                           damage = self.damage)
         EventBus.publish(event)
         value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value
+        self.damage.damage = value * self.independent_damage_multiplier()
 
     def calculation_by_def(self):
         self.damage.setPanel('固定伤害基础值加成',0)
@@ -246,7 +262,7 @@ class Calculation:
                           damage = self.damage)
         EventBus.publish(event)
         value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value
+        self.damage.damage = value * self.independent_damage_multiplier()
 
     def calculation_by_reaction(self):
         attributePanel = self.source.attributePanel

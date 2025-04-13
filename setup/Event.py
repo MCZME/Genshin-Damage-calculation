@@ -25,6 +25,8 @@ class EventType(Enum):
     AFTER_DEFENSE = auto()       # 防御力计算后
     BEFORE_RESISTANCE = auto()   # 抗性计算前
     AFTER_RESISTANCE = auto()    # 抗性计算后
+    BEFORE_INDEPENDENT_DAMAGE = auto()  # 独立伤害倍率计算前
+    AFTER_INDEPENDENT_DAMAGE = auto()   # 独立伤害倍率计算后
     BEFORE_ELEMENTAL_REACTION = auto()  # 元素反应触发前
     AFTER_ELEMENTAL_REACTION = auto()   # 元素反应触发后
     BEFORE_FREEZE = auto()       # 冻结反应前
