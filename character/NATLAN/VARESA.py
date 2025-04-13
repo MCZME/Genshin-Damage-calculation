@@ -432,7 +432,7 @@ class PassionEffect(Effect, EventHandler):
                     effect = LimitDriveEffect(self.character)
                     effect.apply()
 
-class LimitDriveEffect(Effect):
+class LimitDriveEffect(Effect,EventHandler):
     """极限驱动效果"""
     def __init__(self, character):
         super().__init__(character, 1.5*60)
@@ -447,10 +447,19 @@ class LimitDriveEffect(Effect):
         
         self.character.add_effect(self)
         get_emulation_logger().log_effect("⚡ 进入极限驱动状态！")
+
+        EventBus.subscribe(EventType.BEFORE_SKILL, self)
         
     def remove(self):
         self.character.remove_effect(self)
         get_emulation_logger().log_effect("⚡ 极限驱动状态结束！")
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_SKILL:
+            if event.data['character'] == self.character:
+                limitDriveEffect = next((e for e in self.character.active_effects if isinstance(e, LimitDriveEffect)), None)
+                if limitDriveEffect:
+                    limitDriveEffect.remove()
 
 class SpecialElementalBurst(EnergySkill):
     """特殊元素爆发：闪烈降临·大火山崩落"""

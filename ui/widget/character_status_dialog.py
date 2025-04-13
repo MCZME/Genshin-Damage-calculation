@@ -738,7 +738,7 @@ class EnergyDisplayWidget(QWidget):
         if max_energy is not None:
             self.progress.setMaximum(max_energy)
             self.progress.setValue(min(energy, max_energy))
-            self.combo_label.setText(f"{self.element} {min(energy, max_energy)}/{max_energy}")
+            self.combo_label.setText(f"{self.element} {min(energy, max_energy):.1f}/{max_energy}")
             self.combo_label.setGeometry(0, 0, self.progress.width(), self.progress.height())
 
     def resizeEvent(self, event):

@@ -357,7 +357,9 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
                     self.reaction_dict[reaction.reaction_type.value] = 30*60
                     self.update_stack()
                     get_emulation_logger().log_effect(f"🌊 {self.character.name} 获得一层「遗龙之荣」当前层数为{self.stack}")
-        elif event.event_type == EventType.BEFORE_INDEPENDENT_DAMAGE:
+        elif (event.event_type == EventType.BEFORE_INDEPENDENT_DAMAGE and 
+              event.data['character'] == self.character and
+              event.data['damage'].name[:4] == '衡平推裁'):
             self.update_stack()
             event.data['damage'].setPanel('独立伤害加成',self.Multipiler[self.stack])
             event.data['damage'].setDamageData('「遗龙之荣」独立伤害加成',self.Multipiler[self.stack])
