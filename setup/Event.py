@@ -54,6 +54,8 @@ class EventType(Enum):
     AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
     BEFORE_HEAL = auto()         # 治疗计算前
     AFTER_HEAL = auto()          # 治疗后
+    BEFORE_HURT = auto()         # 受伤计算前
+    AFTER_HURT = auto()          # 受伤后
     BEFORE_SHIELD_CREATION = auto()  # 护盾生成前
     AFTER_SHIELD_CREATION = auto()   # 护盾生成后
 
@@ -215,10 +217,26 @@ class HealEvent(GameEvent):
             send_to_handler(frame, {'event':{'type':EventType.AFTER_HEAL,
                                              'healing':healing,}})
 
+class HurtEvent(GameEvent):
+    def __init__(self, source, target, amount, frame, before=True, **kwargs):
+        if before:
+            super().__init__(EventType.BEFORE_HURT, frame=frame, character=source, target=target, amount=amount, **kwargs)
+        else:
+            super().__init__(EventType.AFTER_HURT, frame=frame, character=source, target=target, amount=amount, **kwargs)
+            send_to_handler(frame, {'event':{'type':EventType.AFTER_HURT,
+                                             'character':source,
+                                             'target':target,
+                                             'amount':amount,}})
+
 class ShieldEvent(GameEvent):
     def __init__(self, source, shield, frame, before=True, **kwargs):
-        event_type = EventType.BEFORE_SHIELD_CREATION if before else EventType.AFTER_SHIELD_CREATION
-        super().__init__(event_type, frame=frame, character=source, shield=shield, **kwargs)
+        if before:
+            super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
+        else:
+            super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
+            send_to_handler(frame, {'event':{'type':EventType.BEFORE_SHIELD_CREATION,
+                                             'character':source,
+                                             'shield':shield,}})
 
 class EnergyChargeEvent(GameEvent):
     def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):

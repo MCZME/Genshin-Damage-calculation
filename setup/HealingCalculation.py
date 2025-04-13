@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from character.character import Character
-from setup.Event import EventBus, EventHandler, EventType, HealEvent
+from setup.Event import EventBus, EventHandler, EventType, GameEvent, HealEvent, HurtEvent
 from setup.Logger import get_emulation_logger
 
 class HealingType(Enum):
@@ -109,3 +109,12 @@ class HealingCalculateEventHandler(EventHandler):
                 before=False
             )
             EventBus().publish(after_event)
+
+class HurtEventHandler(EventHandler):
+    def handle_event(self, event: HealEvent):
+        if event.event_type == EventType.BEFORE_HURT:
+            event.data['target'].hurt(event.data['amount'])
+            get_emulation_logger().log('HURT',f"💔 {event.data['target'].name} 受到 {event.data['amount']} 点伤害")
+
+            event = HurtEvent(event.data['character'],event.data['target'], event.data['amount'], event.frame,before=False)
+            EventBus().publish(event)

@@ -29,7 +29,7 @@ class Team:
     def __init__(self, team: list[Character] = None):
         if team is not None:
             Team.team = team
-            Team.current_character = team[0]
+            Team.current_character = Character()
             Team.current_character.on_field = True
             self._update_element_counts()
             self._apply_resonance_effects()

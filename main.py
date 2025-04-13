@@ -3,7 +3,7 @@ from setup.Config import Config
 from setup.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
-from setup.HealingCalculation import HealingCalculateEventHandler
+from setup.HealingCalculation import HealingCalculateEventHandler, HurtEventHandler
 from setup.Logger import logger_init, manage_log_files
 from setup.ShieldCalculation import ShieldCalculationEventHandler
 from ui.main_window import MainWindow
@@ -15,6 +15,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_DAMAGE,DamageCalculateEventHandler())
     EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
     EventBus.subscribe(EventType.BEFORE_HEAL,HealingCalculateEventHandler())
+    EventBus.subscribe(EventType.BEFORE_HURT,HurtEventHandler())
     EventBus.subscribe(EventType.BEFORE_SHIELD_CREATION,ShieldCalculationEventHandler())
     EventBus.subscribe(EventType.BEFORE_ELEMENTAL_REACTION,ElementalReactionHandler())
     EventBus.subscribe(EventType.BEFORE_ENERGY_CHANGE, ElementalEnergyEventHandler())

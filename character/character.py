@@ -19,7 +19,10 @@ class CharacterState(Enum):
     FALL = auto()            # 下落
 
 class Character:
-
+    """"
+    角色基类：
+    角色等级为20，60等，自动视为已突破
+    """
     def __init__(self, id=1, level=1, skill_params=[1,1,1], constellation=0):
         self.id = id
         self.level = level
@@ -119,12 +122,16 @@ class Character:
         EventBus.publish(event)
         if event.cancelled:
             return
-        if event.data['amount'] > 0 :
-            self.currentHP = min(self.maxHP,self.currentHP+event.data['amount'])
-            get_emulation_logger().log('HEAL',f"💚 {self.name}受到治疗，当前生命值为{self.currentHP:.2f}，治疗量为{event.data['amount']}")
-        else:
-            self.currentHP = max(self.currentHP+event.data['amount'],0)
-            get_emulation_logger().log('HEAL',f"💔 {self.name}受到伤害，当前生命值为{self.currentHP:.2f}，伤害量为{-event.data['amount']}")
+        self.currentHP = min(self.maxHP,self.currentHP+event.data['amount'])
+        event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
+        EventBus.publish(event)
+
+    def hurt(self,amount):
+        event = HealChargeEvent(self,-amount,T.GetCurrentTime())
+        EventBus.publish(event)
+        if event.cancelled:
+            return
+        self.currentHP = max(0,self.currentHP+event.data['amount'])
         event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 

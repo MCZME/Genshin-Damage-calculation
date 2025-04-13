@@ -82,7 +82,7 @@ class CharacterWindow(QDialog):
         for i in range(3):
             spin = QSpinBox()
             spin.setObjectName(f"talent_spin_{i}")
-            spin.setRange(1, 15)
+            spin.setRange(1, 10)
             spin.setFixedWidth(20)
             spin.setStyleSheet("""
                 QSpinBox::up-button, 

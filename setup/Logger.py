@@ -86,6 +86,11 @@ class EmulationLogger(BaseLogger):
         """自定义日志"""
         self._write_log(level, message)
 
+    def log_debug(self, message):
+        """记录调试信息"""
+        if Config.get('logging.Emulation.debug'):
+            self._write_log("DEBUG", message)
+
 class UILogger(BaseLogger):
     def __init__(self):
         super().__init__("UI")
