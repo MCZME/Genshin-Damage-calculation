@@ -1,9 +1,9 @@
-from setup.Effect.WeaponEffect import DuskGlowEffect, MorningGlowEffect
+from setup.Effect.WeaponEffect import DuskGlowEffect, MorningGlowEffect, TEFchargedBoostEffect
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Effect.BaseEffect import AttackBoostEffect
 from weapon.weapon import Weapon
 
-catalyst = ['溢彩心念','讨龙英杰谭']
+catalyst = ['溢彩心念','讨龙英杰谭','万世流涌大典']
 
 class VividNotions(Weapon, EventHandler):
     ID = 215
@@ -52,3 +52,18 @@ class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
                 effect = AttackBoostEffect(event.data['new_character'], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
                 effect.apply()
                 self.last_trigger_time = current_time
+
+class TomeOfTheEternalFlow(Weapon,EventHandler):
+    ID = 210
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, TomeOfTheEternalFlow.ID, level, lv)
+
+    def skill(self):
+        self.character.attributePanel['生命值%'] += 16
+        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+
+    def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
+        if event.event_type == EventType.AFTER_HEALTH_CHANGE and event.data['amount'] != 0:
+            TEFchargedBoostEffect(self.character).apply()

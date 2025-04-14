@@ -2,7 +2,7 @@ from setup.Calculation.DamageCalculation import DamageType
 from setup.Effect.BaseEffect import Effect, HealthBoostEffect
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime
+from setup.Tool import GetCurrentTime, summon_energy
 
 
 class STWHealthBoostEffect(HealthBoostEffect):
@@ -15,12 +15,12 @@ class STWHealthBoostEffect(HealthBoostEffect):
     def apply(self):
         healthBoost = next((e for e in self.character.active_effects if isinstance(e, STWHealthBoostEffect)), None)
         if healthBoost:
-            if GetCurrentTime() - self.last_trigger > self.interval:
+            if GetCurrentTime() - healthBoost.last_trigger > self.interval:
                 if healthBoost.stack < 2:
                     healthBoost.removeEffect()
                     healthBoost.stack += 1
                     healthBoost.setEffect()
-                    healthBoost.last_trigger = GetCurrentTime()
+                healthBoost.last_trigger = GetCurrentTime()
                 healthBoost.duration = self.duration
             return
         self.character.add_effect(self)
@@ -51,9 +51,10 @@ class STWElementSkillBoostEffect(Effect,EventHandler):
     def apply(self):
         existing = next((e for e in self.character.active_effects if isinstance(e, STWElementSkillBoostEffect)), None)
         if existing:
-            if GetCurrentTime() - self.last_trigger > self.interval:
+            if GetCurrentTime() - existing.last_trigger > self.interval:
                 if existing.stack < 3:
                     existing.stack += 1
+                existing.last_trigger = GetCurrentTime()
             existing.duration = self.duration
             return
         self.character.add_effect(self)
@@ -144,3 +145,42 @@ class DuskGlowEffect(Effect,EventHandler):
             if event.data['damage'].damageType == DamageType.PLUNGING:
                 event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
                 event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})
+
+class TEFchargedBoostEffect(Effect,EventHandler):
+    def __init__(self, character):
+        super().__init__(character, 4*60)
+        self.name = "万世流涌大典_重击提升"
+        self.bonus = 14
+        self.stack = 0
+        self.last_tigger = 0
+        self.last_erengy_trigger = 0
+        self.interval = 0.3*60
+        self.erengy_interval = 12*60
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects 
+                      if isinstance(e, TEFchargedBoostEffect)), None)
+        if existing:
+            if GetCurrentTime() - existing.last_tigger > existing.interval:
+                if existing.stack < 3:
+                    existing.stack += 1
+                existing.last_tigger = GetCurrentTime()
+                if existing.stack == 3 and GetCurrentTime() - existing.last_erengy_trigger > self.erengy_interval:
+                    summon_energy(1, self.character,('无',8),True,True)
+                    existing.last_erengy_trigger = GetCurrentTime()
+            existing.duration = self.duration
+            return
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+
+    def remove(self):
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+
+    def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['damage'].damageType.value == '重击':
+                event.data['damage'].panel['伤害加成']+= self.bonus*self.stack
+                event.data['damage'].setDamageData(self.name, self.bonus*self.stack)

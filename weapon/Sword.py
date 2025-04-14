@@ -69,7 +69,7 @@ class SplendorOfTranquilWaters(Weapon, EventHandler):
         EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def handle_event(self, event):
-        if event.event_type == EventType.AFTER_HEALTH_CHANGE:
+        if event.event_type == EventType.AFTER_HEALTH_CHANGE and event.data['amount'] != 0:
             if event.data['character'] == self.character:
                 STWElementSkillBoostEffect(self.character).apply()
             else:
