@@ -43,7 +43,9 @@ class Target:
         if len(self.elementalAura)>0:
             if trigger_element in ['风']:
                 return self.apply_swirl_reaction(trigger_element, trigger_amount)
-            elif trigger_element in ['水', '雷'] and self.elementalAura[0]['element'] in ['水', '雷']:
+            elif (trigger_element in ['水', '雷'] and 
+                  self.elementalAura[0]['element'] in ['水', '雷'] and 
+                  trigger_element != self.elementalAura[0]['element']) :
                 return self.apply_electro_charged_reaction(trigger_element, trigger_amount)
 
             return self.process_elemental_reactions(trigger_element, trigger_amount)

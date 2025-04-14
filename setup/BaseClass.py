@@ -164,6 +164,7 @@ class NormalAttackSkill(SkillBase):
         # 攻击阶段控制
         self.current_segment = 0               # 当前段数（0-based）
         self.segment_progress = 0              # 当前段进度帧数
+        self.end_action_frame = 0 
 
     def start(self, caster, n):
         if not super().start(caster):
@@ -177,7 +178,7 @@ class NormalAttackSkill(SkillBase):
         # 发布普通攻击事件（前段）
         normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
-        self.total_frames = sum(self.segment_frames[:self.max_segments])
+        self.total_frames = sum(self.segment_frames[:self.max_segments]) + self.end_action_frame
         return True
 
     def update(self, target):
@@ -185,7 +186,8 @@ class NormalAttackSkill(SkillBase):
         if self.current_segment > self.max_segments-1 and self.current_frame >= self.total_frames:
             self.on_finish()
             return True
-        self.on_frame_update(target)
+        if self.current_frame <= sum(self.segment_frames):
+            self.on_frame_update(target)
         return False
     
     def on_frame_update(self,target): 
@@ -221,7 +223,8 @@ class NormalAttackSkill(SkillBase):
         EventBus.publish(damage_event)
 
         # 发布普通攻击事件（后段）
-        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),before=False,damage=damage)
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),before=False,
+                                                damage=damage,segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
 
     def on_interrupt(self):

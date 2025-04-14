@@ -114,7 +114,7 @@ class HurtEventHandler(EventHandler):
     def handle_event(self, event: HealEvent):
         if event.event_type == EventType.BEFORE_HURT:
             event.data['target'].hurt(event.data['amount'])
-            get_emulation_logger().log('HURT',f"💔 {event.data['target'].name} 受到 {event.data['amount']} 点伤害")
+            get_emulation_logger().log('HURT',f"💔 {event.data['target'].name} 受到 {event.data['amount']:.2f} 点伤害")
 
             event = HurtEvent(event.data['character'],event.data['target'], event.data['amount'], event.frame,before=False)
             EventBus().publish(event)
