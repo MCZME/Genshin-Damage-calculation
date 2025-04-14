@@ -2,7 +2,7 @@ import types
 from character.FONTAINE.fontaine import Fontaine
 from setup.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, 
                              NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
-from setup.BaseEffect import Effect
+from setup.Effect.BaseEffect import Effect
 from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent

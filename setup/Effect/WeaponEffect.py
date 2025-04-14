@@ -1,0 +1,146 @@
+from setup.DamageCalculation import DamageType
+from setup.Effect.BaseEffect import Effect, HealthBoostEffect
+from setup.Event import EventBus, EventHandler, EventType
+from setup.Logger import get_emulation_logger
+from setup.Tool import GetCurrentTime
+
+
+class STWHealthBoostEffect(HealthBoostEffect):
+    def __init__(self, character):
+        super().__init__(character, '静水流涌之辉_生命值', 14, 6*60)
+        self.stack = 0
+        self.last_trigger = 0
+        self.interval = 0.2*60
+
+    def apply(self):
+        healthBoost = next((e for e in self.character.active_effects if isinstance(e, STWHealthBoostEffect)), None)
+        if healthBoost:
+            if GetCurrentTime() - self.last_trigger > self.interval:
+                if healthBoost.stack < 2:
+                    healthBoost.removeEffect()
+                    healthBoost.stack += 1
+                    healthBoost.setEffect()
+                    healthBoost.last_trigger = GetCurrentTime()
+                healthBoost.duration = self.duration
+            return
+        self.character.add_effect(self)
+        self.stack = 1
+        self.setEffect()
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+
+    def setEffect(self):
+        self.character.attributePanel['生命值%'] += self.bonus * self.stack
+
+    def removeEffect(self):
+        self.character.attributePanel['生命值%'] -= self.bonus * self.stack
+
+    def remove(self):
+        self.character.remove_effect(self)
+        self.removeEffect()
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+class STWElementSkillBoostEffect(Effect,EventHandler):
+    def __init__(self, character):
+        super().__init__(character, 6*60)
+        self.name = '静水流涌之辉_元素战技'
+        self.bonus = 8
+        self.stack = 0
+        self.last_trigger = 0
+        self.interval = 0.2*60
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects if isinstance(e, STWElementSkillBoostEffect)), None)
+        if existing:
+            if GetCurrentTime() - self.last_trigger > self.interval:
+                if existing.stack < 3:
+                    existing.stack += 1
+            existing.duration = self.duration
+            return
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+
+    def remove(self):
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['character'] == self.character and event.data['damage'].damageType.value == '元素战技':
+                event.data['damage'].panel['伤害加成'] += self.bonus * self.stack
+                event.data['damage'].setDamageData(self.name, self.bonus * self.stack)
+
+class MorningGlowEffect(Effect,EventHandler):
+    """初霞之彩效果(28%暴伤)"""
+    def __init__(self, character,lv):
+        super().__init__(character,duration=900)
+        self.bonus = [28,35,42,49,56] 
+        self.name = "初霞之彩"
+        self.lv = lv
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                      if isinstance(e, MorningGlowEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        self.character.add_effect(self)
+        print(f"{self.character.name}获得{self.name}效果")
+        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+
+    def remove(self):
+        self.character.remove_effect(self)
+        print(f"{self.character.name}: {self.name}效果结束")
+        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+
+    def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
+        if event.event_type == EventType.AFTER_PLUNGING_ATTACK and event.data['is_plunging_impact']:
+            self.duration = 43
+        elif event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
+            if event.data['damage'].damageType == DamageType.PLUNGING:
+                event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
+                event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})
+
+class DuskGlowEffect(Effect,EventHandler):
+    """苍暮之辉效果(40%暴伤)"""
+    def __init__(self, character,lv):
+        super().__init__(character,duration=900)
+        self.bonus = [40,50,60,70,80] 
+        self.name = "苍暮之辉"
+        self.lv = lv
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                      if isinstance(e, DuskGlowEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+            
+        self.character.add_effect(self)
+        print(f"{self.character.name}获得{self.name}效果")
+        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+
+    def remove(self):
+        self.character.remove_effect(self)
+        print(f"{self.character.name}: {self.name}效果结束")
+        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+
+    def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
+        if event.event_type == EventType.AFTER_PLUNGING_ATTACK and event.data['is_plunging_impact']:
+            self.duration = 6
+        elif event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
+            if event.data['damage'].damageType == DamageType.PLUNGING:
+                event.data['damage'].panel['暴击伤害']+= self.bonus[self.lv-1]
+                event.data['damage'].setDamageData(self.name, {"暴击伤害": self.bonus[self.lv-1]})

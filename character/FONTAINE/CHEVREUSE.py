@@ -5,7 +5,7 @@ from setup.BaseObject import ArkheObject, baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType
-from setup.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
+from setup.Effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
 

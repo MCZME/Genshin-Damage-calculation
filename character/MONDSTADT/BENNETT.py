@@ -1,6 +1,6 @@
 from character.character import Character
 from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect
-from setup.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
+from setup.Effect.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from setup.HealingCalculation import Healing, HealingType

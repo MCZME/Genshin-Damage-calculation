@@ -1,6 +1,6 @@
 from character.NATLAN.natlan import Natlan
 from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
-from setup.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
+from setup.Effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType

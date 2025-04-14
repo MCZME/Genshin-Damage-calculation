@@ -1,5 +1,5 @@
 from character.character import Character, CharacterState
-from setup.BaseEffect import AttackBoostEffect, HealthBoostEffect
+from setup.Effect.BaseEffect import AttackBoostEffect, HealthBoostEffect
 from setup.Event import CharacterSwitchEvent, EventBus
 from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime

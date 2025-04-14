@@ -1,7 +1,7 @@
 from enum import Enum
 import random
 from character.character import Character
-from setup.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
+from setup.Effect.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
 from setup.Config import Config
 from setup.ElementalReaction import ElementalReaction, ElementalReactionType
 from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent

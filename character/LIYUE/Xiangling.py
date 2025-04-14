@@ -1,6 +1,6 @@
 from character.character import Character
 from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
-from setup.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
+from setup.Effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus

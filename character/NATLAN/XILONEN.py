@@ -1,6 +1,6 @@
 from character.NATLAN.natlan import Natlan
 from setup.BaseClass import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
-from setup.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
+from setup.Effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from setup.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
 from setup.HealingCalculation import Healing, HealingType
