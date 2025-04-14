@@ -38,6 +38,9 @@ class ArkheAttackHandler(EventHandler):
 
 class SalonMember(baseObject,EventHandler):
     """沙龙成员"""
+
+    last_erengy_time = 0
+
     def __init__(self, character, name="沙龙成员", life_frame=0):
         super().__init__(name, life_frame)
         self.character = character
@@ -58,7 +61,12 @@ class SalonMember(baseObject,EventHandler):
             damage.setBaseValue('生命值')
             EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
             self.last_attack_time = self.current_frame
+            self.summon_energy()
+
+    def summon_energy(self):
+        if GetCurrentTime() - SalonMember.last_erengy_time >= 2.5*60:
             summon_energy(1, self.character, ('水',2))
+            SalonMember.last_erengy_time = GetCurrentTime()
 
     def on_finish(self, target):
         super().on_finish(target)
