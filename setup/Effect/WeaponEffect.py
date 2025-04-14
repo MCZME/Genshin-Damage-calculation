@@ -1,4 +1,4 @@
-from setup.DamageCalculation import DamageType
+from setup.Calculation.DamageCalculation import DamageType
 from setup.Effect.BaseEffect import Effect, HealthBoostEffect
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Logger import get_emulation_logger

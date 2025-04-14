@@ -4,9 +4,9 @@ from setup.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalE
                              NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from setup.Effect.BaseEffect import Effect
 from setup.BaseObject import ArkheObject, baseObject
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
-from setup.HealingCalculation import Healing, HealingType
+from setup.Calculation.HealingCalculation import Healing, HealingType
 from setup.Logger import get_emulation_logger
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy

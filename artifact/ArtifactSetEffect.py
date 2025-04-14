@@ -1,7 +1,7 @@
 from character.character import Character
 from setup.Effect.ArtfactEffect import CinderCityEffect
 from setup.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, Effect, ElementalMasteryBoostEffect
-from setup.DamageCalculation import DamageType
+from setup.Calculation.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy

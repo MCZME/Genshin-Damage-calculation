@@ -1,9 +1,9 @@
 from character.FONTAINE.fontaine import Fontaine
 from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.BaseObject import ArkheObject, baseObject
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
-from setup.HealingCalculation import Healing, HealingType
+from setup.Calculation.HealingCalculation import Healing, HealingType
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
 from setup.Logger import get_emulation_logger

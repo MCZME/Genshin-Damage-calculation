@@ -3,7 +3,7 @@ from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEn
 from setup.BaseObject import baseObject
 from setup.Effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
-from setup.HealingCalculation import Healing, HealingType
+from setup.Calculation.HealingCalculation import Healing, HealingType
 from setup.Logger import get_emulation_logger
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy

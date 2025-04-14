@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
 from setup.Logger import get_emulation_logger
 from setup.Tool import GetCurrentTime

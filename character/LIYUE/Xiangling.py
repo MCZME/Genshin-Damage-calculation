@@ -2,7 +2,7 @@ from character.character import Character
 from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from setup.Effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from setup.BaseObject import baseObject
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus
 from setup.Tool import GetCurrentTime, summon_energy
 from setup.Team import Team

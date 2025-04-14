@@ -1,9 +1,9 @@
 from character.character import Character
 from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect
 from setup.Effect.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
-from setup.HealingCalculation import Healing, HealingType
+from setup.Calculation.HealingCalculation import Healing, HealingType
 from setup.Tool import GetCurrentTime
 
 class InspirationFieldEffect(Effect, EventHandler):

@@ -1,4 +1,4 @@
-from setup.DamageCalculation import DamageType
+from setup.Calculation.DamageCalculation import DamageType
 from setup.Tool import summon_energy
 from weapon.weapon import Weapon
 from setup.Event import EventBus, EventType, EventHandler

@@ -4,7 +4,7 @@ from character.character import CharacterState
 from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
 from setup.Effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from setup.BaseObject import baseObject
-from setup.DamageCalculation import Damage, DamageType
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
