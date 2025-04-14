@@ -10,12 +10,13 @@ class HealingType(Enum):
     PASSIVE = auto()     # 被动治疗
 
 class Healing:
-    def __init__(self, base_Multipiler, healing_type: HealingType,name):
+    def __init__(self, base_Multipiler, healing_type: HealingType,name,MultiplierProvider='来源'):
         self.base_Multipiler = base_Multipiler   # 基础倍率
         self.healing_type = healing_type   # 治疗类型
         self.final_value = 0               # 最终治疗量
         self.base_value = '攻击力'
         self.name = name
+        self.MultiplierProvider = MultiplierProvider
 
     def set_source(self, source: Character):
         self.source = source
@@ -31,17 +32,33 @@ class Calculation:
 
     def get_attack(self):
         """获取攻击力"""
-        attribute = self.source.attributePanel
+        if self.healing.MultiplierProvider == '来源':
+            attribute = self.source.attributePanel
+        else:
+            attribute = self.target.attributePanel
         atk0 = attribute['攻击力']
         atk1 = atk0 * attribute['攻击力%'] / 100 + attribute['固定攻击力']
         return atk0 + atk1
 
     def get_hp(self):
         """获取生命值"""
-        attribute = self.source.attributePanel
+        if self.healing.MultiplierProvider == '来源':
+            attribute = self.source.attributePanel
+        else:
+            attribute = self.target.attributePanel
         hp0 = attribute['生命值']
         hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
         return hp0 + hp1
+
+    def get_defense(self):
+        """获取防御力"""
+        if self.healing.MultiplierProvider == '来源':
+            attribute = self.source.attributePanel
+        else:
+            attribute = self.target.attributePanel
+        df0 = attribute['防御力']
+        df1 = df0 * attribute['防御力%'] / 100 + attribute['固定防御力']
+        return df0 + df1
 
     def get_Multipiler(self):
         """获取倍率"""
@@ -75,6 +92,16 @@ class Calculation:
         value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
         self.healing.final_value = value
 
+    def calculate_by_defense(self):
+        """基于防御力的治疗计算"""
+        m = self.get_Multipiler()
+        if isinstance(m, tuple):
+            value = (m[0]/100)*self.get_defense() + m[1]
+        else:
+            value = (m/100) * self.get_defense()
+        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
+        self.healing.final_value = value
+
 class HealingCalculateEventHandler(EventHandler):
     def handle_event(self, event: HealEvent):
         if event.event_type == EventType.BEFORE_HEAL:
@@ -91,6 +118,8 @@ class HealingCalculateEventHandler(EventHandler):
                 calculation.calculate_by_attack()
             elif event.data['healing'].base_value == '生命值':
                 calculation.calculate_by_hp()
+            elif event.data['healing'].base_value == '防御力':
+                calculation.calculate_by_defense()
             
             event.data['target'].heal(event.data['healing'].final_value)
 

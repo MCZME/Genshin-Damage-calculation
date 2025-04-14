@@ -391,8 +391,8 @@ class EndlessWaltzEffect(Effect):
             self.heal_timer = 0
             # 为队伍中附近角色恢复生命值
             for member in Team.team:
-                heal_amount = member.maxHP * 0.02  # 生命值上限的2%
-                heal = Healing(heal_amount, HealingType.PASSIVE, self.name)
+                heal = Healing(2, HealingType.PASSIVE, self.name,"目标")
+                heal.base_value = '生命值'
                 EventBus.publish(HealEvent(self.character, member, heal, GetCurrentTime()))
     
     def update(self, target):
