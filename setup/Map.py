@@ -31,4 +31,6 @@ WeaponClassMap = {
     '息燧之笛':FluteOfEzpitzal,
     '风鹰剑':AquilaFavonia,
     '讨龙英杰谭':ThrillingTalesOfDragonSlayers,
+    '灰河渡手':FleuveCendreFerryman,
+    '静水流涌之辉':SplendorOfTranquilWaters
 }

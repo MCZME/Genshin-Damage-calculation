@@ -1,4 +1,4 @@
-from setup.Event import DamageEvent, EventBus
+from setup.Event import DamageEvent, EventBus, EventHandler, EventType
 from setup.Tool import GetCurrentTime
 from setup.Logger import get_emulation_logger
 
@@ -382,6 +382,37 @@ class ElementalMasteryBoostEffect(Effect):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的元素精通提升效果结束")
 
+class EnergyRechargeBoostEffect(Effect):
+    """元素充能效率提升效果"""
+    def __init__(self, character, name, bonus, duration):
+        super().__init__(character, duration)
+        self.bonus = bonus  # 充能效率提升值
+        self.name = name
+        self.attribute_name = '元素充能效率%'  # 属性名称
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                       if isinstance(e, EnergyRechargeBoostEffect) and e.name == self.name), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        self.setEffect()
+
+    def setEffect(self):
+        self.character.attributePanel[self.attribute_name] += self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，元素充能效率提升{self.bonus}%")
+
+    def remove(self):
+        self.removeEffect()
+        self.character.remove_effect(self)
+
+    def removeEffect(self):
+        self.character.attributePanel[self.attribute_name] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的元素充能效率提升效果结束")
+
 class ElectroChargedEffect(Effect):
     """感电效果"""
     def __init__(self, character, target,damage):
@@ -415,3 +446,70 @@ class ElectroChargedEffect(Effect):
                     e['current_amount'] = max(0,e['current_amount']-0.4)
 
         self.current_frame += 1
+
+class STWHealthBoostEffect(HealthBoostEffect):
+    def __init__(self, character):
+        super().__init__(character, '静水流涌之辉_生命值', 14, 6*60)
+        self.stack = 0
+        self.last_trigger = 0
+        self.interval = 0.2*60
+
+    def apply(self):
+        healthBoost = next((e for e in self.character.active_effects if isinstance(e, STWHealthBoostEffect)), None)
+        if healthBoost:
+            if GetCurrentTime() - self.last_trigger > self.interval:
+                if healthBoost.stack < 2:
+                    healthBoost.removeEffect()
+                    healthBoost.stack += 1
+                    healthBoost.setEffect()
+                    healthBoost.last_trigger = GetCurrentTime()
+                healthBoost.duration = self.duration
+            return
+        self.character.add_effect(self)
+        self.stack = 1
+        self.setEffect()
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+
+    def setEffect(self):
+        self.character.attributePanel['生命值%'] += self.bonus * self.stack
+
+    def removeEffect(self):
+        self.character.attributePanel['生命值%'] -= self.bonus * self.stack
+
+    def remove(self):
+        self.character.remove_effect(self)
+        self.removeEffect()
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+class STWElementSkillBoostEffect(Effect,EventHandler):
+    def __init__(self, character):
+        super().__init__(character, 6*60)
+        self.name = '静水流涌之辉_元素战技'
+        self.bonus = 8
+        self.stack = 0
+        self.last_trigger = 0
+        self.interval = 0.2*60
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects if isinstance(e, STWElementSkillBoostEffect)), None)
+        if existing:
+            if GetCurrentTime() - self.last_trigger > self.interval:
+                if existing.stack < 3:
+                    existing.stack += 1
+            existing.duration = self.duration
+            return
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+
+    def remove(self):
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['character'] == self.character and event.data['damage'].damageType.value == '元素战技':
+                event.data['damage'].panel['伤害加成'] += self.bonus * self.stack
+                event.data['damage'].setDamageData(self.name, self.bonus * self.stack)
+
