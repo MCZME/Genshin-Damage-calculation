@@ -285,7 +285,7 @@ class DamageCalculateEventHandler(EventHandler):
             character = event.data['character']
             damage = event.data['damage']
             
-            if damage.damageType in [DamageType.NORMAL, DamageType.CHARGED]:
+            if damage.damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
                 # 处理元素附魔
                 self.handle_elemental_infusion(character, damage)
             
