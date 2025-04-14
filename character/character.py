@@ -120,19 +120,17 @@ class Character:
     def heal(self,amount):
         event = HealChargeEvent(self,amount,T.GetCurrentTime())
         EventBus.publish(event)
-        if event.cancelled:
-            return
+        orginHP = self.currentHP
         self.currentHP = min(self.maxHP,self.currentHP+event.data['amount'])
-        event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
+        event = HealChargeEvent(self,self.currentHP-orginHP,T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 
     def hurt(self,amount):
         event = HealChargeEvent(self,-amount,T.GetCurrentTime())
         EventBus.publish(event)
-        if event.cancelled:
-            return
+        orginHP = self.currentHP
         self.currentHP = max(0,self.currentHP+event.data['amount'])
-        event = HealChargeEvent(self,event.data['amount'],T.GetCurrentTime(),before=False)
+        event = HealChargeEvent(self,self.currentHP-orginHP,T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 
     def skip(self,n):

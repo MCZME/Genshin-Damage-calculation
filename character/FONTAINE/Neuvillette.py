@@ -103,7 +103,7 @@ class ChargedAttack(ChargedAttackSkill):
         return True
 
     def on_frame_update(self, target):
-        if self.current_frame == self.hit_frame + 11:
+        if self.current_frame == 11:
             heal = Healing(self.heal_per_droplet*self.source_water_droplet,HealingType.PASSIVE,name='源水之滴')
             heal.base_value = '生命值'
             EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
