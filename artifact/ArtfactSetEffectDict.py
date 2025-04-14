@@ -9,4 +9,6 @@ ArtfactSetEffectDict = {
     '昔时之歌': SongOfDaysPast(),
     '教官': Instructor(),
     '昔日宗室之仪': NoblesseOblige(),
+    '黄金剧团': GoldenTroupe(),
+    '逐影猎人': MarechausseeHunter(),
 }

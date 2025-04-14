@@ -1,6 +1,6 @@
 from character.character import Character
-from setup.Effect.ArtfactEffect import CinderCityEffect
-from setup.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, Effect, ElementalMasteryBoostEffect
+from setup.Effect.ArtfactEffect import CinderCityEffect, MarechausseeHunterEffect, ThirstEffect
+from setup.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect
 from setup.Calculation.DamageCalculation import DamageType
 from setup.Event import EventBus, EventHandler, EventType
 from setup.Team import Team
@@ -66,7 +66,6 @@ class ObsidianCodex(ArtifactEffect):
                 effect.apply()
                 self.last_trigger_time = GetCurrentTime()
 
-
 class ScrolloftheHeroOfCinderCity(ArtifactEffect):
     def __init__(self):
         super().__init__('烬城勇者绘卷')
@@ -108,72 +107,6 @@ class EmblemOfSeveredFate(ArtifactEffect):
                 bonus = min(er * 0.25, 75)
                 event.data['damage'].panel['伤害加成'] += bonus
                 event.data['damage'].data['绝缘之旗印_伤害加成'] = bonus
-
-class ThirstEffect(Effect):
-    """渴盼效果 - 记录治疗量"""
-    def __init__(self, character):
-        super().__init__(character, 6 * 60)  # 6秒持续时间
-        self.name = "渴盼效果"
-        self.heal_amount = 0
-        self.max_amount = 15000
-        
-    def apply(self):
-        # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
-                        if isinstance(e, ThirstEffect)), None)
-        if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            return
-            
-        self.character.add_effect(self)
-        print(f"{self.character.name}获得{self.name}")
-        
-    def add_heal(self, amount):
-        """添加治疗量记录"""
-        self.heal_amount = min(self.heal_amount + amount, self.max_amount)
-        
-    def remove(self):
-        # 渴盼结束时创建浪潮效果
-        if self.heal_amount > 0:
-            WaveEffect(self.character, self.heal_amount).apply()
-        self.character.remove_effect(self)
-        print(f"{self.character.name}: {self.name}结束")
-
-class WaveEffect(Effect):
-    """彼时的浪潮效果 - 基于治疗量提升伤害"""
-    def __init__(self, character, heal_amount):
-        super().__init__(character, 10 * 60)  # 10秒持续时间
-        self.name = "彼时的浪潮"
-        self.bonus = heal_amount * 0.08  # 8%治疗量转化为伤害加成
-        self.max_hits = 5
-        self.hit_count = 0
-        
-    def apply(self):
-        # 订阅固定伤害事件来计数和加成
-        waveEffect = next((e for e in self.character.active_effects
-                          if isinstance(e, WaveEffect)), None)
-        if waveEffect:
-            waveEffect.duration = self.duration  # 刷新持续时间
-            return
-        self.character.add_effect(self)
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
-        
-    def handle_event(self, event):
-        if event.event_type == EventType.BEFORE_FIXED_DAMAGE:
-            if (event.data['damage'].source in Team.team and 
-                event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED,
-                                                   DamageType.SKILL, DamageType.BURST,
-                                                   DamageType.PLUNGING]):
-                # 增加固定伤害基础值
-                event.data['damage'].panel['固定伤害基础值加成'] += self.bonus
-                event.data['damage'].data['浪潮_固定伤害加成'] = self.bonus
-                self.hit_count += 1
-                if self.hit_count >= self.max_hits:
-                    self.remove()
-                    
-    def remove(self):
-        self.character.remove_effect(self)
-        EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
 
 class SongOfDaysPast(ArtifactEffect):
     def __init__(self):
@@ -238,4 +171,52 @@ class NoblesseOblige(ArtifactEffect):
                 for c in Team.team:
                     effect = AttackBoostEffect(c, '昔日宗室之仪', 20, 12*60)
                     effect.apply()
-                
+
+class MarechausseeHunter(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('逐影猎人')
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+
+    def four_SetEffect(self, character):
+        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['character'] == self.character and event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED]:
+                event.data['damage'].panel['伤害加成'] += 15
+                event.data['damage'].setDamageData('逐影猎人-伤害加成', 15)
+        if event.event_type == EventType.AFTER_HEALTH_CHANGE:
+            if event.data['character'] == self.character:
+                MarechausseeHunterEffect(self.character).apply()
+
+class GoldenTroupe(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('黄金剧团')
+        self.fourSet = False
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+    
+    def four_SetEffect(self, character):
+        self.fourSet = True
+        self.last_on_field_time = 999
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
+            if event.data['character'] == self.character and event.data['damage'].damageType == DamageType.SKILL:
+                event.data['damage'].panel['伤害加成'] += 20
+                event.data['damage'].setDamageData('黄金剧团-两件套伤害加成', 20)
+                if self.fourSet:
+                    event.data['damage'].panel['伤害加成'] += 25
+                    event.data['damage'].setDamageData('黄金剧团-四件套伤害加成', 25)
+                    if (self.character.on_field and event.frame - self.last_on_field_time < 2*60) or not self.character.on_field:
+                        event.data['damage'].panel['伤害加成'] += 25
+                        event.data['damage'].setDamageData('黄金剧团-四件套伤害加成-后台', 25)
+        elif event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+            if event.data['new_character'] == self.character:
+                self.last_on_field_time = event.frame

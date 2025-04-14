@@ -457,7 +457,7 @@ class ConstellationEffect_4(ConstellationEffect,EventHandler):
         if event.event_type in [EventType.AFTER_DAMAGE, EventType.AFTER_HEAL]:
             if GetCurrentTime() - self.last_time >= self.interval:
                 self.last_time = GetCurrentTime()
-                summon_energy(1, self.character, ('无', 5),True,True)
+                summon_energy(1, self.character, ('无', 4),True,True)
                 get_emulation_logger().log("CONSTELLATION", f"✨ 「若非处幽冥，怎知生可贵！」生效")
 
 class ConstellationEffect_5(ConstellationEffect):

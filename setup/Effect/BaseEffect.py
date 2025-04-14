@@ -388,7 +388,7 @@ class EnergyRechargeBoostEffect(Effect):
         super().__init__(character, duration)
         self.bonus = bonus  # 充能效率提升值
         self.name = name
-        self.attribute_name = '元素充能效率%'  # 属性名称
+        self.attribute_name = '元素充能效率'
         
     def apply(self):
         # 防止重复应用

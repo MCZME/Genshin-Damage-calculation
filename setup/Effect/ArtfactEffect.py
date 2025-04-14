@@ -1,5 +1,8 @@
-from setup.Effect.BaseEffect import ElementalDamageBoostEffect
+from setup.Calculation.DamageCalculation import DamageType
+from setup.Effect.BaseEffect import CritRateBoostEffect, Effect, ElementalDamageBoostEffect
+from setup.Event import EventBus, EventHandler, EventType
 from setup.Logger import get_emulation_logger
+from setup.Team import Team
 
 
 class CinderCityEffect(ElementalDamageBoostEffect):
@@ -76,3 +79,103 @@ class CinderCityEffect(ElementalDamageBoostEffect):
             self.nightsoul_stacks[elemment] -= 1
         if sum(self.nightsoul_stacks.values()) <= 0 and sum(self.stacks.values()) <= 0:
             self.remove()
+
+class ThirstEffect(Effect):
+    """渴盼效果 - 记录治疗量"""
+    def __init__(self, character):
+        super().__init__(character, 6 * 60)  # 6秒持续时间
+        self.name = "渴盼效果"
+        self.heal_amount = 0
+        self.max_amount = 15000
+        
+    def apply(self):
+        # 防止重复应用
+        existing = next((e for e in self.character.active_effects 
+                        if isinstance(e, ThirstEffect)), None)
+        if existing:
+            existing.duration = self.duration  # 刷新持续时间
+            return
+            
+        self.character.add_effect(self)
+        print(f"{self.character.name}获得{self.name}")
+        
+    def add_heal(self, amount):
+        """添加治疗量记录"""
+        self.heal_amount = min(self.heal_amount + amount, self.max_amount)
+        
+    def remove(self):
+        # 渴盼结束时创建浪潮效果
+        if self.heal_amount > 0:
+            WaveEffect(self.character, self.heal_amount).apply()
+        self.character.remove_effect(self)
+        print(f"{self.character.name}: {self.name}结束")
+
+class WaveEffect(Effect):
+    """彼时的浪潮效果 - 基于治疗量提升伤害"""
+    def __init__(self, character, heal_amount):
+        super().__init__(character, 10 * 60)  # 10秒持续时间
+        self.name = "彼时的浪潮"
+        self.bonus = heal_amount * 0.08  # 8%治疗量转化为伤害加成
+        self.max_hits = 5
+        self.hit_count = 0
+        
+    def apply(self):
+        # 订阅固定伤害事件来计数和加成
+        waveEffect = next((e for e in self.character.active_effects
+                          if isinstance(e, WaveEffect)), None)
+        if waveEffect:
+            waveEffect.duration = self.duration  # 刷新持续时间
+            return
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_FIXED_DAMAGE:
+            if (event.data['damage'].source in Team.team and 
+                event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED,
+                                                   DamageType.SKILL, DamageType.BURST,
+                                                   DamageType.PLUNGING]):
+                # 增加固定伤害基础值
+                event.data['damage'].panel['固定伤害基础值加成'] += self.bonus
+                event.data['damage'].data['浪潮_固定伤害加成'] = self.bonus
+                self.hit_count += 1
+                if self.hit_count >= self.max_hits:
+                    self.remove()
+                    
+    def remove(self):
+        self.character.remove_effect(self)
+        EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+
+class MarechausseeHunterEffect(CritRateBoostEffect):
+    def __init__(self, character):
+        super().__init__(character, '逐影猎人', 12, 5 * 60)
+        self.name = "逐影猎人"
+        self.stack = 0
+        self.max_stack = 3
+
+    def apply(self):
+        MarechausseeHunter = next((e for e in self.character.active_effects
+                                   if isinstance(e, MarechausseeHunterEffect)), None)
+        if MarechausseeHunter:
+            if MarechausseeHunter.stack < MarechausseeHunter.max_stack:
+                MarechausseeHunter.removeEffect()
+                MarechausseeHunter.stack += 1
+                MarechausseeHunter.setEffect()
+            MarechausseeHunter.duration = self.duration  # 刷新持续时间
+            return
+        self.character.add_effect(self)
+        self.stack = 1
+        self.setEffect()
+        get_emulation_logger().log_effect(f"🗡️ {self.current_character.name}获得逐影猎人效果")
+
+    def setEffect(self):
+        self.current_character.attributePanel[self.attribute_name] += self.bonus * self.stack
+
+    def removeEffect(self):
+        self.current_character.attributePanel[self.attribute_name] -= self.bonus * self.stack
+
+    def remove(self):
+        self.character.remove_effect(self)
+        self.removeEffect()
+        get_emulation_logger().log_effect(f"🗡️ {self.current_character.name}失去逐影猎人效果")
+
