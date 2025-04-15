@@ -5,7 +5,7 @@ from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
 from setup.Calculation.HealingCalculation import Healing, HealingType
 from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime
+from setup.Tool import GetCurrentTime, summon_energy
 from setup.Team import Team
 
 class BladeRollerEffect(Effect,EventHandler):
@@ -216,7 +216,7 @@ class ElementalSkill(SkillBase):
             event = DamageEvent(self.caster, target, damage, GetCurrentTime())
             EventBus.publish(event)
             
-            print("🎵 音火锻淬！")
+            summon_energy(4, self.caster,('岩',2))
         self.caster.movement += 5.27
 
     def on_finish(self):
