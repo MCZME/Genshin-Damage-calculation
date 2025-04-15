@@ -17,7 +17,6 @@ class FiveHeavensRainEffect(ResistanceDebuffEffect):
         if character.constellation >= 2:
             debuff_value += 20
         super().__init__('五重天的寒雨', character, traget, ['火', '水'], debuff_value, 12*60)  # 12秒持续时间
-        self.name = '五重天的寒雨'
 
 class ItzpapalotlObject(baseObject,EventHandler):
     """黑曜星魔·伊兹帕帕召唤物"""
@@ -254,7 +253,7 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
         if event.event_type in (EventType.AFTER_MELT, EventType.AFTER_FREEZE):
             itzpapa = next((x for x in Team.active_objects if isinstance(x, ItzpapalotlObject)), None)
             if itzpapa:
-                target = event.data['reaction'].target
+                target = event.data['elementalReaction'].target
                 effect = FiveHeavensRainEffect(self.character,target)
                 effect.apply()
                 if event.frame - self.last_recovery_time > self.recovery_interval:

@@ -1,6 +1,7 @@
-from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler, TransformativeReactionsEventHandler
-from setup.Config import Config
+from setup.BaseEventHandler import (ElementalEnergyEventHandler, FrameEndEventHandler, 
+                                    NightsoulBurstEventHandler, ReactionsEventHandler)
 from setup.Calculation.DamageCalculation import DamageCalculateEventHandler
+from setup.Config import Config
 from setup.ElementalReaction import ElementalReactionHandler
 from setup.Event import EventBus, EventType
 from setup.Calculation.HealingCalculation import HealingCalculateEventHandler, HurtEventHandler
@@ -20,10 +21,13 @@ def init():
     EventBus.subscribe(EventType.BEFORE_ELEMENTAL_REACTION,ElementalReactionHandler())
     EventBus.subscribe(EventType.BEFORE_ENERGY_CHANGE, ElementalEnergyEventHandler())
     # 剧变反应
-    EventBus.subscribe(EventType.BEFORE_OVERLOAD,TransformativeReactionsEventHandler())
-    EventBus.subscribe(EventType.BEFORE_SWIRL,TransformativeReactionsEventHandler())
-    EventBus.subscribe(EventType.BEFORE_SUPERCONDUCT,TransformativeReactionsEventHandler())
-    EventBus.subscribe(EventType.BEFORE_ELECTRO_CHARGED,TransformativeReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_OVERLOAD,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_SWIRL,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_SUPERCONDUCT,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_ELECTRO_CHARGED,ReactionsEventHandler())
+    # 增幅反应
+    EventBus.subscribe(EventType.BEFORE_VAPORIZE,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_MELT,ReactionsEventHandler())
 
     EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
     logger_init()

@@ -128,8 +128,18 @@ class ElementalEnergyEventHandler(EventHandler):
         
         return (team_rate,element_rate,emergy_rate)
 
-class TransformativeReactionsEventHandler(EventHandler):
+class ReactionsEventHandler(EventHandler):
     def handle_event(self, event):
+        self.amplifying(event)
+        self.transformative(event)
+
+    def amplifying(self, event):
+        if event.event_type == EventType.BEFORE_MELT:
+            EventBus.publish(GameEvent(EventType.AFTER_MELT, event.frame,elementalReaction=event.data['elementalReaction']))
+        elif event.event_type == EventType.BEFORE_VAPORIZE:
+            EventBus.publish(GameEvent(EventType.AFTER_VAPORIZE, event.frame,elementalReaction=event.data['elementalReaction']))
+
+    def transformative(self, event):
         e = event.data['elementalReaction']
         if event.event_type == EventType.BEFORE_OVERLOAD:
             damage = Damage(0,('火',0),DamageType.REACTION, '超载')
