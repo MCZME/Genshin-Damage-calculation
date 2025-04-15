@@ -150,4 +150,10 @@ class TransformativeReactionsEventHandler(EventHandler):
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             ElectroChargedEffect(e.damage.source,e.damage.target,damage).apply()
             EventBus.publish(GameEvent(EventType.AFTER_ELECTRO_CHARGED, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_SWIRL:
+            damage = Damage(0,(e.target_element,0),DamageType.REACTION, '扩散')
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+            EventBus.publish(GameEvent(EventType.AFTER_SWIRL, event.frame,elementalReaction=e))
 
