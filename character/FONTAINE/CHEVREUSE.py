@@ -287,7 +287,7 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_OVERLOAD:   
-            self._apply_debuff(event.data['target'])
+            self._apply_debuff(event.data['elementalReaction'].target)
     
     def _apply_debuff(self, target):
         debuff = ResistanceDebuffEffect(
@@ -368,8 +368,8 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
 
     def handle_event(self, event: GameEvent):
-        if event.event_type == EventType.AFTER_OVERLOAD and event.data['character'] != self.character:
-            if self.cooldown <= 0 and event.data['character'].level >= 20:
+        if event.event_type == EventType.AFTER_OVERLOAD and event.data['elementalReaction'].source != self.character:
+            if self.cooldown <= 0 and self.character.level >= 20:
                 self.cooldown = 10 * 60  # 10秒冷却
                 summon_energy(1, self.character, ('火', 6),True,True)
 

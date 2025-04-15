@@ -1,4 +1,4 @@
-from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler
+from setup.BaseEventHandler import ElementalEnergyEventHandler, FrameEndEventHandler, NightsoulBurstEventHandler, TransformativeReactionsEventHandler
 from setup.Config import Config
 from setup.Calculation.DamageCalculation import DamageCalculateEventHandler
 from setup.ElementalReaction import ElementalReactionHandler
@@ -19,6 +19,12 @@ def init():
     EventBus.subscribe(EventType.BEFORE_SHIELD_CREATION,ShieldCalculationEventHandler())
     EventBus.subscribe(EventType.BEFORE_ELEMENTAL_REACTION,ElementalReactionHandler())
     EventBus.subscribe(EventType.BEFORE_ENERGY_CHANGE, ElementalEnergyEventHandler())
+    # 剧变反应
+    EventBus.subscribe(EventType.BEFORE_OVERLOAD,TransformativeReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_SWIRL,TransformativeReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_SUPERCONDUCT,TransformativeReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_ELECTRO_CHARGED,TransformativeReactionsEventHandler())
+    
     EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
     logger_init()
 

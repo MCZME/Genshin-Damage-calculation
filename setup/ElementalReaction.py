@@ -1,7 +1,7 @@
 from enum import Enum
 from setup.Event import EventBus, EventHandler, EventType, ElementalReactionEvent, GameEvent
 from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime, get_reaction_coefficient
+from setup.Tool import GetCurrentTime, get_reaction_multiplier
 
 class ElementalReactionType(Enum):
     VAPORIZE = '蒸发'
@@ -15,6 +15,7 @@ class ElementalReactionType(Enum):
     BLOOM = '绽放'
     HYPERBLOOM = '超绽放'
     BURGEON = '烈绽放'
+    CATALYZE = '激化'
 
 ReactionMMap = {
             # 火系反应
@@ -50,20 +51,42 @@ ReactionMMap = {
             ('草', '水'): (ElementalReactionType.BLOOM, 2.0),
         }
 
+Reaction_to_EventType = {
+    ElementalReactionType.VAPORIZE: EventType.BEFORE_VAPORIZE,
+    ElementalReactionType.MELT: EventType.BEFORE_MELT,
+    ElementalReactionType.OVERLOAD: EventType.BEFORE_OVERLOAD,
+    ElementalReactionType.ELECTRO_CHARGED: EventType.BEFORE_ELECTRO_CHARGED,
+    ElementalReactionType.SUPERCONDUCT: EventType.BEFORE_SUPERCONDUCT,
+    ElementalReactionType.SWIRL: EventType.BEFORE_SWIRL,
+    # ElementalReactionType.CRYSTALLIZE: EventType.BEFORE_CRYSTALLIZE,
+    ElementalReactionType.BURNING: EventType.BEFORE_BURNING,
+    # ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
+    # ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
+    # ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
+}
+
 class ElementalReaction:
-    def __init__(self,source, target_element, damage):
-        self.source = source
-        self.target_element = target_element
+    def __init__(self,damage):
+        self.source = damage.source
         self.damage = damage
         self.reaction_type = None
-        self.reaction_ratio = None
-        self.reaction_Type = None
-        self.lv_ratio = None
-        self.target = None
+        self.reaction_multiplier = None
+        self.lv_multiplier = None
+        self.target = damage.target
+
+    def set_reaction_elements(self, source_element, target_element):
+        self.source_element = source_element
+        self.target_element = target_element
     
-    def setReaction(self, reaction_type, reaction_ratio):
-        self.reaction_type = reaction_type
-        self.reaction_ratio = reaction_ratio
+    def setReaction(self, reaction_type, reaction_multiplier):
+        if reaction_type in [ElementalReactionType.VAPORIZE,ElementalReactionType.MELT]:
+            self.reaction_type = ('增幅反应', reaction_type)
+        elif reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
+                                ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON,
+                                ElementalReactionType.CRYSTALLIZE]:
+            self.reaction_type = ('剧变反应', reaction_type)
+            self.lv_multiplier = get_reaction_multiplier(self.source.level)
+        self.reaction_multiplier = reaction_multiplier
 
 class ElementalReactionHandler(EventHandler):
     def handle_event(self, event: ElementalReactionEvent):
@@ -71,25 +94,18 @@ class ElementalReactionHandler(EventHandler):
             self._process_reaction(event)
             elemental_event = ElementalReactionEvent(event.data['elementalReaction'],GetCurrentTime(),before=False)
             EventBus.publish(elemental_event)
-            get_emulation_logger().log_reaction(f"🔁{elemental_event.data['elementalReaction'].source.name}触发了 {elemental_event.data['elementalReaction'].reaction_type.value} 反应")
+            get_emulation_logger().log_reaction(f"🔁{elemental_event.data['elementalReaction'].source.name}触发了 {elemental_event.data['elementalReaction'].reaction_type[1].value} 反应")
 
     def _process_reaction(self, event):
         '''处理元素反应的类型'''
         r = event.data['elementalReaction']
-        r.setReaction(*ReactionMMap[(r.damage.element[0], r.target_element)])
-        if r.reaction_type in [ElementalReactionType.VAPORIZE,ElementalReactionType.MELT]:
-            r.reaction_Type = '增幅反应'  
-        elif r.reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
-                                 ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON]:
-            r.reaction_Type = '剧变反应'
-            r.lv_ratio = get_reaction_coefficient(event.data['elementalReaction'].source.level)
-        self.publish_reaction_event(r)
-
-    def publish_reaction_event(self, reaction):
-        if reaction.reaction_type is ElementalReactionType.MELT:
-            event = GameEvent(EventType.BEFORE_MELT, GetCurrentTime(), reaction = reaction)
-            EventBus.publish(event)
-        elif reaction.reaction_type is ElementalReactionType.VAPORIZE:
-            event = GameEvent(EventType.BEFORE_VAPORIZE, GetCurrentTime(), reaction = reaction)
-            EventBus.publish(event)
-
+        r.setReaction(*ReactionMMap[(r.source_element, r.target_element)])
+        r.damage.setReaction(r.reaction_type,{
+                '等级系数': r.lv_multiplier,
+                '反应系数': r.reaction_multiplier
+            })
+        eventType =  Reaction_to_EventType.get(r.reaction_type[1],None)
+        if eventType:
+            EventBus.publish(GameEvent(eventType,
+                                    GetCurrentTime(),
+                                    elementalReaction=r))

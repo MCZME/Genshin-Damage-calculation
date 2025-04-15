@@ -26,7 +26,7 @@ reaction_coefficients = {
     81: 1110.0, 82: 1142.98, 83: 1176.37, 84: 1210.18, 85: 1253.84, 86: 1288.95, 87: 1325.48, 88: 1363.46, 89: 1405.1, 90: 1446.85
 }
 
-def get_reaction_coefficient(level):
+def get_reaction_multiplier(level):
     return reaction_coefficients[level]
 
 def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False):

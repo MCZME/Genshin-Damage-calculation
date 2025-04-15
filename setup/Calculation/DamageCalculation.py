@@ -25,7 +25,8 @@ class Damage():
         self.name = name
         self.damage = 0
         self.baseValue = '攻击力'
-        self.reaction = None # ElementalReaction class
+        self.reaction_type = None
+        self.reaction_data = None
         self.data = kwargs
         self.panel = {}
 
@@ -38,8 +39,9 @@ class Damage():
     def setBaseValue(self,baseValue):
         self.baseValue = baseValue
 
-    def setReaction(self,reaction):
-        self.reaction = reaction
+    def setReaction(self,reaction_type,reaction_data):
+        self.reaction_type = reaction_type
+        self.reaction_data = reaction_data
 
     def setDamageData(self,key,value):
         self.data[key] = value
@@ -171,31 +173,23 @@ class Calculation:
     # 待补充
     # 剧变反应
     def reaction(self):
+        if self.damage.element[0] == '物理':
+            return 1
         attributePanel = self.source.attributePanel
         e = attributePanel['元素精通']
         r = {}
         if '反应系数提高' in list(attributePanel.keys()):
             r = attributePanel['反应系数提高']
-        if self.damage.element[0] != '物理':
-            target_element = self.target.apply_elemental_aura(self.damage.element)
-            if target_element is not None:
-                elementalReaction = ElementalReaction(source=self.source,target_element=target_element,damage=self.damage)
-                elementalReaction.target = self.target
-                event = ElementalReactionEvent(elementalReaction, GetCurrentTime())
-                EventBus.publish(event)
-                self.damage.reaction = event.data['elementalReaction']
-                self.damage.reaction.target = self.target
-                if self.damage.reaction.reaction_Type == "剧变反应":
-                    self.damage.setPanel('反应系数',1)
-                    return 1
-                # 获取反应系数提高
-                if self.damage.reaction.reaction_type in list(r.keys()):
-                    r1 = r[self.damage.reaction.reaction_type]
-                else:
-                    r1 = 0
-                self.damage.setPanel('反应系数',self.damage.reaction.reaction_ratio * (1+(2.78*e)/(e+1400)+r1))
-                return self.damage.reaction.reaction_ratio * (1+(2.78*e)/(e+1400)+r1)
-        self.damage.setPanel('反应系数',1)
+
+        reaction_multiplier = self.target.apply_elemental_aura(self.damage)
+        if reaction_multiplier:
+            # 获取反应系数提高
+            if self.damage.reaction_type[1] in list(r.keys()):
+                r1 = r[self.damage.reaction.reaction_type]
+            else:
+                r1 = 0
+            self.damage.setPanel('反应系数',reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
+            return reaction_multiplier * (1+(2.78*e)/(e+1400)+r1)
         return 1
 
     def independent_damage_multiplier(self):
@@ -304,11 +298,6 @@ class DamageCalculateEventHandler(EventHandler):
                 
             damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
             EventBus.publish(damageEvent)
-
-            if damage.reaction is not None and damage.reaction.reaction_Type == '剧变反应':
-                self.extra_damage(character, event.data['target'], damage)
-            elif damage.reaction is not None and damage.reaction.reaction_Type == '增幅反应':
-                self.publish_reaction_event(damage.reaction)
     
     def handle_elemental_infusion(self, character, damage):
         # 获取所有元素附魔效果
@@ -342,49 +331,3 @@ class DamageCalculateEventHandler(EventHandler):
                 return element
         # 没有克制关系则返回最早应用的元素
         return min(elements, key=lambda x: next(e.apply_time for e in infusion_effects if e.element_type == x))
-    
-    def extra_damage(self, character, target, damage):
-        if damage.reaction.reaction_type == ElementalReactionType.OVERLOAD:
-            EventBus.publish(GameEvent(EventType.BEFORE_OVERLOAD, GetCurrentTime(),
-                                       character = character, 
-                                       target = target))
-            e_damage = Damage(0,('火',0),DamageType.REACTION, '超载')
-            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
-            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
-            EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
-            EventBus.publish(GameEvent(EventType.AFTER_OVERLOAD, GetCurrentTime(), 
-                                        character = character, 
-                                        target = target))
-        elif damage.reaction.reaction_type == ElementalReactionType.SUPERCONDUCT:
-            EventBus.publish(GameEvent(EventType.BEFORE_SUPERCONDUCT, GetCurrentTime(),
-                                        character = character, 
-                                        target = target))
-            e_damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
-            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
-            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
-            EventBus.publish(DamageEvent(character, target, e_damage, GetCurrentTime()))
-            ResistanceDebuffEffect('超导',character,target,'物理',40,12*60).apply()
-            EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, GetCurrentTime(), 
-                                        character = character, 
-                                        target = target))
-        elif damage.reaction.reaction_type == ElementalReactionType.ELECTRO_CHARGED:
-            EventBus.publish(GameEvent(EventType.BEFORE_ELECTRO_CHARGED, GetCurrentTime(),
-                                        character = character, 
-                                        target = target))
-            e_damage = Damage(0,('雷',0),DamageType.REACTION, '感电')
-            e_damage.setPanel("等级系数", damage.reaction.lv_ratio)
-            e_damage.setPanel("反应系数", damage.reaction.reaction_ratio)
-
-            ElectroChargedEffect(character,target,e_damage).apply()
-            
-            EventBus.publish(GameEvent(EventType.AFTER_ELECTRO_CHARGED, GetCurrentTime(), 
-                                        character = character, 
-                                        target = target))
-
-    def publish_reaction_event(self, reaction):
-        if reaction.reaction_type == ElementalReactionType.MELT:
-            EventBus.publish(GameEvent(EventType.AFTER_MELT, GetCurrentTime(), 
-                                        reaction = reaction))
-        elif reaction.reaction_type == ElementalReactionType.VAPORIZE:
-            EventBus.publish(GameEvent(EventType.AFTER_VAPORIZE, GetCurrentTime(), 
-                                        reaction = reaction))

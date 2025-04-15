@@ -42,7 +42,7 @@ def generate_damage_report():
                     'type':event['damage'].damageType.value,
                     'data':event['damage'].data,
                     'panel':event['damage'].panel,
-                    'reaction': event['damage'].reaction.reaction_type.value if event['damage'].reaction else "",
+                    'reaction': event['damage'].reaction_type[1].value if event['damage'].reaction_type else "",
                 })
     return d
 

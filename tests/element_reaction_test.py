@@ -1,6 +1,7 @@
 import sys
-sys.path.append("E:/project/Genshin Damage calculation/")
+sys.path.append("E:\\project\\Genshin Damage calculation\\")
 sys.path.remove('e:\\project\\Genshin Damage calculation\\tests')
+print(sys.path)
 from setup.Target import Target
 
 

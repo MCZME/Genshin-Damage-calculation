@@ -1,6 +1,8 @@
 from Emulation import Emulation
+from setup.Calculation.DamageCalculation import Damage, DamageType
 from setup.DataHandler import send_to_handler
-from setup.Event import EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
+from setup.Effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
+from setup.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from setup.Team import Team
 from setup.Tool import GetCurrentTime
 from setup.Logger import get_emulation_logger
@@ -125,3 +127,27 @@ class ElementalEnergyEventHandler(EventHandler):
         emergy_rate = character.attributePanel['元素充能效率']/100
         
         return (team_rate,element_rate,emergy_rate)
+
+class TransformativeReactionsEventHandler(EventHandler):
+    def handle_event(self, event):
+        e = event.data['elementalReaction']
+        if event.event_type == EventType.BEFORE_OVERLOAD:
+            damage = Damage(0,('火',0),DamageType.REACTION, '超载')
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+            EventBus.publish(GameEvent(EventType.AFTER_OVERLOAD, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_SUPERCONDUCT:
+            damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+            ResistanceDebuffEffect('超导',e.damage.source,e.damage.target,'物理',40,12*60).apply()
+            EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_ELECTRO_CHARGED:
+            damage = Damage(0,('雷',0),DamageType.REACTION, '感电')
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            ElectroChargedEffect(e.damage.source,e.damage.target,damage).apply()
+            EventBus.publish(GameEvent(EventType.AFTER_ELECTRO_CHARGED, event.frame,elementalReaction=e))
+
