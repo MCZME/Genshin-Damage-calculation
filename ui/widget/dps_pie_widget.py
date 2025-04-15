@@ -379,12 +379,12 @@ class DpsPieWidget(QWidget):
             
         # 按百分比排序找出最小的两个切片
         sorted_slices = sorted(slices, key=lambda x: x[1])
-        if len(sorted_slices) >= 2:
+        if len(sorted_slices) >= 3:
             smallest1, smallest2 = sorted_slices[0], sorted_slices[1]
             # 如果两个都很小(小于5%)且差距不大(小于1%)
             if (smallest1[1] < 5 and smallest2[1] < 5 and abs(smallest1[1] - smallest2[1]) < 1 and
                 smallest1[1] > 1 and smallest2[1] > 1):
-                smallest1[0].setLabelArmLengthFactor(0.5)
+                smallest1[0].setLabelVisible(False)
         
             
         chart.addSeries(series)
