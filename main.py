@@ -24,7 +24,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_SWIRL,TransformativeReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_SUPERCONDUCT,TransformativeReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_ELECTRO_CHARGED,TransformativeReactionsEventHandler())
-    
+
     EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
     logger_init()
 
@@ -35,7 +35,6 @@ def init():
 # 4. 
 # 5. 元素共鸣系统
 # 6. 
-# 7. 冲刺
 if __name__ == '__main__':
     init()
     

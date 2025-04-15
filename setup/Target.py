@@ -1,7 +1,6 @@
 from DataRequest import DR
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.ElementalReaction import ElementalReaction, ElementalReactionType, ReactionMMap
-from setup.Event import DamageEvent, ElementalReactionEvent, EventBus
+from setup.ElementalReaction import ElementalReaction, ReactionMMap
+from setup.Event import ElementalReactionEvent, EventBus
 from setup.Tool import GetCurrentTime
 
 class Target:
@@ -40,92 +39,92 @@ class Target:
         self.elementalAura = elementalAura
 
     def apply_elemental_aura(self, damage):
-        
         reaction_multiplier = None
 
-        if len(self.elementalAura) > 0:
-            if (damage.element[0] in ['水','雷'] and self.elementalAura[0]['element'] in ['火','雷'] and
-                damage.element[0] != self.elementalAura[0]['element']):
+        # 获取当前所有存在的元素类型
+        current_elements = {aura["element"] for aura in self.elementalAura}
+
+        # 情况1: 已存在水雷共存状态，且新元素是水/雷
+        if {"水", "雷"}.issubset(current_elements) and damage.element[0] in ["水", "雷"]:
+            return self.apply_electro_charged_reaction(damage)
+
+        # 情况2: 原有逻辑（初次触发感电：水+雷不同元素）
+        elif len(self.elementalAura) > 0:
+            if (damage.element[0] in ["水", "雷"]
+                and self.elementalAura[0]["element"] in ["水", "雷"]
+                and damage.element[0] != self.elementalAura[0]["element"]):
                 return self.apply_electro_charged_reaction(damage)
             reaction_multiplier = self.process_elemental_reactions(damage)
 
-        # 若未触发反应且非风/岩，则附着新元素
-        if not reaction_multiplier and damage.element[0] not in {'风', '岩'}:
+        if not reaction_multiplier and damage.element[0] not in {"风", "岩"}:
             self._attach_new_element(damage.element[0], damage.element[1])
 
         return reaction_multiplier
     
     def process_elemental_reactions(self, damage):
+        reaction_triggers = []
         trigger_element, trigger_amount = damage.element
-        base_element = self.elementalAura[0]['element'] 
+        
+        # 定义元素反应优先级（例如：雷元素优先）
+        priority_elements = ['雷', '水'] if any(x['element'] in ('雷', '水') for x in self.elementalAura) else None
+        
+        # 根据优先级遍历元素（如果是感电环境则按雷->水顺序，否则正常顺序）
+        for element in (priority_elements if priority_elements else self.elementalAura):
+            # 查找当前优先处理的元素
+            if priority_elements:
+                aura = next((x for x in self.elementalAura if x['element'] == element), None)
+            else:
+                aura = element  # 普通情况直接遍历
+                
+            if not aura:
+                continue
+                
+            base_element = aura['element']
+            base_acmount = aura['current_amount']
+            reaction_type = ReactionMMap.get((trigger_element, base_element), None)
             
-        # 检查是否可以发生反应
-        reaction_type = ReactionMMap.get((trigger_element, base_element), None)
-        if reaction_type and trigger_amount > 0:
-            base_current = self.elementalAura[0]['current_amount']
-            trigger_actual = trigger_amount  # 后手元素不产生附着时无20%损耗
-            
-            # 确定消耗比例
-            ratio = self._get_element_ratio(trigger_element, base_element)
-            
-            # 计算实际消耗
-            actual_base_consumed = trigger_actual*ratio[1]/ratio[0]
-
-            # 更新元素量
-            self.elementalAura[0]['current_amount'] -= actual_base_consumed
-
-            if self.elementalAura[0]['current_amount'] <= 0:
-                self.elementalAura.pop(0)
-            
-            # 生成反应事件
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(trigger_element, base_element)
-            event = ElementalReactionEvent(e, GetCurrentTime())
-            EventBus.publish(event)
-
-            if event.data['elementalReaction'].reaction_type[0] == '剧变反应':
-                return 1
-            return event.data['elementalReaction'].reaction_multiplier
-        return None
-
-    def _trigger_reaction(self, trigger_element, trigger_amount, base_element, base_aura):
-        reaction_type, reaction_ratio = ReactionMMap.get((trigger_element, base_element), (None, None))
-        if not reaction_type:
-            return None
-
-        # 计算元素消耗比例
-        ratio = self._get_element_ratio(trigger_element, base_element)
-        base_current = base_aura['current_amount']
-        trigger_actual = trigger_amount  # 后手元素无衰减
-
-        # 计算实际消耗量
-        if trigger_actual / ratio[0] > base_current / ratio[1]:
-            # 完全消耗基底元素
-            self.elementalAura.remove(base_aura)
-            consumed_base = base_current
+            if reaction_type and trigger_amount > 0:
+                # 计算消耗比例
+                ratio = self._get_element_ratio(trigger_element, base_element)
+                
+                # 计算实际消耗（后手元素无损耗）
+                actual_base_consumed = trigger_amount * ratio[1] / ratio[0]
+                actual_trigger_consumed = base_acmount * ratio[0] / ratio[1]
+                
+                # 执行元素量更新
+                aura['current_amount'] -= actual_base_consumed
+                trigger_amount -= actual_trigger_consumed
+                
+                # 移除耗尽元素
+                if aura['current_amount'] <= 0:
+                    self.elementalAura.remove(aura)  # 正确从列表中移除整个元素
+                    
+                # 生成反应事件
+                e = ElementalReaction(damage)
+                e.set_reaction_elements(trigger_element, base_element)
+                event = ElementalReactionEvent(e, GetCurrentTime())
+                EventBus.publish(event)
+                
+                # 记录反应类型
+                if event.data['elementalReaction'].reaction_type[0] == '剧变反应':
+                    reaction_triggers.append(1)
+                else:
+                    reaction_triggers.append(event.data['elementalReaction'].reaction_multiplier)
+                
+                # 如果触发元素已耗尽则停止
+                if trigger_amount <= 0:
+                    break
+        if reaction_triggers:
+            # 优先返回非剧变反应的倍率
+            return max(reaction_triggers)
         else:
-            consumed_base = trigger_actual * ratio[1] / ratio[0]
-            base_aura['current_amount'] -= consumed_base
-            if base_aura['current_amount'] <= 0:
-                self.elementalAura.remove(base_aura)
-
-        # 生成反应事件
-        reaction_event = {
-            'trigger_element': trigger_element,
-            'base_element': base_element,
-            'reaction_type': reaction_type,
-            'consumed_base': consumed_base,
-            'consumed_trigger': trigger_actual
-        }
-        return reaction_event
-
-    def apply_swirl_reaction(self, trigger_element, trigger_amount, base_element):
-        ...
+            return None
 
     def apply_electro_charged_reaction(self,damage):
         """处理感电反应"""
         trigger_element, trigger_amount = damage.element
-        base_element = self.elementalAura[0]['element']
+        base_element = next((a['element'] for a in self.elementalAura if a['element'] in ['水', '雷'] and
+                             a['element'] != trigger_element), None)
         self._attach_new_element(trigger_element, trigger_amount)
          # 生成反应事件
         e = ElementalReaction(damage)
