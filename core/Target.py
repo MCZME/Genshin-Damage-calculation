@@ -181,8 +181,13 @@ class Target:
                 self.elementalAura.remove(aura)
         
         # 更新其他效果状态
+        removed_effects = []
         for effect in self.effects:
-            effect.update(self)
+            effect.update()
+            if not effect.is_active:
+                removed_effects.append(effect)
+        for effect in removed_effects:
+            self.effects.remove(effect)
 
     def clear(self):
         self.elementalAura.clear()
