@@ -158,7 +158,7 @@ class Team:
         removed_objects = []
         for object in Team.active_objects:
             object.update()
-            if object.is_destroyed:
+            if not object.is_active:
                 removed_objects.append(object)
         for object in removed_objects:
             Team.active_objects.remove(object)

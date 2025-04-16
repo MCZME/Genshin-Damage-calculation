@@ -8,12 +8,13 @@ from core.Tool import GetCurrentTime, summon_energy
 class baseObject(ABC):
     def __init__(self,name, life_frame = 0):
         self.name = name
-
+        self.is_active = False
         self.current_frame = 0
         self.life_frame = life_frame
 
     def apply(self):
         Team.add_object(self)
+        self.is_active = True
 
     def update(self,target):
         self.current_frame += 1
@@ -27,7 +28,7 @@ class baseObject(ABC):
 
     def on_finish(self,target):
         get_emulation_logger().log_object(f'{self.name} 存活时间结束')
-        Team.remove_object(self)
+        self.is_active = False
            
 class ArkheObject(baseObject):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):
