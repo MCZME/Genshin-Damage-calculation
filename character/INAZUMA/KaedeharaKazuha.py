@@ -50,17 +50,7 @@ class PlungingAttack(PlungingAttackSkill):
         luanlan_effect = next((e for e in self.caster.active_effects if isinstance(e, LuanlanEffect)), None)
         damage_type_key = '高空坠地冲击伤害' if self.height_type == '高空' else '低空坠地冲击伤害'
         
-        # 基础下落攻击伤害
-        damage = Damage(
-            self.damageMultipiler[damage_type_key][self.lv - 1],
-            ('风', 1) if luanlan_effect else ('物理',0),
-            DamageType.PLUNGING,
-            f'下落攻击·乱岚拨止-{self.height_type}' if luanlan_effect else f'下落攻击-{self.height_type}'
-        )
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
-        
         # 检查是否有元素转化的乱岚拨止效果
-        
         if luanlan_effect and luanlan_effect.swirled_element:
             # 附加200%攻击力的对应元素伤害
             extra_damage = Damage(
@@ -71,6 +61,15 @@ class PlungingAttack(PlungingAttackSkill):
             )
             EventBus.publish(DamageEvent(self.caster, target, extra_damage, GetCurrentTime()))
 
+        # 基础下落攻击伤害
+        damage = Damage(
+            self.damageMultipiler[damage_type_key][self.lv - 1],
+            ('风', 1) if luanlan_effect else ('物理',0),
+            DamageType.PLUNGING,
+            f'下落攻击·乱岚拨止-{self.height_type}' if luanlan_effect else f'下落攻击-{self.height_type}'
+        )
+        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+    
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
         super().__init__(name="千早振", total_frames=24, cd=6*60, lv=lv,
@@ -197,9 +196,8 @@ class LuanlanEffect(Effect,EventHandler):
             
         elif (event.event_type == EventType.BEFORE_SWIRL and 
               not self.element_applied and
-              self.swirled_element and
               event.data['elementalReaction'].source == self.character and
-              event.data['elementalReaction'].damage.damagType == DamageType.SKILL):
+              event.data['elementalReaction'].damage.damageType == DamageType.SKILL):
             # 处理元素转化
             element = event.data['elementalReaction'].target_element
             if element[0] in ['水', '火', '冰', '雷']:
