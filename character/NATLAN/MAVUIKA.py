@@ -40,10 +40,6 @@ class RingOfSearingRadianceObject(baseObject):
             effect = DefenseDebuffEffect(self.character,target, 20, 2,'灰烬的代价-焚曜之环')
             effect.apply()
 
-    def on_finish(self):
-        print(f'{self.name} 存活时间结束')
-        Team.remove_object(self)
-
 class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 

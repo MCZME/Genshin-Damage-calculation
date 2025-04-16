@@ -274,7 +274,7 @@ class KineticMarkObject(baseObject):
         # 取消订阅事件
         EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        return super().on_finish(target)
+        super().on_finish(target)
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.BEFORE_CHARACTER_SWITCH:

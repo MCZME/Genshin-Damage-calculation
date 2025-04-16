@@ -149,15 +149,15 @@ class Team:
         for character in Team.team:
             character.update(target)
         
-        self.update_objects()
+        self.update_objects(target)
 
         if Team.current_frame > 0:
             Team.current_frame -= 1
 
-    def update_objects(self):
+    def update_objects(self,target):
         removed_objects = []
         for object in Team.active_objects:
-            object.update()
+            object.update(target)
             if not object.is_active:
                 removed_objects.append(object)
         for object in removed_objects:

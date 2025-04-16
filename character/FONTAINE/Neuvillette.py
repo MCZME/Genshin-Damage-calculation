@@ -88,15 +88,12 @@ class ChargedAttack(ChargedAttackSkill):
         if not super().start(caster):
             return False
         self.source_water_droplet = 0
-        removed_objects = []
         for obj in Team.active_objects:
             if isinstance(obj, SourceWaterDroplet):
-                removed_objects.append(obj)
+                obj.on_finish()
                 self.source_water_droplet += 1
             if self.source_water_droplet >= 3:
                 break
-        for obj in removed_objects:
-            obj.on_finish()
         self.hit_frame = [212,155,101,31][self.source_water_droplet]
         self.total_frames = self.hit_frame + 3*60
         get_emulation_logger().log_skill_use(f"开始重击，吸收的源水之滴数量为：{self.source_water_droplet}")
@@ -254,8 +251,7 @@ class SourceWaterDroplet(baseObject):
         pass
 
     def on_finish(self):
-        get_emulation_logger().log_object(f'{self.name} 存活时间结束')
-        Team.remove_object(self)
+        super().on_finish(None)
 
 class ElementalBurst(EnergySkill):
     def __init__(self, lv):
