@@ -235,7 +235,6 @@ class ElementalSkill(SkillBase):
                 arkhe = ArkheObject('灵息之刺', self.caster, self.caster.arkhe,
                                     arkhe_damage, 19)
                 arkhe.apply()
-                logger.log_damage(self.caster, target, arkhe_damage)
             
             summon_energy(4, self.caster, ('水',2))
 
@@ -348,13 +347,13 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             reaction = event.data['elementalReaction']
-            if reaction.reaction_type.value in ['蒸发', '绽放', '感电', '冻结']:
-                self.reaction_dict[reaction.reaction_type.value] = 30*60
+            if reaction.reaction_type[1].value in ['蒸发', '绽放', '感电', '冻结']:
+                self.reaction_dict[reaction.reaction_type[1].value] = 30*60
                 self.update_stack()
                 get_emulation_logger().log_effect(f"🌊 {self.character.name} 获得一层「遗龙之荣」当前层数为{self.stack}")
-            elif reaction.reaction_type.value in ['扩散', '结晶']:
+            elif reaction.reaction_type[1].value in ['扩散', '结晶']:
                 if reaction.target_element == '水':
-                    self.reaction_dict[reaction.reaction_type.value] = 30*60
+                    self.reaction_dict[reaction.reaction_type[1].value] = 30*60
                     self.update_stack()
                     get_emulation_logger().log_effect(f"🌊 {self.character.name} 获得一层「遗龙之荣」当前层数为{self.stack}")
         elif (event.event_type == EventType.BEFORE_INDEPENDENT_DAMAGE and 

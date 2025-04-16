@@ -186,12 +186,8 @@ class ElementalSkill(SkillBase):
             BladeRoller.remove()
             get_emulation_logger().log_skill_use(f'{caster.name}退出刃轮巡猎状态')
             return False
-        if self.cd_timer > 0:
-            get_emulation_logger().log_error(f'{self.name}技能还在冷却中')
-            return False  # 技能仍在冷却中
-        self.caster = caster
-        self.current_frame = 0
-        self.last_use_time = GetCurrentTime()
+        if not super().start(caster):
+            return False
 
         # 获得夜魂值并进入夜魂状态
         self.caster.gain_night_soul(45)
