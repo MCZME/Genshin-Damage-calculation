@@ -360,6 +360,7 @@ class PlungingAttackSkill(SkillBase):
         from character.character import CharacterState
         if CharacterState.FALL in self.caster.state:
             self.caster.state.remove(CharacterState.FALL)
+            EventBus.publish(GameEvent(EventType.AFTER_FALLING, GetCurrentTime(),character = self.caster))
 
     def on_interrupt(self):
         get_emulation_logger().log_error("💢 下落攻击被打断")

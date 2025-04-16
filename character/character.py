@@ -1,9 +1,9 @@
 from abc import abstractmethod
 from enum import Enum, auto
 from DataRequest import DR
-from setup.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, HealChargeEvent
-from setup.Logger import get_emulation_logger
-import setup.Tool as T
+from core.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, EventType, GameEvent, HealChargeEvent
+from core.Logger import get_emulation_logger
+import core.Tool as T
 
 # 角色状态枚举
 class CharacterState(Enum):
@@ -68,6 +68,7 @@ class Character:
         self.currentHP = self.maxHP
         self.movement = 0
         self.height = 0
+        self.falling_speed = 5
         self.weapon = None
         self.artifactManager = None
         self.state = [CharacterState.IDLE]
@@ -256,9 +257,10 @@ class Character:
                 if self.Jump.update(target):
                     self.state.remove(CharacterState.JUMP)
             elif i == CharacterState.FALL:
-                self.height = max(0, self.height - 5)
+                self.height = max(0, self.height - self.falling_speed)
                 if self.height <= 0:
                     self.state.remove(CharacterState.FALL)
+                    EventBus.publish(GameEvent(EventType.AFTER_FALLING,T.GetCurrentTime(),character = self))
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:

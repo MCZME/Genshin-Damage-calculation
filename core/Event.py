@@ -75,6 +75,8 @@ class EventType(Enum):
     AFTER_DASH = auto()          # 冲刺后
     BEFORE_JUMP = auto()         # 跳跃前
     AFTER_JUMP = auto()          # 跳跃后
+    BEFORE_FALLING = auto()     # 下落前
+    AFTER_FALLING = auto()       # 下落后
 
     BEFORE_ENERGY_CHANGE = auto()  # 能量变化前
     AFTER_ENERGY_CHANGE = auto()   # 能量变化后
