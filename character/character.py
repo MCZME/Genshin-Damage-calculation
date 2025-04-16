@@ -286,6 +286,14 @@ class Character:
         for effect in remove_effects:
             self.remove_effect(effect)
 
+        remove_shields = []
+        for shield in self.shield_effects:
+            shield.update(target)
+            if not shield.is_active:
+                remove_shields.append(shield)
+        for shield in remove_shields:
+            self.remove_shield(shield)
+
         for talent in self.talent_effects:
             if talent is not None:
                 talent.update(target)
