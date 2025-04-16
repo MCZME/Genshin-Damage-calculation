@@ -1,12 +1,12 @@
 from enum import Enum
 import random
 from character.character import Character
-from setup.Effect.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
-from setup.Config import Config
-from setup.ElementalReaction import ElementalReaction, ElementalReactionType
-from setup.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
-from setup.Tool import GetCurrentTime
-from setup.Logger import get_emulation_logger
+from core.Effect.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
+from core.Config import Config
+from core.ElementalReaction import ElementalReaction, ElementalReactionType
+from core.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
+from core.Tool import GetCurrentTime
+from core.Logger import get_emulation_logger
 
 # 定义一个枚举类，表示伤害类型
 class DamageType(Enum):

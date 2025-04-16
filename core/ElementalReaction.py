@@ -1,7 +1,7 @@
 from enum import Enum
-from setup.Event import EventBus, EventHandler, EventType, ElementalReactionEvent, GameEvent
-from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime, get_reaction_multiplier
+from core.Event import EventBus, EventHandler, EventType, ElementalReactionEvent, GameEvent
+from core.Logger import get_emulation_logger
+from core.Tool import GetCurrentTime, get_reaction_multiplier
 
 class ElementalReactionType(Enum):
     VAPORIZE = '蒸发'

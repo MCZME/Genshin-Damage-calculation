@@ -1,6 +1,6 @@
 import time
-from setup.Config import Config
-from setup.Tool import GetCurrentTime
+from core.Config import Config
+from core.Tool import GetCurrentTime
 
 class BaseLogger:
     def __init__(self, name):

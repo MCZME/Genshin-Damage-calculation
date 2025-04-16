@@ -1,7 +1,7 @@
 from DataRequest import DR
-from setup.ElementalReaction import ElementalReaction, ReactionMMap
-from setup.Event import ElementalReactionEvent, EventBus
-from setup.Tool import GetCurrentTime
+from core.ElementalReaction import ElementalReaction, ReactionMMap
+from core.Event import ElementalReactionEvent, EventBus
+from core.Tool import GetCurrentTime
 
 class Target:
     def __init__(self, id, level):

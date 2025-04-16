@@ -1,6 +1,6 @@
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType
-from setup.Tool import GetCurrentTime
-from setup.Logger import get_emulation_logger
+from core.Event import DamageEvent, EventBus, EventHandler, EventType
+from core.Tool import GetCurrentTime
+from core.Logger import get_emulation_logger
 
 class Effect:
     def __init__(self, character,duration=0):

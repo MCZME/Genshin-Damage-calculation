@@ -1,8 +1,8 @@
-from setup.Calculation.DamageCalculation import DamageType
-from setup.Effect.BaseEffect import Effect, HealthBoostEffect
-from setup.Event import EventBus, EventHandler, EventType
-from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime, summon_energy
+from core.Calculation.DamageCalculation import DamageType
+from core.Effect.BaseEffect import Effect, HealthBoostEffect
+from core.Event import EventBus, EventHandler, EventType
+from core.Logger import get_emulation_logger
+from core.Tool import GetCurrentTime, summon_energy
 
 
 class STWHealthBoostEffect(HealthBoostEffect):

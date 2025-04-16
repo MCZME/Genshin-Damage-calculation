@@ -1,8 +1,8 @@
 from abc import ABC,abstractmethod
-from setup.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent
-from setup.Logger import get_emulation_logger
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
+from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent
+from core.Logger import get_emulation_logger
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
 
 
 class baseObject(ABC):

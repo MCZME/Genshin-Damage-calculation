@@ -1,8 +1,8 @@
 from character.character import Character, CharacterState
-from setup.Effect.BaseEffect import AttackBoostEffect, HealthBoostEffect
-from setup.Event import CharacterSwitchEvent, EventBus
-from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime
+from core.Effect.BaseEffect import AttackBoostEffect, HealthBoostEffect
+from core.Event import CharacterSwitchEvent, EventBus
+from core.Logger import get_emulation_logger
+from core.Tool import GetCurrentTime
 
 # 转化字典
 action_state = {
@@ -65,7 +65,7 @@ class Team:
         # 雷元素共鸣（强能之雷）
         if Team.element_counts.get('雷', 0) >= 2 and len(Team.team) >= 4:
             if '强能之雷' not in Team.active_resonances:
-                from setup.BaseObject import LightningBladeObject
+                from core.BaseObject import LightningBladeObject
                 LightningBladeobject = LightningBladeObject()
                 LightningBladeobject.apply()
                 Team.active_resonances['强能之雷'] = True
@@ -93,7 +93,7 @@ class Team:
                     effect.remove()
         elif resonance_name == '强能之雷':
             for obj in Team.active_objects:
-                from setup.BaseObject import LightningBladeObject
+                from core.BaseObject import LightningBladeObject
                 if isinstance(obj, LightningBladeObject):
                     obj.remove()
         Team.active_resonances.pop(resonance_name, None)

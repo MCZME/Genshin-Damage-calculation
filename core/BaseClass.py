@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
-from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
+from core.Logger import get_emulation_logger
+from core.Tool import GetCurrentTime
 
 # 效果基类
 class TalentEffect:

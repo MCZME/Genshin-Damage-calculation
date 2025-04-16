@@ -1,11 +1,11 @@
 from Emulation import Emulation
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.DataHandler import send_to_handler
-from setup.Effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
-from setup.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
-from setup.Team import Team
-from setup.Tool import GetCurrentTime
-from setup.Logger import get_emulation_logger
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.DataHandler import send_to_handler
+from core.Effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
+from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
+from core.Team import Team
+from core.Tool import GetCurrentTime
+from core.Logger import get_emulation_logger
 
 
 class FrameEndEventHandler(EventHandler):

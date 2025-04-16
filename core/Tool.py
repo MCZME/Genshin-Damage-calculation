@@ -30,6 +30,6 @@ def get_reaction_multiplier(level):
     return reaction_coefficients[level]
 
 def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False, time=40):
-    from setup.BaseObject import EnergyDropsObject
+    from core.BaseObject import EnergyDropsObject
     for _ in range(num):
         EnergyDropsObject(character, element_energy, time, is_fixed, is_alone).apply()

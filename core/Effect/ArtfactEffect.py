@@ -1,8 +1,8 @@
-from setup.Calculation.DamageCalculation import DamageType
-from setup.Effect.BaseEffect import CritRateBoostEffect, Effect, ElementalDamageBoostEffect
-from setup.Event import EventBus, EventHandler, EventType
-from setup.Logger import get_emulation_logger
-from setup.Team import Team
+from core.Calculation.DamageCalculation import DamageType
+from core.Effect.BaseEffect import CritRateBoostEffect, Effect, ElementalDamageBoostEffect
+from core.Event import EventBus, EventHandler, EventType
+from core.Logger import get_emulation_logger
+from core.Team import Team
 
 
 class CinderCityEffect(ElementalDamageBoostEffect):
