@@ -182,7 +182,7 @@ class ExplosionEffect(Effect):
         self.name = '内爆'
 
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, ExplosionEffect) and e.name == self.name), None)
         if existing:
@@ -190,9 +190,6 @@ class ExplosionEffect(Effect):
             return
             
         self.character.add_effect(self)
-
-    def remove(self):
-        self.character.remove_effect(self)
 
     def update(self, target):
         if self.duration > 0:
@@ -291,6 +288,7 @@ class PyroDamageBoostEffect(Effect):
         self.duration = 0
 
     def apply(self):
+        super().apply()
         for member in Team.team:
             member.attributePanel['火元素伤害加成'] += self.bonus
             member.add_effect(self)
@@ -299,7 +297,10 @@ class PyroDamageBoostEffect(Effect):
     def remove(self):
         for member in Team.team:
             member.attributePanel['火元素伤害加成'] -= self.bonus
-            member.remove_effect(self)
+            existing = next((e for e in member.active_effects 
+                       if isinstance(e, PyroDamageBoostEffect) and e.name == self.name), None)
+            if existing:
+                existing.is_active = False
             print(f"{member.name} 的 {self.name} 效果结束")
 
     def update(self,target):

@@ -294,6 +294,7 @@ class WhiteStarDressEffect(Effect,EventHandler):
         self.reaction_cooldown = 8 * 60  # 8秒冷却
         
     def apply(self):
+        super().apply()
         whiteStarDress = next((e for e in self.character.active_effects
                              if isinstance(e, WhiteStarDressEffect)), None)
         if whiteStarDress:
@@ -308,7 +309,7 @@ class WhiteStarDressEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.AFTER_FREEZE, self)
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
 
     def update(self, target):

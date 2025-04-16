@@ -17,6 +17,7 @@ class BladeRollerEffect(Effect,EventHandler):
         self.Multipiler = [9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51]
 
     def apply(self):
+        super().apply()
         BladeRoller = next((e for e in self.character.active_effects if isinstance(e, BladeRollerEffect)), None)
         if BladeRoller:
             return
@@ -29,7 +30,9 @@ class BladeRollerEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
+        EventBus.unsubscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         self.character.romve_NightSoulBlessing()
     
     def _update_samplers(self):
@@ -236,6 +239,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
         self.current_character = character
 
     def apply(self):
+        super().apply()
         existing = next((e for e in self.current_character.active_effects if isinstance(e, JoyfulRhythmEffect)), None)
         if existing:
             existing.duration = self.duration
@@ -255,7 +259,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
                 self.change_character(event.data['new_character'])
 
     def remove(self):
-        self.current_character.remove_effect(self)
+        super().remove()
 
     def update(self, target):
         super().update(target)
@@ -279,7 +283,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
 class FierceRhythmEffect(Effect):
     """燥烈律动效果"""
     def __init__(self, character):
-        super().__init__(character, 12 * 60)  # 12秒持续时间
+        super().__init__(character, 12 * 60)
         self.name = "燥烈律动"
         self.damage_multiplier = [
             281.28, 302.38, 323.47, 351.6, 372.7, 393.79, 421.92, 450.05, 
@@ -289,6 +293,7 @@ class FierceRhythmEffect(Effect):
         self.max_beats = 2
 
     def apply(self):
+        super().apply()
         existing = next((e for e in self.character.active_effects if isinstance(e, FierceRhythmEffect)), None)
         if existing:
             existing.duration = self.duration
@@ -297,7 +302,7 @@ class FierceRhythmEffect(Effect):
         self.character.add_effect(self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
 
     def update(self, target):
         if self.beat_count < self.max_beats:

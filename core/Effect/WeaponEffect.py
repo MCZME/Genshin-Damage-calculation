@@ -13,6 +13,7 @@ class STWHealthBoostEffect(HealthBoostEffect):
         self.interval = 0.2*60
 
     def apply(self):
+        super().apply()
         healthBoost = next((e for e in self.character.active_effects if isinstance(e, STWHealthBoostEffect)), None)
         if healthBoost:
             if GetCurrentTime() - healthBoost.last_trigger > self.interval:
@@ -35,7 +36,7 @@ class STWHealthBoostEffect(HealthBoostEffect):
         self.character.attributePanel['生命值%'] -= self.bonus * self.stack
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         self.removeEffect()
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
 
@@ -49,6 +50,7 @@ class STWElementSkillBoostEffect(Effect,EventHandler):
         self.interval = 0.2*60
 
     def apply(self):
+        super().apply()
         existing = next((e for e in self.character.active_effects if isinstance(e, STWElementSkillBoostEffect)), None)
         if existing:
             if GetCurrentTime() - existing.last_trigger > self.interval:
@@ -62,7 +64,7 @@ class STWElementSkillBoostEffect(Effect,EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
 
@@ -81,7 +83,7 @@ class MorningGlowEffect(Effect,EventHandler):
         self.lv = lv
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                       if isinstance(e, MorningGlowEffect)), None)
         if existing:
@@ -94,7 +96,7 @@ class MorningGlowEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         print(f"{self.character.name}: {self.name}效果结束")
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
@@ -118,7 +120,7 @@ class DuskGlowEffect(Effect,EventHandler):
         self.lv = lv
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                       if isinstance(e, DuskGlowEffect)), None)
         if existing:
@@ -131,7 +133,7 @@ class DuskGlowEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         print(f"{self.character.name}: {self.name}效果结束")
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
@@ -158,6 +160,7 @@ class TEFchargedBoostEffect(Effect,EventHandler):
         self.erengy_interval = 12*60
 
     def apply(self):
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                       if isinstance(e, TEFchargedBoostEffect)), None)
         if existing:
@@ -174,7 +177,7 @@ class TEFchargedBoostEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
 
     def handle_event(self, event):
@@ -195,6 +198,7 @@ class FreedomSwornEffect(Effect,EventHandler):
         self.current_character = current_character
 
     def apply(self):
+        super().apply()
         existing = next((e for e in self.current_character.active_effects 
                       if isinstance(e, FreedomSwornEffect)), None)
         if existing:
@@ -205,7 +209,7 @@ class FreedomSwornEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
 
     def remove(self):
-        self.current_character.remove_effect(self)
+        super().remove()
         self.current_character.attributePanel['攻击力%'] -= self.attack_bonus[self.lv-1]
         get_emulation_logger().log_effect(f'{self.current_character.name}: {self.name}效果结束')
 

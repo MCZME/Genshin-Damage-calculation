@@ -16,7 +16,7 @@ class CinderCityEffect(ElementalDamageBoostEffect):
         self.current_character = current_character
 
     def apply(self,element_type):
-        # 防止重复应用
+        self.is_active = True
         existing = next((e for e in self.current_character.active_effects 
                     if isinstance(e, CinderCityEffect)), None)
         if existing:
@@ -53,7 +53,7 @@ class CinderCityEffect(ElementalDamageBoostEffect):
     def remove(self):
         for element in self.element_type:
             self.current_character.attributePanel[element+'元素伤害加成'] -= self.bonus
-        self.current_character.remove_effect(self)
+        self.is_active = False
         get_emulation_logger().log_effect(f"🌋 {self.current_character.name}失去{self.name}效果")
 
     def remove_element(self,element):
@@ -89,7 +89,7 @@ class ThirstEffect(Effect):
         self.max_amount = 15000
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                         if isinstance(e, ThirstEffect)), None)
         if existing:
@@ -107,7 +107,7 @@ class ThirstEffect(Effect):
         # 渴盼结束时创建浪潮效果
         if self.heal_amount > 0:
             WaveEffect(self.character, self.heal_amount).apply()
-        self.character.remove_effect(self)
+        super().remove()
         print(f"{self.character.name}: {self.name}结束")
 
 class WaveEffect(Effect):
@@ -120,7 +120,7 @@ class WaveEffect(Effect):
         self.hit_count = 0
         
     def apply(self):
-        # 订阅固定伤害事件来计数和加成
+        super().apply()
         waveEffect = next((e for e in self.character.active_effects
                           if isinstance(e, WaveEffect)), None)
         if waveEffect:
@@ -143,7 +143,7 @@ class WaveEffect(Effect):
                     self.remove()
                     
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
 
 class MarechausseeHunterEffect(CritRateBoostEffect):
@@ -154,6 +154,7 @@ class MarechausseeHunterEffect(CritRateBoostEffect):
         self.max_stack = 3
 
     def apply(self):
+        self.is_active = True
         MarechausseeHunter = next((e for e in self.character.active_effects
                                    if isinstance(e, MarechausseeHunterEffect)), None)
         if MarechausseeHunter:
@@ -175,7 +176,7 @@ class MarechausseeHunterEffect(CritRateBoostEffect):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus * self.stack
 
     def remove(self):
-        self.character.remove_effect(self)
+        self.is_active = False
         self.removeEffect()
         get_emulation_logger().log_effect(f"🗡️ {self.current_character.name}失去逐影猎人效果")
 

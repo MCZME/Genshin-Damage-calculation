@@ -28,7 +28,7 @@ class InspirationFieldEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, InspirationFieldEffect)), None)
         if existing:
@@ -83,7 +83,7 @@ class InspirationFieldEffect(Effect, EventHandler):
         print("🔥 鼓舞领域消失")
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
-        self.current_char.remove_effect(self)
+        super().remove()
 
 class ElementalBurst(EnergySkill):
     def __init__(self, lv, caster=None):

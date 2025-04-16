@@ -240,6 +240,7 @@ class RainbowPlungeEffect(Effect, EventHandler):
         self.name = '虹色坠击'
         
     def apply(self):
+        super().apply()
         rainbowPlungeEffect = next((e for e in self.character.active_effects if isinstance(e, RainbowPlungeEffect)), None)
         if rainbowPlungeEffect:
             rainbowPlungeEffect.duration = self.duration
@@ -248,7 +249,7 @@ class RainbowPlungeEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"🌈 {self.character.name}获得{self.name}效果")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         get_emulation_logger().log_effect(f"🌈 {self.character.name}的{self.name}效果消失")
         
@@ -264,12 +265,13 @@ class ChaseEffect(Effect,EventHandler):
         self.name = '逐击'
         
     def apply(self):
+        super().apply()
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"✨ {self.character.name}获得{self.name}效果")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"✨ {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
@@ -396,6 +398,7 @@ class PassionEffect(Effect, EventHandler):
         self.start_time = GetCurrentTime()
               
     def apply(self):
+        super().apply()
         passionEffect = next((e for e in self.character.active_effects if isinstance(e, PassionEffect)), None)
         if passionEffect:
             return
@@ -413,7 +416,7 @@ class PassionEffect(Effect, EventHandler):
         get_emulation_logger().log_effect("🔥 进入炽热激情状态！")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         self.character.romve_NightSoulBlessing()
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
@@ -440,6 +443,7 @@ class LimitDriveEffect(Effect,EventHandler):
         self.character = character
         
     def apply(self):
+        super().apply()
         limitDriveEffect = next((e for e in self.character.active_effects if isinstance(e, LimitDriveEffect)), None)
         if limitDriveEffect:
             limitDriveEffect.duration = self.duration
@@ -451,7 +455,7 @@ class LimitDriveEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.BEFORE_SKILL, self)
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect("⚡ 极限驱动状态结束！")
 
     def handle_event(self, event):
@@ -560,14 +564,12 @@ class HeroReturnsEffect(Effect):
         self.max_stacks = 2  # 最大层数
         
     def apply(self):
-        # 检查是否达到最大层数
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, HeroReturnsEffect)), None)
         if existing:
             s = self.get_stacks()
             self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
-            min_stack = min(existing.stacks)
-            min_stack = self.duration
             s = self.get_stacks()
             self.character.attributePanel['攻击力%'] += self.attack_bonus * s
             get_emulation_logger().log_effect(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
@@ -579,7 +581,7 @@ class HeroReturnsEffect(Effect):
         get_emulation_logger().log_effect(f"⚔️ {self.character.name} 获得英雄二度归来效果")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         s = self.get_stacks()
         self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
         get_emulation_logger().log_effect(f"⚔️ {self.character.name} 的英雄二度归来效果消失")

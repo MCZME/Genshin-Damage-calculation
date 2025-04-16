@@ -19,7 +19,7 @@ class LightningDashEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
         
     def apply(self):
-        # 检查现有效果并刷新持续时间
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, LightningDashEffect) and e.name == self.name), None)
         if existing:
@@ -30,7 +30,7 @@ class LightningDashEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
@@ -342,6 +342,7 @@ class WarmUpEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         
     def apply(self):
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, WarmUpEffect)), None)
         if existing:
@@ -352,7 +353,7 @@ class WarmUpEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
@@ -385,7 +386,7 @@ class StandardActionEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         
     def apply(self):
-        # 检查现有效果并刷新持续时间
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, StandardActionEffect)), None)
         if existing:
@@ -399,9 +400,8 @@ class StandardActionEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，攻击力提升{self.attack_boost}%")
         
     def remove(self):
-        # 移除攻击力提升
         self.character.attributePanel['攻击力%'] -= self.attack_boost
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
@@ -471,7 +471,7 @@ class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
         self.current_character = character
     
     def apply(self):
-        # 防止重复应用
+        self.is_active = True
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
         if existing:
@@ -485,7 +485,7 @@ class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
 
     def remove(self):
         self.current_character.attributePanel['攻击力%'] -= self.bonus
-        self.current_character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def handle_event(self, event: GameEvent):
@@ -530,6 +530,7 @@ class ForceExcitationEffect(Effect):
         self.max_stacks = 2
         
     def apply(self):
+        super().apply()
         force_excitation = next((e for e in self.character.active_effects
                            if isinstance(e, ForceExcitationEffect)), None)
         if force_excitation:

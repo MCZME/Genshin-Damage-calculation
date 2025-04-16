@@ -92,11 +92,12 @@ class ElementalSkill(SkillBase, EventHandler):
 
 class FurnaceEffect(Effect, EventHandler):
     def __init__(self, character, consumed_will):
-        super().__init__(character, duration=7 * 60)
+        super().__init__(character, duration=7 * 60 + 49)
         self.consumed_will = consumed_will
         self.name = '死生之炉'
         
     def apply(self):
+        super().apply()
         get_emulation_logger().log_effect('玛薇卡获得死生之炉')
         # 防止重复应用
         existing = next((e for e in self.character.active_effects 
@@ -112,8 +113,7 @@ class FurnaceEffect(Effect, EventHandler):
         
     def remove(self):
         get_emulation_logger().log_effect('死生之炉结束')
-        self.character.remove_effect(self)
-        # 取消订阅
+        super().remove()
         EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         EventBus.unsubscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
@@ -470,6 +470,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def apply(self):
+        super().apply()
         self.current_holder = self.character
         self._apply_boost()
         get_emulation_logger().log_effect(f"「基扬戈兹」生效！初始加成：{self.current_boost*100:.1f}%")
@@ -508,7 +509,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
             
             self.total_duration -= 1
         else:
-            self.character.remove_effect(self)
+            self.remove()
             get_emulation_logger().log_effect("「基扬戈兹」效果结束！")
             
 class PassiveSkillEffect_2(TalentEffect, EventHandler):

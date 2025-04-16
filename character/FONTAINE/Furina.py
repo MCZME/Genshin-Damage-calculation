@@ -262,6 +262,7 @@ class UniversalExaltationEffect(Effect):
                                    0.11, 0.12, 0.13, 0.14, 0.15]
         
     def apply(self):
+        super().apply()
         universalExaltation = next((effect for effect in self.current_character.active_effects 
                                     if isinstance(effect, UniversalExaltationEffect)), None)
         if universalExaltation:
@@ -274,7 +275,7 @@ class UniversalExaltationEffect(Effect):
         self.remove_effect()
         if self.current_character == self.character:
             self.burst_skill.init()
-        self.current_character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"🎉 {self.current_character.name}的普世欢腾效果消失了")
 
     def apply_effect(self):
@@ -374,6 +375,7 @@ class EndlessWaltzEffect(Effect):
         self.heal_interval = 120
 
     def apply(self):
+        super().apply()
         endlessWaltz = next((effect for effect in self.character.active_effects if isinstance(effect, EndlessWaltzEffect)), None)
         if endlessWaltz:
             endlessWaltz.duration = self.duration
@@ -382,7 +384,7 @@ class EndlessWaltzEffect(Effect):
         get_emulation_logger().log_effect(f"♥ {self.character.name}获得{self.name}")
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"♥ {self.character.name}失去{self.name}")
         
     def on_frame_update(self, target):
@@ -499,6 +501,7 @@ class CenterOfAttentionEffect(Effect,EventHandler):
         self.last_attach_time = 0  # 上次元素附着时间(帧数)
 
     def apply(self):
+        super().apply()
         centerOfAttention = next((e for e in self.character.active_effects if isinstance(e, CenterOfAttentionEffect)), None)
         if centerOfAttention:
             centerOfAttention.duration = self.duration
@@ -511,7 +514,7 @@ class CenterOfAttentionEffect(Effect,EventHandler):
         EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.BEFORE_DAMAGE, self)
         EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
         EventBus.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
@@ -582,6 +585,7 @@ class CenterOfAttentionHealEffect(Effect):
         self.interval = 60
 
     def apply(self):
+        super().apply()
         heal = next((e for e in self.character.active_effects if isinstance(e, CenterOfAttentionHealEffect)), None)
         if heal:
             heal.duration = self.duration
@@ -590,7 +594,7 @@ class CenterOfAttentionHealEffect(Effect):
         get_emulation_logger().log("CONSTELLATION", f"✨ 「万众瞩目_治疗」生效")
 
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log("CONSTELLATION", f"✨ 「万众瞩目_治疗」失效")
 
     def update(self, target):

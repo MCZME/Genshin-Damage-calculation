@@ -35,7 +35,7 @@ class DamageBoostEffect(Effect):
         self.attribute_name = '伤害加成'  # 属性名称
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
         if existing:
@@ -50,8 +50,8 @@ class DamageBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
 
     def remove(self):
+        super().remove()
         self.romoveEffect()
-        self.current_character.remove_effect(self)
 
     def romoveEffect(self):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
@@ -66,6 +66,7 @@ class CritRateBoostEffect(Effect):
         self.attribute_name = '暴击率'  # 属性名称
         
     def apply(self, character=None):
+        super().apply()
         self.current_character = character if character else self.character
         # 防止重复应用
         existing = next((e for e in self.current_character.active_effects 
@@ -83,7 +84,7 @@ class CritRateBoostEffect(Effect):
 
     def remove(self):
         self.removeEffect()
-        self.current_character.remove_effect(self)
+        super().remove()
 
     def removeEffect(self):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
@@ -111,6 +112,7 @@ class AttackBoostEffect(Effect):
         self.name = name
         
     def apply(self,character=None):
+        super().apply()
         self.current_character = character if character else self.character
         # 防止重复应用
         existing = next((e for e in self.current_character.active_effects 
@@ -124,19 +126,19 @@ class AttackBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
 
     def remove(self):
+        super().remove()
         self.current_character.attributePanel['攻击力%'] -= self.bonus
-        self.current_character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}攻击力提升效果结束")
 
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character,duration)
-        self.bonus = bonus  # 攻击力固定值提升
+        self.bonus = bonus
         self.name = name
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, AttackValueBoostEffect) and e.name == self.name), None)
         if existing:
@@ -148,8 +150,8 @@ class AttackValueBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}的攻击力提升了{self.bonus:.2f}点")
 
     def remove(self):
+        super().remove()
         self.character.attributePanel['固定攻击力'] -= self.bonus
-        self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础攻击力提升效果结束")
 
 class HealthBoostEffect(Effect):
@@ -160,7 +162,7 @@ class HealthBoostEffect(Effect):
         self.name = name
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, HealthBoostEffect) and e.name == self.name), None)
         if existing:
@@ -172,8 +174,8 @@ class HealthBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}的生命值提升了{self.bonus}%")
 
     def remove(self):
+        super().remove()
         self.character.attributePanel['生命值%'] -= self.bonus
-        self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name} 生命值提升效果结束")
 
 class DefenseBoostEffect(Effect):
@@ -184,7 +186,7 @@ class DefenseBoostEffect(Effect):
         self.name = name
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, DefenseBoostEffect) and e.name == self.name), None)
         if existing:
@@ -196,8 +198,8 @@ class DefenseBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name} 获得 {self.name},防御力提升了{self.bonus}%")
 
     def remove(self):
+        super().remove()
         self.character.attributePanel['防御力%'] -= self.bonus
-        self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}防御力提升效果结束")
 
 class DefenseValueBoostEffect(Effect):
@@ -208,7 +210,7 @@ class DefenseValueBoostEffect(Effect):
         self.name = name
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, DefenseValueBoostEffect) and e.name == self.name), None)
         if existing:
@@ -220,8 +222,8 @@ class DefenseValueBoostEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}的防御力提升了{self.bonus:.2f}点")
 
     def remove(self):
+        super().remove()
         self.character.attributePanel['固定防御力'] -= self.bonus
-        self.character.remove_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础防御力提升效果结束")
 
 class DefenseDebuffEffect(Effect):
@@ -232,7 +234,7 @@ class DefenseDebuffEffect(Effect):
         self.name = name
         
     def apply(self):
-        # 检查现有效果
+        super().apply()
         existing = next((e for e in self.target.effects 
                        if isinstance(e, DefenseDebuffEffect) 
                        and e.name == self.name), None)
@@ -244,9 +246,12 @@ class DefenseDebuffEffect(Effect):
         get_emulation_logger().log_effect(f"🛡️ {self.name} 降低目标防御力{self.debuff_rate}%")
         
     def remove(self):
+        super().remove()
         self.target.defense = self.target.defense / (1 - self.debuff_rate/100)
-        self.target.remove_effect(self)
         get_emulation_logger().log_effect(f"🛡️ {self.target.name} 的 {self.name} 结束")
+
+    def update(self):
+        super().update(None)
 
 class ResistanceDebuffEffect(Effect):
     """元素抗性降低效果"""
@@ -258,7 +263,7 @@ class ResistanceDebuffEffect(Effect):
         self.debuff_rate = debuff_rate
         
     def apply(self):
-        # 检查现有效果
+        super().apply()
         existing = next((e for e in self.target.effects 
                        if isinstance(e, ResistanceDebuffEffect) 
                        and e.name == self.name), None)
@@ -272,10 +277,13 @@ class ResistanceDebuffEffect(Effect):
         get_emulation_logger().log_effect(f"🛡️ {self.character.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
         
     def remove(self):
-        self.target.remove_effect(self)
+        super().remove()
         for element in self.elements:
             self.target.element_resistance[element] += self.debuff_rate
         get_emulation_logger().log_effect(f"🛡️ {self.target.name} 的抗性降低效果结束")
+
+    def update(self):
+        super().update(None)
 
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""
@@ -313,7 +321,7 @@ class ElementalInfusionEffect(Effect):
         return allow
 
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, ElementalInfusionEffect) and e.name == self.name), None)
         if existing:
@@ -325,7 +333,7 @@ class ElementalInfusionEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.element_type}元素附魔")
         
     def remove(self):
-        self.character.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}元素附魔效果结束")
 
 class ShieldEffect(Effect):
@@ -338,7 +346,7 @@ class ShieldEffect(Effect):
         self.max_shield_value = shield_value  # 记录最大护盾值
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, ShieldEffect) and e.name == self.name), None)
         if existing:
@@ -350,7 +358,7 @@ class ShieldEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
         
     def remove(self):
-        self.character.remove_shield(self)
+        super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
 
 class ElementalMasteryBoostEffect(Effect):
@@ -363,7 +371,7 @@ class ElementalMasteryBoostEffect(Effect):
         
     def apply(self,character):
         self.current_character = character
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, ElementalMasteryBoostEffect) and e.name == self.name), None)
         if existing:
@@ -379,7 +387,7 @@ class ElementalMasteryBoostEffect(Effect):
 
     def remove(self):
         self.removeEffect()
-        self.current_character.remove_effect(self)
+        super().remove()
 
     def removeEffect(self):
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
@@ -394,7 +402,7 @@ class EnergyRechargeBoostEffect(Effect):
         self.attribute_name = '元素充能效率'
         
     def apply(self):
-        # 防止重复应用
+        super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, EnergyRechargeBoostEffect) and e.name == self.name), None)
         if existing:
@@ -410,7 +418,7 @@ class EnergyRechargeBoostEffect(Effect):
 
     def remove(self):
         self.removeEffect()
-        self.character.remove_effect(self)
+        super().remove()
 
     def removeEffect(self):
         self.character.attributePanel[self.attribute_name] -= self.bonus
@@ -426,6 +434,7 @@ class ElectroChargedEffect(Effect):
         self.damage = damage
         
     def apply(self):
+        super().apply()
         electroCharged = next((e for e in self.target.effects if isinstance(e, ElectroChargedEffect)), None)
         if electroCharged:
             return
@@ -433,7 +442,7 @@ class ElectroChargedEffect(Effect):
         get_emulation_logger().log_effect(f"{self.target.name}获得感电")
 
     def remove(self):
-        self.target.remove_effect(self)
+        super().remove()
         get_emulation_logger().log_effect(f"{self.target.name}: 感电结束")
 
     def update(self, target):

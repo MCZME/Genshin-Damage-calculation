@@ -168,6 +168,7 @@ class LuanlanEffect(Effect,EventHandler):
         self.element_applied = False  # 标记是否已应用元素转化
         
     def apply(self):
+        super().apply()
         get_emulation_logger().log_effect(f"🍃 {self.character.name}获得乱岚拨止效果！")
         self.character.add_effect(self)
 
@@ -181,7 +182,7 @@ class LuanlanEffect(Effect,EventHandler):
         if self.character.level >= 20:
             EventBus.unsubscribe(EventType.BEFORE_SWIRL, self)
         self.character.falling_speed = 5
-        self.character.remove_effect(self)
+        super().remove()
 
     def update(self, target):
         super().update(target)

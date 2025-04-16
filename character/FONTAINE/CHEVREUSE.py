@@ -27,6 +27,7 @@ class HealingFieldEffect(Effect, EventHandler):
         ]
 
     def apply(self):
+        super().apply()
         healingFieldEffect = next((effect for effect in self.current_char.active_effects if isinstance(effect, HealingFieldEffect)), None)
         if healingFieldEffect:
             healingFieldEffect.duration = self.duration
@@ -73,7 +74,7 @@ class HealingFieldEffect(Effect, EventHandler):
     def remove(self):
         print("🩺 生命恢复效果消失")
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        self.current_char.remove_effect(self)
+        super().remove()
 
 class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
@@ -277,6 +278,7 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
         self.duration = 60
 
     def apply(self):
+        super().apply()
         coordinatedTacticsEffect = next((effect for effect in self.current_character.active_effects 
                                          if isinstance(effect, CoordinatedTacticsEffect)), None)
         if coordinatedTacticsEffect:
@@ -301,7 +303,7 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
         debuff.apply()
 
     def remove(self):
-        self.current_character.remove_effect(self)
+        super().remove()
         EventBus.unsubscribe(EventType.AFTER_OVERLOAD, self)
 
 class PassiveSkillEffect_1(TalentEffect):
