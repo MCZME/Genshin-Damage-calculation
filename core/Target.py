@@ -107,7 +107,7 @@ class Target:
                 
                 # 记录反应类型
                 if event.data['elementalReaction'].reaction_type[0] == '剧变反应':
-                    reaction_triggers.append(1)
+                    reaction_triggers.append(None)
                 else:
                     reaction_triggers.append(event.data['elementalReaction'].reaction_multiplier)
                 

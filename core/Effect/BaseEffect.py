@@ -35,26 +35,26 @@ class DamageBoostEffect(Effect):
         
     def apply(self):
         # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
             
-        self.character.add_effect(self)
+        self.current_character.add_effect(self)
         self.setEffect()
 
     def setEffect(self):
-        self.character.attributePanel[self.attribute_name] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+        self.current_character.attributePanel[self.attribute_name] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
 
     def remove(self):
         self.romoveEffect()
-        self.character.remove_effect(self)
+        self.current_character.remove_effect(self)
 
     def romoveEffect(self):
-        self.character.attributePanel[self.attribute_name] -= self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的伤害加成效果结束")
+        self.current_character.attributePanel[self.attribute_name] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
 
 class CritRateBoostEffect(Effect):
     """暴击率提升效果"""
@@ -95,12 +95,12 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
         self.element_type = element_type  # 元素类型
     
     def setEffect(self):
-        self.character.attributePanel[self.element_type+'元素伤害加成'] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+        self.current_character.attributePanel[self.element_type+'元素伤害加成'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
     
     def romoveEffect(self):
-        self.character.attributePanel[self.element_type+'元素伤害加成'] -= self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}的{self.element_type}元素伤害提升效果结束")
+        self.current_character.attributePanel[self.element_type+'元素伤害加成'] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的{self.element_type}元素伤害提升效果结束")
 
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""

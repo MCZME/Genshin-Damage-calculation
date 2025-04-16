@@ -104,6 +104,9 @@ class ElementalReactionHandler(EventHandler):
                 '等级系数': r.lv_multiplier,
                 '反应系数': r.reaction_multiplier
             })
+        if r.reaction_type[1] == ElementalReactionType.SWIRL:
+            r.damage.reaction_data['目标元素'] = r.target_element
+
         eventType =  Reaction_to_EventType.get(r.reaction_type[1],None)
         if eventType:
             EventBus.publish(GameEvent(eventType,
