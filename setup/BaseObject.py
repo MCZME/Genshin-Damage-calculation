@@ -1,5 +1,5 @@
 from abc import ABC,abstractmethod
-from setup.Event import DamageEvent, EventBus, EventType, GameEvent
+from setup.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent
 from setup.Logger import get_emulation_logger
 from setup.Team import Team
 from setup.Tool import GetCurrentTime, summon_energy
@@ -79,3 +79,26 @@ class LightningBladeObject(baseObject):
         # 创建能量恢复事件
         summon_energy(1,Team.current_character,('雷',2))
         get_emulation_logger().log_effect('🔋 触发强能之雷，获得一个雷元素微粒')
+
+class EnergyDropsObject(baseObject):
+    def __init__(self, character, element_energy, life_frame=60, is_fixed=False, is_alone=False):
+        if element_energy[1] == 2:
+            name = "元素微粒"
+        elif element_energy[1] == 6:
+            name = "元素晶球"
+        else:
+            name = "元素能量"
+        super().__init__(name, life_frame)
+        self.character = character
+        self.element_energy = element_energy
+        self.is_fixed = is_fixed
+        self.is_alone = is_alone
+    
+    def on_frame_update(self, target):
+        pass
+
+    def on_finish(self, target):
+        super().on_finish(target)
+        energy_event = EnergyChargeEvent(self.character, self.element_energy, GetCurrentTime(),
+                                        is_fixed=self.is_fixed, is_alone=self.is_alone)
+        EventBus.publish(energy_event)
