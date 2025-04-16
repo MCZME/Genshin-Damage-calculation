@@ -15,7 +15,7 @@ from .widget.action_card import ActionCard
 from .result_window import ResultWindow
 from .widget.character_window import CharacterWindow
 from .widget.action_setting_dialog import ActionSettingDialog
-from setup.Logger import get_ui_logger
+from core.Logger import get_ui_logger
 
 class MainWindow(QMainWindow):
     """主窗口类"""
@@ -353,7 +353,7 @@ class MainWindow(QMainWindow):
         
     def _auto_load_last_config(self):
         """自动加载上次保存的配置文件"""
-        from setup.Config import Config
+        from core.Config import Config
         last_config = Config.get("ui.last_save_file")
         if last_config and os.path.exists(last_config):
             try:
@@ -715,7 +715,7 @@ class MainWindow(QMainWindow):
                 }, f, ensure_ascii=False, indent=2)
             
             # 更新最后保存的文件路径配置
-            from setup.Config import Config
+            from core.Config import Config
             Config.set("ui.last_save_file", filename)
             Config.save()
                 

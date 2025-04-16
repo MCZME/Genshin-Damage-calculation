@@ -1,12 +1,12 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
-from setup.Effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
-from setup.Calculation.HealingCalculation import Healing, HealingType
-from setup.Logger import get_emulation_logger
-from setup.Tool import GetCurrentTime, summon_energy
-from setup.Team import Team
+from core.BaseClass import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.Effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
+from core.Calculation.HealingCalculation import Healing, HealingType
+from core.Logger import get_emulation_logger
+from core.Tool import GetCurrentTime, summon_energy
+from core.Team import Team
 
 class BladeRollerEffect(Effect,EventHandler):
     """刃轮巡猎效果"""

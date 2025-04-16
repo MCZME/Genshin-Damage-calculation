@@ -1,6 +1,6 @@
 from character.character import Character
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Target import Target
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Target import Target
 
 
 def test_ELECTRO_CHARGED():

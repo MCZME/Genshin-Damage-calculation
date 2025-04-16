@@ -1,10 +1,10 @@
 from character.character import Character
-from setup.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect
-from setup.Effect.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
-from setup.Calculation.HealingCalculation import Healing, HealingType
-from setup.Tool import GetCurrentTime
+from core.BaseClass import ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect
+from core.Effect.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from core.Calculation.HealingCalculation import Healing, HealingType
+from core.Tool import GetCurrentTime
 
 class InspirationFieldEffect(Effect, EventHandler):
     """鼓舞领域效果"""

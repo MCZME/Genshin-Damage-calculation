@@ -1,11 +1,11 @@
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
-from setup.DataHandler import clear_data
-from setup.Event import EventBus, FrameEndEvent
-from setup.Logger import get_emulation_logger
-from setup.Map import CharacterClassMap, WeaponClassMap
-from setup.Target import Target
-from setup.Team import Team
+from core.DataHandler import clear_data
+from core.Event import EventBus, FrameEndEvent
+from core.Logger import get_emulation_logger
+from core.Map import CharacterClassMap, WeaponClassMap
+from core.Target import Target
+from core.Team import Team
 import threading
 
 class Emulation():

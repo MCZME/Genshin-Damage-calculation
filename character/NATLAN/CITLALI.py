@@ -1,13 +1,13 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
-from setup.Effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
-from setup.BaseObject import baseObject
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType
-from setup.Calculation.ShieldCalculation import Shield
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
-from setup.Logger import get_emulation_logger
+from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
+from core.Effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
+from core.BaseObject import baseObject
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType
+from core.Calculation.ShieldCalculation import Shield
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
+from core.Logger import get_emulation_logger
 
 class FiveHeavensRainEffect(ResistanceDebuffEffect):
     """五重天的寒雨效果"""

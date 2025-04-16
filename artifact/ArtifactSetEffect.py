@@ -1,10 +1,10 @@
 from character.character import Character
-from setup.Effect.ArtfactEffect import CinderCityEffect, MarechausseeHunterEffect, ThirstEffect
-from setup.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect
-from setup.Calculation.DamageCalculation import DamageType
-from setup.Event import EventBus, EventHandler, EventType
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
+from core.Effect.ArtfactEffect import CinderCityEffect, MarechausseeHunterEffect, ThirstEffect
+from core.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect
+from core.Calculation.DamageCalculation import DamageType
+from core.Event import EventBus, EventHandler, EventType
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
 
 class ArtifactEffect(EventHandler):
     def __init__(self,name):

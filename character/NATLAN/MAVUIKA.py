@@ -1,14 +1,14 @@
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
-from setup.Effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
-from setup.BaseObject import baseObject
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
-from setup.Logger import get_emulation_logger
+from core.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
+from core.Effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
+from core.BaseObject import baseObject
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
+from core.Logger import get_emulation_logger
 
 class RingOfSearingRadianceObject(baseObject):
     def __init__(self, character, life_frame=0):

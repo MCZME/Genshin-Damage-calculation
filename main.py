@@ -1,12 +1,12 @@
-from setup.BaseEventHandler import (ElementalEnergyEventHandler, FrameEndEventHandler, 
+from core.BaseEventHandler import (ElementalEnergyEventHandler, FrameEndEventHandler, 
                                     NightsoulBurstEventHandler, ReactionsEventHandler)
-from setup.Calculation.DamageCalculation import DamageCalculateEventHandler
-from setup.Config import Config
-from setup.ElementalReaction import ElementalReactionHandler
-from setup.Event import EventBus, EventType
-from setup.Calculation.HealingCalculation import HealingCalculateEventHandler, HurtEventHandler
-from setup.Logger import logger_init, manage_log_files
-from setup.Calculation.ShieldCalculation import ShieldCalculationEventHandler
+from core.Calculation.DamageCalculation import DamageCalculateEventHandler
+from core.Config import Config
+from core.ElementalReaction import ElementalReactionHandler
+from core.Event import EventBus, EventType
+from core.Calculation.HealingCalculation import HealingCalculateEventHandler, HurtEventHandler
+from core.Logger import logger_init, manage_log_files
+from core.Calculation.ShieldCalculation import ShieldCalculationEventHandler
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 

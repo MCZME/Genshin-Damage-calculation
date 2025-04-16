@@ -1,6 +1,6 @@
-from setup.Effect.WeaponEffect import DuskGlowEffect, MorningGlowEffect, TEFchargedBoostEffect
-from setup.Event import EventBus, EventHandler, EventType
-from setup.Effect.BaseEffect import AttackBoostEffect
+from core.Effect.WeaponEffect import DuskGlowEffect, MorningGlowEffect, TEFchargedBoostEffect
+from core.Event import EventBus, EventHandler, EventType
+from core.Effect.BaseEffect import AttackBoostEffect
 from weapon.weapon import Weapon
 
 catalyst = ['溢彩心念','讨龙英杰谭','万世流涌大典']

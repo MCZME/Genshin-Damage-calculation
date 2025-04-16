@@ -1,14 +1,14 @@
 from character.NATLAN.natlan import Natlan
-from setup.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
-from setup.BaseObject import baseObject
-from setup.Effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
-from setup.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
-from setup.Calculation.HealingCalculation import Healing, HealingType
-from setup.Logger import get_emulation_logger
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
-from setup.Effect.BaseEffect import Effect
-from setup.Event import EventHandler
+from core.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
+from core.BaseObject import baseObject
+from core.Effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
+from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
+from core.Calculation.HealingCalculation import Healing, HealingType
+from core.Logger import get_emulation_logger
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
+from core.Effect.BaseEffect import Effect
+from core.Event import EventHandler
 
 class LightningDashEffect(Effect, EventHandler):
     """电掣雷驰效果"""

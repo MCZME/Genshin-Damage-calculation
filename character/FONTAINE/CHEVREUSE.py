@@ -1,13 +1,13 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
-from setup.BaseObject import ArkheObject, baseObject
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
-from setup.Calculation.HealingCalculation import Healing, HealingType
-from setup.Effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
+from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.BaseObject import ArkheObject, baseObject
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from core.Calculation.HealingCalculation import Healing, HealingType
+from core.Effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
 
 class HealingFieldEffect(Effect, EventHandler):
     """持续恢复生命值效果"""

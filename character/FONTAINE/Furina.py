@@ -1,15 +1,15 @@
 import types
 from character.FONTAINE.fontaine import Fontaine
-from setup.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, 
+from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, 
                              NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
-from setup.Effect.BaseEffect import Effect
-from setup.BaseObject import ArkheObject, baseObject
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
-from setup.Calculation.HealingCalculation import Healing, HealingType
-from setup.Logger import get_emulation_logger
-from setup.Team import Team
-from setup.Tool import GetCurrentTime, summon_energy
+from core.Effect.BaseEffect import Effect
+from core.BaseObject import ArkheObject, baseObject
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
+from core.Calculation.HealingCalculation import Healing, HealingType
+from core.Logger import get_emulation_logger
+from core.Team import Team
+from core.Tool import GetCurrentTime, summon_energy
 
 class ArkheAttackHandler(EventHandler):
     def __init__(self, character):

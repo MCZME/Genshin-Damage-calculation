@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QComboBox, QHBoxLayout
 from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QLineSeries, QValueAxis)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QFont
-from setup.Logger import get_ui_logger
+from core.Logger import get_ui_logger
 
 class DpsPieSelectorWidget(QWidget):
     """带下拉选择框的双饼图组件"""

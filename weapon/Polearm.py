@@ -1,8 +1,8 @@
-from setup.Calculation.DamageCalculation import DamageType
-from setup.Tool import summon_energy
+from core.Calculation.DamageCalculation import DamageType
+from core.Tool import summon_energy
 from weapon.weapon import Weapon
-from setup.Event import EventBus, EventType, EventHandler
-from setup.Effect.BaseEffect import AttackBoostEffect
+from core.Event import EventBus, EventType, EventHandler
+from core.Effect.BaseEffect import AttackBoostEffect
 
 polearm = ['且住亭御咄','渔获','沙中伟贤的对答']
 

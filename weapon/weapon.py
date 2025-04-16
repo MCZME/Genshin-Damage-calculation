@@ -1,6 +1,6 @@
 from DataRequest import DR
 from character.character import Character
-import setup.Tool as T
+import core.Tool as T
 
 class Weapon:
     def __init__(self,character:Character,id=1,level=1,lv=1):

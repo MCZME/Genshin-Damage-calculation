@@ -1,11 +1,11 @@
 from character.character import Character
-from setup.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
-from setup.Effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
-from setup.BaseObject import baseObject
-from setup.Calculation.DamageCalculation import Damage, DamageType
-from setup.Event import DamageEvent, EventBus
-from setup.Tool import GetCurrentTime, summon_energy
-from setup.Team import Team
+from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.Effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
+from core.BaseObject import baseObject
+from core.Calculation.DamageCalculation import Damage, DamageType
+from core.Event import DamageEvent, EventBus
+from core.Tool import GetCurrentTime, summon_energy
+from core.Team import Team
 
 class GuobaObject(baseObject):
     """锅巴对象"""

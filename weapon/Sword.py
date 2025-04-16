@@ -1,8 +1,8 @@
-from setup.Effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
-from setup.Calculation.DamageCalculation import DamageType
-from setup.Effect.WeaponEffect import STWElementSkillBoostEffect, STWHealthBoostEffect
-from setup.Event import EventBus, EventHandler, EventType
-import setup.Tool as T
+from core.Effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
+from core.Calculation.DamageCalculation import DamageType
+from core.Effect.WeaponEffect import STWElementSkillBoostEffect, STWHealthBoostEffect
+from core.Event import EventBus, EventHandler, EventType
+import core.Tool as T
 from weapon.weapon import Weapon
 
 

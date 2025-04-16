@@ -6,7 +6,7 @@ from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
 from character import character_table
 from ui.widget.image_loader_widget import ImageAvatar
 from weapon import weapon_table
-from setup.Logger import get_ui_logger
+from core.Logger import get_ui_logger
 
 class CharacterWindow(QDialog):
     """角色信息设置窗口"""
@@ -778,7 +778,7 @@ class CharacterWindow(QDialog):
     def save_character_data(self, save_all=True):
         """保存角色数据到文件"""
         from PySide6.QtWidgets import QFileDialog
-        from setup.Config import Config
+        from core.Config import Config
         
         self.logger.log_info(f"开始保存角色数据，保存全部: {save_all}")
         
@@ -811,7 +811,7 @@ class CharacterWindow(QDialog):
     def load_character_data(self, load_all=True):
         """从文件加载角色数据"""
         from PySide6.QtWidgets import QFileDialog
-        from setup.Config import Config
+        from core.Config import Config
         
         self.logger.log_info(f"开始加载角色数据，加载全部: {load_all}")
         
