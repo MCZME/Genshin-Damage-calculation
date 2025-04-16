@@ -258,6 +258,7 @@ class Character:
                     self.state.remove(CharacterState.JUMP)
             elif i == CharacterState.FALL:
                 self.height = max(0, self.height - self.falling_speed)
+                self.movement += self.falling_speed
                 if self.height <= 0:
                     self.state.remove(CharacterState.FALL)
                     EventBus.publish(GameEvent(EventType.AFTER_FALLING,T.GetCurrentTime(),character = self))

@@ -1,4 +1,4 @@
-from core.Event import DamageEvent, EventBus, EventHandler, EventType
+from core.Event import DamageEvent, EventBus
 from core.Tool import GetCurrentTime
 from core.Logger import get_emulation_logger
 
@@ -290,8 +290,10 @@ class ElementalInfusionEffect(Effect):
         self.last_trigger_time = 0  # 最后触发时间
         self.cooldown_reset_time = 2.5*60  # 冷却重置时间（秒）
         
-    def should_apply_infusion(self):
+    def should_apply_infusion(self,damage_type):
         """判断是否应该应用元素附着"""
+        if damage_type.value in ['重击', '下落攻击']:
+            return 1
         current_time = GetCurrentTime()
         time_since_last = current_time - self.last_trigger_time
         

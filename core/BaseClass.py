@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from character.character import CharacterState
 from core.Calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
 from core.Logger import get_emulation_logger
@@ -46,7 +47,7 @@ class SkillBase(ABC):
         self.cd = cd                         # 冷却时间
         self.cd_timer = 0                   # 冷却计时器
         self.last_use_time = 0  # 上次使用时间
-        self.cd_frame = 0
+        self.cd_frame = 1
         self.lv = lv
         self.element = element
         self.damageMultipiler = []
@@ -65,10 +66,7 @@ class SkillBase(ABC):
 
     def update(self,target):
         # 更新冷却计时器
-        if self.cd_timer > 0:
-            self.cd_timer -= GetCurrentTime() - self.last_use_time
-        if self.current_frame == self.cd_frame:
-            self.cd_timer = self.cd
+        self.cd_timer = GetCurrentTime() - self.last_use_time - self.cd_frame
  
         self.current_frame += 1
         if self.current_frame >= self.total_frames:
@@ -323,9 +321,6 @@ class PlungingAttackSkill(SkillBase):
             self._apply_impact_damage(target)
             event = PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
             EventBus.publish(event)
-            
-        self.caster.height = max(0, self.caster.height - self.v)
-        self.caster.movement += min(self.v, self.caster.height)
 
     def _apply_during_damage(self, target):
         """下坠期间持续伤害"""
@@ -361,6 +356,7 @@ class PlungingAttackSkill(SkillBase):
         if CharacterState.FALL in self.caster.state:
             self.caster.state.remove(CharacterState.FALL)
             EventBus.publish(GameEvent(EventType.AFTER_FALLING, GetCurrentTime(),character = self.caster))
+            self.caster.height = 0
 
     def on_interrupt(self):
         get_emulation_logger().log_error("💢 下落攻击被打断")

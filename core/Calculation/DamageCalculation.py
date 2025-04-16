@@ -309,7 +309,7 @@ class DamageCalculateEventHandler(EventHandler):
             return
         unoverridable = next((e for e in infusion_effects if e.is_unoverridable), None)
         if unoverridable:
-            damage.element = (unoverridable.element_type, unoverridable.should_apply_infusion())
+            damage.element = (unoverridable.element_type, unoverridable.should_apply_infusion(damage.damageType))
             return
         
         # 收集所有元素类型并处理克制关系（仅通过冷却检查的）
@@ -317,9 +317,9 @@ class DamageCalculateEventHandler(EventHandler):
         if len(elements) > 1:
             # 实现元素克制逻辑
             dominant_element = self.get_dominant_element(elements)
-            damage.element = (dominant_element, max(e.should_apply_infusion() for e in infusion_effects))
+            damage.element = (dominant_element, max(e.should_apply_infusion(damage.damageType) for e in infusion_effects))
         elif len(elements) == 1:
-            damage.element = (elements[0], infusion_effects[0].should_apply_infusion())
+            damage.element = (elements[0], infusion_effects[0].should_apply_infusion(damage.damageType))
         
     def get_dominant_element(self, elements):
         # 元素克制关系：水 > 火 > 冰
