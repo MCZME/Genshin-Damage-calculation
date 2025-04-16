@@ -1,6 +1,6 @@
 from character.character import Character
 from core.Effect.ArtfactEffect import CinderCityEffect, MarechausseeHunterEffect, ThirstEffect
-from core.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect
+from core.Effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
 from core.Calculation.DamageCalculation import DamageType
 from core.Event import EventBus, EventHandler, EventType
 from core.Team import Team
@@ -220,3 +220,25 @@ class GoldenTroupe(ArtifactEffect,EventHandler):
         elif event.event_type == EventType.AFTER_CHARACTER_SWITCH:
             if event.data['new_character'] == self.character:
                 self.last_on_field_time = event.frame
+
+class ViridescentVenerer(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('翠绿之影')
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['风元素伤害加成'] += 15
+
+    def four_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['反应系数提高'] = {'扩散':60}
+        EventBus.subscribe(EventType.BEFORE_SWIRL, self)
+
+    def handle_event(self, event):
+        if (event.event_type == EventType.BEFORE_SWIRL and 
+            event.data['elementalReaction'].source == self.character and
+            self.character.on_field):
+            element = event.data['elementalReaction'].target_element
+            effect = ResistanceDebuffEffect(self.name+f'-{element}', self.character, event.data['elementalReaction'].target, 
+                                            element, 40, 10*60)
+            effect.apply()

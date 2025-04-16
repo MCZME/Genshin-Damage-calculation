@@ -185,7 +185,7 @@ class Calculation:
         if reaction_multiplier:
             # 获取反应系数提高
             if self.damage.reaction_type[1] in list(r.keys()):
-                r1 = r[self.damage.reaction.reaction_type]
+                r1 = r[self.damage.reaction_type[1]]
             else:
                 r1 = 0
             self.damage.setPanel('反应系数',reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
@@ -263,10 +263,12 @@ class Calculation:
         r = {}
         if '反应系数提高' in list(attributePanel.keys()):
             r = attributePanel['反应系数提高']
-        if self.damage.name in list(r.keys()):
-            r1 = r[self.damage.name]
+        if self.damage.reaction_type[1] in list(r.keys()):
+            r1 = r[self.damage.reaction_type[1]]
         else:
             r1 = 0
+        if r1 != 0:
+            self.damage.setDamageData('反应伤害提高',r1)
         inc = self.damage.panel['反应系数'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         self.damage.damage = value
