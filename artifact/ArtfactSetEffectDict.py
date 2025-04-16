@@ -11,4 +11,5 @@ ArtfactSetEffectDict = {
     '昔日宗室之仪': NoblesseOblige(),
     '黄金剧团': GoldenTroupe(),
     '逐影猎人': MarechausseeHunter(),
+    '翠绿之影':ViridescentVenerer(),
 }

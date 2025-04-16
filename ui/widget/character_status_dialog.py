@@ -176,7 +176,7 @@ class CharacterStatusDialog(QDialog):
                 "元素属性": ['火元素伤害加成', '水元素伤害加成', '雷元素伤害加成', 
                           '冰元素伤害加成', '岩元素伤害加成', '风元素伤害加成', 
                           '草元素伤害加成', '物理伤害加成'],
-                "额外属性": ['生命值%', '攻击力%', '防御力%', '伤害加成']
+                "额外属性": ['生命值%', '攻击力%', '防御力%', '伤害加成', '反应系数提高']
             }
                 
             for category, props in categories.items():
@@ -221,6 +221,8 @@ class CharacterStatusDialog(QDialog):
                     if prop in ['生命值','攻击力','防御力']:
                         display_text = f"<b>{prop}:</b> {int(value)} + {(data['panel']['固定'+prop]+value*data['panel'][prop+'%']/100):.0f}"
                         value = data['panel']['固定'+prop]+ value*data['panel'][prop+'%']/100 + value
+                    elif prop == '反应系数提高':
+                        display_text = f"<b>{prop}:</b> {list(value.keys())[0]} - {list(value.values())[0]}"
                     else:
                         display_text = f"<b>{prop}:</b> {value}"
                     prop_container.data = { 
@@ -528,6 +530,9 @@ class CharacterStatusDialog(QDialog):
                     if prop in ['生命值','攻击力','防御力']:
                         display_text = f"<b>{prop}:</b> {int(value)} + {int(new_data['panel']['固定'+prop] + value*new_data['panel'][prop+'%']/100)}"
                         self.prop_widgets[prop].data['value'] = int(value) + new_data['panel']['固定'+prop]+value*new_data['panel'][prop+'%']/100
+                    elif prop == '反应系数提高':
+                        display_text = f"<b>{prop}:</b> {list(value.keys())[0]} - {list(value.values())[0]}"
+                        self.prop_widgets[prop].data['value'] = value
                     else:
                         display_text = f"<b>{prop}:</b> {value:.1f}"
                         self.prop_widgets[prop].data['value'] = value

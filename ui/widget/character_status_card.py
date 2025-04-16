@@ -192,7 +192,10 @@ class CharacterStatusCard(QWidget):
                 prop = item["prop"]
                 value = item["value"]
                 
-                display_text = f"<b>{prop}:</b> {value:.1f}"
+                if prop == '反应系数提高':
+                    display_text = f"<b>{prop}:</b> {list(value.keys())[0]}-{list(value.values())[0]}"
+                else:
+                    display_text = f"<b>{prop}:</b> {value:.1f}"
                 
                 prop_container = QWidget()
                 prop_container.setStyleSheet("""

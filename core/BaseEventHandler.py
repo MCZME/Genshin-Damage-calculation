@@ -143,12 +143,14 @@ class ReactionsEventHandler(EventHandler):
         e = event.data['elementalReaction']
         if event.event_type == EventType.BEFORE_OVERLOAD:
             damage = Damage(0,('火',0),DamageType.REACTION, '超载')
+            damage.reaction_type = e.damage.reaction_type
             damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
             EventBus.publish(GameEvent(EventType.AFTER_OVERLOAD, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_SUPERCONDUCT:
             damage = Damage(0,('冰',0),DamageType.REACTION, '超导')
+            damage.reaction_type = e.damage.reaction_type
             damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
@@ -156,12 +158,14 @@ class ReactionsEventHandler(EventHandler):
             EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_ELECTRO_CHARGED:
             damage = Damage(0,('雷',0),DamageType.REACTION, '感电')
+            damage.reaction_type = e.damage.reaction_type
             damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             ElectroChargedEffect(e.damage.source,e.damage.target,damage).apply()
             EventBus.publish(GameEvent(EventType.AFTER_ELECTRO_CHARGED, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_SWIRL:
             damage = Damage(0,(e.target_element,0),DamageType.REACTION, '扩散')
+            damage.reaction_type = e.damage.reaction_type
             damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
