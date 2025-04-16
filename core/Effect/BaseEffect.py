@@ -9,14 +9,15 @@ class Effect:
         self.duration = duration
         self.max_duration = self.duration
         self.name = f"{self.__class__.__name__}"
+        self.is_active = False
         
     def apply(self):
         """应用效果"""
-        pass
+        self.is_active = True
     
     def remove(self):
         """移除效果"""
-        pass
+        self.is_active = False
     
     def update(self,target):
         """更新持续时间"""

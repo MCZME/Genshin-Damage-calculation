@@ -278,8 +278,14 @@ class Character:
             self.maxHP = current_maxHP
 
     def update_effects(self,target):
+        remove_effects = []
         for effect in self.active_effects:
             effect.update(target)
+            if not effect.is_active:
+                remove_effects.append(effect)
+        for effect in remove_effects:
+            self.active_effects.remove(effect)
+            
         for talent in self.talent_effects:
             if talent is not None:
                 talent.update(target)
