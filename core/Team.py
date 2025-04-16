@@ -156,12 +156,12 @@ class Team:
 
     def update_objects(self,target):
         removed_objects = []
-        for object in Team.active_objects:
-            object.update(target)
-            if not object.is_active:
-                removed_objects.append(object)
-        for object in removed_objects:
-            Team.active_objects.remove(object)
+        for obj in Team.active_objects:
+            obj.update(target)
+            if not obj.is_active:
+                removed_objects.append(obj)
+        for obj in removed_objects:
+            Team.remove_object(obj)
 
     @classmethod
     def add_object(self,object):

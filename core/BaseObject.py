@@ -99,7 +99,8 @@ class EnergyDropsObject(baseObject):
         pass
 
     def on_finish(self, target):
-        super().on_finish(target)
+        get_emulation_logger().log_object(f'{self.character.name}的 {self.name} 存活时间结束')
+        self.is_active = False
         energy_event = EnergyChargeEvent(self.character, self.element_energy, GetCurrentTime(),
                                         is_fixed=self.is_fixed, is_alone=self.is_alone)
         EventBus.publish(energy_event)

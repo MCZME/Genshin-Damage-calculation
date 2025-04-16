@@ -40,6 +40,9 @@ class RingOfSearingRadianceObject(baseObject):
             effect = DefenseDebuffEffect(self.character,target, 20, 2,'灰烬的代价-焚曜之环')
             effect.apply()
 
+    def on_finish(self):
+        super().on_finish(None)
+
 class ElementalSkill(SkillBase, EventHandler):
     def __init__(self, lv):
         super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 
@@ -57,12 +60,8 @@ class ElementalSkill(SkillBase, EventHandler):
             else:
                 caster.switch_to_mode('驰轮车')
             return False
-        if self.cd_timer > 0:
-            get_emulation_logger().log_error(f'{self.name}技能还在冷却中')
-            return False  # 技能仍在冷却中
-        self.caster = caster
-        self.current_frame = 0
-        self.last_use_time = GetCurrentTime()
+        if not super().start(caster):
+            return False
         # 初始化形态
         caster.gain_night_soul(self.caster.max_night_soul)
         initial_mode = '驰轮车' if hold else '焚曜之环'
@@ -186,6 +185,9 @@ class ElementalBurst(SkillBase, EventHandler):
         damage = Damage(damageMultipiler=self.damageMultipiler['坠日斩'][self.lv-1]+self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1],
                         element=('火',1), damageType=DamageType.BURST,
                         name="坠日斩")
+        damage.setDamageData('死生之炉提升', self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1])
+        damage.setDamageData('夜魂伤害', True)
+        damage.setDamageData('不可覆盖', True)
         damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
         EventBus.publish(damageEvent)
 
@@ -389,6 +391,8 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name='驰轮车重击'
         )
+        damage.setDamageData("夜魂伤害",True)
+        damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
@@ -404,6 +408,8 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name='驰轮车重击终结'
         )
+        damage.setDamageData("夜魂伤害",True)
+        damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 

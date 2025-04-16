@@ -79,7 +79,7 @@ class ScrolloftheHeroOfCinderCity(ArtifactEffect):
 
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
-            summon_energy(5, self.character, ('无', 6),True,True)
+            summon_energy(1, self.character, ('无', 6),True,True)
         elif event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             reaction = event.data['elementalReaction']
             if reaction.source == self.character:
