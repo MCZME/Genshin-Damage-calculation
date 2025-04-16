@@ -148,10 +148,20 @@ class Team:
     def update(self,target):
         for character in Team.team:
             character.update(target)
-        for object in Team.active_objects:
-            object.update(target)
+        
+        self.update_objects()
+
         if Team.current_frame > 0:
             Team.current_frame -= 1
+
+    def update_objects(self):
+        removed_objects = []
+        for object in Team.active_objects:
+            object.update()
+            if object.is_destroyed:
+                removed_objects.append(object)
+        for object in removed_objects:
+            Team.active_objects.remove(object)
 
     @classmethod
     def add_object(self,object):
