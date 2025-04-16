@@ -1,12 +1,13 @@
 from core.Effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
 from core.Calculation.DamageCalculation import DamageType
-from core.Effect.WeaponEffect import STWElementSkillBoostEffect, STWHealthBoostEffect
+from core.Effect.WeaponEffect import FreedomSwornEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
 from core.Event import EventBus, EventHandler, EventType
+from core.Team import Team
 import core.Tool as T
 from weapon.weapon import Weapon
 
 
-sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉']
+sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓']
 
 class FluteOfEzpitzal(Weapon,EventHandler):
     ID = 38
@@ -75,4 +76,26 @@ class SplendorOfTranquilWaters(Weapon, EventHandler):
             else:
                 STWHealthBoostEffect(self.character).apply()
         
-        
+class FreedomSworn(Weapon):
+    ID = 42
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, FreedomSworn.ID, level, lv)
+        self.last_tigger_time = 0
+        self.stacks = 0
+        self.lasr_effect_time = -20*60
+
+    def skill(self):
+        self.character.attributePanel['伤害加成'] += 10
+        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
+            if event.data['elementalReaction'].source == self.character:
+                if T.GetCurrentTime() - self.last_tigger_time > 0.5*60 and T.GetCurrentTime() - self.lasr_effect_time > 20*60:
+                    self.stacks += 1
+                    self.last_tigger_time = T.GetCurrentTime()
+                    if self.stacks == 2:
+                        for c in Team.team:
+                            FreedomSwornEffect(self.character,c,self.lv).apply()
+                        self.stacks = 0
+                        self.lasr_effect_time = T.GetCurrentTime()

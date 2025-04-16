@@ -184,3 +184,35 @@ class TEFchargedBoostEffect(Effect,EventHandler):
             if event.data['damage'].damageType.value == '重击':
                 event.data['damage'].panel['伤害加成']+= self.bonus*self.stack
                 event.data['damage'].setDamageData(self.name, self.bonus*self.stack)
+
+class FreedomSwornEffect(Effect,EventHandler):
+    def __init__(self, character, current_character, lv):
+        super().__init__(character,duration=12*60)
+        self.bonus = [16,20,24,28,32]
+        self.attack_bonus = [20,25,30,35,40]
+        self.name = "苍古自由之誓"
+        self.lv = lv
+        self.current_character = current_character
+
+    def apply(self):
+        existing = next((e for e in self.current_character.active_effects 
+                      if isinstance(e, FreedomSwornEffect)), None)
+        if existing:
+            return
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel['攻击力%'] += self.attack_bonus[self.lv-1]
+        get_emulation_logger().log_effect(f'{self.current_character.name}获得{self.name}效果')
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+
+    def remove(self):
+        self.current_character.remove_effect(self)
+        self.current_character.attributePanel['攻击力%'] -= self.attack_bonus[self.lv-1]
+        get_emulation_logger().log_effect(f'{self.current_character.name}: {self.name}效果结束')
+
+    def handle_event(self, event):
+        if event.data['character'] != self.current_character:
+            return
+        if (event.event_type == EventType.BEFORE_DAMAGE_BONUS and
+            event.data['damage'].damageType in [DamageType.NORMAL,DamageType.CHARGED,DamageType.PLUNGING]):
+            event.data['damage'].panel['伤害加成']+= self.bonus[self.lv-1]
+            event.data['damage'].setDamageData(self.name, self.bonus[self.lv-1])

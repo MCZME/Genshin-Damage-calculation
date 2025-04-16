@@ -34,4 +34,5 @@ WeaponClassMap = {
     '灰河渡手':FleuveCendreFerryman,
     '静水流涌之辉':SplendorOfTranquilWaters,
     '万世流涌大典':TomeOfTheEternalFlow,
+    '苍古自由之誓':FreedomSworn,
 }
