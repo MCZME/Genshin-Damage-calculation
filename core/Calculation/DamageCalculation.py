@@ -1,10 +1,9 @@
 from enum import Enum
 import random
 from character.character import Character
-from core.Effect.BaseEffect import ElectroChargedEffect, ElementalInfusionEffect, ResistanceDebuffEffect
+from core.Effect.BaseEffect import ElementalInfusionEffect
 from core.Config import Config
-from core.ElementalReaction import ElementalReaction, ElementalReactionType
-from core.Event import DamageEvent, ElementalReactionEvent, EventBus, EventHandler, EventType, GameEvent
+from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent
 from core.Tool import GetCurrentTime
 from core.Logger import get_emulation_logger
 
@@ -159,7 +158,7 @@ class Calculation:
         return (5*self.source.level+500)/(self.target.defense+5*self.source.level+500)
 
     def resistance(self):
-        r = self.target.element_resistance[self.damage.element[0]]
+        r = self.target.current_resistance[self.damage.element[0]]
         if r>75:
             self.damage.setPanel('元素抗性',(1/(1+4*r))/100)
             return (1/(1+4*r))/100

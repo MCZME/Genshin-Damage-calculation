@@ -36,7 +36,7 @@ class FrameEndEventHandler(EventHandler):
                         'max_duration':e.max_duration,} for e in Emulation.target.effects}
             target_data['defense'] = Emulation.target.defense
             target_data['elemental_aura'] = [{'element':e['element'],'amount':e['current_amount']} for e in Emulation.target.elementalAura]
-            target_data['resistance'] = Emulation.target.current_resistance
+            target_data['resistance'] = Emulation.target.current_resistance.copy()
 
             send_to_handler(event.frame, {'character':character_data, 'target':target_data})
 

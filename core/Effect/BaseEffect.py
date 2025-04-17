@@ -272,14 +272,14 @@ class ResistanceDebuffEffect(Effect):
             return
 
         for element in self.elements:
-            self.target.element_resistance[element] -= self.debuff_rate
+            self.target.current_resistance[element] -= self.debuff_rate
         self.target.add_effect(self)
         get_emulation_logger().log_effect(f"🛡️ {self.character.name} 降低目标{','.join(self.elements)}抗性{self.debuff_rate}%")
         
     def remove(self):
         super().remove()
         for element in self.elements:
-            self.target.element_resistance[element] += self.debuff_rate
+            self.target.current_resistance[element] += self.debuff_rate
         get_emulation_logger().log_effect(f"🛡️ {self.target.name} 的抗性降低效果结束")
 
     def update(self):
