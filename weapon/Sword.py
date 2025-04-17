@@ -1,13 +1,13 @@
 from core.Effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
 from core.Calculation.DamageCalculation import DamageType
-from core.Effect.WeaponEffect import FreedomSwornEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
+from core.Effect.WeaponEffect import FreedomSwornEffect, RongHuaZhiGeEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
 from core.Event import EventBus, EventHandler, EventType
 from core.Team import Team
 import core.Tool as T
 from weapon.weapon import Weapon
 
 
-sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓']
+sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓','岩峰巡歌']
 
 class FluteOfEzpitzal(Weapon,EventHandler):
     ID = 38
@@ -99,3 +99,26 @@ class FreedomSworn(Weapon):
                             FreedomSwornEffect(self.character,c,self.lv).apply()
                         self.stacks = 0
                         self.lasr_effect_time = T.GetCurrentTime()
+
+class PeakPatrolSong(Weapon, EventHandler):
+    ID = 52
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, PeakPatrolSong.ID, level, lv)
+        self.last_trigger_time = 0
+        self.interval = 0.1 * 60  # 0.1秒冷却
+    
+    def skill(self):
+        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+    
+    def handle_event(self, event):
+        if event.data['character'] != self.character:
+            return
+            
+        current_time = T.GetCurrentTime()
+        if current_time - self.last_trigger_time < self.interval:
+            return
+            
+        if event.event_type in [EventType.AFTER_NORMAL_ATTACK, EventType.AFTER_PLUNGING_ATTACK]:
+            RongHuaZhiGeEffect(self.character, self.lv).apply()
+            self.last_trigger_time = current_time

@@ -3,6 +3,7 @@ from core.Effect.BaseEffect import Effect, HealthBoostEffect
 from core.Event import EventBus, EventHandler, EventType
 from core.Logger import get_emulation_logger
 from core.Tool import GetCurrentTime, summon_energy
+from core.Team import Team
 
 
 class STWHealthBoostEffect(HealthBoostEffect):
@@ -220,3 +221,89 @@ class FreedomSwornEffect(Effect,EventHandler):
             event.data['damage'].damageType in [DamageType.NORMAL,DamageType.CHARGED,DamageType.PLUNGING]):
             event.data['damage'].panel['伤害加成']+= self.bonus[self.lv-1]
             event.data['damage'].setDamageData(self.name, self.bonus[self.lv-1])
+
+class RongHuaZhiGeEffect(Effect):
+    """荣花之歌效果"""
+    def __init__(self, character, lv):
+        super().__init__(character, 6*60)
+        self.name = "荣花之歌"
+        self.lv = lv
+        self.defense_bonus = [8,10,12,14,16]
+        self.damage_bonus = [10,12.5,15,17.5,20]
+        self.stack = 0
+        self.last_trigger = 0
+        self.interval = 0.1*60  # 0.1秒冷却
+
+    def apply(self):
+        super().apply()
+        existing = next((e for e in self.character.active_effects 
+                      if isinstance(e, RongHuaZhiGeEffect)), None)
+        if existing:
+            if GetCurrentTime() - existing.last_trigger > self.interval:
+                if existing.stack < 2:
+                    existing.removeEffect()
+                    existing.stack += 1
+                    existing.setEffect()
+                existing.last_trigger = GetCurrentTime()
+                existing.duration = self.duration
+                
+                # 检查是否达到2层并触发队伍效果
+                if existing.stack == 2:
+                    for c in Team.team:
+                        RongHuaZhiGeTeamEffect(self.character, c, self.lv).apply()
+            return
+            
+        self.character.add_effect(self)
+        self.stack = 1
+        self.setEffect()
+        self.last_trigger = GetCurrentTime()
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果(层数:{self.stack})")
+
+    def setEffect(self):
+        self.character.attributePanel['防御力%'] += self.defense_bonus[self.lv -1] * self.stack
+        for element in ['水', '火', '风', '雷', '冰', '岩']:
+            self.character.attributePanel[f'{element}元素伤害加成'] += self.damage_bonus[self.lv -1] * self.stack
+
+    def removeEffect(self):
+        self.character.attributePanel['防御力%'] -= self.defense_bonus[self.lv -1] * self.stack
+        for element in ['水', '火', '风', '雷', '冰', '岩']:
+            self.character.attributePanel[f'{element}元素伤害加成'] -= self.damage_bonus[self.lv -1] * self.stack
+
+    def remove(self):
+        super().remove()
+        self.removeEffect()
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
+
+class RongHuaZhiGeTeamEffect(Effect):
+    """荣花之歌队伍效果"""
+    def __init__(self, character, current_character, lv):
+        super().__init__(character, 15*60)
+        self.name = "荣花之歌-队伍"
+        self.lv = lv
+        self.bonus_per_1000 = [8,10,12,14,16]
+        self.max_bonus = [25.6,32,38.4,44.8,51.2]
+        self.current_character = current_character
+        self.defense = (self.character.attributePanel['防御力'] * 
+                   (1 + self.character.attributePanel['防御力%'] / 100) + 
+                   self.character.attributePanel['固定防御力'])
+
+    def apply(self):
+        super().apply()
+        existing = next((e for e in self.current_character.active_effects 
+                      if isinstance(e, RongHuaZhiGeTeamEffect)), None)
+        if existing:
+            existing.duration = self.duration
+            return
+
+        self.current_character.add_effect(self)
+        for element in ['水', '火', '风', '雷', '冰', '岩']:
+            self.current_character.attributePanel[f'{element}元素伤害加成'] += min((self.defense/1000)*self.bonus_per_1000[self.lv -1], 
+                                                                             self.max_bonus[self.lv -1])
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
+
+    def remove(self):
+        super().remove()
+        for element in ['水', '火', '风', '雷', '冰', '岩']:
+            self.current_character.attributePanel[f'{element}元素伤害加成'] -= min((self.defense/1000)*self.bonus_per_1000[self.lv -1], 
+                                                                             self.max_bonus[self.lv -1])
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}效果结束")
