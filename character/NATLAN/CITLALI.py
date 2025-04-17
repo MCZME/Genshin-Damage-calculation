@@ -292,6 +292,12 @@ class WhiteStarDressEffect(Effect,EventHandler):
         self.star_blade_stacks = 0 # 星刃层数
         self.last_reaction_time = -9999
         self.reaction_cooldown = 8 * 60  # 8秒冷却
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">除茜特菈莉外的附近的当前场上角色的
+        普通攻击、重击、下落攻击、元素战技或元素爆发造成伤害时，
+        将消耗1层「星刃」，提升造成的伤害，提升值相当于茜特菈莉元素精通的200%。</span></p>
+        """
         
     def apply(self):
         super().apply()

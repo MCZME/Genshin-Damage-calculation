@@ -309,15 +309,18 @@ class CharacterStatusDialog(QDialog):
             for key, value in data['effect'].items():
                 duration = value.get('duration', 0)
                 max_duration = value.get('max_duration', 0)
+                msg = value.get('msg', '')
                 effect_widget = EffectDisplayWidget(
                     name=key,
                     duration=duration,
-                    max_duration=max_duration)
+                    max_duration=max_duration,
+                    msg=msg)
                 effect_widget.data = {
                     "type": "Effect",
                     "name": key,
                     "duration": value.get('duration', 0),
-                    "max_duration": value.get('max_duration', 0)
+                    "max_duration": value.get('max_duration', 0),
+                    "msg": value.get('msg', '')
                     }
                 self.effect_layout.addWidget(effect_widget, row, col)
                 self.effects_data[key] = effect_widget.data
@@ -634,14 +637,16 @@ class CharacterStatusDialog(QDialog):
                     # 更新现有效果
                     self.effect_widgets[effect_name].update_duration(
                         effect_data['duration'],
-                        effect_data['max_duration']
+                        effect_data['max_duration'],
+                        effect_data['msg']
                     )
                     
                     self.effects_data[effect_name] = {
                         "type": "Effect",
                         "name": effect_name,
                         "duration": effect_data.get('duration', 0),
-                        "max_duration": effect_data.get('max_duration', 0)
+                        "max_duration": effect_data.get('max_duration', 0),
+                        "msg": effect_data.get('msg', '')
                     }
 
                     # 如果效果已结束，也移除它
@@ -657,13 +662,15 @@ class CharacterStatusDialog(QDialog):
                         effect_widget = EffectDisplayWidget(
                             name=effect_name,
                             duration=effect_data['duration'],
-                            max_duration=effect_data['max_duration']
+                            max_duration=effect_data['max_duration'],
+                            msg=effect_data['msg']
                         )
                         effect_widget.data = {
                             "type": "Effect",
                             "name": effect_name,
                             "duration": effect_data.get('duration', 0),
-                            "max_duration": effect_data.get('max_duration', 0)
+                            "max_duration": effect_data.get('max_duration', 0),
+                            "msg": effect_data.get('msg', '')
                         }
                         self.effects_data[effect_name]=effect_widget.data
                         
@@ -754,11 +761,20 @@ class EnergyDisplayWidget(QWidget):
 
 class EffectDisplayWidget(QWidget):
     """效果持续时间显示组件"""
-    def __init__(self, name="", duration=0, max_duration=0, parent=None):
+    def __init__(self, name="", duration=0, max_duration=0, msg="",parent=None):
         super().__init__(parent)
         self.name = name
         self.setFixedHeight(24)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setToolTip(msg)
+        self.setStyleSheet("""
+            QToolTip {
+                background-color: rgba(100, 160, 220, 0.8);
+                border-radius: 0;
+            }
+        """)
         
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -792,13 +808,14 @@ class EffectDisplayWidget(QWidget):
         if max_duration > 0:
             self.update_duration(duration, max_duration)
     
-    def update_duration(self, duration, max_duration=None):
+    def update_duration(self, duration, max_duration=None, msg=""):
         """更新持续时间显示"""
         if max_duration is not None and max_duration == float('inf'):
             self.progress.show()
             self.combo_label.show()
             self.combo_label.setText(self.name)
             self.combo_label.setGeometry(0, 0, self.width(), self.height())
+            self.setToolTip(msg)
         else:
             self.progress.show()
             self.combo_label.show()
@@ -807,6 +824,7 @@ class EffectDisplayWidget(QWidget):
             self.progress.setValue(min(duration, safe_max_duration))
             self.combo_label.setText(f"{self.name} {min(duration, safe_max_duration)}/{safe_max_duration}")
             self.combo_label.setGeometry(0, 0, self.progress.width(), self.progress.height())
+            self.setToolTip(msg)
 
     def resizeEvent(self, event):
         """重写resize事件以保持组合标签居中"""

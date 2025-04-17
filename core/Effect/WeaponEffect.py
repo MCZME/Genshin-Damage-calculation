@@ -32,6 +32,10 @@ class STWHealthBoostEffect(HealthBoostEffect):
 
     def setEffect(self):
         self.character.attributePanel['生命值%'] += self.bonus * self.stack
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.stack}*{self.bonus}%生命值</span></p>
+        """
 
     def removeEffect(self):
         self.character.attributePanel['生命值%'] -= self.bonus * self.stack

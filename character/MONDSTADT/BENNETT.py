@@ -21,7 +21,11 @@ class InspirationFieldEffect(Effect, EventHandler):
                       (10.8, 1270.24), (11.4, 1371.29), (12, 1477.15), (12.75, 1587.82), (13.5, 1703.31), (14.25, 1823.6)],
             "攻击力加成比例": [56, 60.2, 64.4, 70, 74.2, 78.4, 84, 89.6, 95.2, 100.8, 106.4, 112, 119, 126, 133]
         }
-        self.last_heal_time = 0  # 上次治疗时间（帧数）
+        self.last_heal_time = 0
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">班尼特大招</span></p>
+        """
 
         # 订阅领域相关事件
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)

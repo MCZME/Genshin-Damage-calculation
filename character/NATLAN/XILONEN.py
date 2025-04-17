@@ -15,6 +15,11 @@ class BladeRollerEffect(Effect,EventHandler):
         self.name = "刃轮巡猎"
         self.is_effect = False
         self.Multipiler = [9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51]
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">在这种状态下进行普通攻击与下落攻击时，
+        将转为基于希诺宁的防御力，造成具有夜魂性质且无法被附魔覆盖的岩元素伤害。</span></p>
+        """
 
     def apply(self):
         super().apply()
@@ -237,6 +242,10 @@ class JoyfulRhythmEffect(Effect, EventHandler):
             (197.6, 1189.35), (208, 1281.16), (221, 1377.15), (234, 1477.31), (247, 1581.65)
         ]
         self.current_character = character
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">持续恢复血量</span></p>
+        """
 
     def apply(self):
         super().apply()

@@ -238,6 +238,13 @@ class RainbowPlungeEffect(Effect, EventHandler):
     def __init__(self, caster):
         super().__init__(caster,duration=5*60)
         self.name = '虹色坠击'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">持续期间，瓦雷莎进行下落攻击时，
+        坠地冲击能额外造成50%攻击力的伤害；
+        若瓦雷莎处于炽热激情状态，
+        则坠地冲击改为能额外造成180%攻击力的伤害。</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -263,6 +270,10 @@ class ChaseEffect(Effect,EventHandler):
     def __init__(self, caster):
         super().__init__(caster,duration=5*60)
         self.name = '逐击'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">瓦雷莎将快速进行重击</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -396,6 +407,13 @@ class PassionEffect(Effect, EventHandler):
         self.name = '炽热激情'
         self.character = character
         self.start_time = GetCurrentTime()
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">在炽热激情状态下，
+        瓦雷莎的普通攻击、元素战技和元素爆发会分别得到对应的强化，
+        并能在进行下落攻击后的短暂时间内，
+        施放特殊的元素爆发。</span></p>
+        """
               
     def apply(self):
         super().apply()
@@ -441,6 +459,11 @@ class LimitDriveEffect(Effect,EventHandler):
         super().__init__(character, 1.5*60)
         self.name = '极限驱动'
         self.character = character
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">在这种状态下，瓦雷莎将能够无视元素爆发的冷却时间，
+        消耗更少的元素能量，施放特殊的元素爆发「闪烈降临·大火山崩落」。</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -599,6 +622,11 @@ class HeroReturnsEffect(Effect):
                 self.stacks[i] -= 1
         if self.get_stacks() == 0:
             self.remove()
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">瓦雷莎的攻击力提升35%</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">当前层数：{self.get_stacks()}</span></p>
+        """
 
 class PassiveSkillEffect_2(TalentEffect,EventHandler):
     def __init__(self):

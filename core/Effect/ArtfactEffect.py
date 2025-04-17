@@ -27,7 +27,7 @@ class CinderCityEffect(ElementalDamageBoostEffect):
                     existing.apply_element(i)
                 if self.character.Nightsoul_Blessing:
                     if i in existing.nightsoul_stacks.keys():
-                        existing.nightsoul_stacks[i] = self.nightsoul_bonus
+                        existing.nightsoul_stacks[i] = self.nightsoul_duration
                     else:
                         existing.apply_nightsoul(i)
             return
@@ -79,6 +79,11 @@ class CinderCityEffect(ElementalDamageBoostEffect):
             self.nightsoul_stacks[elemment] -= 1
         if sum(self.nightsoul_stacks.values()) <= 0 and sum(self.stacks.values()) <= 0:
             self.remove()
+        
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.current_character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{" ".join(k for k in self.stacks.keys())}元素伤害加成</span></p>
+        <p><span style="color: #faf8f0; font-size: 12pt;">夜魂：获得{" ".join(k for k in self.nightsoul_stacks.keys())}元素伤害加成</span></p>
+        """
 
 class ThirstEffect(Effect):
     """渴盼效果 - 记录治疗量"""
@@ -102,6 +107,10 @@ class ThirstEffect(Effect):
     def add_heal(self, amount):
         """添加治疗量记录"""
         self.heal_amount = min(self.heal_amount + amount, self.max_amount)
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">记录治疗量</span></p>
+        <p><span style="color: #faf8f0; font-size: 12pt;">当前治疗量:{amount:.2f}</span></p>
+        """
         
     def remove(self):
         # 渴盼结束时创建浪潮效果
@@ -118,6 +127,9 @@ class WaveEffect(Effect):
         self.bonus = heal_amount * 0.08  # 8%治疗量转化为伤害加成
         self.max_hits = 5
         self.hit_count = 0
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">基于治疗量提升伤害</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -170,6 +182,10 @@ class MarechausseeHunterEffect(CritRateBoostEffect):
         get_emulation_logger().log_effect(f"🗡️ {self.current_character.name}获得逐影猎人效果")
 
     def setEffect(self):
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.stack} * 12 暴击率</span></p>
+        """
         self.current_character.attributePanel[self.attribute_name] += self.bonus * self.stack
 
     def removeEffect(self):
