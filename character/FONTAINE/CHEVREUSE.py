@@ -26,6 +26,11 @@ class HealingFieldEffect(Effect, EventHandler):
             (5.07, 609.93), (5.33, 657.01), (5.67, 706.24), (6, 757.61), (6.33, 811.11)
         ]
 
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">生命恢复,持续恢复血量</span></p>
+        """
+
     def apply(self):
         super().apply()
         healingFieldEffect = next((effect for effect in self.current_char.active_effects if isinstance(effect, HealingFieldEffect)), None)
@@ -276,6 +281,10 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
         self.name = '协同战法'
         self.elements = ['火', '雷']
         self.duration = 60
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">触发超载时减少目标火·雷抗</span></p>
+        """
 
     def apply(self):
         super().apply()

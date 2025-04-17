@@ -180,13 +180,17 @@ class ExplosionEffect(Effect):
         self.damage = damage
         self.duration = 2 * 60  # 2秒
         self.name = '内爆'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">2秒后造成火元素伤害</span></p>
+        """
 
     def apply(self):
         super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, ExplosionEffect) and e.name == self.name), None)
         if existing:
-            existing.duration = self.duration  # 刷新持续时间
+            existing.duration = self.duration
             return
             
         self.character.add_effect(self)
@@ -195,7 +199,6 @@ class ExplosionEffect(Effect):
         if self.duration > 0:
             self.duration -= 1
             if self.duration <= 0:
-                # 持续时间结束时触发爆炸
                 event = DamageEvent(
                     self.character,
                     target,
@@ -286,6 +289,10 @@ class PyroDamageBoostEffect(Effect):
         self.name = "大龙卷旋火轮"
         self.bonus = 15
         self.duration = 0
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">火元素伤害提升 {self.bonus:.2f}%</span></p>
+        """
 
     def apply(self):
         super().apply()

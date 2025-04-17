@@ -24,7 +24,8 @@ class FrameEndEventHandler(EventHandler):
                     'panel': character.attributePanel.copy(),
                     'effect' : {e.name:{
                         'duration':e.duration,
-                        'max_duration':e.max_duration,} for e in character.active_effects},
+                        'max_duration':e.max_duration,
+                        'msg':e.msg} for e in character.active_effects},
                     'elemental_energy': {'element':character.elemental_energy.elemental_energy[0],
                                         'max_energy':character.elemental_energy.elemental_energy[1],
                                         'energy':character.elemental_energy.current_energy},

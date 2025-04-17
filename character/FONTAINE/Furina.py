@@ -284,6 +284,14 @@ class UniversalExaltationEffect(Effect):
         self.current_character.attributePanel['受治疗加成'] += (self.healing_bonus_rates[self.burst_skill.lv - 1]*
                                                            self.burst_skill.fanfare_points)
         self.origin_fanfare_points = self.burst_skill.fanfare_points
+
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">根据气氛值获得伤害加成和受治疗加成</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">当前气氛值：{self.burst_skill.fanfare_points:.2f}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">伤害加成：{self.damage_bonus_rates[self.burst_skill.lv - 1] * self.burst_skill.fanfare_points:.2f}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">受治疗加成：{self.healing_bonus_rates[self.burst_skill.lv - 1] * self.burst_skill.fanfare_points:.2f}</span></p>
+        """
         # get_emulation_logger().log_effect(f"🎉 气氛值为{self.burst_skill.fanfare_points}")
         
     def remove_effect(self):
@@ -373,6 +381,10 @@ class EndlessWaltzEffect(Effect):
         self.name = "停不了的圆舞"
         self.heal_timer = 0
         self.heal_interval = 120
+        self.msg = f"""
+        <p><span style="color: #c0e4e6; font-size: 12pt;">{character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">持续治疗,芙宁娜天赋</span></p>
+        """
 
     def apply(self):
         super().apply()
@@ -499,6 +511,11 @@ class CenterOfAttentionEffect(Effect,EventHandler):
         self.attach_sequence = [1, 0, 0]  # 元素附着序列 (每3次攻击附着1次)
         self.sequence_pos = 0  # 当前序列位置
         self.last_attach_time = 0  # 上次元素附着时间(帧数)
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">芙宁娜的普通攻击、重击与下落攻击将转为无法被附魔覆盖的水元素伤害，
+        且造成的伤害提升，提升值相当于芙宁娜生命值上限的18%。</span></p>
+        """
 
     def apply(self):
         super().apply()
@@ -583,6 +600,11 @@ class CenterOfAttentionHealEffect(Effect):
         self.name = '万众瞩目_治疗'
         self.last_time = 0
         self.interval = 60
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">基于芙宁娜生命值上限的4%，为附近的队伍中所有角色恢复生命值，
+        持续2.9秒，重复触发将延长持续时间。</span></p>
+        """
 
     def apply(self):
         super().apply()

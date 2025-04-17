@@ -10,6 +10,7 @@ class Effect:
         self.max_duration = self.duration
         self.name = f"{self.__class__.__name__}"
         self.is_active = False
+        self.msg = ""
         
     def apply(self):
         """应用效果"""
@@ -30,9 +31,13 @@ class DamageBoostEffect(Effect):
     """伤害提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character, duration)
-        self.bonus = bonus  # 伤害提升
+        self.bonus = bonus
         self.name = name
-        self.attribute_name = '伤害加成'  # 属性名称
+        self.attribute_name = '伤害加成'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -61,9 +66,13 @@ class CritRateBoostEffect(Effect):
     """暴击率提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character, duration)
-        self.bonus = bonus  # 暴击率提升值
+        self.bonus = bonus
         self.name = name
-        self.attribute_name = '暴击率'  # 属性名称
+        self.attribute_name = '暴击率'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%暴击率</span></p>
+        """
         
     def apply(self, character=None):
         super().apply()
@@ -94,7 +103,11 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""
     def __init__(self, character, name, element_type, bonus, duration):
         super().__init__(character, name, bonus, duration)
-        self.element_type = element_type  # 元素类型
+        self.element_type = element_type
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%{self.element_type}元素伤害加成</span></p>
+        """
     
     def setEffect(self):
         self.current_character.attributePanel[self.element_type+'元素伤害加成'] += self.bonus
@@ -108,8 +121,12 @@ class AttackBoostEffect(Effect):
     """攻击力提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character, duration)
-        self.bonus = bonus  # 攻击力提升
+        self.bonus = bonus
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%攻击力</span></p>
+        """
         
     def apply(self,character=None):
         super().apply()
@@ -136,6 +153,10 @@ class AttackValueBoostEffect(Effect):
         super().__init__(character,duration)
         self.bonus = bonus
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}点攻击力</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -158,8 +179,12 @@ class HealthBoostEffect(Effect):
     """生命值提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character,duration)
-        self.bonus = bonus  # 生命值提升百分比
+        self.bonus = bonus
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%生命值</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -184,13 +209,17 @@ class DefenseBoostEffect(Effect):
         super().__init__(character, duration)
         self.bonus = bonus  # 防御力提升百分比
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%防御力</span></p>
+        """
         
     def apply(self):
         super().apply()
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, DefenseBoostEffect) and e.name == self.name), None)
         if existing:
-            existing.duration = self.duration  # 刷新持续时间
+            existing.duration = self.duration
             return
             
         self.character.add_effect(self)
@@ -206,8 +235,12 @@ class DefenseValueBoostEffect(Effect):
     """防御力值提升效果（固定数值）"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character,duration)
-        self.bonus = bonus  # 防御力固定值提升
+        self.bonus = bonus
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}点防御力</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -232,6 +265,10 @@ class DefenseDebuffEffect(Effect):
         self.target = target
         self.debuff_rate = debuff_rate
         self.name = name
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">降低{self.debuff_rate:.2f}%防御力</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -261,6 +298,10 @@ class ResistanceDebuffEffect(Effect):
         self.target = target
         self.elements = elements
         self.debuff_rate = debuff_rate
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">降低{','.join(self.elements)}抗{self.debuff_rate:.2f}%</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -298,6 +339,10 @@ class ElementalInfusionEffect(Effect):
         self.sequence_index = 0     # 当前序列索引
         self.last_trigger_time = 0  # 最后触发时间
         self.cooldown_reset_time = 2.5*60  # 冷却重置时间（秒）
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">{self.element_type}元素附魔</span></p>
+        """
         
     def should_apply_infusion(self,damage_type):
         """判断是否应该应用元素附着"""
@@ -365,9 +410,13 @@ class ElementalMasteryBoostEffect(Effect):
     """元素精通提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character, duration)
-        self.bonus = bonus  # 元素精通提升值
-        self.name = name  # 效果名称
-        self.attribute_name = '元素精通'  # 属性名称
+        self.bonus = bonus 
+        self.name = name
+        self.attribute_name = '元素精通'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">元素精通提升{self.bonus:.2f}点</span></p>
+        """
         
     def apply(self,character):
         self.current_character = character
@@ -397,9 +446,13 @@ class EnergyRechargeBoostEffect(Effect):
     """元素充能效率提升效果"""
     def __init__(self, character, name, bonus, duration):
         super().__init__(character, duration)
-        self.bonus = bonus  # 充能效率提升值
+        self.bonus = bonus
         self.name = name
         self.attribute_name = '元素充能效率'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">元素充能效率提升{self.bonus:.2f}%</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -432,6 +485,10 @@ class ElectroChargedEffect(Effect):
         self.target = target
         self.current_frame = 0
         self.damage = damage
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">感电</span></p>
+        """
         
     def apply(self):
         super().apply()

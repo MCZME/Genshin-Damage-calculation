@@ -166,6 +166,10 @@ class LuanlanEffect(Effect,EventHandler):
         self.name = "乱岚拨止"
         self.swirled_element = None  # 记录转化元素
         self.element_applied = False  # 标记是否已应用元素转化
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">下落攻击造成的伤害将转化为风元素伤害</span></p>
+        """
         
     def apply(self):
         super().apply()

@@ -17,6 +17,11 @@ class LightningDashEffect(Effect, EventHandler):
         self.name = '电掣雷驰'
         self.duration = 5*60
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">伊安珊的重击将转为施展豪烈的「雷霆飞缒」，
+        造成具有夜魂性质的雷元素范围伤害。</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -340,6 +345,10 @@ class WarmUpEffect(Effect, EventHandler):
         self.last_heal_time = -9999
         self.heal_interval = 2.8 * 60  # 2.8秒
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">伊安珊恢复至少1点夜魂值时，会为当前场上自己的角色恢复生命值，</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -384,6 +393,13 @@ class StandardActionEffect(Effect, EventHandler):
         self.enhanced_interval = 2.8 * 60  # 2.8秒冷却
         self.is_enhanced = False  # 是否触发强化恢复
         EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">持续期间，伊安珊的攻击力提升20%，通过元素爆发力的三原理中的动能标示恢复夜魂值时，
+        还会额外恢复1点夜魂值；此外，队伍中自己的当前场上角色消耗或恢复夜魂值后，
+        伊安珊下一次通过动能标示恢复夜魂值时，额外恢复的夜魂值提升至4点，该效果每2.8秒至多触发一次。
+       「标准动作」效果将在伊安珊的夜魂加持结束时消失。</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -541,11 +557,26 @@ class ForceExcitationEffect(Effect):
     def add_stack(self):
         if self.stacks < self.max_stacks:
             self.stacks += 1
+            self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">动能标示存在期间，除伊安珊外的队伍中自己的当前场上角色施放元素爆发后，
+            伊安珊将获得两层「原力激扬」，持续至动能标示退场，
+            每次召唤动能标示至多触发一次该效果；伊安珊通过动能标示恢复夜魂值时，
+            将消耗一层「原力激扬」，为伊安珊额外恢复4点夜魂值。
+            此外，若动能标示的夜魂值恢复量溢出，
+            伊安珊下一次通过动能标示恢复夜魂值时，
+            还会额外恢复相当于本次溢出量50%的夜魂值。</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">当前层数：{self.stacks}</span></p>
+            """
             get_emulation_logger().log_effect(f"{self.character.name} 获得1层{self.name}，当前层数：{self.stacks}")
             
     def consume_stack(self):
         if self.stacks > 0:
             self.stacks -= 1
+            self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
+            """
             get_emulation_logger().log_effect(f"{self.character.name} 消耗1层{self.name}，当前层数：{self.stacks}")
             return True
         return False

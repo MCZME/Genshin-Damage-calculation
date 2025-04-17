@@ -95,6 +95,12 @@ class FurnaceEffect(Effect, EventHandler):
         super().__init__(character, duration=7 * 60 + 49)
         self.consumed_will = consumed_will
         self.name = '死生之炉'
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">持续期间，玛薇卡的各种行为将不再消耗夜魂值，并提高玛薇卡的抗打断能力。
+        同时，依据施放时的战意，提升坠日斩、「古名解放」时的普通攻击与重击造成的伤害。
+        死生之炉状态将在玛薇卡退场时解除。</span></p>
+        """
         
     def apply(self):
         super().apply()
@@ -490,6 +496,10 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
     def _apply_boost(self):
         if self.current_holder:
             self.current_holder.attributePanel['伤害加成'] += self.current_boost * 100
+            self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.current_boost * 100:.2f}%伤害加成</span></p>
+        """
 
     def _remove_boost(self):
         if self.current_holder:
