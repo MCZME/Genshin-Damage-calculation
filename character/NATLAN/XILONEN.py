@@ -13,7 +13,7 @@ class BladeRollerEffect(Effect,EventHandler):
     def __init__(self, character):
         super().__init__(character,0)
         self.name = "刃轮巡猎"
-        self.is_active = False
+        self.is_effect = False
         self.Multipiler = [9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51]
 
     def apply(self):
@@ -52,16 +52,16 @@ class BladeRollerEffect(Effect,EventHandler):
             if event.data['character'] == self.character:
                 if self.character.current_night_soul == self.character.max_night_soul:
                     self.character.consume_night_soul(self.character.max_night_soul)
-                    self.is_active = True
+                    self.is_effect = True
     
     def update(self, target):
-        if self.is_active:
+        if self.is_effect:
             effect = ResistanceDebuffEffect('源音采样',self.character,target,
                                             list(self._get_element()),
                                             self.Multipiler[self.character.skill_params[1]-1],
                                             15*60)
             effect.apply()
-            self.is_active = False
+            self.is_effect = False
             get_emulation_logger().log_effect("🎧 源音采样生效")
             self.remove()
 
