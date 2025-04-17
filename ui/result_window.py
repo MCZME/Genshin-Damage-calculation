@@ -2,6 +2,7 @@ import queue as q
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
 from ui.widget.character_status_widget import CharacterStatusWidget
+from ui.widget.target_status_widget import TargetStatusWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
@@ -177,12 +178,16 @@ class ResultWindow(QMainWindow):
         # 连接按钮信号
         self.frame_button.clicked.connect(self.on_frame_button_clicked)
 
+        # 目标状态区域
+        self.target_section = TargetStatusWidget()
+        self.main_layout.addWidget(self.target_section)
+
         # 数据分析结果区域
         self.analysis_section = AnalysisResultWidget()
         self.main_layout.addWidget(self.analysis_section)
         
         self.setCentralWidget(self.main_widget)
-        self.update_damage_chart()
+        self.set_data()
 
     def on_frame_button_clicked(self):
         """处理帧数输入按钮点击事件"""
@@ -193,7 +198,7 @@ class ResultWindow(QMainWindow):
         except ValueError:
             get_ui_logger().log_error(f"无效的帧数输入: {self.frame_input.text()}")
     
-    def update_damage_chart(self):
+    def set_data(self):
         damage_data = send_to_window('damage')
         if not damage_data:
             return
@@ -203,15 +208,18 @@ class ResultWindow(QMainWindow):
         
         self.analysis_section.set_data(damage_data)
 
+        self.target_section.set_data(send_to_window('target'))
+
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""
         self.frame_input.setText(str(frame))
         self.update_frame(frame)
 
     def update_frame(self, frame):
-        """更新当前帧的角色状态显示"""
+        """更新状态显示"""
         self.character_status.update_frame(frame)
         self.detail_info_section.update_info(frame)
+        self.target_section.update_frame(frame)
 
     def _on_simulation_progress_updated(self, queue):
         """更新模拟进度"""

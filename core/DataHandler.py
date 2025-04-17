@@ -19,11 +19,13 @@ def send_to_handler(frame, data:dict):
         else:
             total_frame_data[frame][k] = data[k] 
 
-def send_to_window(type):
-    if type == 'damage':
+def send_to_window(data_type):
+    if data_type == 'damage':
         return generate_damage_report()
-    elif type == 'character':
+    elif data_type == 'character':
         return generate_character_report()
+    elif data_type == 'target':
+        return generate_target_report()
 
 def generate_damage_report():
     d = {}
@@ -56,3 +58,6 @@ def generate_character_report():
             cc[k]['elemental_energy'] = value['character'][k]['elemental_energy']
         c[frame] = cc
     return c
+
+def generate_target_report():
+    return {frame: value['target'] for frame, value in total_frame_data.items()}
