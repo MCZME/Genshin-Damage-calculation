@@ -45,6 +45,12 @@ class PlungingAttack(PlungingAttackSkill):
         self.v = 5  # 下落速度
         self.hit_frame = 40
 
+    def _apply_during_damage(self, target):
+        luanlan_effect = next((e for e in self.caster.active_effects if isinstance(e, LuanlanEffect)), None)
+        if luanlan_effect:
+            self.element = ('风', 0)
+        super()._apply_during_damage(target)
+
     def _apply_impact_damage(self, target):
         """坠地冲击伤害"""
         luanlan_effect = next((e for e in self.caster.active_effects if isinstance(e, LuanlanEffect)), None)
