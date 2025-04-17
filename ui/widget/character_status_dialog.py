@@ -754,11 +754,20 @@ class EnergyDisplayWidget(QWidget):
 
 class EffectDisplayWidget(QWidget):
     """效果持续时间显示组件"""
-    def __init__(self, name="", duration=0, max_duration=0, parent=None):
+    def __init__(self, name="", duration=0, max_duration=0, msg="",parent=None):
         super().__init__(parent)
         self.name = name
         self.setFixedHeight(24)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setToolTip(msg)
+        self.setStyleSheet("""
+            QToolTip {
+                background-color: rgba(100, 160, 220, 0.8);
+                border-radius: 0px;
+            }
+        """)
         
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
