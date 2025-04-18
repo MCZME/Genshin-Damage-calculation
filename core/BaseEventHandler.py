@@ -1,7 +1,7 @@
 from Emulation import Emulation
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.DataHandler import send_to_handler
-from core.Effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
+from core.effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
 from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from core.Team import Team
 from core.Tool import GetCurrentTime

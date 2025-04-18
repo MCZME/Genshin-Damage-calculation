@@ -2,10 +2,10 @@ from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
 from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import ArkheObject, baseObject
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
-from core.Calculation.HealingCalculation import Healing, HealingType
-from core.Effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
+from core.calculation.HealingCalculation import Healing, HealingType
+from core.effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 

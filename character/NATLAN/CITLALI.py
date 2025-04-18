@@ -1,10 +1,10 @@
 from character.NATLAN.natlan import Natlan
 from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
-from core.Effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
+from core.effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
 from core.BaseObject import baseObject
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType
-from core.Calculation.ShieldCalculation import Shield
+from core.calculation.ShieldCalculation import Shield
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.Logger import get_emulation_logger

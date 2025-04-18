@@ -1,8 +1,8 @@
 from character.character import Character
 from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
-from core.Effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
+from core.effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from core.BaseObject import baseObject
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus
 from core.Tool import GetCurrentTime, summon_energy
 from core.Team import Team

@@ -1,6 +1,6 @@
-from core.Effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
-from core.Calculation.DamageCalculation import DamageType
-from core.Effect.WeaponEffect import FreedomSwornEffect, RongHuaZhiGeEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
+from core.effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
+from core.calculation.DamageCalculation import DamageType
+from core.effect.WeaponEffect import FreedomSwornEffect, RongHuaZhiGeEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
 from core.Event import EventBus, EventHandler, EventType
 from core.Team import Team
 import core.Tool as T

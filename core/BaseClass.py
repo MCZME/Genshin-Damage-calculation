@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from character.character import CharacterState
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent
 from core.Logger import get_emulation_logger
 from core.Tool import GetCurrentTime

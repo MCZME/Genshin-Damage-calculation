@@ -1,7 +1,7 @@
 from enum import Enum
 import random
 from character.character import Character
-from core.Effect.BaseEffect import ElementalInfusionEffect
+from core.effect.BaseEffect import ElementalInfusionEffect
 from core.Config import Config
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent
 from core.Tool import GetCurrentTime

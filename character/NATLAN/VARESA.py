@@ -2,8 +2,8 @@ from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
 from core.BaseClass import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.Logger import get_emulation_logger
-from core.Effect.BaseEffect import Effect
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.effect.BaseEffect import Effect
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
 from core.Tool import GetCurrentTime, summon_energy
 

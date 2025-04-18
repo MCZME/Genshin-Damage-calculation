@@ -2,9 +2,9 @@ import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
 from core.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
-from core.Effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
+from core.effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from core.BaseObject import baseObject
-from core.Calculation.DamageCalculation import Damage, DamageType
+from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy

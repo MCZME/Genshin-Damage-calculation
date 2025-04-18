@@ -1,13 +1,13 @@
 from character.NATLAN.natlan import Natlan
 from core.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
 from core.BaseObject import baseObject
-from core.Effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
+from core.effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
-from core.Calculation.HealingCalculation import Healing, HealingType
+from core.calculation.HealingCalculation import Healing, HealingType
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
-from core.Effect.BaseEffect import Effect
+from core.effect.BaseEffect import Effect
 from core.Event import EventHandler
 
 class LightningDashEffect(Effect, EventHandler):

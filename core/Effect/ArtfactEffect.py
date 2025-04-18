@@ -1,5 +1,5 @@
-from core.Calculation.DamageCalculation import DamageType
-from core.Effect.BaseEffect import CritRateBoostEffect, Effect, ElementalDamageBoostEffect
+from core.calculation.DamageCalculation import DamageType
+from core.effect.BaseEffect import CritRateBoostEffect, Effect, ElementalDamageBoostEffect
 from core.Event import EventBus, EventHandler, EventType
 from core.Logger import get_emulation_logger
 from core.Team import Team

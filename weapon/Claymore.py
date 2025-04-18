@@ -1,4 +1,4 @@
-from core.Calculation.DamageCalculation import DamageType
+from core.calculation.DamageCalculation import DamageType
 from core.Event import EventBus, EventHandler, EventType
 from core.Logger import get_emulation_logger
 from .weapon import Weapon
