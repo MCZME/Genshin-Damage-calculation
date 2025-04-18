@@ -280,21 +280,20 @@ class ChargedAttackSkill(SkillBase):
         super().on_interrupt()
 
 class PlungingAttackSkill(SkillBase):
-    def __init__(self, lv, total_frames=30, cd=0):
+    def __init__(self, lv, total_frames=53, cd=0):
         super().__init__(name="下落攻击", 
                         total_frames=total_frames, 
                         cd=cd,
                         lv=lv,
                         element=('物理', 0),
                         interruptible=True)
-        self.hit_frame = total_frames
+        self.hit_frame = 37
         self.damageMultipiler = {
             '下坠期间伤害': [],
             '低空坠地冲击伤害': [],
             '高空坠地冲击伤害': []
         }
-        self.height_type = '低空'  # 默认低空
-        self.v = 0
+        self.height_type = '低空'
         
     def start(self, caster, is_high=False):
         """启动下落攻击并设置高度类型"""

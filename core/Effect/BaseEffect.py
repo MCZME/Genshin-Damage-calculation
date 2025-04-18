@@ -149,8 +149,9 @@ class AttackBoostEffect(Effect):
 
 class AttackValueBoostEffect(Effect):
     """攻击力值提升效果（固定数值）"""
-    def __init__(self, character, name, bonus, duration):
+    def __init__(self, character, current_character, name, bonus, duration):
         super().__init__(character,duration)
+        self.current_character = current_character
         self.bonus = bonus
         self.name = name
         self.msg = f"""
