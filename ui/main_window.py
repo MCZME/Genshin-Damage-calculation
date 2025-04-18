@@ -402,6 +402,21 @@ class MainWindow(QMainWindow):
         """开始计算按钮点击处理"""
         team_data, action_sequence = self.get_data()
         self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
+        
+        # 自动保存当前配置
+        filename = f"./data/last_file.json"
+        os.makedirs("./data", exist_ok=True)
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump({
+                "team_data": team_data,
+                "action_sequence": action_sequence
+            }, f, ensure_ascii=False, indent=2)
+        
+        # 更新最后保存的文件路径配置
+        from core.Config import Config
+        Config.set("ui.last_save_file", filename)
+        Config.save()
+        
         self.close()
         self.result_window = ResultWindow()
         self.result_window.show()
