@@ -292,6 +292,8 @@ class UniversalExaltationEffect(Effect):
         <p><span style="color: #c0e4e6; font-size: 12pt;">伤害加成：{self.damage_bonus_rates[self.burst_skill.lv - 1] * self.burst_skill.fanfare_points:.2f}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">受治疗加成：{self.healing_bonus_rates[self.burst_skill.lv - 1] * self.burst_skill.fanfare_points:.2f}</span></p>
         """
+        if self.character.constellation >= 2:
+            self.msg += f"<p><span style='color: #c0e4e6; font-size: 12pt;'>当前超出上限的气氛值：{self.burst_skill.over_fanfare_points:.2f}</span></p>"
         # get_emulation_logger().log_effect(f"🎉 气氛值为{self.burst_skill.fanfare_points}")
         
     def remove_effect(self):
@@ -446,7 +448,7 @@ class ConstellationEffect_2(ConstellationEffect):
         super().apply(character)
         def new_add(self,points):
             if self.fanfare_points + points*2.5 > self.fanfare_max:
-                self.caster.attributePanel['生命值%'] -= self.over_fanfare_points * 0.35
+                self.caster.attributePanel['生命值%'] -= min(self.over_fanfare_points * 0.35,140)
                 self.fanfare_points = self.fanfare_max
                 self.over_fanfare_points += self.fanfare_points + points*2.5 - self.fanfare_max
                 self.caster.attributePanel['生命值%'] += min(self.over_fanfare_points * 0.35,140)

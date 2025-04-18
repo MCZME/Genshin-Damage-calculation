@@ -273,7 +273,7 @@ class Calculation:
         self.damage.damage = value
 
 # todo
-# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化，扩散，碎冰，冻结
+# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化，碎冰，冻结
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
