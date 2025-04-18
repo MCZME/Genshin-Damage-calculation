@@ -2,7 +2,7 @@ from core.BaseEventHandler import (ElementalEnergyEventHandler, FrameEndEventHan
                                     NightsoulBurstEventHandler, ReactionsEventHandler)
 from core.calculation.DamageCalculation import DamageCalculateEventHandler
 from core.Config import Config
-from core.ElementalReaction import ElementalReactionHandler
+from core.elementalReaction.ElementalReaction import ElementalReactionHandler
 from core.Event import EventBus, EventType
 from core.calculation.HealingCalculation import HealingCalculateEventHandler, HurtEventHandler
 from core.Logger import logger_init, manage_log_files
