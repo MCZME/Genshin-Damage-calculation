@@ -183,6 +183,9 @@ class Emulation():
                     return True if v == '长按' else False
                 elif k == '时间':
                     return int(v)
+                elif k == '释放时长':
+                    a = {'点按':0, '一段蓄力':1, '二段蓄力':2}
+                    return a[v]
                 else:
                     return None
                 

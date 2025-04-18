@@ -39,7 +39,8 @@ class DamageBoostEffect(Effect):
         <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
         """
         
-    def apply(self):
+    def apply(self,character=None):
+        self.current_character = character if character else self.character
         super().apply()
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
@@ -329,9 +330,10 @@ class ResistanceDebuffEffect(Effect):
 
 class ElementalInfusionEffect(Effect):
     """元素附魔效果"""
-    def __init__(self, character, name, element_type, duration, is_unoverridable=False):
+    def __init__(self, character, current_character, name, element_type, duration, is_unoverridable=False):
         super().__init__(character,duration)
         self.name = name
+        self.current_character = current_character
         self.element_type = element_type
         self.is_unoverridable = is_unoverridable
         self.apply_time = None
@@ -368,19 +370,19 @@ class ElementalInfusionEffect(Effect):
 
     def apply(self):
         super().apply()
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, ElementalInfusionEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration
             return
             
         self.apply_time = GetCurrentTime()
-        self.character.add_effect(self)
-        get_emulation_logger().log_effect(f"{self.character.name}获得{self.element_type}元素附魔")
+        self.current_character.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.element_type}元素附魔")
         
     def remove(self):
         super().remove()
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}元素附魔效果结束")
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}元素附魔效果结束")
 
 class ShieldEffect(Effect):
     """护盾效果基类"""

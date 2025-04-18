@@ -426,7 +426,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 class CrimsonMomijiEffect(ElementalInfusionEffect,EventHandler):
     """血赤叶红效果"""
     def __init__(self, character):
-        super().__init__(character, '血赤叶红-风元素附魔', '风', 5*60,True)
+        super().__init__(character, character, '血赤叶红-风元素附魔', '风', 5*60, True)
 
     def apply(self):
         super().apply()
