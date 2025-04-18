@@ -4,6 +4,7 @@ from DataRequest import DR
 from core.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, EventType, GameEvent, HealChargeEvent
 from core.Logger import get_emulation_logger
 import core.Tool as T
+from core.elementalReaction.ElementalAura import ElementalAura
 
 # 角色状态枚举
 class CharacterState(Enum):
@@ -64,6 +65,7 @@ class Character:
         self.association = None
         self.constellation = constellation
 
+        self.aura = ElementalAura()
         self.maxHP = self.attributePanel['生命值'] * (1 + self.attributePanel['生命值%'] / 100) + self.attributePanel['固定生命值']
         self.currentHP = self.maxHP
         self.movement = 0
@@ -224,6 +226,7 @@ class Character:
 
     def update(self,target):
         self.update_effects(target)
+        self.aura.update()
         if self.weapon is not None:
             self.weapon.update(target)
         for i in self.state:

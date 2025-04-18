@@ -1,7 +1,5 @@
 from DataRequest import DR
 from core.elementalReaction.ElementalAura import ElementalAura
-from core.Event import ElementalReactionEvent, EventBus
-from core.Tool import GetCurrentTime
 
 class Target:
     def __init__(self, id, level):
@@ -11,7 +9,7 @@ class Target:
 
         self.current_frame = 0
         self.defense = level*5 + 500
-        self.elementalAura = ElementalAura()
+        self.aura = ElementalAura()
         self.effects = []
 
     def get_data(self):
@@ -33,13 +31,13 @@ class Target:
         return self.current_resistance
     
     def getElementalAura(self):
-        return self.elementalAura.getElementalAura()
+        return self.aura.getElementalAura()
     
     def setElementalAura(self, elementalAura):
-        self.elementalAura.setElementalAura(elementalAura)
+        self.aura.setElementalAura(elementalAura)
 
     def apply_elemental_aura(self, damage):
-        return self.elementalAura.apply_elemental_aura(damage)
+        return self.aura.apply_elemental_aura(damage)
 
     def add_effect(self, effect):
         self.effects.append(effect)
@@ -50,7 +48,7 @@ class Target:
     def update(self):
         self.current_frame += 1
         # 更新元素衰减状态
-        self.elementalAura.update()
+        self.aura.update()
         
         # 更新其他效果状态
         removed_effects = []
@@ -62,6 +60,6 @@ class Target:
             self.effects.remove(effect)
 
     def clear(self):
-        self.elementalAura.clear()
+        self.aura.clear()
         self.effects.clear()
         self.current_frame = 0
