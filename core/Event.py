@@ -61,6 +61,9 @@ class EventType(Enum):
     BEFORE_SHIELD_CREATION = auto()  # 护盾生成前
     AFTER_SHIELD_CREATION = auto()   # 护盾生成后
 
+    OBJECT_CREATE = auto()  
+    OBJECT_DESTROY = auto() 
+
     BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
     BEFORE_CHARGED_ATTACK = auto()  # 重击前
@@ -253,6 +256,17 @@ class EnergyChargeEvent(GameEvent):
                                      'amount':amount,
                                      'is_fixed':is_fixed,
                                      'is_alone':is_alone}})
+            
+class ObjectEvent(GameEvent):
+    def __init__(self, object, frame, before=True,**kwargs):
+        if before:
+            super().__init__(EventType.OBJECT_CREATE, frame=frame, object=object, **kwargs)
+            send_to_handler(frame, {'event':{'type':EventType.OBJECT_CREATE
+                                        ,'object':object}})
+        else:
+            super().__init__(EventType.OBJECT_DESTROY, frame=frame, object=object, **kwargs)
+            send_to_handler(frame, {'event':{'type':EventType.OBJECT_DESTROY
+                                        ,'object':object}})
 # --------------------------
 # 事件处理器接口
 # --------------------------

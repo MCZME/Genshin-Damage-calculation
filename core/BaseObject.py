@@ -1,5 +1,5 @@
 from abc import ABC,abstractmethod
-from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent
+from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, ObjectEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
@@ -15,6 +15,7 @@ class baseObject(ABC):
     def apply(self):
         Team.add_object(self)
         self.is_active = True
+        EventBus.publish(ObjectEvent(self, GetCurrentTime()))
 
     def update(self,target):
         self.current_frame += 1
@@ -29,6 +30,7 @@ class baseObject(ABC):
     def on_finish(self,target):
         get_emulation_logger().log_object(f'{self.name} 存活时间结束')
         self.is_active = False
+        EventBus.publish(ObjectEvent(self, GetCurrentTime(),False))
            
 class ArkheObject(baseObject):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):

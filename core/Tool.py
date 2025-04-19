@@ -1,3 +1,6 @@
+from core.Event import EnergyChargeEvent, EventBus
+
+
 def level(level):
     Level = [1,20,40,50,60,70,80,90]
     for i in Level:
@@ -31,5 +34,10 @@ def get_reaction_multiplier(level):
 
 def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False, time=40):
     from core.BaseObject import EnergyDropsObject
-    for _ in range(num):
-        EnergyDropsObject(character, element_energy, time, is_fixed, is_alone).apply()
+    if time != 0:
+        for _ in range(num):
+            EnergyDropsObject(character, element_energy, time, is_fixed, is_alone).apply()
+    else:
+        energy_event = EnergyChargeEvent(character, element_energy, GetCurrentTime(),
+                                        is_fixed=is_fixed, is_alone=is_alone)
+        EventBus.publish(energy_event)
