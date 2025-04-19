@@ -1,13 +1,54 @@
 from character.NATLAN.natlan import Natlan
-from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, SkillBase, TalentEffect
-from core.effect.BaseEffect import ResistanceDebuffEffect, ShieldEffect, Effect
+from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+                            EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
+from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, ShieldEffect, Effect
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Event import DamageEvent, EventBus, ShieldEvent, EventHandler, EventType
+from core.Event import DamageEvent, EventBus, NormalAttackEvent, ShieldEvent, EventHandler, EventType
 from core.calculation.ShieldCalculation import Shield
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.Logger import get_emulation_logger
+
+class NormalAttack(NormalAttackSkill,Infusion):
+    def __init__(self, lv, cd=0):
+        super().__init__(lv, cd)
+        Infusion.__init__(self)
+        self.segment_frames = [22,32,80]
+        self.end_action_frame = 20
+        self.damageMultipiler = {
+            1:[43.41, 46.66, 49.92, 54.26, 57.51, 60.77, 65.11, 69.45, 73.79, 78.13, 82.47, 86.81, 92.24, 97.67, 103.09, ],
+            2:[38.81, 41.72, 44.64, 48.52, 51.43, 54.34, 58.22, 62.1, 65.98, 69.86, 73.75, 77.63, 82.48, 87.33, 92.18, ],
+            3:[53.77, 57.8, 61.84, 67.21, 71.25, 75.28, 80.66, 86.03, 91.41, 96.79, 102.17, 107.54, 114.26, 120.99, 127.71, ],
+        }
+
+    def _apply_segment_effect(self, target):
+        damage = Damage(
+            damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+            element=('冰', self.apply_infusion()),
+            damageType=DamageType.NORMAL,
+            name=f'普通攻击 第{self.current_segment+1}段'
+        )
+        
+        # 发布伤害事件
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+
+        # 发布普通攻击事件
+        normal_attack_event = NormalAttackEvent(
+            self.caster, 
+            frame=GetCurrentTime(), 
+            before=False,
+            damage=damage,
+            segment=self.current_segment+1
+        )
+        EventBus.publish(normal_attack_event)
+
+class ChargedAttack(ChargedAttackSkill):
+    ...
+
+class PlungingAttack(PlungingAttackSkill):
+    ...
 
 class FiveHeavensRainEffect(ResistanceDebuffEffect):
     """五重天的寒雨效果"""
@@ -48,7 +89,8 @@ class ItzpapalotlObject(baseObject,EventHandler):
 
     def on_frame_update(self, target):
         # 检查夜魂值决定是否进入白燧状态
-        if self.character.current_night_soul >= 50 and not self.in_white_flint:
+        if ((self.character.current_night_soul >= 50 or self.character.constellation >= 6) 
+            and not self.in_white_flint):
             self.in_white_flint = True
             get_emulation_logger().log_skill_use("❄️ 伊兹帕帕进入白燧状态")
             
@@ -71,7 +113,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
                 self.last_damage_frame = current_frame
                 
                 # 夜魂值耗尽时退出白燧状态
-                if self.character.current_night_soul <= 0:
+                if self.character.current_night_soul <= 0 and self.character.constellation < 6:
                     self.in_white_flint = False
                     get_emulation_logger().log_skill_use("❄️ 伊兹帕帕退出白燧状态")
     
@@ -175,6 +217,12 @@ class SkeletonSpiritObject(baseObject):
         
     def on_finish(self, target):
         super().on_finish(target)
+        self._attack(target)
+
+    def on_frame_update(self, target):
+        return super().on_frame_update(target)
+
+    def _attack(self, target):
         # 爆炸造成伤害并恢复夜魂值
         damage = Damage(
             self.damage[self.lv-1],
@@ -189,9 +237,6 @@ class SkeletonSpiritObject(baseObject):
         # 恢复3点夜魂值
         self.character.gain_night_soul(3)
         get_emulation_logger().log_skill_use("❄️ 宿灵之髑爆炸，恢复夜魂值")
-
-    def on_frame_update(self, target):
-        return super().on_frame_update(target)
 
 class ElementalBurst(EnergySkill):
     """元素爆发：诸曜饬令"""
@@ -287,11 +332,11 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
 class WhiteStarDressEffect(Effect,EventHandler):
     """白星之裙效果"""
     def __init__(self, character):
-        super().__init__(character, 0)  # 持续时间由伊兹帕帕存在决定
+        super().__init__(character, 10)
         self.name = '白星之裙'
         self.star_blade_stacks = 0 # 星刃层数
         self.last_reaction_time = -9999
-        self.reaction_cooldown = 8 * 60  # 8秒冷却
+        self.reaction_cooldown = 8 * 60
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">除茜特菈莉外的附近的当前场上角色的
@@ -325,7 +370,8 @@ class WhiteStarDressEffect(Effect,EventHandler):
         if event.event_type == EventType.BEFORE_FIXED_DAMAGE:
             if event.data['damage'].damageType != DamageType.REACTION and \
                event.data['character'] != self.character and \
-               event.data['character'].on_field:
+               event.data['character'].on_field and \
+               self.star_blade_stacks > 0:
                 event.data['damage'].setDamageData('白星之裙', self.character.attributePanel['元素精通'] * 2)
                 event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 2
                 self.star_blade_stacks -= 1
@@ -361,7 +407,143 @@ class ConstellationEffect_2(ConstellationEffect):
         super().apply(character)
         # 常驻元素精通提升125点
         character.attributePanel['元素精通'] += 125
-    
+
+class ConstellationEffect_3(ConstellationEffect):
+    def __init__(self):
+        super().__init__('云中蛇的羽冠')
+
+    def apply(self, character):
+        super().apply(character)
+        self.character.Skill.lv = min(15, self.character.Skill.lv + 3)
+
+class ConstellationEffect_4(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('拒亡者的灵髑')
+        self.last_tigger_time = -9999
+        self.inveral = 8 * 60
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_DAMAGE and \
+           event.data['damage'].damageType == DamageType.SKILL and \
+           event.data['character'] == self.character and \
+           event.data['damage'].name == '霜昼黑星':
+            if event.frame - self.last_tigger_time > self.inveral:
+                self.last_tigger_time = event.frame
+                SkeletonSpiritObsidianObject(self.character).apply()
+        elif event.event_type == EventType.BEFORE_FIXED_DAMAGE and \
+           event.data['damage'].damageType == DamageType.SKILL and \
+           event.data['character'] == self.character and \
+           event.data['damage'].name == '宿灵之髑·黑星':
+            event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 18
+            event.data['damage'].setDamageData('拒亡者的灵髑', self.character.attributePanel['元素精通'] * 18)
+
+class SkeletonSpiritObsidianObject(SkeletonSpiritObject):
+    def __init__(self, character):
+        super().__init__(character,0)
+        self.name = '宿灵之髑·黑星'
+
+    def _attack(self, target):
+        damage = Damage(0,('冰',1),DamageType.SKILL,self.name)
+        damage.setDamageData('夜魂伤害',True)
+        EventBus.publish(DamageEvent(self.character, target, damage,GetCurrentTime()))
+
+        self.character.gain_night_soul(16)
+        summon_energy(1, self.character, ('无', 8), True, True, 0)
+
+class ConstellationEffect_5(ConstellationEffect):
+    def __init__(self):
+        super().__init__('五恶曜的咒缚')
+
+    def apply(self, character):
+        super().apply(character)
+        self.character.Burst.lv = min(15, self.character.Burst.lv + 3)
+
+class ConstellationEffect_6(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('原动天的密契')
+        self.consumed_night_soul = 0
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE and \
+           event.data['character'] == self.character and \
+           event.data['amount'] <= 0:
+            self.consumed_night_soul -= event.data['amount']
+            cifra_of_the_secret_law_point = min(40, int(self.consumed_night_soul))
+            for c in Team.team:
+                PyroAndHydroDmgBonus(self.character, c, cifra_of_the_secret_law_point).apply()
+
+class PyroAndHydroDmgBonus(ElementalDamageBoostEffect,EventHandler):
+    def __init__(self, character, current_character, point):
+        super().__init__(character, current_character, '火水元素伤害加成',('火', '水'), 0, 10)
+        self.point = point
+        
+    def _update_dmg_bonus(self):
+        self.element_dmg_bonus = self.point * 1.5
+        self.dmg_bonus = self.point * 2.5
+
+    def apply(self):
+        self.is_active = True
+        existing = next((e for e in self.current_character.active_effects if isinstance(e, PyroAndHydroDmgBonus)), None)
+        if existing:
+            existing.romoveEffect()
+            existing.point = self.point
+            existing._update_dmg_bonus()
+            existing.setEffect()
+            return
+        self._update_dmg_bonus()
+        self.setEffect()
+        self.current_character.add_effect(self)
+        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+        get_emulation_logger().log_effect(f'{self.current_character.name}获得了{self.name}')
+
+    def setEffect(self):
+        self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.element_dmg_bonus:.2f}%水火元素伤害加成</span></p>
+        """
+        for e in ['火', '水']:
+            self.current_character.attributePanel[e + '元素伤害加成'] += self.element_dmg_bonus
+        if self.current_character == self.character:
+            self.character.attributePanel['伤害加成'] += self.dmg_bonus
+            self.msg += f"""
+                <p><span style="color: #c0e4e6; font-size: 12pt;">茜特菈莉获得{self.dmg_bonus:.2f}%伤害加成</span></p>
+            """
+        
+    def romoveEffect(self):
+        for e in ['火', '水']:
+            self.current_character.attributePanel[e + '元素伤害加成'] -= self.element_dmg_bonus
+        if self.current_character == self.character:
+            self.character.attributePanel['伤害加成'] -= self.dmg_bonus
+
+    def remove(self):
+        super().remove()
+        self.point = 0
+        EventBus.unsubscribe(EventType.AFTER_SKILL, self)   
+        EventBus.unsubscribe(EventType.OBJECT_DESTROY, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_SKILL and \
+           event.data['character'] == self.character and \
+           self.is_active:
+            self.remove()
+        elif event.event_type == EventType.OBJECT_DESTROY and \
+            event.data['object'].name == "伊兹帕帕" and \
+            self.is_active:
+            self.remove()
+
+    def update(self, target):
+        ...
+
 class CITLALI(Natlan):
     ID = 93
     def __init__(self, level=1, skill_params=[1,1,1], constellation=0):
@@ -370,13 +552,20 @@ class CITLALI(Natlan):
     def _init_character(self):
         super()._init_character()
         self.elemental_energy = ElementalEnergy(self, ('冰',60))
-        self.max_night_soul = 100 
+        self.max_night_soul = 100
+        self.NormalAttack = NormalAttack(lv=self.skill_params[0])
+        # self.ChargeAttack = ChargedAttack()
+        # self.PlungingAttack = PlungingAttack()
         self.Skill = ElementalSkill(lv=self.skill_params[1])
         self.Burst = ElementalBurst(lv=self.skill_params[2])
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
         self.constellation_effects[0] = ConstellationEffect_1()
         self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[3] = ConstellationEffect_4()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
     
 citlali_table = {
     'id': CITLALI.ID,
@@ -385,6 +574,9 @@ citlali_table = {
     'element': '冰',
     'rarity': 5,
     'association': '纳塔',
+    'normalAttack': {'攻击次数': 3},
+    # 'chargedAttack': {},
+    # 'plungingAttack': {'攻击距离':['高空', '低空']},
     'skill':{},
     'burst':{},
 }
