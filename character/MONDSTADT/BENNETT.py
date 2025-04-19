@@ -222,7 +222,7 @@ class InspirationFieldObject(baseObject, EventHandler):
             return
 
         if self.character.constellation >= 1:
-            self._apply_c1()
+            self._apply_c()
         else:
             self._apply()
         
@@ -244,7 +244,7 @@ class InspirationFieldObject(baseObject, EventHandler):
             effect = AttackValueBoostEffect(self.character,self.current_char, "鼓舞领域", atk_bonus_percent, 2.1*60)
             effect.apply()
 
-    def _apply_c1(self):
+    def _apply_c(self):
         current_time = GetCurrentTime()
         if current_time - self.last_heal_time >= 60:
             if self.current_char.currentHP / self.current_char.maxHP <= 0.7:
@@ -257,15 +257,15 @@ class InspirationFieldObject(baseObject, EventHandler):
 
             lv_index = self.character.Burst.lv - 1
             atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100 + 0.2) * self.base_atk
-            effect = AttackValueBoostEffect(self.character,self.current_char, "鼓舞领域", atk_bonus_percent, 2.1*60)
+            effect = AttackValueBoostEffect(self.character,self.current_char, "鼓舞领域_攻击力加成", atk_bonus_percent, 2.1*60)
             effect.apply()
 
             # 命座6效果
             if self.character.constellation >= 6 and self.current_char.type in self.weapon_types:
                 # 火元素伤害加成
-                elementEffect = ElementalDamageBoostEffect(self.character, self.current_char, "鼓舞领域", "火", self.pyro_boost,2.1*60)
-                elementEffect.apply(self.current_char)
-                Infusion = ElementalInfusionEffect(self.character,self.current_char, "鼓舞领域", "火",2.1*60)
+                elementEffect = ElementalDamageBoostEffect(self.character, self.current_char, "鼓舞领域_元素伤害", "火", self.pyro_boost,2.1*60)
+                elementEffect.apply()
+                Infusion = ElementalInfusionEffect(self.character,self.current_char, "鼓舞领域_火附魔", "火",2.1*60)
                 Infusion.apply()
 
     def on_finish(self, target):

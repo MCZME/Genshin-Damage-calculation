@@ -103,7 +103,7 @@ class CritRateBoostEffect(Effect):
 class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""
     def __init__(self, character, current_character,name, element_type, bonus, duration):
-        super().__init__(character, name, bonus, duration)
+        super().__init__(character, current_character, name, bonus, duration)
         self.current_character = current_character
         self.element_type = element_type
         self.msg = f"""
@@ -163,20 +163,20 @@ class AttackValueBoostEffect(Effect):
         
     def apply(self):
         super().apply()
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, AttackValueBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             return
             
-        self.character.add_effect(self)
-        self.character.attributePanel['固定攻击力'] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}的攻击力提升了{self.bonus:.2f}点")
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel['固定攻击力'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}的攻击力提升了{self.bonus:.2f}点")
 
     def remove(self):
         super().remove()
-        self.character.attributePanel['固定攻击力'] -= self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}基础攻击力提升效果结束")
+        self.current_character.attributePanel['固定攻击力'] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}基础攻击力提升效果结束")
 
 class HealthBoostEffect(Effect):
     """生命值提升效果"""

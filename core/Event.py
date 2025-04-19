@@ -267,25 +267,16 @@ class ObjectEvent(GameEvent):
             super().__init__(EventType.OBJECT_DESTROY, frame=frame, object=object, **kwargs)
             send_to_handler(frame, {'event':{'type':EventType.OBJECT_DESTROY
                                         ,'object':object}})
-# --------------------------
+
 # 事件处理器接口
-# --------------------------
 class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
         pass
 
-# --------------------------
-# 事件总线（单例）
-# --------------------------
+# 事件总线
 class EventBus:
-    _instance = None
     _handlers: Dict[EventType, List[EventHandler]] = {}
-
-    def __new__(cls):
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     @classmethod
     def subscribe(cls, event_type: EventType, handler: EventHandler):
@@ -302,7 +293,7 @@ class EventBus:
 
     @classmethod
     def publish(cls, event: GameEvent):
-        if event.event_type in cls._handlers:
+        if event.event_type in cls._handlers.copy():
             for handler in cls._handlers[event.event_type]:
                 if event.cancelled:
                     break
