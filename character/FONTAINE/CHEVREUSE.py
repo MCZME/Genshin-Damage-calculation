@@ -441,36 +441,30 @@ class ConstellationEffect_5(ConstellationEffect):
         
     def apply(self, character):
         super().apply(character)
-        skill_lv = character.Burst.lv + 3
-        if skill_lv > 15:
-            skill_lv = 15
-        character.Burst = ElementalBurst(skill_lv)
+        self.character.Burst.lv = min(15, self.character.Burst.lv + 3)
 
 class PyroElectroBuffEffect(ElementalDamageBoostEffect):
     """火雷元素伤害加成效果"""
-    def __init__(self, source):
+    def __init__(self, source, current_character):
         super().__init__(
             character=source,
+            current_character=current_character,
             name='终结罪恶的追缉',
-            element_type='火',  # 继承基类参数，实际处理双元素
-            bonus=0,  # 动态计算
+            element_type='火', 
+            bonus=0,
             duration=8 * 60  # 单层持续时间
         )
-        self.stacks = []  # 存储各层剩余时间（每层独立计时）
+        self.stacks = []
         self.elements = ['火', '雷'] 
-        self.current_character = None
 
-    def apply(self, target):
-         # 获取或创建buff效果
-        buff = next((eff for eff in target.active_effects 
+    def apply(self):
+        buff = next((eff for eff in self.current_character.active_effects 
                         if isinstance(eff, PyroElectroBuffEffect)), None)
         if buff is None:
-            target.add_effect(self)
-            self.current_character = target
-            self.stacks = [8 * 60]  # 初始1层，持续8秒
+            self.current_character.add_effect(self)
+            self.stacks.append(8 * 60)
             self._update_total_bonus()
             self.setEffect()
-        # 添加新层（最多3层），每层独立持续8秒
         else:
             buff.removeEffect() 
             if len(buff.stacks) < 3:
@@ -545,8 +539,8 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
             heal_source = event.data['character']
             if heal_source == self.character and event.data['healing'].name == '近迫式急促拦射':
                 member = event.data['target']
-                buff = PyroElectroBuffEffect(self.character)
-                buff.apply(member)
+                buff = PyroElectroBuffEffect(self.character, member)
+                buff.apply()
 
 # todo:
 # 1. 命座1，4

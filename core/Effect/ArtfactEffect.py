@@ -8,12 +8,11 @@ from core.Team import Team
 class CinderCityEffect(ElementalDamageBoostEffect):
     """烬城勇者绘卷效果"""
     def __init__(self, character,current_character,element_type):
-        super().__init__(character, '烬城勇者绘卷', element_type, 12, 12*60)
+        super().__init__(character, current_character,'烬城勇者绘卷', element_type, 12, 12*60)
         self.stacks = {}
         self.nightsoul_stacks = {}
         self.nightsoul_duration = 20*60
         self.nightsoul_bonus = 28
-        self.current_character = current_character
 
     def apply(self,element_type):
         self.is_active = True

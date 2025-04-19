@@ -355,9 +355,8 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
 
 class ElementalDamageBonusEffect(ElementalDamageBoostEffect):
     """元素伤害加成效果"""
-    def __init__(self, character, target, element, bonus, duration):
-        super().__init__(character, '风物之诗咏-'+element, element, bonus, duration)
-        self.current_character = target
+    def __init__(self, character,target, element, bonus, duration):
+        super().__init__(character, target, '风物之诗咏-'+element, element, bonus, duration)
 
 class ConstellationEffect_1(ConstellationEffect,EventHandler):
     """千山红遍"""

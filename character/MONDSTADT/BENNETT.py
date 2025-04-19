@@ -3,7 +3,7 @@ from core.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, Nor
 from core.BaseObject import baseObject
 from core.Logger import get_emulation_logger
 from core.Team import Team
-from core.effect.BaseEffect import AttackValueBoostEffect, Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
+from core.effect.BaseEffect import AttackValueBoostEffect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from core.calculation.HealingCalculation import Healing, HealingType
@@ -263,7 +263,7 @@ class InspirationFieldObject(baseObject, EventHandler):
             # 命座6效果
             if self.character.constellation >= 6 and self.current_char.type in self.weapon_types:
                 # 火元素伤害加成
-                elementEffect = ElementalDamageBoostEffect(self.character, "鼓舞领域", "火", self.pyro_boost,2.1*60)
+                elementEffect = ElementalDamageBoostEffect(self.character, self.current_char, "鼓舞领域", "火", self.pyro_boost,2.1*60)
                 elementEffect.apply(self.current_char)
                 Infusion = ElementalInfusionEffect(self.character,self.current_char, "鼓舞领域", "火",2.1*60)
                 Infusion.apply()
@@ -330,7 +330,6 @@ class PassiveSkillEffect_2(TalentEffect):
             if isinstance(o,InspirationFieldObject):
                 self.character.Skill.decreases_cd += 0.5
         
-
 class ConstellationEffect_1(ConstellationEffect):
     """命座1：冒险憧憬"""
     def __init__(self):

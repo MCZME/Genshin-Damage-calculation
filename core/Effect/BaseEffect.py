@@ -29,18 +29,18 @@ class Effect:
 
 class DamageBoostEffect(Effect):
     """伤害提升效果"""
-    def __init__(self, character, name, bonus, duration):
+    def __init__(self, character, current_character, name, bonus, duration):
         super().__init__(character, duration)
         self.bonus = bonus
         self.name = name
         self.attribute_name = '伤害加成'
+        self.current_character = current_character
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
         """
         
-    def apply(self,character=None):
-        self.current_character = character if character else self.character
+    def apply(self):
         super().apply()
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
@@ -102,8 +102,9 @@ class CritRateBoostEffect(Effect):
 
 class ElementalDamageBoostEffect(DamageBoostEffect):
     """元素伤害提升效果"""
-    def __init__(self, character, name, element_type, bonus, duration):
+    def __init__(self, character, current_character,name, element_type, bonus, duration):
         super().__init__(character, name, bonus, duration)
+        self.current_character = current_character
         self.element_type = element_type
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
