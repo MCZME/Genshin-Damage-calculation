@@ -360,3 +360,30 @@ class PlungingAttackSkill(SkillBase):
     def on_interrupt(self):
         get_emulation_logger().log_error("💢 下落攻击被打断")
         super().on_interrupt()
+
+class Infusion:
+    def __init__(self, attach_sequence=[1, 0, 0], interval=2.5*60):
+        self.attach_sequence = attach_sequence
+        self.sequence_pos = 0
+        self.last_attach_time = 0
+        self.interval = interval
+
+    def apply_infusion(self):
+        current_time = GetCurrentTime()
+        should_attach = False
+        
+        if self.sequence_pos < len(self.attach_sequence):
+            should_attach = self.attach_sequence[self.sequence_pos] == 1
+            self.sequence_pos += 1
+        else:
+            self.sequence_pos = 0
+            should_attach = self.attach_sequence[self.sequence_pos] == 1
+            self.sequence_pos += 1
+        
+        if current_time - self.last_attach_time >= self.interval:
+            should_attach = True
+        
+        if should_attach:
+            self.last_attach_time = current_time
+        
+        return 1 if should_attach else 0
