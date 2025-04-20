@@ -27,6 +27,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_ELECTRO_CHARGED,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_FREEZE,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_SHATTER,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_BURNING,ReactionsEventHandler())
     # 增幅反应
     EventBus.subscribe(EventType.BEFORE_VAPORIZE,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_MELT,ReactionsEventHandler())

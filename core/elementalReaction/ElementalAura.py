@@ -6,6 +6,7 @@ from core.elementalReaction.ElementalReaction import ElementalReaction, Elementa
 class ElementalAura:
     def __init__(self):
         self.elementalAura = []
+        self.burning_elements = {}
 
     def getElementalAura(self):
         return self.elementalAura
@@ -43,7 +44,10 @@ class ElementalAura:
             base_element = aura['element']
             base_acmount = aura['current_amount']
             reaction_type = ReactionMMap.get((trigger_element, base_element), None)
-            if reaction_type and trigger_amount > 0:
+            if reaction_type and reaction_type[0] == ElementalReactionType.BURNING:
+                reaction_triggers.append(self.handle_burning_reaction(damage))
+                continue
+            elif reaction_type and trigger_amount > 0:
                 # 计算消耗比例
                 ratio = self._get_element_ratio(trigger_element, base_element)
                 
@@ -189,6 +193,23 @@ class ElementalAura:
             self._attach_new_element(trigger_element, trigger_amount)
         return None
 
+    def handle_burning_reaction(self, damage):
+        trigger_element, trigger_amount = damage.element
+        base_aura = next((a for a in self.elementalAura if a['element'] in ['火', '草'] and a['element'] != trigger_element), None)
+        if base_aura:
+            self._attach_burning_element(trigger_element, trigger_amount)
+            self.burning_elements = {
+                'element': '燃',
+                'initial_amount': 2,
+                'current_amount': 2,
+                'decay_rate': 0
+            }
+            event = self._create_reaction_event(damage, trigger_element, base_aura['element'])
+            EventBus.publish(event)
+        else:
+            self._attach_new_element(trigger_element, trigger_amount)
+        return None
+
     def _get_element_ratio(self, trigger, base):
         """获取元素消耗比例 (trigger:base)"""
         # 检查触发元素和基础元素是否为特定组合，并返回相应的消耗比例
@@ -239,6 +260,26 @@ class ElementalAura:
                 'initial_amount': applied_amount,
                 'current_amount': applied_amount,
                 'decay_rate': applied_amount / duration
+            })
+
+    def _attach_burning_element(self, element_type, applied_amount):
+        """处理燃烧反应元素附着"""
+        existing_aura = next((a for a in self.elementalAura if a['element'] == element_type), None)
+        duration = 7 + applied_amount * 2.5
+
+        if existing_aura:
+            new_applied = applied_amount*0.8
+            if new_applied > existing_aura['current_amount']:
+                existing_aura.update({
+                    'initial_amount': new_applied,
+                    'current_amount': new_applied,
+                })
+        else:   
+            self.elementalAura.append({
+                'element': element_type,
+                'initial_amount': applied_amount*0.8,
+                'current_amount': applied_amount*0.8,
+                'decay_rate': applied_amount*0.8 / duration if element_type != '草' else 4 * applied_amount*0.8 / duration
             })
 
     def _check_reactions(self, element):

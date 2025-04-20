@@ -52,6 +52,7 @@ ReactionMMap = {
             
             # 草系反应
             ('草', '火'): (ElementalReactionType.BURNING, 0.25),
+            ('火', '草'): (ElementalReactionType.BURNING, 0.25),
             ('草', '水'): (ElementalReactionType.BLOOM, 2.0),
 
             # 冻元素反应
@@ -73,7 +74,7 @@ Reaction_to_EventType = {
     ElementalReactionType.BURNING: EventType.BEFORE_BURNING,
     # ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
     # ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
-    # ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
+    # ElementalReactionType.BURGEON: EventType.BEFORE_B,
     ElementalReactionType.FREEZE: EventType.BEFORE_FREEZE,
     ElementalReactionType.SHATTER: EventType.BEFORE_SHATTER,
 }
@@ -96,7 +97,8 @@ class ElementalReaction:
             self.reaction_type = ('增幅反应', reaction_type)
         elif reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
                                 ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON,
-                                ElementalReactionType.CRYSTALLIZE,ElementalReactionType.FREEZE,ElementalReactionType.SHATTER]:
+                                ElementalReactionType.CRYSTALLIZE,ElementalReactionType.FREEZE,ElementalReactionType.SHATTER,
+                                ElementalReactionType.BURNING]:
             self.reaction_type = ('剧变反应', reaction_type)
             self.lv_multiplier = get_reaction_multiplier(self.source.level)
         self.reaction_multiplier = reaction_multiplier

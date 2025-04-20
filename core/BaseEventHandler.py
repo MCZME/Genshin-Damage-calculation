@@ -1,7 +1,7 @@
 from Emulation import Emulation
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.DataHandler import send_to_handler
-from core.effect.BaseEffect import ElectroChargedEffect, ResistanceDebuffEffect
+from core.effect.BaseEffect import BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect
 from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from core.Team import Team
 from core.Tool import GetCurrentTime
@@ -180,4 +180,11 @@ class ReactionsEventHandler(EventHandler):
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
             EventBus.publish(GameEvent(EventType.AFTER_SHATTER, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_BURNING:
+            damage = Damage(0,('火',1),DamageType.REACTION, '燃烧')
+            damage.reaction_type = e.damage.reaction_type
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            BurningEffect(e.source,e.target,damage).apply()
+            EventBus.publish(GameEvent(EventType.AFTER_BURNING, event.frame,elementalReaction=e))
 

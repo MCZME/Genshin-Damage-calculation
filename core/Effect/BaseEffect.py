@@ -541,3 +541,55 @@ class FreezeEffect(Effect):
     def remove(self):
         super().remove()
         get_emulation_logger().log_effect(f"{self.target.name}: 冻结结束")
+
+class BurningEffect(Effect):
+    """燃烧效果"""
+    def __init__(self, character, target, damage):
+        super().__init__(character, 10)
+        self.name = '燃烧'
+        self.target = target
+        self.aura = target.aura
+        self.current_frame = 0
+        self.last_time = 0
+        self.last_attach_time = -2*60
+        self.counter = 0
+        self.damage = damage
+        self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">燃烧</span></p>
+        """
+    
+    def apply(self):
+        super().apply()
+        burning = next((e for e in self.target.effects if isinstance(e, BurningEffect)), None)
+        if burning:
+            burning.character = self.character
+            burning.damage = self.damage
+            return
+        self.target.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.target.name}被点燃")
+
+    def remove(self):
+        super().remove()
+        self.aura.burning_elements.clear()
+        get_emulation_logger().log_effect(f"{self.target.name}: 燃烧结束")
+
+    def update(self):
+        self.current_frame += 1
+        if self.current_frame - self.last_time >= 0.25*60:
+            if self.current_frame - self.last_attach_time >= 2*60:
+                self.damage.element = ('火',1)
+                self.last_attach_time = self.current_frame
+                self.counter = 0
+            else:
+                self.damage.element = ('火',0)
+            self.counter += 1
+            if self.counter < 8:
+                EventBus.publish(DamageEvent(self.character, self.target, self.damage,GetCurrentTime()))
+            self.last_time = self.current_frame
+
+        aura = next((a for a in self.aura.elementalAura if a['element'] == '草'), None)
+        if not aura:
+            self.remove()
+        elif len(self.aura.burning_elements) == 0:
+            self.remove()
