@@ -3,4 +3,4 @@ from tests.elementalAura_test import test_ELECTRO_CHARGED, test_FREEZE, test_SWI
 
 if __name__ == '__main__':
     init()
-    test_ELECTRO_CHARGED()
+    test_FREEZE()

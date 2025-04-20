@@ -171,4 +171,13 @@ class ReactionsEventHandler(EventHandler):
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
             EventBus.publish(GameEvent(EventType.AFTER_SWIRL, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_FREEZE:
+            EventBus.publish(GameEvent(EventType.AFTER_FREEZE, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_SHATTER:
+            damage = Damage(0,('冰',0),DamageType.REACTION, '碎冰')
+            damage.reaction_type = e.damage.reaction_type
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+            EventBus.publish(GameEvent(EventType.AFTER_SHATTER, event.frame,elementalReaction=e))
 

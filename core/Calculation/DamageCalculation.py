@@ -173,8 +173,6 @@ class Calculation:
             self.damage.setPanel('元素抗性',(100-r/2)/100)
             return (100-r/2)/100
         
-    # 待补充
-    # 剧变反应
     def reaction(self):
         if self.damage.element[0] == '物理':
             return 1
@@ -277,7 +275,7 @@ class Calculation:
         self.damage.damage = value
 
 # todo
-# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化，碎冰，冻结
+# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
