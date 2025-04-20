@@ -77,23 +77,26 @@ def test_FREEZE():
 
 def test_BURNING():
     print('燃烧测试')
-    c = Character()
-    target = Target(0,103)
-    damage = Damage(0,('火',1),DamageType.NORMAL,'测试')
-    damage.setSource(c)
-    damage.setTarget(target)
-    target.apply_elemental_aura(damage)
-    damage.element = ('草',1)
-    target.apply_elemental_aura(damage)
+    e = {0:'水',1:'草',2:'冰',3:'岩',4:'雷',5:'风',6:'火'}
+    for n in range(7):
+        c = Character()
+        target = Target(0,103)
+        damage = Damage(0,('火',1),DamageType.NORMAL,'测试')
+        damage.setSource(c)
+        damage.setTarget(target)
+        target.apply_elemental_aura(damage)
+        damage.element = ('草',1)
+        target.apply_elemental_aura(damage)
 
-    print(target.aura.elementalAura)
-    print(target.aura.burning_elements)
+        print(target.aura.elementalAura)
+        print(target.aura.burning_elements)
 
-    for i in range(200):
-        target.update()
-        if i == 60:
-            damage.element = ('火',1)
-            target.apply_elemental_aura(damage)
+        for i in range(200):
+            target.update()
+            if i == 60:
+                damage.element = (e[n],1)
+                target.apply_elemental_aura(damage)
 
-    print(target.aura.elementalAura)
-    print(target.aura.burning_elements)
+        print(target.aura.elementalAura)
+        print(target.aura.burning_elements)
+        print(f"--------第{n}测试结束--------")

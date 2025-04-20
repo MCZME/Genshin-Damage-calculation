@@ -591,5 +591,5 @@ class BurningEffect(Effect):
         aura = next((a for a in self.aura.elementalAura if a['element'] == '草'), None)
         if not aura:
             self.remove()
-        elif len(self.aura.burning_elements) == 0:
+        elif len(self.aura.burning_elements) == 0 or self.aura.burning_elements['current_amount'] <= 0:
             self.remove()
