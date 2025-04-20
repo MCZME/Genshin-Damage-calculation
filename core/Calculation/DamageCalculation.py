@@ -28,6 +28,7 @@ class Damage():
         self.reaction_data = None
         self.data = kwargs
         self.panel = {}
+        self.hit_type = None
 
     def setSource(self,source):
         self.source = source
@@ -47,6 +48,9 @@ class Damage():
 
     def setPanel(self,key,value):
         self.panel[key] = value
+
+    def setHitType(self,hit_type):
+        self.hit_type = hit_type
 
 class Calculation:
     def __init__(self,source:Character,target,damage:Damage):

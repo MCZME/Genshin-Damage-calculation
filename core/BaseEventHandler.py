@@ -155,7 +155,7 @@ class ReactionsEventHandler(EventHandler):
             damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
-            ResistanceDebuffEffect('超导',e.damage.source,e.damage.target,'物理',40,12*60).apply()
+            ResistanceDebuffEffect('超导',e.damage.source,e.damage.target,['物理'],40,12*60).apply()
             EventBus.publish(GameEvent(EventType.AFTER_SUPERCONDUCT, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_ELECTRO_CHARGED:
             damage = Damage(0,('雷',0),DamageType.REACTION, '感电')

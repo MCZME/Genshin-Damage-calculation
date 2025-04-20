@@ -484,9 +484,10 @@ class EnergyRechargeBoostEffect(Effect):
 class ElectroChargedEffect(Effect):
     """感电效果"""
     def __init__(self, character, target,damage):
-        super().__init__(character, 0)
+        super().__init__(character, 10)
         self.name = '感电'
         self.target = target
+        self.aura = target.aura
         self.current_frame = 0
         self.damage = damage
         self.msg = f"""
@@ -506,16 +507,37 @@ class ElectroChargedEffect(Effect):
         super().remove()
         get_emulation_logger().log_effect(f"{self.target.name}: 感电结束")
 
-    def update(self, target):
-        if len([e for e in self.target.elementalAura if e['element'] == '雷' or e['element'] == '水']) != 2:
+    def update(self):
+        if len([e for e in self.aura.elementalAura if e['element'] == '雷' or e['element'] == '水']) != 2:
             self.remove()
             return
         if self.current_frame % 60 == 0:
             EventBus.publish(DamageEvent(self.character, self.target, self.damage,GetCurrentTime()))
-            for e in self.target.elementalAura:
-                if e['element'] == '雷':
-                    e['current_amount'] = max(0,e['current_amount']-0.4)
-                elif e['element'] == '水':
+            for e in self.aura.elementalAura:
+                if e['element'] in ['雷', '水']:
                     e['current_amount'] = max(0,e['current_amount']-0.4)
 
         self.current_frame += 1
+
+class FreezeEffect(Effect):
+    """冻结效果"""
+    def __init__(self, character, target, duration):
+        super().__init__(character, duration)
+        self.name = '冻结'
+        self.target = target
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">冻结</span></p>
+        """
+
+    def apply(self):
+        super().apply()
+        freeze = next((e for e in self.target.effects if isinstance(e, FreezeEffect)), None)
+        if freeze:
+            return
+        self.target.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.target.name}被冻结")
+
+    def remove(self):
+        super().remove()
+        get_emulation_logger().log_effect(f"{self.target.name}: 冻结结束")

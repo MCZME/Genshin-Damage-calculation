@@ -16,6 +16,8 @@ class ElementalReactionType(Enum):
     HYPERBLOOM = '超绽放'
     BURGEON = '烈绽放'
     CATALYZE = '激化'
+    FREEZE = '冻结'
+    SHATTER = '碎冰'
 
 ReactionMMap = {
             # 火系反应
@@ -29,6 +31,8 @@ ReactionMMap = {
             # 水系反应
             ('水', '雷'): (ElementalReactionType.ELECTRO_CHARGED, 2),
             ('雷', '水'): (ElementalReactionType.ELECTRO_CHARGED, 2),
+            ('水', '冰'): (ElementalReactionType.FREEZE, 0),
+            ('冰', '水'): (ElementalReactionType.FREEZE, 0),
             
             # 冰系反应
             ('冰', '雷'): (ElementalReactionType.SUPERCONDUCT, 1.5),
@@ -49,6 +53,13 @@ ReactionMMap = {
             # 草系反应
             ('草', '火'): (ElementalReactionType.BURNING, 0.25),
             ('草', '水'): (ElementalReactionType.BLOOM, 2.0),
+
+            # 冻元素反应
+            ('火', '冻'): (ElementalReactionType.MELT, 2.0),
+            ('雷', '冻'): (ElementalReactionType.SUPERCONDUCT, 1.5),
+            ('风', '冻'): (ElementalReactionType.SWIRL, 0.6),
+            ('岩', '冻'): (ElementalReactionType.SHATTER, 3),
+            
         }
 
 Reaction_to_EventType = {
@@ -63,6 +74,8 @@ Reaction_to_EventType = {
     # ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
     # ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
     # ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
+    ElementalReactionType.FREEZE: EventType.BEFORE_FREEZE,
+    ElementalReactionType.SHATTER: EventType.BEFORE_SHATTER,
 }
 
 class ElementalReaction:
@@ -83,7 +96,7 @@ class ElementalReaction:
             self.reaction_type = ('增幅反应', reaction_type)
         elif reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
                                 ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON,
-                                ElementalReactionType.CRYSTALLIZE]:
+                                ElementalReactionType.CRYSTALLIZE,ElementalReactionType.FREEZE,ElementalReactionType.SHATTER]:
             self.reaction_type = ('剧变反应', reaction_type)
             self.lv_multiplier = get_reaction_multiplier(self.source.level)
         self.reaction_multiplier = reaction_multiplier
