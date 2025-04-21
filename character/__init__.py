@@ -1,5 +1,5 @@
 __all__ = ['Varesa','MAVUIKA','Iansan','CITLALI','XiangLing','CHEVREUSE','BENNETT',
-         'Xilonen','KaedeharaKazuha','Furina','Neuvillette']
+         'Xilonen','KaedeharaKazuha','Furina','Neuvillette','KukiShinobu']
 
 character_table = {}
 
@@ -27,5 +27,6 @@ from character.MONDSTADT.BENNETT import BENNETT
 _add(mondstadt_table)
 from character.INAZUMA import inazuma_character
 from character.INAZUMA.KaedeharaKazuha import KaedeharaKazuha
+from character.INAZUMA.KukiShinobu import KukiShinobu
 _add(inazuma_character)
 

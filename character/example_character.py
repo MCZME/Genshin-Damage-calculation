@@ -1,5 +1,6 @@
 from character.character import Character
-from core.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
+from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+                            EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 
 class NormalAttack(NormalAttackSkill):
     ...

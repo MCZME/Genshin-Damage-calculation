@@ -9,3 +9,5 @@ inazuma_character = {}
 
 from .KaedeharaKazuha import Kaedehara_Kazuha_table
 add('枫原万叶','',Kaedehara_Kazuha_table)
+from .KukiShinobu import kukiShinobu_table
+add('久岐忍','',kukiShinobu_table)
