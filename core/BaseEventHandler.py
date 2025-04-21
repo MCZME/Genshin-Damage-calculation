@@ -1,4 +1,5 @@
 from Emulation import Emulation
+from core.BaseObject import DendroCoreObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.DataHandler import send_to_handler
 from core.effect.BaseEffect import BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect
@@ -187,4 +188,25 @@ class ReactionsEventHandler(EventHandler):
             damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             BurningEffect(e.source,e.target,damage).apply()
             EventBus.publish(GameEvent(EventType.AFTER_BURNING, event.frame,elementalReaction=e))
-
+        elif event.event_type == EventType.BEFORE_BLOOM:
+            damage = Damage(0,('草',0),DamageType.REACTION, '绽放')
+            damage.reaction_type = e.damage.reaction_type
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            DendroCoreObject(e.source,e.target,damage).apply()
+            EventBus.publish(GameEvent(EventType.AFTER_BLOOM, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_HYPERBLOOM:
+            damage = Damage(0,('草',0),DamageType.REACTION, '超绽放')
+            damage.reaction_type = e.damage.reaction_type
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+            EventBus.publish(GameEvent(EventType.AFTER_HYPERBLOOM, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.BEFORE_BURGEON:
+            damage = Damage(0,('草',0),DamageType.REACTION, '烈绽放')
+            damage.reaction_type = e.damage.reaction_type
+            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            damage_event = DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime())
+            EventBus.publish(damage_event)
+            EventBus.publish(GameEvent(EventType.AFTER_BURGEON, event.frame,elementalReaction=e))

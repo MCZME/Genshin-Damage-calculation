@@ -253,9 +253,9 @@ class ElementalAura:
     def _get_element_ratio(self, trigger, base):
         """获取元素消耗比例 (trigger:base)"""
         # 检查触发元素和基础元素是否为特定组合，并返回相应的消耗比例
-        if (trigger, base) in [('水', '火'), ('火', '冰'), ('火', '冻')]:
+        if (trigger, base) in [('水', '火'), ('火', '冰'), ('火', '冻'), ('草','水')]:
             return (1, 2) 
-        if (trigger, base) in [('火', '水'), ('冰', '火')]:
+        if (trigger, base) in [('火', '水'), ('冰', '火'), ('水','草')]:
             return (2, 1)  
         if trigger in {'风','岩'} and base in {'水','雷','冰','火', '冻'}:
             return (2, 1) 

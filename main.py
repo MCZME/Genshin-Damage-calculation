@@ -28,6 +28,9 @@ def init():
     EventBus.subscribe(EventType.BEFORE_FREEZE,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_SHATTER,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_BURNING,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_BLOOM,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_HYPERBLOOM,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_BURGEON,ReactionsEventHandler())
     # 增幅反应
     EventBus.subscribe(EventType.BEFORE_VAPORIZE,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_MELT,ReactionsEventHandler())

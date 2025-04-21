@@ -1,8 +1,9 @@
 from abc import ABC,abstractmethod
-from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, ObjectEvent
+from core.Event import DamageEvent, ElementalReactionEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, ObjectEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
+from core.elementalReaction.ElementalReaction import ElementalReaction
 
 
 class baseObject(ABC):
@@ -106,3 +107,34 @@ class EnergyDropsObject(baseObject):
         energy_event = EnergyChargeEvent(self.character, self.element_energy, GetCurrentTime(),
                                         is_fixed=self.is_fixed, is_alone=self.is_alone)
         EventBus.publish(energy_event)
+
+class DendroCoreObject(baseObject):
+    active = []
+    def __init__(self, source, target,damage):
+        super().__init__("草原核", 6*60)
+        self.damage = damage
+        self.damage.source = source
+        self.damage.target = target
+
+    def apply(self):
+        super().apply()
+        DendroCoreObject.active.append(self)
+        get_emulation_logger().log_object(f'产生一个草原核')
+        if len(DendroCoreObject.active) > 5:
+            DendroCoreObject.active[0].on_finish(None)
+            DendroCoreObject.active.pop(0)
+
+    def apply_element(self, damage):
+        if damage.element[0] in ['火','雷']:
+            e = ElementalReaction(damage)
+            e.set_reaction_elements(damage.element[0], '原')
+            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
+            self.is_active = False
+        
+    def on_finish(self, target):
+        super().on_finish(target)
+        event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
+        EventBus.publish(event)
+
+    def on_frame_update(self, target):
+        return super().on_frame_update(target)

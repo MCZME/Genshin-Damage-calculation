@@ -1,4 +1,6 @@
 from character.character import Character
+from core.Event import DamageEvent, EventBus
+from core.Team import Team
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Target import Target
 
@@ -74,7 +76,6 @@ def test_FREEZE():
 
         print(f"--------第{e}测试结束--------")
 
-
 def test_BURNING():
     print('燃烧测试')
     e = {0:'水',1:'草',2:'冰',3:'岩',4:'雷',5:'风',6:'火'}
@@ -100,3 +101,26 @@ def test_BURNING():
         print(target.aura.elementalAura)
         print(target.aura.burning_elements)
         print(f"--------第{n}测试结束--------")
+
+def test_BLOOM():
+    print('绽放测试')
+    c = Character()
+    team = Team([c])
+    target = Target(0,103)
+    damage = Damage(0,('草',1),DamageType.NORMAL,'测试')
+    damage.setSource(c)
+    damage.setTarget(target)
+    target.apply_elemental_aura(damage)
+    damage.element = ('水',1)
+    target.apply_elemental_aura(damage)
+
+    print(target.aura.elementalAura)
+
+    for i in range(6*60+1):
+        team.update(None)
+        target.update()
+        if i == 60:
+            damage.element = ('火',2)
+            EventBus.publish(DamageEvent(c, target,damage,0))
+
+    print(target.aura.elementalAura)

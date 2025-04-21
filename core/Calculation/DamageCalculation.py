@@ -1,6 +1,8 @@
 from enum import Enum
 import random
 from character.character import Character
+from core.BaseObject import DendroCoreObject
+from core.Team import Team
 from core.effect.BaseEffect import ElementalInfusionEffect
 from core.Config import Config
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent
@@ -275,7 +277,7 @@ class Calculation:
         self.damage.damage = value
 
 # todo
-# 元素反应：燃烧，绽放，超绽放，烈绽放，激化，超激化，蔓激化
+# 元素反应：绽放，超绽放，烈绽放，激化，超激化，蔓激化
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
@@ -301,6 +303,10 @@ class DamageCalculateEventHandler(EventHandler):
                 
             damageEvent = DamageEvent(character, event.data['target'], damage, event.frame, before=False)
             EventBus.publish(damageEvent)
+
+            dendroCore = [d for d in Team.active_objects if isinstance(d, DendroCoreObject)]
+            for d in dendroCore:
+                d.apply_element(damage)
     
     def handle_elemental_infusion(self, character, damage):
         # 获取所有元素附魔效果

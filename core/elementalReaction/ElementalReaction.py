@@ -54,6 +54,9 @@ ReactionMMap = {
             ('草', '火'): (ElementalReactionType.BURNING, 0.25),
             ('火', '草'): (ElementalReactionType.BURNING, 0.25),
             ('草', '水'): (ElementalReactionType.BLOOM, 2.0),
+            ('水', '草'): (ElementalReactionType.BLOOM, 2.0),
+            ('雷', '原'): (ElementalReactionType.HYPERBLOOM, 3),
+            ('火', '原'): (ElementalReactionType.BURGEON, 3),
 
             # 冻元素反应
             ('火', '冻'): (ElementalReactionType.MELT, 2.0),
@@ -72,9 +75,9 @@ Reaction_to_EventType = {
     ElementalReactionType.SWIRL: EventType.BEFORE_SWIRL,
     # ElementalReactionType.CRYSTALLIZE: EventType.BEFORE_CRYSTALLIZE,
     ElementalReactionType.BURNING: EventType.BEFORE_BURNING,
-    # ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
-    # ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
-    # ElementalReactionType.BURGEON: EventType.BEFORE_B,
+    ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
+    ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
+    ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
     ElementalReactionType.FREEZE: EventType.BEFORE_FREEZE,
     ElementalReactionType.SHATTER: EventType.BEFORE_SHATTER,
 }
@@ -96,9 +99,9 @@ class ElementalReaction:
         if reaction_type in [ElementalReactionType.VAPORIZE,ElementalReactionType.MELT]:
             self.reaction_type = ('增幅反应', reaction_type)
         elif reaction_type in [ElementalReactionType.OVERLOAD,ElementalReactionType.ELECTRO_CHARGED,
-                                ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.BURGEON,
-                                ElementalReactionType.CRYSTALLIZE,ElementalReactionType.FREEZE,ElementalReactionType.SHATTER,
-                                ElementalReactionType.BURNING]:
+                                ElementalReactionType.SUPERCONDUCT,ElementalReactionType.SWIRL,ElementalReactionType.CRYSTALLIZE,
+                                ElementalReactionType.FREEZE,ElementalReactionType.SHATTER,ElementalReactionType.BURNING,
+                                ElementalReactionType.BLOOM,ElementalReactionType.HYPERBLOOM,ElementalReactionType.BURGEON]:
             self.reaction_type = ('剧变反应', reaction_type)
             self.lv_multiplier = get_reaction_multiplier(self.source.level)
         self.reaction_multiplier = reaction_multiplier

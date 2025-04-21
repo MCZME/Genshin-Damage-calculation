@@ -49,6 +49,12 @@ class EventType(Enum):
     AFTER_SUPERCONDUCT = auto()   # 超导反应后
     BEFORE_ELECTRO_CHARGED = auto()  # 感电反应前
     AFTER_ELECTRO_CHARGED = auto()   # 感电反应后
+    BEFORE_BLOOM = auto()        # 绽放反应前
+    AFTER_BLOOM = auto()         # 绽放反应后
+    BEFORE_HYPERBLOOM = auto()      # 超绽放反应前
+    AFTER_HYPERBLOOM = auto()       # 超绽放反应后
+    BEFORE_BURGEON = auto()      # 烈绽放反应前
+    AFTER_BURGEON = auto()       # 烈绽放反应后
     BEFORE_FIXED_DAMAGE = auto()  # 固定伤害加成计算前
     AFTER_FIXED_DAMAGE = auto()   # 固定伤害加成计算后
 
@@ -61,8 +67,8 @@ class EventType(Enum):
     BEFORE_SHIELD_CREATION = auto()  # 护盾生成前
     AFTER_SHIELD_CREATION = auto()   # 护盾生成后
 
-    OBJECT_CREATE = auto()  
-    OBJECT_DESTROY = auto() 
+    OBJECT_CREATE = auto()  # 对象创建
+    OBJECT_DESTROY = auto()  # 对象销毁
 
     BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
     AFTER_NORMAL_ATTACK = auto()   # 普通攻击后

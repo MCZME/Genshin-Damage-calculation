@@ -1,7 +1,6 @@
 from character.character import Character, CharacterState
 from core.effect.BaseEffect import AttackBoostEffect, HealthBoostEffect
 from core.Event import CharacterSwitchEvent, EventBus
-from core.Logger import get_emulation_logger
 from core.Tool import GetCurrentTime
 
 # 转化字典
