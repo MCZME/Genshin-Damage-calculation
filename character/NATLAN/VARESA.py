@@ -277,12 +277,17 @@ class ChaseEffect(Effect,EventHandler):
         
     def apply(self):
         super().apply()
+        chase = next((e for e in self.character.active_effects if isinstance(e, ChaseEffect)), None)
+        if chase:
+            chase.duration = self.duration
+            return
         self.character.add_effect(self)
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"✨ {self.character.name}获得{self.name}效果")
         
     def remove(self):
         super().remove()
+        EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"✨ {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
@@ -474,11 +479,11 @@ class LimitDriveEffect(Effect,EventHandler):
         
         self.character.add_effect(self)
         get_emulation_logger().log_effect("⚡ 进入极限驱动状态！")
-
         EventBus.subscribe(EventType.BEFORE_SKILL, self)
         
     def remove(self):
         super().remove()
+        EventBus.unsubscribe(EventType.BEFORE_SKILL, self)
         get_emulation_logger().log_effect("⚡ 极限驱动状态结束！")
 
     def handle_event(self, event):

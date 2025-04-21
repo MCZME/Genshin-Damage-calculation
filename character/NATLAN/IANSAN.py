@@ -262,7 +262,7 @@ class KineticMarkObject(baseObject):
                 # 记录溢出量
                 self.caster._last_overflow = overflow
                 get_emulation_logger().log_effect(f"⚡ {self.caster.name} 夜魂值溢出 {overflow:.1f} 点")
-                LimitBreakEffect(Team.current_character).apply()
+                LimitBreakEffect(self.current_character,Team.current_character).apply()
             
             # 如果有上次溢出，额外恢复50%
             if hasattr(self.caster, '_last_overflow') and self.caster._last_overflow > 0:
@@ -413,6 +413,8 @@ class StandardActionEffect(Effect, EventHandler):
         self.original_attack = self.character.attributePanel['攻击力%']
         self.character.attributePanel['攻击力%'] += self.attack_boost
         self.character.add_effect(self)
+        if self.character.constellation >= 2:
+            AttackBoostEffect(self.character, Team.current_character, '偷懒是健身大忌', 30, 15).apply()
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果，攻击力提升{self.attack_boost}%")
         
     def remove(self):
@@ -431,6 +433,8 @@ class StandardActionEffect(Effect, EventHandler):
         super().update(target)
         if not self.character.Nightsoul_Blessing:
             self.remove()
+        if self.duration % 10 == 0 and self.character.constellation >= 2:
+            AttackBoostEffect(self.character, Team.current_character, '偷懒是健身大忌', 30, 15).apply()
 
 class PassiveSkillEffect_1(TalentEffect):
     """强化抗阻练习"""
@@ -480,45 +484,6 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
                 self.night_soul_consumed = 0  # 重置累计消耗
                 get_emulation_logger().log_effect(f"⚡ {self.character.name} 触发命座1效果，恢复15点元素能量")
 
-class IansanAttackBoostEffect(AttackBoostEffect,EventHandler):
-    """伊安珊攻击力提升效果"""
-    def __init__(self, character):
-        super().__init__(character, '偷懒是健身大忌', 30, 0)
-        self.current_character = character
-    
-    def apply(self):
-        self.is_active = True
-        existing = next((e for e in self.current_character.active_effects 
-                       if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
-        if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            return
-            
-        self.current_character.add_effect(self)
-        self.current_character.attributePanel['攻击力%'] += self.bonus
-        get_emulation_logger().log_effect(f"{self.current_character.name} 获得 {self.name} ,攻击力提升了{self.bonus}%")
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-
-    def remove(self):
-        self.current_character.attributePanel['攻击力%'] -= self.bonus
-        super().remove()
-        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-
-    def handle_event(self, event: GameEvent):
-        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
-            # 角色切换后，检查伊安珊是否在后台
-            if not self.character.on_field:
-                self.remove() 
-                self.current_character = event.data['new_character']
-                if self.character != Team.current_character:
-                    self.apply()
-
-    def update(self, target):
-        existing = next((e for e in self.character.active_effects 
-                       if isinstance(e, StandardActionEffect)), None)
-        if not existing:
-            self.remove()
-
 class ConstellationEffect_2(ConstellationEffect, EventHandler):
     """命座2：偷懒是健身大忌!"""
     def __init__(self):
@@ -526,7 +491,9 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
         
     def apply(self, character):
         EventBus.subscribe(EventType.AFTER_BURST, self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         self.character = character
+        self.current_character = None
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_BURST and event.data['character'] == self.character:
@@ -535,7 +502,6 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                 return   
             # 应用标准动作效果
             StandardActionEffect(self.character).apply() 
-            IansanAttackBoostEffect(self.character).apply()
 
 class ForceExcitationEffect(Effect):
     """原力激扬效果"""
@@ -573,10 +539,6 @@ class ForceExcitationEffect(Effect):
     def consume_stack(self):
         if self.stacks > 0:
             self.stacks -= 1
-            self.msg = f"""
-            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
-            <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
-            """
             get_emulation_logger().log_effect(f"{self.character.name} 消耗1层{self.name}，当前层数：{self.stacks}")
             return True
         return False
@@ -628,9 +590,12 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
 
 class LimitBreakEffect(DamageBoostEffect, EventHandler):
     """极限发力效果"""
-    def __init__(self, character):
-        super().__init__(character,'极限发力',25,3*60)
-        self.current_character = character
+    def __init__(self, character, current_character):
+        super().__init__(character, current_character, '极限发力',25,3*60)
+        self.msg = f"""
+            <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%伤害加成</span></p>
+            """
 
     def apply(self):
         # 防止重复应用

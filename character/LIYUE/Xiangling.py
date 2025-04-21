@@ -44,7 +44,7 @@ class GuobaObject(baseObject):
     def on_finish(self, target):
         if self.caster.level >= 60 and self.is_acquirable:
             # 锅巴消失时触发辣椒效果
-            effect = ChiliPepperEffect(Team.current_character)
+            effect = ChiliPepperEffect(self.caster ,Team.current_character)
             effect.apply()
         super().on_finish(target)
 
