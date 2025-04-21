@@ -42,7 +42,7 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[i][self.lv-1],
+            damageMultipiler=self.damageMultipiler[i+1][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
             name=f'重击'
@@ -58,7 +58,11 @@ class PlungingAttack(PlungingAttackSkill):
 
 class SanctifyingRingObject(baseObject):
     def __init__(self, character, skill_lv):
-        super().__init__("越祓草轮", 12 * 60)
+        if character.constellation >= 2:
+            life_time = 15 * 60
+        else:
+            life_time = 12 * 60
+        super().__init__("越祓草轮", life_time)
         self.character = character
         self.skill_lv = skill_lv
         self.last_trigger_time = 16
@@ -88,11 +92,16 @@ class SanctifyingRingObject(baseObject):
             damageType=DamageType.SKILL,
             name='越祓草轮伤害'
         )
+        if self.character.level >= 60:
+            damage.setPanel('固定伤害基础值加成',self.character.attributePanel['元素精通'] * 0.25)
+            damage.setDamageData('安心之所_基础值加成', self.character.attributePanel['元素精通'] * 0.25)
         damage_event = DamageEvent(self.character, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
         # 治疗当前角色
         heal_multiplier = self.heal_values[self.skill_lv-1]
+        if self.character.level >= 60:
+            heal_multiplier = (heal_multiplier[0], heal_multiplier[1] + self.character.attributePanel['元素精通'] * 0.75)
         healing = Healing(
             base_Multipiler=heal_multiplier,
             healing_type=HealingType.SKILL,
@@ -192,7 +201,6 @@ class ElementalBurst(EnergySkill):
             cd=15 * 60,
             lv=lv,
             element=('雷', 1),
-            energy_cost=60,
             interruptible=False
         )
         self.hit_frame = 50
@@ -229,25 +237,56 @@ class PassiveSkillEffect_2(TalentEffect):
     def apply(self, character):
         super().apply(character)
 
-
 class ConstellationEffect_1(ConstellationEffect):
-    pass
+    def __init__(self):
+        super().__init__('割舍怜悯之心')
 
 class ConstellationEffect_2(ConstellationEffect):
-    pass
+    def __init__(self):
+        super().__init__('割舍侥幸之心')
 
 class ConstellationEffect_3(ConstellationEffect):
-    pass
+    def __init__(self):
+        super().__init__('割舍痛苦之心')
 
-class ConstellationEffect_4(ConstellationEffect):
-    pass
+    def apply(self, character):
+        super().apply(character)
+        self.character.Skill.lv = min(15, self.character.Skill.lv + 3)
+
+class ConstellationEffect_4(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('割舍封闭之心')
+        self.last_trigger_time = -5*60
+
+    def apply(self, character):
+        super().apply(character)
+
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_DAMAGE:
+            o = next((o for o in Team.active_objects if isinstance(o, SanctifyingRingObject)), None)
+            if o and event.frame - self.last_trigger_time >= 5 * 60:
+                if event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
+                    damage = Damage( 9.7, ('雷', 1), DamageType.SKILL, '割舍封闭之心')
+                    damage.setBaseValue('生命值')
+                    damage_event = DamageEvent(self.character, event.data['target'], damage, GetCurrentTime())
+                    EventBus.publish(damage_event)
+                    self.last_trigger_time = event.frame
 
 class ConstellationEffect_5(ConstellationEffect):
-    pass
+    def __init__(self):
+        super().__init__('割舍逢迎之心')
+
+    def apply(self, character):
+        super().apply(character)
+        self.character.Burst.lv = min(15, self.character.Burst.lv + 3)
 
 class ConstellationEffect_6(ConstellationEffect):
-    pass
+    def __init__(self):
+        super().__init__('割舍软弱之心')
 
+# 命座6
 class KukiShinobu(Inazuma):
     ID = 51
     def __init__(self, level=1, skill_params=..., constellation=0):

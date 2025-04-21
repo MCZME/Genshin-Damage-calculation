@@ -19,6 +19,7 @@ CharacterClassMap = {
     Neuvillette.ID:Neuvillette,
     Furina.ID:Furina,
     KaedeharaKazuha.ID:KaedeharaKazuha,
+    KukiShinobu.ID:KukiShinobu,
 }
 
 WeaponClassMap = {
