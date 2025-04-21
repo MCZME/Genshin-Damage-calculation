@@ -373,7 +373,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         if event.event_type == EventType.AFTER_SKILL and event.data['character'] == self.character:
             if self.character.Skill.charged_shot:
                 maxHP = self.character.maxHP
-                bonus = int(maxHP) % 1000
+                bonus = maxHP / 1000
                 if bonus > 40:
                     bonus = 40
                 for c in Team.team:

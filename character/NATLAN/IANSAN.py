@@ -262,7 +262,8 @@ class KineticMarkObject(baseObject):
                 # 记录溢出量
                 self.caster._last_overflow = overflow
                 get_emulation_logger().log_effect(f"⚡ {self.caster.name} 夜魂值溢出 {overflow:.1f} 点")
-                LimitBreakEffect(self.current_character,Team.current_character).apply()
+                if self.caster.constellation >= 6:
+                    LimitBreakEffect(self.current_character,Team.current_character).apply()
             
             # 如果有上次溢出，额外恢复50%
             if hasattr(self.caster, '_last_overflow') and self.caster._last_overflow > 0:
@@ -506,7 +507,7 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
 class ForceExcitationEffect(Effect):
     """原力激扬效果"""
     def __init__(self, character):
-        super().__init__(character,0)
+        super().__init__(character,10)
         self.name = '原力激扬'
         self.stacks = 0
         self.max_stacks = 2
@@ -588,6 +589,17 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
             elif event.data['character'] == self.character and not self.is_gain:
                 self.is_gain = True
 
+class ConstellationEffect_5(ConstellationEffect):
+    """命座5：还没有到极限呢！"""
+    def __init__(self):
+        super().__init__('还没有到极限呢！')
+
+    def apply(self, character):
+        burst_lv = character.Burst.lv + 3
+        if burst_lv > 15:
+            burst_lv = 15
+        character.Burst = ElementalBurst(burst_lv, character)
+
 class LimitBreakEffect(DamageBoostEffect, EventHandler):
     """极限发力效果"""
     def __init__(self, character, current_character):
@@ -598,8 +610,8 @@ class LimitBreakEffect(DamageBoostEffect, EventHandler):
             """
 
     def apply(self):
-        # 防止重复应用
-        existing = next((e for e in self.character.active_effects 
+        self.is_active = True
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, DamageBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
@@ -611,9 +623,9 @@ class LimitBreakEffect(DamageBoostEffect, EventHandler):
         EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
     
     def remove(self):
+        self.is_active = False
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
-        self.current_character.remove_effect(self)
         EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
 
     def handle_event(self, event: GameEvent):
@@ -622,17 +634,6 @@ class LimitBreakEffect(DamageBoostEffect, EventHandler):
                 self.remove()
                 self.current_character = event.data['new_character']
                 self.apply()  
-
-class ConstellationEffect_5(ConstellationEffect):
-    """命座5：还没有到极限呢！"""
-    def __init__(self):
-        super().__init__('还没有到极限呢！')
-
-    def apply(self, character):
-        burst_lv = character.Burst.lv + 3
-        if burst_lv > 15:
-            burst_lv = 15
-        character.Burst = ElementalBurst(burst_lv, character)
 
 class ConstellationEffect_6(ConstellationEffect):
     """命座6：「沃陆之邦」的训教"""

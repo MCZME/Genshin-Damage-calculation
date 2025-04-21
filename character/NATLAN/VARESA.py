@@ -588,7 +588,8 @@ class HeroReturnsEffect(Effect):
         super().__init__(character, 12 * 60)
         self.name = '英雄二度归来'
         self.attack_bonus = 35  # 35%攻击力提升
-        self.stacks = [0,0] 
+        self.stacks = [0,0]
+        self.stack = 0
         self.max_stacks = 2  # 最大层数
         
     def apply(self):
@@ -596,10 +597,10 @@ class HeroReturnsEffect(Effect):
         existing = next((e for e in self.character.active_effects 
                        if isinstance(e, HeroReturnsEffect)), None)
         if existing:
-            s = self.get_stacks()
-            self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
-            s = self.get_stacks()
-            self.character.attributePanel['攻击力%'] += self.attack_bonus * s
+            existing.character.attributePanel['攻击力%'] -= self.attack_bonus * existing.stack
+            existing.stacks[existing.stacks.index(min(existing.stacks))] = self.duration
+            existing.get_stacks()
+            existing.character.attributePanel['攻击力%'] += self.attack_bonus * existing.stack
             get_emulation_logger().log_effect(f"⚔️ {self.character.name} 英雄二度归来效果叠加至{existing.stacks}层")
             return
             
@@ -610,27 +611,31 @@ class HeroReturnsEffect(Effect):
         
     def remove(self):
         super().remove()
-        s = self.get_stacks()
-        self.character.attributePanel['攻击力%'] -= self.attack_bonus * s
+        self.character.attributePanel['攻击力%'] -= self.attack_bonus * self.stack
         get_emulation_logger().log_effect(f"⚔️ {self.character.name} 的英雄二度归来效果消失")
         
     def get_stacks(self):
-        a=0
+        self.stack = 0
         for i in self.stacks:
             if i > 0:
-                a+=1
-        return a
+                self.stack += 1
 
     def update(self, target):
-        for i in range(len(self.stacks)):
+        s = 0
+        for i in range(self.max_stacks):
             if self.stacks[i] > 0:
                 self.stacks[i] -= 1
-        if self.get_stacks() == 0:
+            else:
+                s += 1
+        if s > 0 and s < self.stack:
+            self.get_stacks()
+        elif s > 0 and s == self.stack:
             self.remove()
+
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">瓦雷莎的攻击力提升35%</span></p>
-        <p><span style="color: #c0e4e6; font-size: 12pt;">当前层数：{self.get_stacks()}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">当前层数：{self.stack}</span></p>
         """
 
 class PassiveSkillEffect_2(TalentEffect,EventHandler):

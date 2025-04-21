@@ -131,9 +131,8 @@ class AttackBoostEffect(Effect):
         <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%攻击力</span></p>
         """
         
-    def apply(self,character=None):
+    def apply(self):
         super().apply()
-        self.current_character = character if character else self.character
         # 防止重复应用
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, AttackBoostEffect) and e.name == self.name), None)
