@@ -555,7 +555,7 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
             get_emulation_logger().log_effect(f"炎花献礼：玛薇卡攻击力提升{self.boost_amount}%")
-            effect = AttackBoostEffect(self.character,  self.name, self.boost_amount, 10*60)
+            effect = AttackBoostEffect(self.character, self.character, self.name, self.boost_amount, 10*60)
             effect.apply()
 
 class ConstellationEffect_1(ConstellationEffect):
@@ -574,7 +574,7 @@ class ConstellationEffect_1(ConstellationEffect):
             if self.ttt % 60 == 0:
                 get_emulation_logger().log("INFO", f"获得战意：{self.battle_will:.2f}")
             self.ttt += 1
-            effect = AttackBoostEffect(self.caster, '夜主的授记', 40, 8*60)
+            effect = AttackBoostEffect(self.caster, self.caster, '夜主的授记', 40, 8*60)
             effect.apply()
         character.Burst.gain_battle_will = types.MethodType(f, character.Burst)
    

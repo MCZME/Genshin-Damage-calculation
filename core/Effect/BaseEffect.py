@@ -121,8 +121,9 @@ class ElementalDamageBoostEffect(DamageBoostEffect):
 
 class AttackBoostEffect(Effect):
     """攻击力提升效果"""
-    def __init__(self, character, name, bonus, duration):
+    def __init__(self, character, current_character, name, bonus, duration):
         super().__init__(character, duration)
+        self.current_character = current_character
         self.bonus = bonus
         self.name = name
         self.msg = f"""

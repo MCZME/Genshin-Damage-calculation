@@ -169,7 +169,7 @@ class NoblesseOblige(ArtifactEffect):
         if event.event_type == EventType.AFTER_BURST:
             if event.data['character'] == self.character:
                 for c in Team.team:
-                    effect = AttackBoostEffect(c, '昔日宗室之仪', 20, 12*60)
+                    effect = AttackBoostEffect(self.character, c, '昔日宗室之仪', 20, 12*60)
                     effect.apply()
 
 class MarechausseeHunter(ArtifactEffect,EventHandler):

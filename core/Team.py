@@ -49,7 +49,7 @@ class Team:
         if Team.element_counts.get('火', 0) >= 2 and len(Team.team) >= 4:
             if '热诚之火' not in Team.active_resonances:
                 for char in Team.team:
-                    effect = AttackBoostEffect(char, "热诚之火", 25, float('inf'))
+                    effect = AttackBoostEffect(char, char, "热诚之火", 25, float('inf'))
                     effect.apply()
                 Team.active_resonances['热诚之火'] = True
 

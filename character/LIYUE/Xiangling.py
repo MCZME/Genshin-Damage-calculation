@@ -218,8 +218,8 @@ class PassiveSkillEffect_2(TalentEffect):
 
 class ChiliPepperEffect(AttackBoostEffect):
     """辣椒效果"""
-    def __init__(self, source):
-        super().__init__(source,"绝云朝天椒🌶️",10,10*60)
+    def __init__(self, character, current_character):
+        super().__init__(character, current_character,"绝云朝天椒🌶️",10,10*60)
 
 class ConstellationEffect_1(ConstellationEffect):
     """命座1：外酥里嫩"""

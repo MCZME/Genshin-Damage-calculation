@@ -18,6 +18,7 @@ class TamayurateinoOhanashi(Weapon, EventHandler):
         if event.data['character'] == self.character:
             effect = AttackBoostEffect(
                 character=self.character,
+                current_character=self.character,
                 name="且住亭御咄", 
                 bonus=self.attack_boost[self.lv-1],
                 duration=10*60

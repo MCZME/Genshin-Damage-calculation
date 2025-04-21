@@ -365,7 +365,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
                     bonus = 40
                 for c in Team.team:
                     if c.element in ['火', '雷']:
-                        effect = AttackBoostEffect(c, self.name, bonus, 30*60)
+                        effect = AttackBoostEffect(self.character, c, self.name, bonus, 30*60)
                         effect.apply()
                 self.character.Skill.charged_shot = False
 

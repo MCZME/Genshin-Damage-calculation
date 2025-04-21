@@ -49,7 +49,7 @@ class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
         current_time = event.frame
         if current_time - self.last_trigger_time >= 20*60:
             if event.data['old_character'] == self.character:
-                effect = AttackBoostEffect(event.data['new_character'], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
+                effect = AttackBoostEffect(self.character,event.data['new_character'], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
                 effect.apply()
                 self.last_trigger_time = current_time
 
