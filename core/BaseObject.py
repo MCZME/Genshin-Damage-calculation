@@ -110,6 +110,8 @@ class EnergyDropsObject(baseObject):
 
 class DendroCoreObject(baseObject):
     active = []
+    last_bloom_time = 0
+    bloom_count = -30
     def __init__(self, source, target,damage):
         super().__init__("草原核", 6*60)
         self.damage = damage
@@ -125,16 +127,23 @@ class DendroCoreObject(baseObject):
             DendroCoreObject.active.pop(0)
 
     def apply_element(self, damage):
-        if damage.element[0] in ['火','雷']:
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], '原')
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-            self.is_active = False
+        if self.is_active:
+            if damage.element[0] in ['火','雷']:
+                e = ElementalReaction(damage)
+                e.set_reaction_elements(damage.element[0], '原')
+                EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
+                self.is_active = False
         
     def on_finish(self, target):
         super().on_finish(target)
-        event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
-        EventBus.publish(event)
+        if GetCurrentTime() - DendroCoreObject.last_bloom_time > 0.5*60:
+            if DendroCoreObject.bloom_count == 2:
+                DendroCoreObject.bloom_count = 0
+                DendroCoreObject.last_bloom_time = GetCurrentTime()
+            else:
+                DendroCoreObject.bloom_count += 1
+                event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
+                EventBus.publish(event)
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)
