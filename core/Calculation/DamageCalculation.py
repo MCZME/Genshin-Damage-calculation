@@ -187,8 +187,8 @@ class Calculation:
             r = attributePanel['反应系数提高']
 
         reaction_multiplier = self.target.apply_elemental_aura(self.damage)
-        if self.damage.reaction_type[0] != '激化反应':
-            if reaction_multiplier:
+        if reaction_multiplier:
+            if self.damage.reaction_type[0] != '激化反应':
                 # 获取反应系数提高
                 if self.damage.reaction_type[1].value in list(r.keys()):
                     r1 = r[self.damage.reaction_type[1].value]/100
@@ -196,9 +196,9 @@ class Calculation:
                     r1 = 0
                 self.damage.setPanel('反应系数',reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
                 return reaction_multiplier * (1+(2.78*e)/(e+1400)+r1)
-        else:
-            self.damage.panel['固定伤害基础值加成'] += self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200))
-            self.damage.setDamageData('激化提升',self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200)))
+            else:
+                self.damage.panel['固定伤害基础值加成'] += self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200))
+                self.damage.setDamageData('激化提升',self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200)))
         return 1
 
     def independent_damage_multiplier(self):

@@ -16,6 +16,8 @@ class ElementalAura:
         self.elementalAura = elementalAura
 
     def apply_elemental_aura(self, damage):
+        if damage.element[1] <= 0:
+            return None
         if self._check_reactions(damage.element[0]):
             return self.process_elemental_reactions(damage)
         else:
@@ -43,7 +45,7 @@ class ElementalAura:
             return self.handle_in_quicken_reaction(damage)
 
         freeze = next((x for x in self.elementalAura if x['element'] in ['水', '冰'] and x['current_amount'] > 0 and damage.element[0] != x['element']), None)
-        if freeze:
+        if freeze and damage.element[0] in ['水', '冰']:
             return self.handle_freeze_reaction(damage)
 
         for aura in self.elementalAura:
