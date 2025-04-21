@@ -589,7 +589,7 @@ class BurningEffect(Effect):
             self.last_time = self.current_frame
 
         aura = next((a for a in self.aura.elementalAura if a['element'] == '草'), None)
-        if not aura:
+        if not aura and not self.aura.quicken_elements:
             self.remove()
         elif len(self.aura.burning_elements) == 0 or self.aura.burning_elements['current_amount'] <= 0:
             self.remove()

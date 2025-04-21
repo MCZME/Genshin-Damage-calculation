@@ -151,3 +151,29 @@ def test_QUICKEN():
         print(target.aura.quicken_elements)
         print(f"--------第{n}测试结束--------")
 
+def test_QUICKEN_p():
+    print('激化测试')
+    c = Character()
+    target = Target(0,103)
+    damage = Damage(0,('草',1),DamageType.NORMAL,'测试')
+    damage.setSource(c)
+    damage.setTarget(target)
+    target.apply_elemental_aura(damage)
+    damage.element = ('雷',1)
+    target.apply_elemental_aura(damage)
+    target.update()
+    damage.element = ('冰',1)
+    target.apply_elemental_aura(damage)
+
+    print(target.aura.elementalAura)
+    print(target.aura.quicken_elements)
+
+    for i in range(200):
+        target.update()
+        if i == 60:
+            damage.element = ('火',1)
+            target.apply_elemental_aura(damage)
+
+    print(target.aura.elementalAura)
+    print(target.aura.quicken_elements)
+    print(f"--------火元素测试结束--------")
