@@ -60,6 +60,8 @@ class Calculation:
         self.target = target
         self.damage = damage
 
+        self.damage.setPanel('固定伤害基础值加成',0)
+
     def attack(self):
         attributePanel = self.source.attributePanel
         atk0 = attributePanel['攻击力']
@@ -185,14 +187,18 @@ class Calculation:
             r = attributePanel['反应系数提高']
 
         reaction_multiplier = self.target.apply_elemental_aura(self.damage)
-        if reaction_multiplier:
-            # 获取反应系数提高
-            if self.damage.reaction_type[1].value in list(r.keys()):
-                r1 = r[self.damage.reaction_type[1].value]/100
-            else:
-                r1 = 0
-            self.damage.setPanel('反应系数',reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
-            return reaction_multiplier * (1+(2.78*e)/(e+1400)+r1)
+        if self.damage.reaction_type[0] != '激化反应':
+            if reaction_multiplier:
+                # 获取反应系数提高
+                if self.damage.reaction_type[1].value in list(r.keys()):
+                    r1 = r[self.damage.reaction_type[1].value]/100
+                else:
+                    r1 = 0
+                self.damage.setPanel('反应系数',reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
+                return reaction_multiplier * (1+(2.78*e)/(e+1400)+r1)
+        else:
+            self.damage.panel['固定伤害基础值加成'] += self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200))
+            self.damage.setDamageData('激化提升',self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200)))
         return 1
 
     def independent_damage_multiplier(self):
@@ -214,7 +220,6 @@ class Calculation:
             return 1
               
     def calculation_by_attack(self):
-        self.damage.setPanel('固定伤害基础值加成',0)
         event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
                           character = self.source,
                           target = self.target, 
@@ -230,7 +235,6 @@ class Calculation:
         self.damage.damage = value * self.independent_damage_multiplier()
     
     def calculation_by_hp(self):
-        self.damage.setPanel('固定伤害基础值加成',0)
         event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
                           character = self.source,
                           target = self.target, 
@@ -246,7 +250,6 @@ class Calculation:
         self.damage.damage = value * self.independent_damage_multiplier()
 
     def calculation_by_def(self):
-        self.damage.setPanel('固定伤害基础值加成',0)
         event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
                           character = self.source,
                           target = self.target, 
@@ -276,8 +279,6 @@ class Calculation:
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         self.damage.damage = value
 
-# todo
-# 元素反应：绽放，超绽放，烈绽放，激化，超激化，蔓激化
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:

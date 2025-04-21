@@ -15,7 +15,9 @@ class ElementalReactionType(Enum):
     BLOOM = '绽放'
     HYPERBLOOM = '超绽放'
     BURGEON = '烈绽放'
-    CATALYZE = '激化'
+    QUICKEN = '原激化'
+    AGGRAVATE = '超激化'
+    SPREAD = '蔓激化'
     FREEZE = '冻结'
     SHATTER = '碎冰'
 
@@ -57,6 +59,12 @@ ReactionMMap = {
             ('水', '草'): (ElementalReactionType.BLOOM, 2.0),
             ('雷', '原'): (ElementalReactionType.HYPERBLOOM, 3),
             ('火', '原'): (ElementalReactionType.BURGEON, 3),
+            ('草', '雷'): (ElementalReactionType.QUICKEN, 0),
+            ('雷', '草'): (ElementalReactionType.QUICKEN, 0),
+            ('草', '激'): (ElementalReactionType.SPREAD, 1.25),
+            ('雷', '激'): (ElementalReactionType.AGGRAVATE, 1.15),
+            ('水', '激'): (ElementalReactionType.BLOOM, 2.0),
+            ('火', '激'): (ElementalReactionType.BURNING, 0.25),
 
             # 冻元素反应
             ('火', '冻'): (ElementalReactionType.MELT, 2.0),
@@ -73,7 +81,9 @@ Reaction_to_EventType = {
     ElementalReactionType.ELECTRO_CHARGED: EventType.BEFORE_ELECTRO_CHARGED,
     ElementalReactionType.SUPERCONDUCT: EventType.BEFORE_SUPERCONDUCT,
     ElementalReactionType.SWIRL: EventType.BEFORE_SWIRL,
-    # ElementalReactionType.CRYSTALLIZE: EventType.BEFORE_CRYSTALLIZE,
+    ElementalReactionType.QUICKEN: EventType.BEFORE_QUICKEN,
+    ElementalReactionType.AGGRAVATE: EventType.BEFORE_AGGRAVATE,
+    ElementalReactionType.SPREAD: EventType.BEFORE_SPREAD,
     ElementalReactionType.BURNING: EventType.BEFORE_BURNING,
     ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
     ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
@@ -104,6 +114,8 @@ class ElementalReaction:
                                 ElementalReactionType.BLOOM,ElementalReactionType.HYPERBLOOM,ElementalReactionType.BURGEON]:
             self.reaction_type = ('剧变反应', reaction_type)
             self.lv_multiplier = get_reaction_multiplier(self.source.level)
+        elif reaction_type in [ElementalReactionType.QUICKEN,ElementalReactionType.AGGRAVATE,ElementalReactionType.SPREAD]:
+            self.reaction_type = ('激化反应', reaction_type)
         self.reaction_multiplier = reaction_multiplier
 
 class ElementalReactionHandler(EventHandler):

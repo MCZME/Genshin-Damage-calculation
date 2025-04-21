@@ -31,8 +31,12 @@ class EventType(Enum):
     AFTER_ELEMENTAL_REACTION = auto()   # 元素反应触发后
     BEFORE_FREEZE = auto()       # 冻结反应前
     AFTER_FREEZE = auto()        # 冻结反应后
-    BEFORE_CATALYZE = auto()     # 激化反应前
-    AFTER_CATALYZE = auto()      # 激化反应后
+    BEFORE_QUICKEN = auto()     # 原激化反应前
+    AFTER_QUICKEN = auto()      # 原激化反应后
+    BEFORE_AGGRAVATE = auto()     # 超激化反应前
+    AFTER_AGGRAVATE = auto()      # 超激化反应后
+    BEFORE_SPREAD = auto()     # 蔓激化反应前
+    AFTER_SPREAD = auto()      # 蔓激化反应后
     BEFORE_VAPORIZE = auto()     # 蒸发反应前
     AFTER_VAPORIZE = auto()      # 蒸发反应后
     BEFORE_MELT = auto()         # 融化反应前

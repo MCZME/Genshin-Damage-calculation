@@ -132,8 +132,12 @@ class ElementalEnergyEventHandler(EventHandler):
 
 class ReactionsEventHandler(EventHandler):
     def handle_event(self, event):
-        self.amplifying(event)
-        self.transformative(event)
+        if event.data['elementalReaction'].reaction_type[0] == '增幅反应':
+            self.amplifying(event)
+        elif event.data['elementalReaction'].reaction_type[0] == '剧变反应':
+            self.transformative(event)
+        elif event.data['elementalReaction'].reaction_type[0] == '激化反应':
+            self.catalyze(event)
 
     def amplifying(self, event):
         if event.event_type == EventType.BEFORE_MELT:
@@ -210,3 +214,11 @@ class ReactionsEventHandler(EventHandler):
             damage_event = DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime())
             EventBus.publish(damage_event)
             EventBus.publish(GameEvent(EventType.AFTER_BURGEON, event.frame,elementalReaction=e))
+
+    def catalyze(self, event):
+        if event.event_type == EventType.BEFORE_QUICKEN:
+            EventBus.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame,elementalReaction=event.data['elementalReaction']))
+        elif event.event_type == EventType.BEFORE_AGGRAVATE:
+            EventBus.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame,elementalReaction=event.data['elementalReaction']))
+        elif event.event_type == EventType.BEFORE_SPREAD:
+            EventBus.publish(GameEvent(EventType.AFTER_SPREAD, event.frame,elementalReaction=event.data['elementalReaction']))
