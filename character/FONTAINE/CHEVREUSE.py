@@ -6,8 +6,21 @@ from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
 from core.calculation.HealingCalculation import Healing, HealingType
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
+from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
+
+class NormalAttack(NormalAttackSkill):
+    def __init__(self, lv, cd=0):
+        super().__init__(lv, cd)
+        self.segment_frames = [11,24,39,61]
+        self.damageMultipiler = {
+            1:[53.13, 57.45, 61.78, 67.96, 72.28, 77.22, 84.02, 90.82, 97.61, 105.02, 112.44, 119.85, 127.26, 134.68, 142.09], 
+            2:[49.31, 53.32, 57.34, 63.07, 67.09, 71.67, 77.98, 84.29, 90.59, 97.47, 104.36, 111.24, 118.12, 125, 131.88, ],
+            3:[27.64 + 32.45, 29.9 + 35.09, 32.15 + 37.74, 35.36 + 41.51, 37.61 + 44.15, 40.18 + 47.17, 43.72 + 51.32, 47.25 + 55.47, 
+               50.79 + 59.62, 54.65 + 64.15, 58.5 + 68.68, 62.36 + 73.21, 66.22 + 77.74, 70.08 + 82.26, 73.93 + 86.79, ],
+            4:[77.26, 83.55, 89.84, 98.82, 105.11, 112.3, 122.18, 132.06, 141.95, 152.73, 163.51, 174.29, 185.07, 195.85, 206.63, ],
+        }
 
 class HealingFieldEffect(Effect, EventHandler):
     """持续恢复生命值效果"""
@@ -38,7 +51,7 @@ class HealingFieldEffect(Effect, EventHandler):
             healingFieldEffect.duration = self.duration
             return
 
-        print(f"🩺 {self.current_char.name}获得生命恢复效果！")
+        get_emulation_logger().log_effect(f"🩺 {self.current_char.name}获得生命恢复效果！")
         self.current_char.add_effect(self)
         self._apply_heal(self.current_char)
          # 订阅领域相关事件
@@ -77,7 +90,7 @@ class HealingFieldEffect(Effect, EventHandler):
         self._apply_heal(self.current_char)
 
     def remove(self):
-        print("🩺 生命恢复效果消失")
+        get_emulation_logger().log_effect("🩺 生命恢复效果消失")
         EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         super().remove()
 
@@ -169,7 +182,7 @@ class ElementalSkill(SkillBase, EventHandler):
         if event.event_type == EventType.BEFORE_OVERLOAD:
             if self.special_round < 1:
                 self.special_round = 1
-                print("🔋 获得超量装药弹头")
+                get_emulation_logger().log_effect("🔋 获得超量装药弹头")
     
     def on_frame_update(self, target):
         # 处理预定伤害
@@ -196,7 +209,7 @@ class ElementalSkill(SkillBase, EventHandler):
                     life_frame=surge_frame - trigger_frame
                 )
                 surge.apply()
-                print(f"🌊 生成流涌之刃")
+                get_emulation_logger().log_object(f"🌊 生成流涌之刃")
                 summon_energy(4, self.caster, ('火', 2))
         return False
     
@@ -458,6 +471,7 @@ class PyroElectroBuffEffect(ElementalDamageBoostEffect):
         self.elements = ['火', '雷'] 
 
     def apply(self):
+        self.is_active = True
         buff = next((eff for eff in self.current_character.active_effects 
                         if isinstance(eff, PyroElectroBuffEffect)), None)
         if buff is None:
@@ -499,17 +513,21 @@ class PyroElectroBuffEffect(ElementalDamageBoostEffect):
             self.duration = max(self.stacks)  
 
     def remove(self):
-        self.current_character.remove_effect(self)
+        self.is_active = False
 
     def setEffect(self):
         for element in self.elements:
             self.current_character.attributePanel[f'{element}元素伤害加成'] += self.bonus
-        print(f"{self.current_character.name}获得{self.name}效果，火/雷元素伤害提升{self.bonus}%")
+        self.msg = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}火雷伤害加成</span></p>
+        """
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果，火/雷元素伤害提升{self.bonus}%")
 
     def removeEffect(self):
         for element in self.elements:
             self.current_character.attributePanel[f'{element}元素伤害加成'] -= self.bonus
-        print(f"{self.current_character.name}: {self.name}的火/雷元素伤害加成效果结束，移除了{self.bonus}%加成")
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的火/雷元素伤害加成效果结束，移除了{self.bonus}%加成")
 
 class ConstellationEffect_6(ConstellationEffect, EventHandler):
     '''命座6：终结罪恶的追缉'''
@@ -554,15 +572,7 @@ class CHEVREUSE(Fontaine):
     def _init_character(self):
         super()._init_character()
         self.elemental_energy = ElementalEnergy(self,('火',60))
-        self.NormalAttack = NormalAttackSkill(self.skill_params[0])
-        self.NormalAttack.segment_frames = [11,24,39,61]
-        self.NormalAttack.damageMultipiler = {
-            1:[53.13, 57.45, 61.78, 67.96, 72.28, 77.22, 84.02, 90.82, 97.61, 105.02, 112.44, 119.85, 127.26, 134.68, 142.09], 
-            2:[49.31, 53.32, 57.34, 63.07, 67.09, 71.67, 77.98, 84.29, 90.59, 97.47, 104.36, 111.24, 118.12, 125, 131.88, ],
-            3:[27.64 + 32.45, 29.9 + 35.09, 32.15 + 37.74, 35.36 + 41.51, 37.61 + 44.15, 40.18 + 47.17, 43.72 + 51.32, 47.25 + 55.47, 
-               50.79 + 59.62, 54.65 + 64.15, 58.5 + 68.68, 62.36 + 73.21, 66.22 + 77.74, 70.08 + 82.26, 73.93 + 86.79, ],
-            4:[77.26, 83.55, 89.84, 98.82, 105.11, 112.3, 122.18, 132.06, 141.95, 152.73, 163.51, 174.29, 185.07, 195.85, 206.63, ],
-        }
+        self.NormalAttack = NormalAttack(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
         self.Burst = ElementalBurst(self.skill_params[2])
         self.talent1 = PassiveSkillEffect_1()
