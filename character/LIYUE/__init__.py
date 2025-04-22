@@ -9,4 +9,6 @@ def add(name,character,table):
 
 from .Xiangling import xiangling_table
 add('香菱','XiangLing',xiangling_table)
+from .Xingqiu import xingqiu_table
+add('行秋','Xingqiu',xingqiu_table)
 

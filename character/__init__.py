@@ -1,5 +1,5 @@
 __all__ = ['Varesa','MAVUIKA','Iansan','CITLALI','XiangLing','CHEVREUSE','BENNETT',
-         'Xilonen','KaedeharaKazuha','Furina','Neuvillette','KukiShinobu']
+         'Xilonen','KaedeharaKazuha','Furina','Neuvillette','KukiShinobu','XingQiu']
 
 character_table = {}
 
@@ -16,6 +16,7 @@ from character.NATLAN.XILONEN import Xilonen
 _add(natlan_character)
 from character.LIYUE import liyue_table
 from character.LIYUE.Xiangling import XiangLing
+from character.LIYUE.Xingqiu import XingQiu
 _add(liyue_table)
 from character.FONTAINE import fontaine_table
 from character.FONTAINE.CHEVREUSE import CHEVREUSE

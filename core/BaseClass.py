@@ -79,7 +79,7 @@ class SkillBase(ABC):
     def on_frame_update(self,target): pass
     def on_finish(self): 
         self.current_frame = 0
-    @abstractmethod
+
     def on_interrupt(self): 
         ...
 

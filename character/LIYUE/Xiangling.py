@@ -1,3 +1,4 @@
+from character.LIYUE.liyue import Liyue
 from character.character import Character
 from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
@@ -343,7 +344,7 @@ class ConstellationEffect_6(ConstellationEffect):
 # todo:
 # 重击
 # 添加一个控制参数，用于控制释放捡起辣椒
-class XiangLing(Character):
+class XiangLing(Liyue):
     ID = 11
     def __init__(self,level,skill_params,constellation=0):
         super().__init__(XiangLing.ID,level,skill_params,constellation)
