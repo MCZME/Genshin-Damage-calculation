@@ -21,6 +21,7 @@ CharacterClassMap = {
     KaedeharaKazuha.ID:KaedeharaKazuha,
     KukiShinobu.ID:KukiShinobu,
     XingQiu.ID:XingQiu,
+    Nahida.ID:Nahida,
 }
 
 WeaponClassMap = {

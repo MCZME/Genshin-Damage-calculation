@@ -251,7 +251,8 @@ class CharacterStatusCard(QWidget):
                 effect_widget = EffectDisplayWidget(
                     name=item["name"],
                     duration=item["duration"],
-                    max_duration=item["max_duration"]
+                    max_duration=item["max_duration"],
+                    msg=item["msg"]
                 )
                 effect_widget.setStyleSheet("""
                     border: none;
