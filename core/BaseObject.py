@@ -121,7 +121,7 @@ class DendroCoreObject(baseObject):
     def apply(self):
         super().apply()
         DendroCoreObject.active.append(self)
-        get_emulation_logger().log_object(f'产生一个草原核')
+        get_emulation_logger().log_object(f'🌿 产生一个草原核')
         if len(DendroCoreObject.active) > 5:
             DendroCoreObject.active[0].on_finish(None)
             DendroCoreObject.active.pop(0)

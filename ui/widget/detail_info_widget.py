@@ -184,7 +184,10 @@ class InfoCardWidget(QWidget):
             
             panel_items = list(self.data['panel'].items())
             for i, (key, val) in enumerate(panel_items):
-                item = QLabel(f"{key}: {val:.2f}")
+                if isinstance(val, (int, float)):
+                    item = QLabel(f"{key}: {val:.2f}")
+                else:
+                    item = QLabel(f"{key}: {val}")
                 item.setStyleSheet("""
                     QLabel {
                         font-size: 13px;

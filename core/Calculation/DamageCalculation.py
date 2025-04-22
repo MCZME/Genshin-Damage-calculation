@@ -232,6 +232,10 @@ class Calculation:
             self.damage.setDamageData('反应伤害提高',r1)
         inc = self.damage.panel['反应系数'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
+        if '暴击伤害' in list(self.damage.panel.keys()):
+            if random.randint(1,100) <= self.damage.panel['暴击率']:
+                value = value * (1 + self.damage.panel['暴击伤害']/100)
+                self.damage.setDamageData('暴击',True)
         self.damage.damage = value
 
     def calculate(self):
@@ -244,7 +248,9 @@ class Calculation:
                     damage = self.damage)
             EventBus.publish(event)
             if isinstance(self.damage.baseValue, tuple):
-                value = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler[0]/100 + self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler[1]/100
+                value = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler()[0]/100 + self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler()[1]/100
+                self.damage.setPanel(self.damage.baseValue[1],self.get_base_value(self.damage.baseValue[1]))
+                self.damage.panel['伤害倍率'] = f'{self.damageMultipiler()[0]:.2f}% + {self.damageMultipiler()[1]:.2f}% {self.damage.baseValue[1]}'
             else:
                 value = self.get_base_value(self.damage.baseValue) * self.damageMultipiler()/100
             value += self.damage.panel['固定伤害基础值加成']
