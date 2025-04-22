@@ -526,7 +526,7 @@ class CenterOfAttentionEffect(Effect,EventHandler):
             centerOfAttention.duration = self.duration
             return
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE, self)
+        EventBus.subscribe(EventType.BEFORE_CALCULATE, self)
         EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
         EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
         EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
@@ -548,7 +548,7 @@ class CenterOfAttentionEffect(Effect,EventHandler):
     def handle_event(self, event):
         if event.data['character'] != self.character:
             return
-        if event.event_type == EventType.BEFORE_DAMAGE:
+        if event.event_type == EventType.BEFORE_CALCULATE:
             if event.data['damage'].damageType in [DamageType.CHARGED, DamageType.PLUNGING]:
                 event.data['damage'].element = ('水',1)
                 event.data['damage'].setDamageData('不可覆盖', True)

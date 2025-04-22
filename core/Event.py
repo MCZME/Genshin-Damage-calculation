@@ -11,6 +11,8 @@ class EventType(Enum):
     FRAME_END = auto()  # 每帧结束时
     BEFORE_DAMAGE = auto()       # 伤害计算前
     AFTER_DAMAGE = auto()        # 伤害计算后
+    BEFORE_CALCULATE = auto()  # 计算前
+    AFTER_CALCULATE = auto()     # 计算后
     BEFORE_ATTACK = auto()        # 攻击力计算前
     AFTER_ATTACK = auto()         # 攻击力计算后
     BEFORE_DAMAGE_MULTIPLIER = auto()  # 伤害倍率计算前

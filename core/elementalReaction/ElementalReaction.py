@@ -116,6 +116,7 @@ class ElementalReaction:
             self.lv_multiplier = get_reaction_multiplier(self.source.level)
         elif reaction_type in [ElementalReactionType.QUICKEN,ElementalReactionType.AGGRAVATE,ElementalReactionType.SPREAD]:
             self.reaction_type = ('激化反应', reaction_type)
+            self.lv_multiplier = get_reaction_multiplier(self.source.level)
         self.reaction_multiplier = reaction_multiplier
 
 class ElementalReactionHandler(EventHandler):

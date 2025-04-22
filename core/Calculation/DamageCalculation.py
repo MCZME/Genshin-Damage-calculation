@@ -60,6 +60,12 @@ class Calculation:
         self.target = target
         self.damage = damage
 
+        event = GameEvent(EventType.BEFORE_CALCULATE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target,
+                          damage = self.damage)
+        EventBus.publish(event)
+        self.damage = event.data['damage']
         self.damage.setPanel('固定伤害基础值加成',0)
 
     def attack(self):
@@ -233,7 +239,7 @@ class Calculation:
         inc = self.damage.panel['反应系数'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         if '暴击伤害' in list(self.damage.panel.keys()):
-            if random.randint(1,100) <= self.damage.panel['暴击率']:
+            if not Config.get('emulation.open_critical') or random.randint(1,100) <= self.damage.panel['暴击率']:
                 value = value * (1 + self.damage.panel['暴击伤害']/100)
                 self.damage.setDamageData('暴击',True)
         self.damage.damage = value

@@ -137,13 +137,12 @@ class DendroCoreObject(baseObject):
     def on_finish(self, target):
         super().on_finish(target)
         if GetCurrentTime() - DendroCoreObject.last_bloom_time > 0.5*60:
-            if DendroCoreObject.bloom_count == 2:
-                DendroCoreObject.bloom_count = 0
-                DendroCoreObject.last_bloom_time = GetCurrentTime()
-            else:
-                DendroCoreObject.bloom_count += 1
-                event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
-                EventBus.publish(event)
+            DendroCoreObject.bloom_count = 0
+            DendroCoreObject.last_bloom_time = GetCurrentTime()
+        if DendroCoreObject.bloom_count < 2:
+            DendroCoreObject.bloom_count += 1
+            event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
+            EventBus.publish(event)
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)

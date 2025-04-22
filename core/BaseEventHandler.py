@@ -232,9 +232,14 @@ class ReactionsEventHandler(EventHandler):
             EventBus.publish(GameEvent(EventType.AFTER_BURGEON, event.frame,elementalReaction=e))
 
     def catalyze(self, event):
+        e = event.data['elementalReaction']
         if event.event_type == EventType.BEFORE_QUICKEN:
             EventBus.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame,elementalReaction=event.data['elementalReaction']))
         elif event.event_type == EventType.BEFORE_AGGRAVATE:
+            e.damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            e.damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame,elementalReaction=event.data['elementalReaction']))
         elif event.event_type == EventType.BEFORE_SPREAD:
+            e.damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+            e.damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
             EventBus.publish(GameEvent(EventType.AFTER_SPREAD, event.frame,elementalReaction=event.data['elementalReaction']))
