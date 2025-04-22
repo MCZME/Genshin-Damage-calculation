@@ -86,18 +86,18 @@ class Calculation:
         return def0 + def1
 
     def damageMultipiler(self):
+        self.damage.setPanel('伤害倍率',self.damage.damageMultipiler)
         event = GameEvent(EventType.BEFORE_DAMAGE_MULTIPLIER,GetCurrentTime(),
                           character = self.source,
                           target = self.target,
                           damage = self.damage)
         EventBus.publish(event)
-        self.damage.setPanel('伤害倍率',self.damage.damageMultipiler)
         event = GameEvent(EventType.AFTER_DAMAGE_MULTIPLIER,GetCurrentTime(),
                           character = self.source,
                           target = self.target,
                           damage = self.damage)
         EventBus.publish(event)
-        return self.damage.damageMultipiler/100
+        return event.data['damage'].panel['伤害倍率']
 
     def damageBonus(self):
         self.damage.setPanel('伤害加成',0)
@@ -244,9 +244,9 @@ class Calculation:
                     damage = self.damage)
             EventBus.publish(event)
             if isinstance(self.damage.baseValue, tuple):
-                value = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler[0] + self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler[1]
+                value = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler[0]/100 + self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler[1]/100
             else:
-                value = self.get_base_value(self.damage.baseValue) * self.damageMultipiler()
+                value = self.get_base_value(self.damage.baseValue) * self.damageMultipiler()/100
             value += self.damage.panel['固定伤害基础值加成']
             event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
                           character = self.source,

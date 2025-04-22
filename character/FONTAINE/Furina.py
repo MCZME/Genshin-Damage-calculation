@@ -70,7 +70,7 @@ class SalonMember(baseObject,EventHandler):
 
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
+        EventBus.unsubscribe(EventType.BEFORE_INDEPENDENT_DAMAGE, self)
 
     def consume_character_hp(self):
         number = 0

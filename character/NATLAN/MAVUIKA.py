@@ -141,11 +141,11 @@ class FurnaceEffect(Effect, EventHandler):
                 damage = event.data['damage']
                 if damage.damageType == DamageType.NORMAL:
                     normal_bonus = self.character.Burst.damageMultipiler['驰轮车普通攻击伤害提升'][self.character.Burst.lv-1]
-                    damage.damageMultipiler += self.consumed_will * normal_bonus
+                    damage.panel['伤害倍率'] += self.consumed_will * normal_bonus
                     damage.setDamageData('死生之炉提升', self.consumed_will * normal_bonus)
                 elif damage.damageType == DamageType.CHARGED:
                     heavy_bonus = self.character.Burst.damageMultipiler['驰轮车重击伤害提升'][self.character.Burst.lv-1]
-                    damage.damageMultipiler += self.consumed_will * heavy_bonus
+                    damage.panel['伤害倍率'] += self.consumed_will * heavy_bonus
                     damage.setDamageData('死生之炉提升', self.consumed_will * heavy_bonus)
 
 class ElementalBurst(SkillBase, EventHandler):
@@ -600,13 +600,13 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                 return
             damage = event.data['damage']
             if damage.damageType == DamageType.NORMAL:
-                damage.damageMultipiler += 60
+                damage.panel['伤害倍率'] += 60
                 damage.setDamageData('灰烬的代价', 60)
             elif damage.damageType == DamageType.CHARGED:
-                damage.damageMultipiler += 90
+                damage.panel['伤害倍率'] += 90
                 damage.setDamageData('灰烬的代价', 90)
             elif damage.damageType == DamageType.BURST:
-                damage.damageMultipiler += 120
+                damage.panel['伤害倍率'] += 120
                 damage.setDamageData('灰烬的代价', 120)
 
 # todo
