@@ -219,51 +219,6 @@ class Calculation:
             self.damage.panel.pop('独立伤害加成')
             return 1
               
-    def calculation_by_attack(self):
-        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value = self.attack() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
-        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value * self.independent_damage_multiplier()
-    
-    def calculation_by_hp(self):
-        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value = self.health() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
-        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value * self.independent_damage_multiplier()
-
-    def calculation_by_def(self):
-        event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value = self.DEF() * self.damageMultipiler() + self.damage.panel['固定伤害基础值加成']
-        event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
-                          character = self.source,
-                          target = self.target, 
-                          damage = self.damage)
-        EventBus.publish(event)
-        value =  value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
-        self.damage.damage = value * self.independent_damage_multiplier()
-
     def calculation_by_reaction(self):
         attributePanel = self.source.attributePanel
         r = {}
@@ -279,6 +234,38 @@ class Calculation:
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         self.damage.damage = value
 
+    def calculate(self):
+        if self.damage.damageType == DamageType.REACTION:
+            self.calculation_by_reaction()
+        else:
+            event = GameEvent(EventType.BEFORE_FIXED_DAMAGE,GetCurrentTime(),
+                    character = self.source,
+                    target = self.target, 
+                    damage = self.damage)
+            EventBus.publish(event)
+            if isinstance(self.damage.baseValue, tuple):
+                value = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler[0] + self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler[1]
+            else:
+                value = self.get_base_value(self.damage.baseValue) * self.damageMultipiler()
+            value += self.damage.panel['固定伤害基础值加成']
+            event = GameEvent(EventType.AFTER_FIXED_DAMAGE,GetCurrentTime(),
+                          character = self.source,
+                          target = self.target, 
+                          damage = self.damage)
+            EventBus.publish(event)
+            value = value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+            self.damage.damage = value * self.independent_damage_multiplier()
+
+    def get_base_value(self, baseValue):
+        if baseValue == '攻击力':
+            return self.attack()
+        elif baseValue == '生命值':
+            return self.health()
+        elif baseValue == '防御力':
+            return self.DEF()
+        elif baseValue == '元素精通':
+            return self.source.attributePanel['元素精通']
+
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
@@ -291,14 +278,7 @@ class DamageCalculateEventHandler(EventHandler):
             
             # 原有伤害计算逻辑
             calculation = Calculation(character, event.data['target'], damage)
-            if damage.damageType == DamageType.REACTION:
-                calculation.calculation_by_reaction()
-            elif damage.baseValue == '攻击力':
-                calculation.calculation_by_attack()
-            elif damage.baseValue == '生命值':
-                calculation.calculation_by_hp()
-            elif damage.baseValue == '防御力':
-                calculation.calculation_by_def()
+            calculation.calculate()
 
             get_emulation_logger().log_damage(character, event.data['target'], damage)
                 
