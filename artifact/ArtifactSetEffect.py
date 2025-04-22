@@ -147,8 +147,8 @@ class Instructor(ArtifactEffect,EventHandler):
         if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             if event.data['elementalReaction'].source == self.character:
                 for c in Team.team:
-                    effect = ElementalMasteryBoostEffect(self.character, '教官', 120, 8*60)
-                    effect.apply(c)
+                    effect = ElementalMasteryBoostEffect(self.character, c, '教官', 120, 8*60)
+                    effect.apply()
 
 class NoblesseOblige(ArtifactEffect):
     def __init__(self):

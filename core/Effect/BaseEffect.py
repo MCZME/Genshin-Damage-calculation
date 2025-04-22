@@ -412,8 +412,9 @@ class ShieldEffect(Effect):
 
 class ElementalMasteryBoostEffect(Effect):
     """元素精通提升效果"""
-    def __init__(self, character, name, bonus, duration):
+    def __init__(self, character, current_character, name, bonus, duration):
         super().__init__(character, duration)
+        self.current_character = current_character
         self.bonus = bonus 
         self.name = name
         self.attribute_name = '元素精通'
@@ -422,8 +423,7 @@ class ElementalMasteryBoostEffect(Effect):
         <p><span style="color: #c0e4e6; font-size: 12pt;">元素精通提升{self.bonus:.2f}点</span></p>
         """
         
-    def apply(self,character):
-        self.current_character = character
+    def apply(self):
         super().apply()
         existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, ElementalMasteryBoostEffect) and e.name == self.name), None)
