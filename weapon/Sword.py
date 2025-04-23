@@ -1,3 +1,5 @@
+import random
+from core.Logger import get_emulation_logger
 from core.effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
 from core.calculation.DamageCalculation import DamageType
 from core.effect.WeaponEffect import FreedomSwornEffect, RongHuaZhiGeEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
@@ -7,7 +9,7 @@ import core.Tool as T
 from weapon.weapon import Weapon
 
 
-sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓','岩峰巡歌']
+sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓','岩峰巡歌','祭礼剑']
 
 class FluteOfEzpitzal(Weapon,EventHandler):
     ID = 38
@@ -122,3 +124,23 @@ class PeakPatrolSong(Weapon, EventHandler):
         if event.event_type in [EventType.AFTER_NORMAL_ATTACK, EventType.AFTER_PLUNGING_ATTACK]:
             RongHuaZhiGeEffect(self.character, self.lv).apply()
             self.last_trigger_time = current_time
+
+class SacrificialSword(Weapon,EventHandler):
+    ID = 12
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, SacrificialSword.ID, level, lv)
+        self.last_tigger_time = -30*60
+        self.interval = 30 * 60
+        self.chance = [0.4,0.5,0.6,0.7,0.8]
+
+    def skill(self):
+        EventBus.subscribe(EventType.AFTER_SKILL, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_SKILL:
+            if event.data['character'] == self.character:
+                if T.GetCurrentTime() - self.last_tigger_time > self.interval:
+                    if random.random() < self.chance[self.lv - 1]:
+                        self.last_tigger_time = T.GetCurrentTime()
+                        self.character.Skill.cd_timer = self.character.Skill.cd
+                        get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')

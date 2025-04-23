@@ -39,4 +39,8 @@ WeaponClassMap = {
     '万世流涌大典':TomeOfTheEternalFlow,
     '苍古自由之誓':FreedomSworn,
     '岩峰巡歌':PeakPatrolSong,
+    '祭礼残章':SacrificialFragments,
+    '祭礼弓':SacrificialBow,
+    '祭礼剑':SacrificialSword,
+    '祭礼大剑':SacrificialGreatsword,
 }

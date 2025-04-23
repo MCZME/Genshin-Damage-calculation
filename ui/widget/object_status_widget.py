@@ -78,7 +78,7 @@ class ObjectStatusWidget(QWidget):
             self.hint_label = None
         
         # 更新显示
-        self.update_frame(self.current_frame)
+        self.update_frame(1)
     
     def update_frame(self, frame):
         if not self.data:
