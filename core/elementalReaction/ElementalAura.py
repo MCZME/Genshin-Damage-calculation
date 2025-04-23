@@ -86,7 +86,7 @@ class ElementalAura:
                 if damage.element[1] <= 0:
                     break
                 
-        if reaction_triggers:
+        if reaction_triggers and next((x for x in reaction_triggers if x is not None), None):
             return max(reaction_triggers)
         else:
             return None
@@ -285,15 +285,14 @@ class ElementalAura:
             if r:
                 ratio = self._get_element_ratio(damage.element[0], aura['element'])
 
+                if aura['element'] == '草':
+                    self.quicken_elements['current_amount'] -= damage.element[1] * ratio[1] / ratio[0]
                 if aura['current_amount'] >= damage.element[1] * ratio[1] / ratio[0]:
                     aura['current_amount'] -= damage.element[1] * ratio[1] / ratio[0]
                     damage.element = (damage.element[0], 0)
                 else:
                     damage.element = (damage.element[0], damage.element[1] - aura['current_amount'] * ratio[0] / ratio[1])
                     aura['current_amount'] = 0
-
-                if aura['element'] == '草':
-                    self.quicken_elements['current_amount'] -= damage.element[1] * ratio[1] / ratio[0]
 
                 event = self._create_reaction_event(damage, damage.element[0], aura['element'])
                 EventBus.publish(event)

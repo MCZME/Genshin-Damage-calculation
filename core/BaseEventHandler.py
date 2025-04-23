@@ -38,6 +38,10 @@ class FrameEndEventHandler(EventHandler):
                         'max_duration':e.max_duration,} for e in Emulation.target.effects}
             target_data['defense'] = Emulation.target.defense
             target_data['elemental_aura'] = [{'element':e['element'],'amount':e['current_amount']} for e in Emulation.target.aura.elementalAura]
+            if Emulation.target.aura.burning_elements:
+                target_data['elemental_aura'].append({'element':'燃','amount':Emulation.target.aura.burning_elements['current_amount']})
+            if Emulation.target.aura.quicken_elements:
+                target_data['elemental_aura'].append({'element':'激','amount':Emulation.target.aura.quicken_elements['current_amount']})
             target_data['resistance'] = Emulation.target.current_resistance.copy()
 
             send_to_handler(event.frame, {'character':character_data, 'target':target_data})
@@ -205,30 +209,29 @@ class ReactionsEventHandler(EventHandler):
             EventBus.publish(GameEvent(EventType.AFTER_BLOOM, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_HYPERBLOOM:
             if GetCurrentTime() - ReactionsEventHandler.last_bloom_time > 0.5*60:
-                if ReactionsEventHandler.bloom_count == 2:
-                    ReactionsEventHandler.last_bloom_time = GetCurrentTime()
-                    ReactionsEventHandler.bloom_count = 0
-                else:
-                    ReactionsEventHandler.bloom_count += 1
-                    damage = Damage(0,('草',0),DamageType.REACTION, '超绽放')
-                    damage.reaction_type = e.damage.reaction_type
-                    damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
-                    damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
-                    EventBus.publish(DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime()))
+                ReactionsEventHandler.bloom_count = 0
+            if ReactionsEventHandler.bloom_count < 2:
+                ReactionsEventHandler.bloom_count += 1
+                damage = Damage(0,('草',0),DamageType.REACTION, '超绽放')
+                damage.reaction_type = e.damage.reaction_type
+                damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+                damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+                damage_event = DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime())
+                EventBus.publish(damage_event)
+                ReactionsEventHandler.last_bloom_time = GetCurrentTime()  
             EventBus.publish(GameEvent(EventType.AFTER_HYPERBLOOM, event.frame,elementalReaction=e))
         elif event.event_type == EventType.BEFORE_BURGEON:
             if GetCurrentTime() - ReactionsEventHandler.last_bloom_time > 0.5*60:
-                if ReactionsEventHandler.bloom_count == 2:
-                    ReactionsEventHandler.last_bloom_time = GetCurrentTime()
-                    ReactionsEventHandler.bloom_count = 0
-                else:
-                    ReactionsEventHandler.bloom_count += 1
-                    damage = Damage(0,('草',0),DamageType.REACTION, '烈绽放')
-                    damage.reaction_type = e.damage.reaction_type
-                    damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
-                    damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
-                    damage_event = DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime())
-                    EventBus.publish(damage_event)
+                ReactionsEventHandler.bloom_count = 0
+            if ReactionsEventHandler.bloom_count < 2:
+                ReactionsEventHandler.bloom_count += 1
+                damage = Damage(0,('草',0),DamageType.REACTION, '烈绽放')
+                damage.reaction_type = e.damage.reaction_type
+                damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
+                damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+                damage_event = DamageEvent(e.damage.source,e.damage.target,damage,GetCurrentTime())
+                EventBus.publish(damage_event)
+                ReactionsEventHandler.last_bloom_time = GetCurrentTime()                 
             EventBus.publish(GameEvent(EventType.AFTER_BURGEON, event.frame,elementalReaction=e))
 
     def catalyze(self, event):
