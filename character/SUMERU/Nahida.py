@@ -5,7 +5,7 @@ from core.BaseObject import baseObject
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, NormalAttackEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
-from core.Tool import GetCurrentTime
+from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.effect.BaseEffect import DefenseDebuffEffect, Effect, ElementalMasteryBoostEffect
 
@@ -63,7 +63,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
         self.target = target
         self.last_trigger_time = -2.5*60
         self.base_interval = 2.5*60
-        self.damage_bonus = 0  # 伤害加成
+        self.last_energy_time = -7*60
         self.interval_reduction = 0  # 间隔降低
         
         # 灭净三业伤害倍率
@@ -128,6 +128,9 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
         )
         EventBus.publish(damage_event)
         get_emulation_logger().log_effect(f"🌿 {self.target.name} 触发灭净三业")
+        if current_time - self.last_energy_time >= 7*60:
+            summon_energy(3, self.character, ('草',2))
+            self.last_energy_time = current_time
 
     def update(self):
         super().update(None)
@@ -226,13 +229,11 @@ class MayaPalaceObject(baseObject,EventHandler):
         
     def _apply_effects(self):
         """应用领域效果到角色"""  
-        seedOfSkandha = self.character.Skill.effect
         # 雷元素效果：减少攻击间隔
         if self.electro_count > 0:
             count_idx = min(self.electro_count, 2) - 1
-            reduction = self.interval_reduction[count_idx][self.lv - 1]
-            seedOfSkandha.interval_reduction = reduction * 60
-            get_emulation_logger().log_effect(f"⚡ 雷元素效果：攻击间隔减少{reduction*60:.2f}秒")
+            self.reduction = self.interval_reduction[count_idx][self.lv - 1] * 60
+            get_emulation_logger().log_effect(f"⚡ 雷元素效果：攻击间隔减少{self.reduction*60:.2f}秒")
         # 水元素效果：延长领域持续时间
         if self.hydro_count > 0:
             count_idx = min(self.hydro_count, 2) - 1
@@ -265,6 +266,8 @@ class MayaPalaceObject(baseObject,EventHandler):
         self.removeEM()
         self.getEM()
         self.setEM()
+        if self.character.Skill.effect:
+            self.character.Skill.effect.interval_reduction = self.reduction
 
     def on_finish(self, target):
         super().on_finish(target)
