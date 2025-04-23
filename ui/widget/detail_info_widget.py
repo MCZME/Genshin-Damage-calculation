@@ -28,7 +28,6 @@ class InfoCardWidget(QWidget):
         
         self.setStyleSheet(f"""
             QWidget#InfoCardWidget {{
-                background: #ffffff;
                 padding: 10px;
                 margin: 8px 5px;
                 border: 2px solid {border_color};  
@@ -202,6 +201,7 @@ class DetailInfoWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.data = None
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setup_ui()
 
     def set_data(self, data):

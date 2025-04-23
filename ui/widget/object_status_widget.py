@@ -12,7 +12,7 @@ class ObjectStatusWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # 主布局
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setContentsMargins(10, 0, 10, 0)
         self.main_layout.setSpacing(5)
         
         # 标题
@@ -23,6 +23,8 @@ class ObjectStatusWidget(QWidget):
                 font-weight: bold;
                 color: #333333;
                 margin-bottom: 5px;
+                border-radius: 0px;
+                border-bottom: 2px solid #E5E5E5;
             }
         """)
         self.main_layout.addWidget(self.title_label)
