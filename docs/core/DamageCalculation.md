@@ -25,18 +25,21 @@ class Damage():
         self.name = name            # 伤害名称
         self.damage = 0             # 最终伤害值
         self.baseValue = '攻击力'    # 基础属性(攻击力/生命值/防御力)
-        self.reaction = None        # 元素反应实例
+        self.reaction_type = None   # 反应类型
+        self.reaction_data = None   # 反应数据
         self.data = kwargs          # 额外数据
         self.panel = {}             # 伤害计算面板数据
+        self.hit_type = None        # 命中类型(普通/重击等)
 ```
 
 Damage类存储伤害计算所需的所有数据，并提供以下方法：
 - `setSource()`: 设置伤害来源
 - `setTarget()`: 设置伤害目标  
 - `setBaseValue()`: 设置基础属性类型
-- `setReaction()`: 设置元素反应
+- `setReaction()`: 设置元素反应类型和数据
 - `setDamageData()`: 设置额外数据
 - `setPanel()`: 设置面板数据
+- `setHitType()`: 设置命中类型
 
 ## 伤害计算类(Calculation)
 
@@ -58,6 +61,7 @@ def criticalBracket(self):   # 暴击伤害计算
 def defense(self):           # 防御减免计算
 def resistance(self):        # 元素抗性计算
 def reaction(self):          # 元素反应系数计算
+def independent_damage_multiplier(self): # 独立伤害乘区计算
 ```
 
 ### 最终伤害计算
@@ -66,6 +70,7 @@ def calculation_by_attack(self):  # 基于攻击力的伤害计算
 def calculation_by_hp(self):      # 基于生命值的伤害计算  
 def calculation_by_def(self):     # 基于防御力的伤害计算
 def calculation_by_reaction(self): # 剧变反应伤害计算
+def calculate(self):              # 综合伤害计算入口
 ```
 
 ## 伤害事件处理(DamageCalculateEventHandler)
@@ -74,25 +79,29 @@ def calculation_by_reaction(self): # 剧变反应伤害计算
 class DamageCalculateEventHandler(EventHandler):
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE:
-            # 处理元素附魔
-            self.handle_elemental_infusion(character, damage)
+            character = event.data['character']
+            damage = event.data['damage']
             
-            # 根据基础属性类型选择计算公式
-            if damage.damageType == DamageType.REACTION:
-                calculation.calculation_by_reaction()
-            elif damage.baseValue == '攻击力':
-                calculation.calculation_by_attack()
-            elif damage.baseValue == '生命值':
-                calculation.calculation_by_hp() 
-            elif damage.baseValue == '防御力':
-                calculation.calculation_by_def()
+            # 处理元素附魔和元素克制
+            if damage.damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
+                self.handle_elemental_infusion(character, damage)
+            
+            # 执行伤害计算
+            calculation = Calculation(character, event.data['target'], damage)
+            calculation.calculate()
+            
+            # 处理草元素核心反应
+            dendroCore = [d for d in Team.active_objects if isinstance(d, DendroCoreObject)]
+            for d in dendroCore:
+                d.apply_element(damage)
 ```
 
 事件处理器主要功能：
-1. 处理元素附魔效果
+1. 处理元素附魔效果和元素克制关系(水>火>冰)
 2. 根据伤害类型选择适当的计算公式
 3. 发布相关事件(BEFORE_DAMAGE/AFTER_DAMAGE)
-4. 处理元素反应额外伤害
+4. 处理草元素核心反应
+5. 记录伤害日志
 
 ## 使用示例
 
@@ -104,6 +113,9 @@ damage = Damage(
     damageType=DamageType.SKILL,
     name="元素战技伤害"
 )
+
+# 设置反应类型
+damage.setReaction('增幅反应', ReactionType.VAPORIZE)
 
 # 触发伤害计算事件
 event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(),
@@ -120,12 +132,23 @@ EventBus.publish(event)
 - 超导(SUPERCONDUCT) 
 - 融化(MELT)
 - 蒸发(VAPORIZE)
+- 激化/超激化/蔓激化
+- 绽放/超绽放/烈绽放(部分实现)
 
 待实现反应类型：
 - 燃烧
-- 绽放/超绽放/烈绽放
-- 激化/超激化/蔓激化  
 - 感电
 - 扩散
 - 碎冰
 - 冻结
+
+## 伤害计算流程
+1. 基础属性计算(攻击/生命/防御)
+2. 伤害倍率计算
+3. 伤害加成计算
+4. 暴击计算
+5. 防御减免计算
+6. 元素抗性计算
+7. 元素反应计算
+8. 独立乘区计算
+9. 最终伤害汇总
