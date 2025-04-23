@@ -12,8 +12,12 @@ class baseObject(ABC):
         self.is_active = False
         self.current_frame = 0
         self.life_frame = life_frame
+        self.repeatable = False
 
     def apply(self):
+        o = next((o for o in Team.active_objects if o.name == self.name), None)
+        if o and not self.repeatable:
+            return
         Team.add_object(self)
         self.is_active = True
         EventBus.publish(ObjectEvent(self, GetCurrentTime()))
@@ -97,6 +101,7 @@ class EnergyDropsObject(baseObject):
         self.element_energy = element_energy
         self.is_fixed = is_fixed
         self.is_alone = is_alone
+        self.repeatable = True
     
     def on_frame_update(self, target):
         pass
@@ -117,6 +122,7 @@ class DendroCoreObject(baseObject):
         self.damage = damage
         self.damage.source = source
         self.damage.target = target
+        self.repeatable = True
 
     def apply(self):
         super().apply()
