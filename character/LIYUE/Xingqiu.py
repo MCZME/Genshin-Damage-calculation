@@ -1,8 +1,9 @@
 from character.LIYUE.liyue import Liyue
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy,
-                            EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
+                            EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent
+from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
@@ -62,7 +63,7 @@ class RainSwordObject(baseObject):
     def __init__(self, character, lifetime=15*60):
         super().__init__("雨帘剑", lifetime)
         self.character = character
-        self.last_attack_time = 0
+        self.last_attack_time = -2*60
         self.attack_interval = 2*60
 
     def on_frame_update(self, target):
@@ -70,6 +71,8 @@ class RainSwordObject(baseObject):
         if current_time - self.last_attack_time >= self.attack_interval:
             self.last_attack_time = current_time
             damage = Damage(0, ('水', 1), DamageType.SKILL, '雨帘剑')
+            damage.setSource(self.character)
+            damage.setTarget(target)
             target.apply_elemental_aura(damage)
 
     def on_finish(self, target):
@@ -86,7 +89,7 @@ class RainSwordObject(baseObject):
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv, total_frames=65, cd=21*60):
-        super().__init__("古华剑·画雨笼山", total_frames, cd, lv, ('水', 0))
+        super().__init__("古华剑·画雨笼山", total_frames, cd, lv, ('水', 1))
         self.hit_frames = [12, 31]
         self.cd_frame = 12
         
@@ -101,6 +104,9 @@ class ElementalSkill(SkillBase):
         elif self.current_frame == self.hit_frames[1]:
             self._apply_damage(target, 1)
             summon_energy(5, self.caster,('水',2))
+            o  = next((o for o in Team.active_objects if isinstance(o, RainSwordStanceObject)),None)
+            if o:
+                return
             # 生成雨帘剑
             rain_sword = RainSwordObject(self.caster)
             rain_sword.apply()
@@ -116,16 +122,17 @@ class ElementalSkill(SkillBase):
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
-class RainSwordStanceObject(baseObject,EventHandler):
+class RainSwordStanceObject(baseObject,EventHandler,Infusion):
     def __init__(self, character, lv):
         if character.constellation >= 2:
             life_frame = 18*60
         else:
             life_frame = 15*60
         super().__init__("虹剑势", life_frame)
+        Infusion.__init__(self)
         self.character = character
         self.lv = lv
-        self.last_attach_time = 0
+        self.last_attach_time = -2*60
         self.last_attack_time = -50
         self.attack_interval = 1*60
         self.damageMultipiler = [
@@ -134,10 +141,10 @@ class RainSwordStanceObject(baseObject,EventHandler):
         ]
         self.attack_active = False
         if character.constellation >= 6:
-            self.sequence = [2,3,5]
+            self.sequence_n = [2,3,5]
         else:
-            self.sequence = [2,3]
-        self.sequence_pos = 0
+            self.sequence_n = [2,3]
+        self.sequence_pos_n = 0
 
     def apply(self):
         super().apply()
@@ -154,10 +161,10 @@ class RainSwordStanceObject(baseObject,EventHandler):
         if self.attack_active:
             if current_time - self.last_attack_time >= self.attack_interval:
                 self.last_attack_time = current_time
-                for _ in range(self.sequence[self.sequence_pos]):
+                for _ in range(self.sequence_n[self.sequence_pos_n]):
                     damage = Damage(
                         self.damageMultipiler[self.lv-1],
-                        ('水', 1),
+                        ('水', self.apply_infusion()),
                         DamageType.BURST,
                         '虹剑势·剑雨'
                     )
@@ -168,7 +175,7 @@ class RainSwordStanceObject(baseObject,EventHandler):
                         current_time
                     )
                     EventBus.publish(damage_event)
-                self.sequence_pos = (self.sequence_pos+1) % len(self.sequence)
+                self.sequence_pos_n = (self.sequence_pos_n+1) % len(self.sequence_n)
                 if self.character.constellation >= 2:
                     ResistanceDebuffEffect('天青现虹', self.character, target, ['水'],15,4*60).apply()
                 if self.character.constellation >= 6:
@@ -177,7 +184,10 @@ class RainSwordStanceObject(baseObject,EventHandler):
         if current_time - self.last_attach_time >= 2*60:
             self.last_attach_time = current_time
             damage = Damage(0, ('水', 1), DamageType.SKILL, '雨帘剑')
+            damage.setSource(self.character)
+            damage.setTarget(target)
             target.apply_elemental_aura(damage)
+            get_emulation_logger().log_skill_use(f'🌊 {self.character.name}使用了雨帘剑,造成水元素附着')
 
     def handle_event(self, event):
         """处理普通攻击事件"""
@@ -193,6 +203,9 @@ class ElementalBurst(EnergySkill):
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
+            o = next((o for o in Team.active_objects if isinstance(o, RainSwordObject)),None)
+            if o:
+                o.on_finish(target)
             # 生成虹剑势
             rain_sword_stance = RainSwordStanceObject(self.caster, self.lv)
             rain_sword_stance.apply()

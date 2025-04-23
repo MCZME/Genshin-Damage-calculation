@@ -101,14 +101,12 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
         # 元素反应触发
         if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
             self.last_trigger_time = current_time            
-            self._trigger_tri_karma()
                 
         # 草原核伤害触发
         elif event.event_type == EventType.AFTER_DAMAGE:
             damage = event.data['damage']
             if (damage.name in ['绽放', '烈绽放', '超绽放']):
                 self.last_trigger_time = current_time
-                self._trigger_tri_karma()
 
     def _trigger_tri_karma(self):
         current_time = GetCurrentTime()
@@ -116,7 +114,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
         
         damage = Damage(
             self.damage_multipliers[lv],
-            element=('草', 1),
+            element=('草', 1.5),
             damageType=DamageType.SKILL,
             name='灭净三业'
         )
@@ -129,11 +127,12 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
             GetCurrentTime()
         )
         EventBus.publish(damage_event)
-        self.last_trigger_time = current_time
         get_emulation_logger().log_effect(f"🌿 {self.target.name} 触发灭净三业")
 
     def update(self):
         super().update(None)
+        if GetCurrentTime() == self.last_trigger_time + 4:
+            self._trigger_tri_karma()
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -233,6 +232,7 @@ class MayaPalaceObject(baseObject,EventHandler):
             count_idx = min(self.electro_count, 2) - 1
             reduction = self.interval_reduction[count_idx][self.lv - 1]
             seedOfSkandha.interval_reduction = reduction * 60
+            get_emulation_logger().log_effect(f"⚡ 雷元素效果：攻击间隔减少{reduction*60:.2f}秒")
         # 水元素效果：延长领域持续时间
         if self.hydro_count > 0:
             count_idx = min(self.hydro_count, 2) - 1
