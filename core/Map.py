@@ -43,4 +43,5 @@ WeaponClassMap = {
     '祭礼弓':SacrificialBow,
     '祭礼剑':SacrificialSword,
     '祭礼大剑':SacrificialGreatsword,
+    '千夜浮梦':AThousandFloatingDreams,
 }
