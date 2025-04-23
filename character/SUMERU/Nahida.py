@@ -328,6 +328,7 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
                 event.data['damage'].setDamageData('慧明缘觉智论_伤害加成', min(EM * 0.1,80))
         elif event.event_type == EventType.BEFORE_CRITICAL:
             if event.data['character'] == self.character and event.data['damage'].name == '灭净三业':
+                EM = max(0, self.character.attributePanel['元素精通'] - 200)
                 event.data['damage'].panel['暴击率']+= min(EM * 0.03,24)
                 event.data['damage'].setDamageData('慧明缘觉智论_暴击率', min(EM * 0.03,24))
 
