@@ -125,6 +125,7 @@ class DendroCoreObject(baseObject):
         if len(DendroCoreObject.active) > 5:
             DendroCoreObject.active[0].on_finish(None)
             DendroCoreObject.active.pop(0)
+            DendroCoreObject.active.append(self)
 
     def apply_element(self, damage):
         if self.is_active:
@@ -133,16 +134,18 @@ class DendroCoreObject(baseObject):
                 e.set_reaction_elements(damage.element[0], '原')
                 EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
                 self.is_active = False
+                DendroCoreObject.active.remove(self)
         
     def on_finish(self, target):
         super().on_finish(target)
         if GetCurrentTime() - DendroCoreObject.last_bloom_time > 0.5*60:
             DendroCoreObject.bloom_count = 0
-            DendroCoreObject.last_bloom_time = GetCurrentTime()
         if DendroCoreObject.bloom_count < 2:
             DendroCoreObject.bloom_count += 1
             event = DamageEvent(self.damage.source, self.damage.target, self.damage, GetCurrentTime())
             EventBus.publish(event)
+            DendroCoreObject.active.remove(self)
+            DendroCoreObject.last_bloom_time = GetCurrentTime()
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)
