@@ -195,3 +195,43 @@ class MarechausseeHunterEffect(CritRateBoostEffect):
         self.removeEffect()
         get_emulation_logger().log_effect(f"🗡️ {self.current_character.name}失去逐影猎人效果")
 
+class FlowerOfParadiseLostEffect(Effect):
+    def __init__(self, character):
+        super().__init__(character, 10 * 60)
+        self.name = '乐园遗落之花'
+        self.stack = 0
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">装备者绽放、超绽放、烈绽放反应造成的伤害提升{self.stack * 15}%</span></p>
+        """
+
+    def apply(self):
+        super().apply()
+        FlowerOfParadiseLost = next((e for e in self.character.active_effects
+                                     if isinstance(e, FlowerOfParadiseLostEffect)), None)
+        if FlowerOfParadiseLost:
+            FlowerOfParadiseLost.removeEffect()
+            FlowerOfParadiseLost.stack = min(4, FlowerOfParadiseLost.stack + 1)
+            FlowerOfParadiseLost.setEffect()
+            FlowerOfParadiseLost.duration = self.duration
+            return
+        self.character.add_effect(self)
+        self.stack = 1
+        self.setEffect()
+        get_emulation_logger().log_effect(f"🌹 {self.current_character.name}获得乐园遗落之花效果")
+
+    def setEffect(self):
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">装备者绽放、超绽放、烈绽放反应造成的伤害提升{self.stack * 25}%</span></p>
+        """
+        self.current_character.attributePanel['反应系数提高']['绽放'] += self.stack * 25
+        self.current_character.attributePanel['反应系数提高']['超绽放'] += self.stack * 25
+        self.current_character.attributePanel['反应系数提高']['烈绽放'] += self.stack * 25
+
+    def removeEffect(self):
+        self.current_character.attributePanel['反应系数提高']['绽放'] -= self.stack * 25
+        self.current_character.attributePanel['反应系数提高']['超绽放'] -= self.stack * 25
+        self.current_character.attributePanel['反应系数提高']['烈绽放'] -= self.stack * 25
+
+    def remove(self):
+        super().remove()
+        self.removeEffect()

@@ -1,5 +1,5 @@
 from character.character import Character
-from core.effect.ArtfactEffect import CinderCityEffect, MarechausseeHunterEffect, ThirstEffect
+from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, MarechausseeHunterEffect, ThirstEffect
 from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import DamageType
 from core.Event import EventBus, EventHandler, EventType
@@ -242,3 +242,44 @@ class ViridescentVenerer(ArtifactEffect,EventHandler):
             effect = ResistanceDebuffEffect(self.name+f'-{element}', self.character, event.data['elementalReaction'].target, 
                                             element, 40, 10*60)
             effect.apply()
+
+class DeepwoodMemories(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('深林的记忆')
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['草元素伤害加成'] += 15
+
+    def four_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.AFTER_DAMAGE:
+            if event.data['character'] == self.character and event.data['damage'].damageType in [DamageType.SKILL, DamageType.BURST]:
+                ResistanceDebuffEffect('深林的记忆', self.character, event.data['damage'].target, ['草'], 30, 8*60).apply()
+
+class FlowerOfParadiseLost(ArtifactEffect,EventHandler):
+    def __init__(self):
+        super().__init__('乐园遗落之花')
+        self.last_tigger_time = 0
+        self.inveral = 60
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['元素精通'] += 80
+
+    def four_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['反应系数提高'] = {'绽放':40, '超绽放':40, '烈绽放':40}
+        EventBus.subscribe(EventType.AFTER_BLOOM, self)
+        EventBus.subscribe(EventType.AFTER_HYPERBLOOM, self)
+        EventBus.subscribe(EventType.AFTER_BURGEON, self)
+
+    def handle_event(self, event):
+        if event.event_type in [EventType.AFTER_BLOOM, EventType.AFTER_HYPERBLOOM, EventType.AFTER_BURGEON]:
+            e = event.data['elementalReaction']
+            if e.source == self.character and GetCurrentTime() - self.last_tigger_time > self.inveral:
+                self.last_tigger_time = GetCurrentTime()
+                FlowerOfParadiseLostEffect(self.character).apply()

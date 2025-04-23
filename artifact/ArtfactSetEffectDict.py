@@ -12,4 +12,6 @@ ArtfactSetEffectDict = {
     '黄金剧团': GoldenTroupe(),
     '逐影猎人': MarechausseeHunter(),
     '翠绿之影':ViridescentVenerer(),
+    '深林的记忆':DeepwoodMemories(),
+    '乐园遗落之花':FlowerOfParadiseLost(),
 }
