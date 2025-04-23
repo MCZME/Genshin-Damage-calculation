@@ -28,8 +28,7 @@ class InfoCardWidget(QWidget):
         
         self.setStyleSheet(f"""
             QWidget#InfoCardWidget {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #f8f9fa, stop:1 #e9ecef);
+                background: #ffffff;
                 padding: 10px;
                 margin: 8px 5px;
                 border: 2px solid {border_color};  

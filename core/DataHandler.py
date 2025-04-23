@@ -10,6 +10,7 @@ def send_to_handler(frame, data:dict):
         total_frame_data[frame] = {
             'character':{},
             'target':{},
+            'object':[],
             'event':[]
         }
         
@@ -26,6 +27,8 @@ def send_to_window(data_type):
         return generate_character_report()
     elif data_type == 'target':
         return generate_target_report()
+    elif data_type == 'object':
+        return generate_object_report()
 
 def generate_damage_report():
     d = {}
@@ -61,3 +64,6 @@ def generate_character_report():
 
 def generate_target_report():
     return {frame: value['target'] for frame, value in total_frame_data.items()}
+
+def generate_object_report():
+    return {frame: value['object'] for frame, value in total_frame_data.items()}

@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QSizePolicy, QScrollArea, QLineEdit)
 from ui.widget.character_status_widget import CharacterStatusWidget
 from ui.widget.target_status_widget import TargetStatusWidget
+from ui.widget.object_status_widget import ObjectStatusWidget
 from ui.widget.vertical_label_chart import VerticalLabelChart
 from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
@@ -180,7 +181,18 @@ class ResultWindow(QMainWindow):
 
         # 目标状态区域
         self.target_section = TargetStatusWidget()
-        self.main_layout.addWidget(self.target_section)
+        self.object_section = ObjectStatusWidget()
+        
+        # 创建水平布局容器
+        self.target_object_container = QWidget()
+        target_object_layout = QHBoxLayout(self.target_object_container)
+        target_object_layout.setContentsMargins(0, 0, 0, 0)
+        target_object_layout.setSpacing(10)
+        
+        target_object_layout.addWidget(self.target_section)
+        target_object_layout.addWidget(self.object_section)
+        
+        self.main_layout.addWidget(self.target_object_container)
 
         # 数据分析结果区域
         self.analysis_section = AnalysisResultWidget()
@@ -209,6 +221,7 @@ class ResultWindow(QMainWindow):
         self.analysis_section.set_data(damage_data)
 
         self.target_section.set_data(send_to_window('target'))
+        self.object_section.set_data(send_to_window('object'))
 
     def on_chart_bar_clicked(self, frame):
         """处理图表柱子点击事件"""
@@ -220,6 +233,7 @@ class ResultWindow(QMainWindow):
         self.character_status.update_frame(frame)
         self.detail_info_section.update_info(frame)
         self.target_section.update_frame(frame)
+        self.object_section.update_frame(frame)
 
     def _on_simulation_progress_updated(self, queue):
         """更新模拟进度"""

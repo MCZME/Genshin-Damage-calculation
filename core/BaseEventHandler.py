@@ -44,7 +44,13 @@ class FrameEndEventHandler(EventHandler):
                 target_data['elemental_aura'].append({'element':'激','amount':Emulation.target.aura.quicken_elements['current_amount']})
             target_data['resistance'] = Emulation.target.current_resistance.copy()
 
-            send_to_handler(event.frame, {'character':character_data, 'target':target_data})
+            object_data =  []
+            for obj in Team.active_objects:
+                object_data.append({'name':obj.name,
+                                    'current_frame':obj.current_frame,
+                                    'life_frame':obj.life_frame})
+
+            send_to_handler(event.frame, {'character':character_data, 'target':target_data, 'object':object_data})
 
 class NightsoulBurstEventHandler(EventHandler):
     '''夜魂迸发事件处理类'''
