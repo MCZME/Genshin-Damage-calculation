@@ -1,10 +1,11 @@
+import random
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from character.INAZUMA.inazuma import Inazuma
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, ObjectEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
-from core.Tool import GetCurrentTime
+from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.BaseObject import baseObject
 from core.calculation.HealingCalculation import Healing, HealingType
@@ -67,6 +68,7 @@ class SanctifyingRingObject(baseObject):
         self.skill_lv = skill_lv
         self.last_trigger_time = 16
         self.interval = 1.5 * 60 
+        self.last_energy_time = -0.2 * 60
         
         # 技能参数
         self.damage_values = [25.24, 27.13, 29.03, 31.55, 33.44, 35.34, 37.86, 
@@ -79,7 +81,6 @@ class SanctifyingRingObject(baseObject):
         ]
 
     def on_frame_update(self, target):
-            
         if self.current_frame - self.last_trigger_time >= self.interval:
             self.last_trigger_time = self.current_frame
             self._apply_effect(target)
@@ -116,6 +117,11 @@ class SanctifyingRingObject(baseObject):
             frame=GetCurrentTime()
         )
         EventBus.publish(heal_event)
+
+        if GetCurrentTime() - self.last_energy_time >= 0.2 * 60:
+            if random.random() < 0.45:
+                summon_energy(1, self.character,('雷',2),time=10)
+                self.last_energy_time = GetCurrentTime()
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -273,6 +279,7 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
                     damage_event = DamageEvent(self.character, event.data['target'], damage, GetCurrentTime())
                     EventBus.publish(damage_event)
                     self.last_trigger_time = event.frame
+                    summon_energy(1, self.character,('雷',2),time=10)
 
 class ConstellationEffect_5(ConstellationEffect):
     def __init__(self):
