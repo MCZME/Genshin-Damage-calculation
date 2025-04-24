@@ -11,7 +11,6 @@ from core.Config import Config
                               
 class ConfigEditorDialog(QDialog):
     """配置编辑器对话框"""
-    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("配置编辑器")
@@ -229,7 +228,6 @@ class ConfigEditorDialog(QDialog):
 
 class SimulationConfigWidget(QFrame):
     """模拟参数配置组件"""
-    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
@@ -285,7 +283,7 @@ class SimulationConfigWidget(QFrame):
         # 目标等级
         level_label = QLabel("目标等级:")
         self.level_spin = QSpinBox()
-        self.level_spin.setRange(1, 90)
+        self.level_spin.setRange(1, 200)
         self.level_spin.setValue(90)
         layout.addWidget(level_label)
         layout.addWidget(self.level_spin)
@@ -341,13 +339,13 @@ class SimulationConfigWidget(QFrame):
         
     def set_config(self, config):
         """设置配置"""
-        self.level_spin.setValue(config.get("target_level", 90))
+        self.level_spin.setValue(config.get("level", 90))
         
         elements = ["火", "水", "草", "岩", "冰", "风", "雷", "物理"]
         for element in elements:
             spin = getattr(self, f"{element}_resist_spin")
-            resist = config.get("resists", {}).get(element, "10%")
-            spin.setValue(int(resist.replace("%", "")))
+            resist = config.get("resists", {}).get(element, "10")
+            spin.setValue(int(resist))
 
     def get_target_data(self):
         """获取目标数据（等级和抗性）

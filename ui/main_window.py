@@ -395,6 +395,8 @@ class MainWindow(QMainWindow):
                         "action": action_data["action"], 
                         "params": action_data["params"]
                     })
+            
+                self.config_widegt.set_config(data["target_data"])
             except Exception as e:
                 print(f"自动加载配置失败: {str(e)}")
 
@@ -413,7 +415,8 @@ class MainWindow(QMainWindow):
         with open(filename, "w", encoding="utf-8") as f:
             json.dump({
                 "team_data": team_data,
-                "action_sequence": action_sequence
+                "action_sequence": action_sequence,
+                "target_data": target_data
             }, f, ensure_ascii=False, indent=2)
         
         # 更新最后保存的文件路径配置
@@ -753,13 +756,14 @@ class MainWindow(QMainWindow):
                 filename = f"./data/config_{timestamp}.json"
             
             # 获取数据
-            team_data, action_sequence = self.get_data()
+            team_data, action_sequence, target_data = self.get_data()
             
             # 保存到文件
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump({
                     "team_data": team_data,
-                    "action_sequence": action_sequence
+                    "action_sequence": action_sequence,
+                    'target_data': target_data
                 }, f, ensure_ascii=False, indent=2)
             
             # 更新最后保存的文件路径配置
@@ -828,6 +832,9 @@ class MainWindow(QMainWindow):
                     "params": action_data["params"]
                 })
             
+            # 3. 恢复目标数据
+            self.config_widegt.set_config(data['target_data'])
+
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, "加载成功", f"已从 {filename} 加载配置")
             self.logger.log_button_click(f"成功加载配置: {filename}")
