@@ -94,7 +94,8 @@ class ConfigEditorDialog(QDialog):
                 "description": "项目描述信息",
                 "last_save_file": "上次保存的文件路径",
                 "character_file_path": "角色数据文件路径",
-                "artifact_file_path": "圣遗物数据文件路径"
+                "artifact_file_path": "圣遗物数据文件路径",
+                "batch_sim_file_path": "批量模拟文件路径",
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
@@ -116,8 +117,8 @@ class ConfigEditorDialog(QDialog):
             
             # 添加描述项
             desc_text = {
-                "batch_sim_thread_num": "批量模拟线程数",
-                "batch_sim__num_in_thread": "每个线程的模拟次数"
+                "batch_sim_processes": "批量模拟线程数",
+                "batch_sim_num": "每个线程的模拟次数"
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
@@ -175,8 +176,10 @@ class ConfigEditorDialog(QDialog):
         
         add_section("模拟设置")
         for key, value in config["emulation"].items():
-            if key in ["batch_sim_thread_num", "batch_sim__num_in_thread"]:
+            if key in ["batch_sim_processes", "batch_sim_num"]:
                 add_num_row(key, value, f"emulation.{key}", 1, 100)
+            elif key in ["batch_sim_file_path"]:
+                add_info_row(key, value)
             else:
                 add_bool_row(key, value, f"emulation.{key}")
         

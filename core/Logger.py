@@ -21,7 +21,8 @@ class BaseLogger:
                 f.write(log_entry)
             
         # 同时输出到控制台
-        print(log_entry.strip())
+        if Config.get('logging.console'):
+            print(log_entry.strip())
 
 class EmulationLogger(BaseLogger):
     def __init__(self):
@@ -114,7 +115,8 @@ class UILogger(BaseLogger):
                 f.write(log_entry)
             
         # 同时输出到控制台
-        print(log_entry.strip())
+        if Config.get('logging.console'):
+            print(log_entry.strip())
         
     def log_button_click(self, button_name):
         """记录按钮点击日志"""

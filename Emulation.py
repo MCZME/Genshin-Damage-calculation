@@ -227,7 +227,7 @@ class Emulation():
 
     def simulate_multi(self, sim_file_path,sim_id):
         try:
-            self.set_log_file(sim_file_path+str(sim_id)+'.log')
+            self.set_log_file(sim_file_path+sim_id+'.log')
             self.simulate()
             return {
                 'sim_id': sim_id,

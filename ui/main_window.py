@@ -1,10 +1,12 @@
+import multiprocessing
 from queue import Queue
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, 
                               QLabel, QPushButton, QFrame, QScrollArea,
-                              QFileDialog)
+                              QFileDialog, QMessageBox)
 import json
 import os
 from datetime import datetime
+import uuid
 from PySide6.QtCore import Qt
 
 from Emulation import Emulation
@@ -16,6 +18,7 @@ from .widget.action_card import ActionCard
 from .result_window import ResultWindow
 from .widget.character_window import CharacterWindow
 from .widget.action_setting_dialog import ActionSettingDialog
+from core.Config import Config
 from core.Logger import get_ui_logger
 
 class MainWindow(QMainWindow):
@@ -414,26 +417,55 @@ class MainWindow(QMainWindow):
             }, f, ensure_ascii=False, indent=2)
         
         # 更新最后保存的文件路径配置
-        from core.Config import Config
         Config.set("ui.last_save_file", filename)
         Config.save()
         
         self.close()
-        self.result_window = ResultWindow()
-        self.result_window.show()
-        try:
-            # 创建模拟线程
-            emulation = Emulation(team_data, action_sequence, target_data)
-            emulation.set_quueue(Queue())
-            simulation_thread = emulation.thread()
-            simulation_thread.start()
-            self.result_window._on_simulation_progress_updated(emulation.progress_queue)
-            simulation_thread.join()
-        except Exception as e:
-            error_msg = f"模拟过程中出错: {str(e)}"
-            get_ui_logger().log_ui_error(error_msg)
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "模拟错误", error_msg)
+        if Config.get("emulation.batch_sim"):
+            try:
+                uid = uuid.uuid4().hex
+                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/')
+                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/logs')
+                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/data')
+                with multiprocessing.Pool(processes=Config.get("emulation.batch_sim_processes")) as pool:
+                    async_results = [pool.apply_async(
+                        simulate_multi,
+                        args=(team_data, 
+                            action_sequence, 
+                            target_data, 
+                            Config.get("emulation.batch_sim_file_path") + uid + '/logs/',
+                            uid + '_' +str(sim_id)),
+                        error_callback=error_callback,
+                    ) for sim_id in range(Config.get("emulation.batch_sim_num"))]
+                    results = []
+                    for res in async_results:
+                        try:
+                            results.append(res.get(timeout=10))  # 设置超时防止卡死
+                        except multiprocessing.TimeoutError:
+                            get_ui_logger().log_error("任务超时")
+
+                success_count = sum(1 for r in results if r.get("status") == "success")
+                get_ui_logger().log_info(f"成功率: {success_count / len(results):.1%}")
+            except Exception as e:
+                error_msg = f"模拟过程中出错: {str(e)}"
+                get_ui_logger().log_ui_error(error_msg)
+                QMessageBox.critical(self, "模拟错误", error_msg)
+        else:
+            self.result_window = ResultWindow()
+            self.result_window.show()
+            try:
+                # 创建模拟线程
+                emulation = Emulation(team_data, action_sequence, target_data)
+                emulation.set_log_file()
+                emulation.set_quueue(Queue())
+                simulation_thread = emulation.thread()
+                simulation_thread.start()
+                self.result_window._on_simulation_progress_updated(emulation.progress_queue)
+                simulation_thread.join()
+            except Exception as e:
+                error_msg = f"模拟过程中出错: {str(e)}"
+                get_ui_logger().log_ui_error(error_msg)
+                QMessageBox.critical(self, "模拟错误", error_msg)
 
     def _open_character_window(self, slot_idx):
         """打开角色配置窗口"""
@@ -860,3 +892,14 @@ class MainWindow(QMainWindow):
             return
 
         return team_data, action_sequence, target_data
+
+
+def simulate_multi(team_data, action_sequence, target_data, sim_file_path, sim_id):
+    Emulation.emulation_init()
+    from main import init
+    init()
+    e = Emulation(team_data, action_sequence, target_data)
+    return e.simulate_multi(sim_file_path, sim_id)
+
+def error_callback(error):
+    print(f"[Error] {error}")
