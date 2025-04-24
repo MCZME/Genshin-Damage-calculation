@@ -21,24 +21,26 @@ class Emulation():
         self.team_data = team_data
         self.action_sequence = action_sequence
         Emulation.target = Target(target_data)
-        self.n = 0
-        self.set_data()
-        get_emulation_logger().new_log_file()
+
+    def set_log_file(self, file=None):
+        if file is None:
+            get_emulation_logger().new_log_file()
+        else:
+            get_emulation_logger().new_log_file(file)
 
     def set_quueue(self,queue):
         self.progress_queue = queue
 
     def thread(self):
-        return threading.Thread(target=self.simulate, args=(self._actions,))
+        return threading.Thread(target=self.simulate, args=())
 
-    def simulate(self,actions):
+    def simulate(self):
         """
         模拟执行一系列动作。
-        参数:
-        actions (list): 要执行的动作列表。
-        {Name:actionName}
         """
-        action = iter(actions)
+        self.n = 0
+        self.set_data()
+        action = iter(self._actions)
         self.next_character = next(action)
         Emulation.team.swap(self.next_character)
         Team.current_frame = 0 # 初始化当前帧数
@@ -46,7 +48,7 @@ class Emulation():
             try:
                 self.progress_queue.put({
                     "start": {
-                        "length": len(actions),
+                        "length": len(self._actions),
                         "current": self.n + 1,
                         "msg": f"{Emulation.team.current_character.name} 执行 {self.next_character}"
                     }
@@ -63,7 +65,8 @@ class Emulation():
         while True:
             Emulation.current_frame += 1
             if self._update(self.target,action):
-                self.progress_queue.put(None)
+                if hasattr(self, 'progress_queue') and self.progress_queue:
+                    self.progress_queue.put(None)
                 break
 
     def _update(self, target, action):
@@ -98,13 +101,14 @@ class Emulation():
             return True
         return False
 
-    def init():
+    @classmethod
+    def emulation_init(cls):
         Emulation.current_frame = 0
+        Team.clear()
+        EventBus.clear()
+        clear_data()
 
     def set_data(self):
-        clear_data()
-        Emulation.init()
-        
         # 1. 创建角色和队伍
         characters = []
         for char_data in self.team_data:
@@ -220,3 +224,18 @@ class Emulation():
             return 'dash'
         elif action == '跳跃':
             return 'jump'
+
+    def simulate_multi(self, sim_file_path,sim_id):
+        try:
+            self.set_log_file(sim_file_path+str(sim_id)+'.log')
+            self.simulate()
+            return {
+                'sim_id': sim_id,
+                'status': 'success'
+            }
+        except Exception as e:
+            return {
+                'sim_id': sim_id,
+                'status': 'failed',
+                'error': str(e)
+            }
