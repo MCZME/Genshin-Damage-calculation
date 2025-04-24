@@ -109,7 +109,7 @@ class ActionCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.StyledPanel)
-        self.setFixedWidth(180)  # 调整卡片大小
+        self.setFixedWidth(150)  # 调整卡片大小
         self.setAcceptDrops(True)
         
         # 随机选择颜色并保存

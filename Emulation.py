@@ -16,11 +16,11 @@ class Emulation():
     current_frame = 0
     team = None
 
-    def __init__(self, team_data, action_sequence):
+    def __init__(self, team_data, action_sequence, target_data):
         super().__init__()
         self.team_data = team_data
         self.action_sequence = action_sequence
-        Emulation.target = Target(0, 103)
+        Emulation.target = Target(target_data)
         self.n = 0
         self.set_data()
         get_emulation_logger().new_log_file()

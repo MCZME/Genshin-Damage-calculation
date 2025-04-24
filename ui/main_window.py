@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 
 from Emulation import Emulation
 from ui.widget.image_loader_widget import ImageAvatar
+from ui.widget.simulation_config_widget import SimulationConfigWidget
 
 from .styles import MODERN_STYLE
 from .widget.action_card import ActionCard
@@ -318,8 +319,8 @@ class MainWindow(QMainWindow):
         action_frame.setLayout(action_layout)
         main_layout.addWidget(action_frame, stretch=5)  # 动作序列占5/10
         
-        spacer1 = QWidget()
-        main_layout.addWidget(spacer1, stretch=1)
+        self.config_widegt = SimulationConfigWidget()
+        main_layout.addWidget(self.config_widegt, stretch=1)
 
         # 按钮区域 (1/10)
         button_widget = QWidget()
@@ -400,7 +401,7 @@ class MainWindow(QMainWindow):
         
     def _start_calculation(self):
         """开始计算按钮点击处理"""
-        team_data, action_sequence = self.get_data()
+        team_data, action_sequence, target_data = self.get_data()
         self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
         
         # 自动保存当前配置
@@ -422,7 +423,7 @@ class MainWindow(QMainWindow):
         self.result_window.show()
         try:
             # 创建模拟线程
-            emulation = Emulation(team_data, action_sequence)
+            emulation = Emulation(team_data, action_sequence, target_data)
             emulation.set_quueue(Queue())
             simulation_thread = emulation.thread()
             simulation_thread.start()
@@ -840,6 +841,8 @@ class MainWindow(QMainWindow):
 
                 action_sequence.append(action_data)
 
+        target_data = self.config_widegt.get_target_data()
+
         # 3. 验证数据
         if not any(data.get("character") for data in team_data if isinstance(data, dict)):
             from PySide6.QtWidgets import QMessageBox
@@ -850,5 +853,10 @@ class MainWindow(QMainWindow):
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "错误", "请添加至少一个动作")
             return
+        
+        if not target_data:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "请配置目标数据")
+            return
 
-        return team_data, action_sequence
+        return team_data, action_sequence, target_data

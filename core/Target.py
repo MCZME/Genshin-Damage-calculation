@@ -2,28 +2,26 @@ from DataRequest import DR
 from core.elementalReaction.ElementalAura import ElementalAura
 
 class Target:
-    def __init__(self, id, level):
-        self.id = id
-        self.level = level
-        self.get_data()
+    def __init__(self, data):
+        self.level = data['level']
+        self.get_data(data['resists'])
 
         self.current_frame = 0
-        self.defense = level*5 + 500
+        self.defense = self.level * 5 + 500
         self.aura = ElementalAura()
         self.effects = []
 
-    def get_data(self):
-        data = DR.read_data(f'SELECT * FROM `monster` WHERE `ID`={self.id}')
-        self.name = data[0][1]
+    def get_data(self, data):
+        self.name = '测试人偶'
         self.element_resistance = {
-            '火': data[0][2],
-            '水': data[0][3],
-            '雷': data[0][4],
-            '草': data[0][5],
-            '冰': data[0][6],
-            '岩': data[0][7],
-            '风': data[0][8],
-            '物理': data[0][9]
+            '火': data['火'],
+            '水': data['水'],
+            '雷': data['雷'],
+            '草': data['草'],
+            '冰': data['冰'],
+            '岩': data['岩'],
+            '风': data['风'],
+            '物理': data['物理']
         }
         self.current_resistance = self.element_resistance.copy()
     
