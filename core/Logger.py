@@ -1,4 +1,8 @@
 import time
+import os
+import glob
+import zipfile
+from datetime import datetime
 from core.Config import Config
 from core.Tool import GetCurrentTime
 
@@ -24,10 +28,13 @@ class EmulationLogger(BaseLogger):
         super().__init__("Emulation")
         self.new_log_file()
         
-    def new_log_file(self):
+    def new_log_file(self,file_path = None):
         """创建新的日志文件"""
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        self.log_file = Config.get('logging.Emulation.file_path')+f"emulation_{timestamp}.log"
+        if file_path is None:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            self.log_file = Config.get('logging.Emulation.file_path')+f"emulation_{timestamp}.log"
+        else:
+            self.log_file = file_path
         
     def log_skill_use(self,skill_msg):
         """记录技能使用日志"""
@@ -154,10 +161,6 @@ def manage_log_files(max_files=50):
     Args:
         max_files (int): 触发压缩的日志文件数量阈值，默认50
     """
-    import os
-    import glob
-    import zipfile
-    from datetime import datetime
     
     def process_logs(log_dir, file_pattern):
         """处理指定目录和模式的日志文件"""

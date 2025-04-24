@@ -97,7 +97,8 @@ class Team:
                     obj.remove()
         Team.active_resonances.pop(resonance_name, None)
     
-    def clear(self):
+    @classmethod
+    def clear(cls):
         Team.team.clear()
         Team.active_objects.clear()
         Team.active_resonances.clear()
