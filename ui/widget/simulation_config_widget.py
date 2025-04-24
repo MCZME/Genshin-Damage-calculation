@@ -100,6 +100,29 @@ class ConfigEditorDialog(QDialog):
             desc.setTextAlignment(Qt.AlignCenter)
             self.config_table.setItem(row, 2, desc)
         
+        # 添加数值型配置项
+        def add_num_row(key, value, full_key, min_val=0, max_val=100):
+            row = self.config_table.rowCount()
+            self.config_table.insertRow(row)
+            item = QTableWidgetItem(key)
+            item.setTextAlignment(Qt.AlignCenter)
+            self.config_table.setItem(row, 0, item)
+            
+            spin = QSpinBox()
+            spin.setRange(min_val, max_val)
+            spin.setValue(value)
+            spin.setProperty("config_key", full_key)
+            self.config_table.setCellWidget(row, 1, spin)
+            
+            # 添加描述项
+            desc_text = {
+                "batch_sim_thread_num": "批量模拟线程数",
+                "batch_sim__num_in_thread": "每个线程的模拟次数"
+            }.get(key, "")
+            desc = QTableWidgetItem(desc_text)
+            desc.setTextAlignment(Qt.AlignCenter)
+            self.config_table.setItem(row, 2, desc)
+
         # 添加可编辑布尔项
         def add_bool_row(key, value, full_key):
             row = self.config_table.rowCount()
@@ -138,7 +161,8 @@ class ConfigEditorDialog(QDialog):
                 "object": "是否记录对象日志",
                 "debug": "是否记录调试日志",
                 "button_click": "是否记录按钮点击日志",
-                "window_open": "是否记录窗口打开日志"
+                "window_open": "是否记录窗口打开日志",
+                "batch_sim": "是否开启批量模拟",
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
@@ -151,7 +175,10 @@ class ConfigEditorDialog(QDialog):
         
         add_section("模拟设置")
         for key, value in config["emulation"].items():
-            add_bool_row(key, value, f"emulation.{key}")
+            if key in ["batch_sim_thread_num", "batch_sim__num_in_thread"]:
+                add_num_row(key, value, f"emulation.{key}", 1, 100)
+            else:
+                add_bool_row(key, value, f"emulation.{key}")
         
         add_section("界面设置")
         for key, value in config["ui"].items():
@@ -179,6 +206,14 @@ class ConfigEditorDialog(QDialog):
             if isinstance(widget, QComboBox):
                 key = widget.property("config_key")
                 value = widget.currentIndex() == 1
+                keys = key.split(".")
+                current = config
+                for k in keys[:-1]:
+                    current = current[k]
+                current[keys[-1]] = value
+            elif isinstance(widget, QSpinBox):
+                key = widget.property("config_key")
+                value = widget.value()
                 keys = key.split(".")
                 current = config
                 for k in keys[:-1]:
