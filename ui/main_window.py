@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 
 from Emulation import Emulation
 from core.DataHandler import save_report
+from core.Tool import send_to_MongoDB
 from ui.widget.image_loader_widget import ImageAvatar
 from ui.widget.simulation_config_widget import SimulationConfigWidget
 
@@ -431,6 +432,12 @@ class MainWindow(QMainWindow):
                 os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/')
                 os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/logs')
                 os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/data')
+                with open(Config.get("emulation.batch_sim_file_path") + uid + '/config.json', "w", encoding="utf-8") as f:
+                    json.dump({
+                        "team_data": team_data,
+                        "action_sequence": action_sequence,
+                        "target_data": target_data
+                    }, f)
                 with multiprocessing.Pool(processes=Config.get("emulation.batch_sim_processes")) as pool:
                     async_results = [pool.apply_async(
                         simulate_multi,
@@ -452,6 +459,7 @@ class MainWindow(QMainWindow):
 
                 success_count = sum(1 for r in results if r.get("status") == "success")
                 get_ui_logger().log_info(f"成功率: {success_count / len(results):.1%}")
+                send_to_MongoDB(uid)
             except Exception as e:
                 error_msg = f"模拟过程中出错: {str(e)}"
                 get_ui_logger().log_ui_error(error_msg)

@@ -162,8 +162,6 @@ def save_report(file_path, file_name):
     a = OptimizedData()
     with open(file_path + file_name + '.json', 'w', encoding='utf-8') as f:
         json.dump(a, f)
-    with open(file_path + file_name + '_damage.json', 'w', encoding='utf-8') as f:
-        json.dump(RestoreData(a), f)
 
 # 键名缩短映射表
 _KEY_MAPPING = {
