@@ -1,5 +1,5 @@
 import json
-
+import copy
 
 total_frame_data = {}
 
@@ -159,10 +159,13 @@ def generate_object_report():
     return {frame: value['object'] for frame, value in total_frame_data.items()}
 
 def save_report(file_path, file_name):
+    a = OptimizedData()
     with open(file_path + file_name + '.json', 'w', encoding='utf-8') as f:
-        json.dump(OptimizedData(), f)
+        json.dump(a, f)
+    with open(file_path + file_name + '_damage.json', 'w', encoding='utf-8') as f:
+        json.dump(RestoreData(a), f)
 
-# 键名缩短映射表(扩展更多常用字段)
+# 键名缩短映射表
 _KEY_MAPPING = {
     'character': 'c',
     'target': 't', 
@@ -189,7 +192,8 @@ _KEY_MAPPING = {
     'max_energy': 'me',
     'energy': 'en',
     'damage': 'dmg',
-    'reaction': 'rct'
+    'reaction': 'rct',
+    'elemental_aura': 'el_aura'
 }
 
 def _round_floats(value):
@@ -216,62 +220,168 @@ def _shorten_keys(data):
         for item in data
     ]
 
+def _compare_dict_subset(current, previous, keys):
+    """比较字典中指定键的子集"""
+    diff = {}
+    for key in keys:
+        if current.get(key) != previous.get(key):
+            diff[key] = current.get(key)
+    return diff if diff else None
+
+def _compare_panel(current, previous):
+    """比较角色面板属性的增量变化"""
+    panel_diff = {}
+    panel_keys = [
+        '生命值', '固定生命值', '攻击力', '固定攻击力', '防御力', '固定防御力',
+        '元素精通', '暴击率', '暴击伤害', '元素充能效率', '治疗加成', '受治疗加成',
+        '火元素伤害加成', '水元素伤害加成', '雷元素伤害加成', '冰元素伤害加成',
+        '岩元素伤害加成', '风元素伤害加成', '草元素伤害加成', '物理伤害加成',
+        '生命值%', '攻击力%', '防御力%', '伤害加成'
+    ]
+    for key in panel_keys:
+        if current.get(key) != previous.get(key):
+            panel_diff[key] = current.get(key)
+    return panel_diff if panel_diff else None
+
 def _compare_character(current, previous):
     """比较角色数据增量变化，按角色名分别比较"""
     diff = {}
-    # 检查新增或删除的角色
-    all_chars = set(current.keys()) | set(previous.keys())
-    
-    for char_name in all_chars:
-        curr_char = current.get(char_name, {})
+    # 只比较现有角色(角色不会新增和删除)
+    for char_name in current.keys():
+        curr_char = current[char_name]
         prev_char = previous.get(char_name, {})
         char_diff = {}
-        
-        # 比较基础属性
-        for attr in ['mh', 'ch', 'l', 'sp', 'cn']:
-            if curr_char.get(attr) != prev_char.get(attr):
-                char_diff[attr] = curr_char.get(attr)
-        
-        # 比较面板属性
-        if curr_char.get('p') != prev_char.get('p'):
-            char_diff['p'] = curr_char.get('p')
             
-        # 比较效果
-        if curr_char.get('ef') != prev_char.get('ef'):
-            char_diff['ef'] = curr_char.get('ef')
+        # 比较基础属性
+        base_diff = _compare_dict_subset(curr_char, prev_char, ['mh', 'ch', 'l', 'sp', 'cn'])
+        if base_diff:
+            char_diff.update(base_diff)
+        
+        # 比较面板属性(更细粒度)
+        if 'p' in curr_char or 'p' in prev_char:
+            panel_diff = _compare_panel(curr_char.get('p', {}), prev_char.get('p', {}))
+            if panel_diff:
+                char_diff['p'] = panel_diff
+            
+            # 比较角色效果(按效果名分别比较duration/max_duration/msg)
+            if 'ef' in curr_char or 'ef' in prev_char:
+                effect_diff = {}
+                all_effects = set(curr_char.get('ef', {}).keys()) | set(prev_char.get('ef', {}).keys())
+                for eff_name in all_effects:
+                    curr_eff = curr_char.get('ef', {}).get(eff_name, {})
+                    prev_eff = prev_char.get('ef', {}).get(eff_name, {})
+                    if eff_name not in prev_char.get('ef', {}):
+                        # 新增效果
+                        effect_diff[eff_name] = {'__op__': 'add', **curr_eff}
+                    elif eff_name not in curr_char.get('ef', {}):
+                        # 删除效果
+                        effect_diff[eff_name] = {'__op__': 'remove'}
+                    else:
+                        # 更新效果
+                        eff_diff = _compare_dict_subset(curr_eff, prev_eff, ['d', 'md', 'm'])
+                        if eff_diff:
+                            effect_diff[eff_name] = {'__op__': 'update', **eff_diff}
+                
+                if effect_diff:
+                    char_diff['ef'] = effect_diff
             
         # 比较元素能量
-        if curr_char.get('ee') != prev_char.get('ee'):
-            char_diff['ee'] = curr_char.get('ee')
+        if 'ee' in curr_char or 'ee' in prev_char:
+            energy_diff = _compare_dict_subset(
+                curr_char.get('ee', {}),
+                prev_char.get('ee', {}),
+                ['element', 'max_energy', 'energy']
+            )
+            if energy_diff:
+                char_diff['ee'] = energy_diff
             
         if char_diff:
-            diff[char_name] = char_diff
+            diff[char_name] = {'__op__': 'update', **char_diff}
             
     return diff if diff else None
+
+def _compare_resistance(current, previous):
+    """比较目标抗性数据的增量变化"""
+    resistance_diff = {}
+    resistance_keys = ['火', '水', '雷', '草', '冰', '岩', '风', '物理']
+    for key in resistance_keys:
+        if current.get(key) != previous.get(key):
+            resistance_diff[key] = current.get(key)
+    return resistance_diff if resistance_diff else None
+
+def _compare_elemental_aura(current, previous):
+    """比较元素附着数据的增量变化"""
+    if len(current) != len(previous):
+        return current
+    
+    diff = []
+    for curr, prev in zip(current, previous):
+        if curr['el'] != prev['el'] or curr['amount'] != prev['amount']:
+            diff.append(curr)
+        else:
+            diff.append(prev)
+    
+    return diff if any(c != p for c, p in zip(diff, previous)) else None
 
 def _compare_target(current, previous):
     """比较目标数据增量变化"""
     diff = {}
-    # 基础属性
-    for attr in ['n', 'ef', 'defense', 'resistance']:
-        if current.get(attr) != previous.get(attr):
-            diff[attr] = current.get(attr)
     
-    # 比较元素附着
-    curr_aura = current.get('el_aura', [])
-    prev_aura = previous.get('el_aura', [])
-    if len(curr_aura) != len(prev_aura) or any(
-        c['el'] != p['el'] or c['amount'] != p['amount']
-        for c, p in zip(curr_aura, prev_aura)
-    ):
-        diff['el_aura'] = curr_aura
+    # 初始目标数据
+    if not previous:
+        return None
         
-    return diff if diff else None
+    # 基础属性
+    base_diff = _compare_dict_subset(current, previous, ['n', 'defense'])
+    if base_diff:
+        diff.update(base_diff)
+    
+    # 比较目标效果(按效果名分别比较duration/max_duration)
+    if 'ef' in current or 'ef' in previous:
+        effect_diff = {}
+        all_effects = set(current.get('ef', {}).keys()) | set(previous.get('ef', {}).keys())
+        for eff_name in all_effects:
+            curr_eff = current.get('ef', {}).get(eff_name, {})
+            prev_eff = previous.get('ef', {}).get(eff_name, {})
+            if eff_name not in previous.get('ef', {}):
+                # 新增效果
+                effect_diff[eff_name] = {'__op__': 'add', **curr_eff}
+            elif eff_name not in current.get('ef', {}):
+                # 删除效果
+                effect_diff[eff_name] = {'__op__': 'remove'}
+            else:
+                # 更新效果
+                eff_diff = _compare_dict_subset(curr_eff, prev_eff, ['d', 'md'])
+                if eff_diff:
+                    effect_diff[eff_name] = {'__op__': 'update', **eff_diff}
+        
+        if effect_diff:
+            diff['ef'] = effect_diff
+    
+    # 比较抗性
+    if 'resistance' in current or 'resistance' in previous:
+        resistance_diff = _compare_resistance(
+            current.get('resistance', {}),
+            previous.get('resistance', {})
+        )
+        if resistance_diff:
+            diff['resistance'] = resistance_diff
+    
+    # 比较元素附着(更精确的比较)
+    if 'el_aura' in current or 'el_aura' in previous:
+        aura_diff = _compare_elemental_aura(
+            current.get('el_aura', []),
+            previous.get('el_aura', [])
+        )
+        if aura_diff:
+            diff['el_aura'] = aura_diff
+        
+    return {'__op__': 'update', **diff} if diff else None
 
 def _compare_object(current, previous):
     """比较对象数据增量变化"""
     if len(current) != len(previous):
-        return current
+        return {'__op__': 'replace', 'value': current}
         
     diff = []
     for curr_obj, prev_obj in zip(current, previous):
@@ -284,19 +394,22 @@ def _compare_object(current, previous):
             obj_diff['life_frame'] = curr_obj['life_frame']
             
         if obj_diff:
-            diff.append(obj_diff)
+            diff.append({'__op__': 'update', **obj_diff})
         else:
             diff.append(prev_obj)
             
-    return diff if any(obj != prev for obj, prev in zip(diff, previous)) else None
+    return {'__op__': 'update', 'value': diff} if any(
+        isinstance(obj, dict) and obj.get('__op__') == 'update' 
+        for obj in diff
+    ) else None
 
 def _compare_event(current, previous):
     """比较event数据的增量变化"""
     if len(current) != len(previous):
-        return current
+        return {'__op__': 'replace', 'value': current}
     for i, evt in enumerate(current):
         if evt != previous[i]:
-            return current
+            return {'__op__': 'replace', 'value': current}
     return None
 
 def _incremental_update(current_data, previous_data):
@@ -370,3 +483,181 @@ def OptimizedData():
         previous_frame_data = shortened_data
     
     return data
+
+def _revert_keys(data):
+    """将缩短的键名还原为原始键名，并确保frame为int类型"""
+    if not isinstance(data, (dict, list)):
+        return data
+        
+    if isinstance(data, dict):
+        # 创建反向映射字典
+        reverse_mapping = {v: k for k, v in _KEY_MAPPING.items()}
+        result = {}
+        for k, v in data.items():
+            new_key = reverse_mapping.get(k, k)
+            # 特殊处理frame字段
+            if new_key == 'frame':
+                result[new_key] = int(v) if isinstance(v, str) else v
+            else:
+                result[new_key] = _revert_keys(v)
+        return result
+    
+    return [_revert_keys(item) for item in data]
+
+def _merge_character_data(merged_frame, char_name, char_data):
+    """合并角色数据"""
+    op = char_data.get('__op__', 'update')
+    if op == 'update':
+        # 更新角色属性
+        if char_name in merged_frame['character']:
+            for k, v in char_data.items():
+                if k != '__op__':
+                    if k == 'effect' and isinstance(v, dict):
+                        # 处理角色效果数据，根据每个效果的__op__进行操作
+                        existing_effects = copy.deepcopy(merged_frame['character'][char_name].get('effect', {}))
+                        for eff_name, eff_data in v.items():
+                            eff_op = eff_data.get('__op__', 'update')
+                            if eff_op == 'add':
+                                # 新增效果
+                                existing_effects[eff_name] = {k:v for k,v in eff_data.items() if k != '__op__'}
+                            elif eff_op == 'remove':
+                                # 删除效果
+                                if eff_name in existing_effects:
+                                    del existing_effects[eff_name]
+                            elif eff_op == 'update':
+                                # 更新效果
+                                if eff_name in existing_effects:
+                                    for field, value in eff_data.items():
+                                        if field != '__op__':
+                                            existing_effects[eff_name][field] = value
+                        merged_frame['character'][char_name]['effect'] = existing_effects
+                    elif isinstance(v, dict):
+                        # 深拷贝字典值并更新
+                        existing = copy.deepcopy(merged_frame['character'][char_name].get(k, {}))
+                        existing.update(copy.deepcopy(v))
+                        merged_frame['character'][char_name][k] = existing
+                    else:
+                        # 直接赋值基本类型
+                        merged_frame['character'][char_name][k] = v
+
+def _merge_target_data(merged_frame, target_data):
+    """合并目标数据"""
+    op = target_data.get('__op__', 'update')
+    if op == 'update':
+        # 增量更新目标数据
+        for k, v in target_data.items():
+            if k != '__op__':
+                if k == 'effect' and isinstance(v, dict):
+                    # 处理目标效果数据，根据每个效果的__op__进行操作
+                    existing_effects = copy.deepcopy(merged_frame['target'].get('effect', {}))
+                    for eff_name, eff_data in v.items():
+                        eff_op = eff_data.get('__op__', 'update')
+                        if eff_op == 'add':
+                            # 新增效果
+                            existing_effects[eff_name] = {k:v for k,v in eff_data.items() if k != '__op__'}
+                        elif eff_op == 'remove':
+                            # 删除效果
+                            if eff_name in existing_effects:
+                                del existing_effects[eff_name]
+                        elif eff_op == 'update':
+                            # 更新效果
+                            if eff_name in existing_effects:
+                                for field, value in eff_data.items():
+                                    if field != '__op__':
+                                        existing_effects[eff_name][field] = value
+                    merged_frame['target']['effect'] = existing_effects
+                elif isinstance(v, dict):
+                    # 深拷贝字典值并更新
+                    existing = copy.deepcopy(merged_frame['target'].get(k, {}))
+                    existing.update(copy.deepcopy(v))
+                    merged_frame['target'][k] = existing
+                else:
+                    # 直接赋值基本类型
+                    merged_frame['target'][k] = v
+
+def _merge_object_data(merged_frame, object_data):
+    """合并对象数据"""
+    op = object_data.get('__op__', 'update')
+    if op == 'replace':
+        # 完全替换对象列表
+        merged_frame['object'] = object_data['value'].copy()
+    elif op == 'update':
+        # 增量更新对象数据
+        for i, obj_diff in enumerate(object_data['value']):
+            if isinstance(obj_diff, dict) and '__op__' in obj_diff:
+                obj_op = obj_diff['__op__']
+                if obj_op == 'update' and i < len(merged_frame['object']):
+                    # 更新现有对象
+                    for k, v in obj_diff.items():
+                        if k != '__op__':
+                            if isinstance(v, dict):
+                                # 深拷贝字典值并更新
+                                existing = copy.deepcopy(merged_frame['object'][i].get(k, {}))
+                                existing.update(copy.deepcopy(v))
+                                merged_frame['object'][i][k] = existing
+                            else:
+                                # 直接赋值基本类型
+                                merged_frame['object'][i][k] = v
+
+def _merge_event_data(merged_frame, event_data):
+    """合并事件数据"""
+    op = event_data.get('__op__', 'update')
+    if op == 'replace':
+        # 完全替换事件列表
+        merged_frame['event'] = event_data['value'].copy()
+    elif op == 'update':
+        # 事件数据不支持部分更新，保持不变
+        pass
+
+def _reconstruct_full_data(optimized_data):
+    """从优化数据重建完整数据(字典格式)"""
+    restored_data = {}
+    previous_frame = None
+    
+    for frame_data in optimized_data:
+        reverted_data = _revert_keys(frame_data)
+        frame_num = reverted_data['frame']
+        
+        if previous_frame is None:
+            # 第一帧是完整数据
+            restored_data[frame_num] = {
+                'character': copy.deepcopy(reverted_data.get('character', {})),
+                'target': copy.deepcopy(reverted_data.get('target', {})),
+                'object': copy.deepcopy(reverted_data.get('object', [])),
+                'event': copy.deepcopy(reverted_data.get('event', []))
+            }
+        else:
+            # 后续帧是增量数据，需要根据操作类型合并
+            merged_frame = {
+                'character': copy.deepcopy(previous_frame['character']),
+                'target': copy.deepcopy(previous_frame['target']),
+                'object': copy.deepcopy(previous_frame['object']),
+                'event': copy.deepcopy(previous_frame['event'])
+            }
+            
+            # 处理角色数据
+            if 'character' in reverted_data:
+                for char_name, char_data in reverted_data['character'].items():
+                    _merge_character_data(merged_frame, char_name, char_data)
+            
+            # 处理目标数据
+            if 'target' in reverted_data:
+                _merge_target_data(merged_frame, reverted_data['target'])
+            
+            # 处理对象数据
+            if 'object' in reverted_data:
+                _merge_object_data(merged_frame, reverted_data['object'])
+            
+            # 处理事件数据
+            if 'event' in reverted_data:
+                _merge_event_data(merged_frame, reverted_data['event'])
+            
+            restored_data[frame_num] = merged_frame
+        
+        previous_frame = restored_data[frame_num]
+    
+    return restored_data
+
+def RestoreData(optimized_data):
+    """将优化后的数据还原为原始字典格式"""
+    return _reconstruct_full_data(optimized_data)
