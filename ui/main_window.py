@@ -915,4 +915,7 @@ def error_callback(error):
     get_ui_logger().log_ui_error(error)
 
 def callback(result):
-    get_ui_logger().log_ui_error(f"模拟完成: {result['sim_id']}")
+    if result['status'] == 'success':
+        get_ui_logger().log_info(f"模拟完成: {result['sim_id']}")
+    else:
+        get_ui_logger().log_ui_error(f"模拟失败: {result['sim_id']}")
