@@ -1,6 +1,6 @@
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
-from core.DataHandler import clear_data
+from core.DataHandler import clear_data, save_report
 from core.Event import EventBus, FrameEndEvent
 from core.Logger import get_emulation_logger
 from core.Map import CharacterClassMap, WeaponClassMap
@@ -225,17 +225,22 @@ class Emulation():
         elif action == '跳跃':
             return 'jump'
 
-    def simulate_multi(self, sim_file_path,sim_id):
+    def simulate_multi(self, sim_file_path, sim_id, uid):
         try:
-            self.set_log_file(sim_file_path+sim_id+'.log')
+            self.set_log_file(sim_file_path+uid+'/logs/'+uid+'_'+str(sim_id)+'.log')
             self.simulate()
+            save_report(sim_file_path+uid+'/data/',uid+'_'+str(sim_id))
             return {
                 'sim_id': sim_id,
+                'uid': uid,
+                'sim_file_path': sim_file_path,
                 'status': 'success'
             }
         except Exception as e:
             return {
                 'sim_id': sim_id,
+                'uid': uid,
+                'sim_file_path': sim_file_path,
                 'status': 'failed',
                 'error': str(e)
             }

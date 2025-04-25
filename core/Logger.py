@@ -10,6 +10,14 @@ class BaseLogger:
     def __init__(self, name):
         self.name = name
         self.log_file = None
+
+    def _write_log(self, level, message):
+        ...
+
+class EmulationLogger(BaseLogger):
+    def __init__(self):
+        super().__init__("Emulation")
+        self.new_log_file()
         
     def _write_log(self, level, message):
         """基础日志写入方法"""
@@ -21,14 +29,9 @@ class BaseLogger:
                 f.write(log_entry)
             
         # 同时输出到控制台
-        if Config.get('logging.console'):
+        if Config.get('logging.Emulation.console'):
             print(log_entry.strip())
 
-class EmulationLogger(BaseLogger):
-    def __init__(self):
-        super().__init__("Emulation")
-        self.new_log_file()
-        
     def new_log_file(self,file_path = None):
         """创建新的日志文件"""
         if file_path is None:
@@ -115,7 +118,7 @@ class UILogger(BaseLogger):
                 f.write(log_entry)
             
         # 同时输出到控制台
-        if Config.get('logging.console'):
+        if Config.get('logging.UI.console'):
             print(log_entry.strip())
         
     def log_button_click(self, button_name):

@@ -10,6 +10,7 @@ import uuid
 from PySide6.QtCore import Qt
 
 from Emulation import Emulation
+from core.DataHandler import save_report
 from ui.widget.image_loader_widget import ImageAvatar
 from ui.widget.simulation_config_widget import SimulationConfigWidget
 
@@ -436,9 +437,11 @@ class MainWindow(QMainWindow):
                         args=(team_data, 
                             action_sequence, 
                             target_data, 
-                            Config.get("emulation.batch_sim_file_path") + uid + '/logs/',
-                            uid + '_' +str(sim_id)),
+                            Config.get("emulation.batch_sim_file_path"),
+                            sim_id,
+                            uid),
                         error_callback=error_callback,
+                        callback=callback
                     ) for sim_id in range(Config.get("emulation.batch_sim_num"))]
                     results = []
                     for res in async_results:
@@ -901,12 +904,15 @@ class MainWindow(QMainWindow):
         return team_data, action_sequence, target_data
 
 
-def simulate_multi(team_data, action_sequence, target_data, sim_file_path, sim_id):
+def simulate_multi(team_data, action_sequence, target_data, sim_file_path, sim_id, uid):
     Emulation.emulation_init()
     from main import init
     init()
     e = Emulation(team_data, action_sequence, target_data)
-    return e.simulate_multi(sim_file_path, sim_id)
+    return e.simulate_multi(sim_file_path, sim_id, uid)
 
 def error_callback(error):
-    print(f"[Error] {error}")
+    get_ui_logger().log_ui_error(error)
+
+def callback(result):
+    get_ui_logger().log_ui_error(f"模拟完成: {result['sim_id']}")

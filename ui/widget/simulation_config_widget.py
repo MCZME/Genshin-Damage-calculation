@@ -163,6 +163,7 @@ class ConfigEditorDialog(QDialog):
                 "button_click": "是否记录按钮点击日志",
                 "window_open": "是否记录窗口打开日志",
                 "batch_sim": "是否开启批量模拟",
+                "console": "是否开启控制台输出",
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
