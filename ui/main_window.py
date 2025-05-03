@@ -426,19 +426,19 @@ class MainWindow(QMainWindow):
         Config.save()
         
         self.close()
-        if Config.get("emulation.batch_sim"):
+        if Config.get("batch.batch_sim"):
             try:
                 uid = uuid.uuid4().hex
-                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/')
-                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/logs')
-                os.mkdir(Config.get("emulation.batch_sim_file_path") + uid + '/data')
-                with open(Config.get("emulation.batch_sim_file_path") + uid + '/config.json', "w", encoding="utf-8") as f:
+                os.mkdir(Config.get("batch.batch_sim_file_path") + uid + '/')
+                os.mkdir(Config.get("batch.batch_sim_file_path") + uid + '/logs')
+                os.mkdir(Config.get("batch.batch_sim_file_path") + uid + '/data')
+                with open(Config.get("batch.batch_sim_file_path") + uid + '/config.json', "w", encoding="utf-8") as f:
                     json.dump({
                         "team_data": team_data,
                         "action_sequence": action_sequence,
                         "target_data": target_data
                     }, f)
-                with multiprocessing.Pool(processes=Config.get("emulation.batch_sim_processes")) as pool:
+                with multiprocessing.Pool(processes=Config.get("batch.batch_sim_processes")) as pool:
                     async_results = [pool.apply_async(
                         simulate_multi,
                         args=(team_data, 

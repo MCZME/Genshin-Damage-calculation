@@ -169,6 +169,26 @@ class ConfigEditorDialog(QDialog):
             desc.setTextAlignment(Qt.AlignCenter)
             self.config_table.setItem(row, 2, desc)
         
+        def add_text_row(key, value):
+            row = self.config_table.rowCount()
+            self.config_table.insertRow(row)
+            item = QTableWidgetItem(key)
+            item.setTextAlignment(Qt.AlignCenter)
+            self.config_table.setItem(row, 0, item)
+            
+            text_edit = QTextEdit()
+            text_edit.setPlainText(value)
+            text_edit.setProperty("config_key", key)
+            self.config_table.setCellWidget(row, 1, text_edit)
+            
+            # 添加描述项
+            desc_text = {
+                "name": "配队名称",
+            }.get(key, "")
+            desc = QTableWidgetItem(desc_text)
+            desc.setTextAlignment(Qt.AlignCenter)
+            self.config_table.setItem(row, 2, desc)
+
         # 填充表格内容
         add_section("项目信息")
         for key, value in config["project"].items():
@@ -176,12 +196,18 @@ class ConfigEditorDialog(QDialog):
         
         add_section("模拟设置")
         for key, value in config["emulation"].items():
+            add_bool_row(key, value, f"emulation.{key}")
+
+        add_section("批量模拟设置")
+        for key, value in config["batch"].items():
             if key in ["batch_sim_processes", "batch_sim_num"]:
-                add_num_row(key, value, f"emulation.{key}", 1, 100)
+                add_num_row(key, value, f"batch.{key}", 1, 100)
             elif key in ["batch_sim_file_path"]:
                 add_info_row(key, value)
+            elif key in ['name']:
+                add_text_row(key, value)
             else:
-                add_bool_row(key, value, f"emulation.{key}")
+                add_bool_row(key, value, f"batch.{key}")
         
         add_section("界面设置")
         for key, value in config["ui"].items():
