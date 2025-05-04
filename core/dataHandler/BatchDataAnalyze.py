@@ -64,7 +64,6 @@ class BatchDataAnalyze:
 
         self.dps = sum([e1['value'] for e in self.result.values() for e1 in e]) / self.time * 60
 
-
     def _analyze(self, data):
         """
         分析数据
@@ -99,4 +98,5 @@ class BatchDataAnalyze:
                 'event': self.result[frame]
             } for frame in self.result.keys()],
         })
+        print('分析结果数据插入成功')
         

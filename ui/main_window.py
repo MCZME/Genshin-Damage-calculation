@@ -10,7 +10,7 @@ import uuid
 from PySide6.QtCore import Qt
 
 from Emulation import Emulation
-from core.Tool import send_to_MongoDB
+from core.dataHandler.DataTransmission import send_file_to_remote
 from ui.widget.image_loader_widget import ImageAvatar
 from ui.widget.simulation_config_widget import SimulationConfigWidget
 
@@ -460,10 +460,9 @@ class MainWindow(QMainWindow):
                             results.append(res.get(timeout=10))  # 设置超时防止卡死
                         except multiprocessing.TimeoutError:
                             get_ui_logger().log_error("任务超时")
-
                 success_count = sum(1 for r in results if r.get("status") == "success")
                 get_ui_logger().log_info(f"成功率: {success_count / len(results):.1%}")
-                send_to_MongoDB(uid)
+                send_file_to_remote(uid)
             except Exception as e:
                 error_msg = f"模拟过程中出错: {str(e)}"
                 get_ui_logger().log_ui_error(error_msg)

@@ -1,10 +1,6 @@
-import json
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, 
-                              QPushButton, QSpinBox, QWidget,
-                              QDialog, QVBoxLayout, QTextEdit,
-                              QDialogButtonBox, QMessageBox,
-                              QTableWidget, QTableWidgetItem,
-                              QCheckBox, QComboBox)
+                              QPushButton, QSpinBox, QDialog, QVBoxLayout, QDialogButtonBox, QTableWidget, QTableWidgetItem,
+                              QLineEdit, QComboBox)
 from PySide6.QtGui import QColor
 from PySide6.QtCore import Qt
 from core.Config import Config
@@ -169,21 +165,24 @@ class ConfigEditorDialog(QDialog):
             desc.setTextAlignment(Qt.AlignCenter)
             self.config_table.setItem(row, 2, desc)
         
-        def add_text_row(key, value):
+        def add_text_row(key, value, full_key):
             row = self.config_table.rowCount()
             self.config_table.insertRow(row)
             item = QTableWidgetItem(key)
             item.setTextAlignment(Qt.AlignCenter)
             self.config_table.setItem(row, 0, item)
             
-            text_edit = QTextEdit()
-            text_edit.setPlainText(value)
-            text_edit.setProperty("config_key", key)
+            text_edit = QLineEdit()
+            text_edit.setText(value)
+            text_edit.setProperty("config_key", full_key)
             self.config_table.setCellWidget(row, 1, text_edit)
             
             # 添加描述项
             desc_text = {
                 "name": "配队名称",
+                "host": "服务器地址",
+                "username": "用户名",
+                "password": "密码",
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
@@ -204,8 +203,8 @@ class ConfigEditorDialog(QDialog):
                 add_num_row(key, value, f"batch.{key}", 1, 100)
             elif key in ["batch_sim_file_path"]:
                 add_info_row(key, value)
-            elif key in ['name']:
-                add_text_row(key, value)
+            elif key in ['name', 'host', 'username', 'password']:
+                add_text_row(key, value, f"batch.{key}")
             else:
                 add_bool_row(key, value, f"batch.{key}")
         
@@ -243,6 +242,14 @@ class ConfigEditorDialog(QDialog):
             elif isinstance(widget, QSpinBox):
                 key = widget.property("config_key")
                 value = widget.value()
+                keys = key.split(".")
+                current = config
+                for k in keys[:-1]:
+                    current = current[k]
+                current[keys[-1]] = value
+            elif isinstance(widget, QLineEdit):
+                key = widget.property("config_key")
+                value = widget.text()
                 keys = key.split(".")
                 current = config
                 for k in keys[:-1]:

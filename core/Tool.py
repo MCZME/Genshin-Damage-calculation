@@ -41,36 +41,3 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
         energy_event = EnergyChargeEvent(character, element_energy, GetCurrentTime(),
                                         is_fixed=is_fixed, is_alone=is_alone)
         EventBus.publish(energy_event)
-
-def send_to_MongoDB(uid):
-    from DataRequest import MongoDB
-    from core.Config import Config
-    import json
-    import time
-    from pymongo import ASCENDING
-    db = MongoDB('genshin_damage_report','simulations')
-    for i in range(Config.get('batch.batch_sim_num')):
-        with open(Config.get('batch.batch_sim_file_path')+uid+'/data/'+uid+'_'+str(i)+'.json','r') as f:
-            data = json.load(f)
-            db.insert_document({
-                'uid': uid,
-                'num': i,
-                'frames': data,
-                'log_file_path': '',
-                'log_file_name': uid+'_'+str(i)+'.log',
-            })
-        time.sleep(0.1)
-    db.change_collection('configs')
-    db.create_index([("uid", ASCENDING)], name="uid_index")
-    with open(Config.get('batch.batch_sim_file_path')+uid+'/config.json','r') as f:
-        data = json.load(f)
-        db.insert_document({
-            'uid': uid,
-            'version': Config.get('project.version'),
-            'simulation_num': Config.get('batch.batch_sim_num'),
-            'name': Config.get('batch.name'),
-            'team': data['team_data'],
-            'action_sequence': data['action_sequence'],
-            'target': data['target_data'],
-        })
-    db.close()
