@@ -1,7 +1,7 @@
 from Emulation import Emulation
 from core.BaseObject import DendroCoreObject
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.DataHandler import send_to_handler
+from core.dataHandler.DataHandler import send_to_handler
 from core.effect.BaseEffect import BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect
 from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
 from core.Team import Team

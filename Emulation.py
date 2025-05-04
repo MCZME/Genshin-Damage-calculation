@@ -1,6 +1,6 @@
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
-from core.DataHandler import clear_data, save_report
+from core.dataHandler.DataHandler import clear_data, save_report
 from core.Event import EventBus, FrameEndEvent
 from core.Logger import get_emulation_logger
 from core.Map import CharacterClassMap, WeaponClassMap

@@ -5,12 +5,11 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
                               QFileDialog, QMessageBox)
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from PySide6.QtCore import Qt
 
 from Emulation import Emulation
-from core.DataHandler import save_report
 from core.Tool import send_to_MongoDB
 from ui.widget.image_loader_widget import ImageAvatar
 from ui.widget.simulation_config_widget import SimulationConfigWidget
@@ -434,6 +433,11 @@ class MainWindow(QMainWindow):
                 os.mkdir(Config.get("batch.batch_sim_file_path") + uid + '/data')
                 with open(Config.get("batch.batch_sim_file_path") + uid + '/config.json', "w", encoding="utf-8") as f:
                     json.dump({
+                        'uid': uid,
+                        'version': Config.get('project.version'),
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        'simulation_num': Config.get('batch.batch_sim_num'),
+                        'name': Config.get('batch.name'),
                         "team_data": team_data,
                         "action_sequence": action_sequence,
                         "target_data": target_data
@@ -444,12 +448,12 @@ class MainWindow(QMainWindow):
                         args=(team_data, 
                             action_sequence, 
                             target_data, 
-                            Config.get("emulation.batch_sim_file_path"),
+                            Config.get("batch.batch_sim_file_path"),
                             sim_id,
                             uid),
                         error_callback=error_callback,
                         callback=callback
-                    ) for sim_id in range(Config.get("emulation.batch_sim_num"))]
+                    ) for sim_id in range(Config.get("batch.batch_sim_num"))]
                     results = []
                     for res in async_results:
                         try:

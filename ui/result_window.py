@@ -9,7 +9,7 @@ from ui.widget.detail_info_widget import DetailInfoWidget
 from ui.widget.analysis_result_widget import AnalysisResultWidget
 from ui.widget.loading_widget import LoadingWidget
 
-from core.DataHandler import send_to_window
+from core.dataHandler.DataHandler import send_to_window
 from core.Logger import get_ui_logger
 
 class ResultWindow(QMainWindow):
