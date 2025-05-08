@@ -13,4 +13,6 @@ from character.FONTAINE.Furina import Furina_table
 _add('芙宁娜','Furina',Furina_table)
 from character.FONTAINE.Neuvillette import Neuvillette_table
 _add('那维莱特','Neuvillette',Neuvillette_table)
+from character.FONTAINE.Escoffier import Escoffier_table
+_add('爱可菲','Escoffier',Escoffier_table)
 

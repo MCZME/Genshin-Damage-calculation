@@ -59,4 +59,4 @@ if __name__ == '__main__':
     app.exec()
 
     Config.save()
-    # manage_log_files()
+    manage_log_files()
