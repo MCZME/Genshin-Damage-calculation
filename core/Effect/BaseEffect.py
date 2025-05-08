@@ -1,4 +1,4 @@
-from core.Event import DamageEvent, EventBus
+from core.Event import DamageEvent, EventBus, EventHandler, EventType
 from core.Tool import GetCurrentTime
 from core.Logger import get_emulation_logger
 
@@ -593,3 +593,144 @@ class BurningEffect(Effect):
             self.remove()
         elif len(self.aura.burning_elements) == 0 or self.aura.burning_elements['current_amount'] <= 0:
             self.remove()
+
+class ShatteredIceEffect(Effect, EventHandler):
+    """粉碎之冰效果"""
+    def __init__(self, character):
+        super().__init__(character, float('inf'))
+        self.name = '粉碎之冰'
+
+    def apply(self):
+        super().apply()
+        self.character.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得粉碎之冰")
+        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+
+    def remove(self):
+        super().remove()
+        get_emulation_logger().log_effect(f"{self.character.name}: 粉碎之冰结束")
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL, self)
+
+    def handle_event(self, event):
+        traget = event.data['damage'].target
+        ice = next((a for a in traget.aure.elementalAura if a['element'] in ['冰', '冻']), None)
+
+        if ice:
+            event.data['damage'].panel['暴击率'] += 15
+            event.data['damage'].setDamageData('粉碎之冰',15)
+
+class SwiftWindEffect(Effect):
+    def __init__(self, character):
+        super().__init__(character, float('inf'))
+        self.name = '迅捷之风'
+
+    def apply(self):
+        super().apply()
+        self.character.add_effect(self)
+        get_emulation_logger().log_effect(f"{self.character.name}获得迅捷之风")
+        self.character.Skill.cd = int(0.95 * self.character.Skill.cd)
+        self.character.Burst.cd = int(0.95 * self.character.Burst.cd)
+
+    def remove(self):
+        super().remove()
+        get_emulation_logger().log_effect(f"{self.character.name}: 迅捷之风结束")
+        self.character.Skill.cd = int(1.05 * self.character.Skill.cd)
+        self.character.Burst.cd = int(1.05 * self.character.Burst.cd)
+
+class CreepingGrassEffect(Effect, EventHandler):
+    """蔓生之草效果"""
+    def __init__(self, character):
+        super().__init__(character, float('inf'))
+        self.name = '蔓生之草'
+        self.time_1 = 0
+        self.time_2 = 0
+
+    def apply(self):
+        super().apply()
+        self.character.add_effect(self)
+        self.character.attributePanel['元素精通'] += 50
+        get_emulation_logger().log_effect(f"{self.character.name}获得蔓生之草")
+        EventBus.subscribe(EventType.AFTER_BURNING, self)
+        EventBus.subscribe(EventType.AFTER_BLOOM, self)
+        EventBus.subscribe(EventType.AFTER_QUICKEN, self)
+        EventBus.subscribe(EventType.AFTER_HYPERBLOOM, self)
+        EventBus.subscribe(EventType.AFTER_AGGRAVATE, self)
+        EventBus.subscribe(EventType.AFTER_SPREAD, self)
+        EventBus.subscribe(EventType.AFTER_BURGEON, self)
+
+    def remove(self):
+        super().remove()
+        self.character.attributePanel['元素精通'] -= 50
+        get_emulation_logger().log_effect(f"{self.character.name}: 蔓生之草结束")
+        EventBus.unsubscribe(EventType.AFTER_BURNING, self)
+        EventBus.unsubscribe(EventType.AFTER_BLOOM, self)
+        EventBus.unsubscribe(EventType.AFTER_QUICKEN, self)
+        EventBus.unsubscribe(EventType.AFTER_HYPERBLOOM, self)
+        EventBus.unsubscribe(EventType.AFTER_AGGRAVATE, self)
+        EventBus.unsubscribe(EventType.AFTER_SPREAD, self)
+        EventBus.unsubscribe(EventType.AFTER_BURGEON, self)
+
+    def handle_event(self, event):
+        if event.event_type in [EventType.AFTER_BURNING, EventType.AFTER_BLOOM,EventType.AFTER_QUICKEN]:
+            if self.time_1 == 0:
+                self.character.attributePanel['元素精通'] += 30
+                self.time_1 = 6 * 60
+            else:
+                self.time_1 = 6 * 60
+
+        if event.event_type in [EventType.AFTER_HYPERBLOOM, EventType.AFTER_AGGRAVATE ,
+                                EventType.AFTER_SPREAD, EventType.AFTER_BURGEON]:
+            if self.time_2 == 0:
+                self.character.attributePanel['元素精通'] += 20
+                self.time_2 = 6 * 60
+            else:
+                self.time_2 = 6 * 60
+
+    def update(self):
+        self.time_1 -= 1
+        self.time_2 -= 1
+        if self.time_1 <= 0:
+            self.character.attributePanel['元素精通'] -= 30
+            self.time_1 = 0
+            self.character.attributePanel['元素精通'] -= 20
+            self.time_2 = 0
+        super().update()
+
+class SteadfastStoneEffect(Effect, EventHandler):
+    """坚定之岩效果"""
+    def __init__(self, character):
+        super().__init__(character, float('inf'))
+        self.name = '坚定之岩'
+        self.is_applied = False
+
+    def apply(self):
+        super().apply()
+        self.character.add_effect(self)
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        # 护盾强效提升15%
+        get_emulation_logger().log_effect(f"{self.character.name}获得坚定之岩")
+
+    def remove(self):
+        super().remove()
+        get_emulation_logger().log_effect(f"{self.character.name}: 坚定之岩结束")
+
+    def update(self, target):
+        shield = next((e for e in self.character.active_effects if isinstance(e, ShieldEffect)),None)
+        if not self.is_applied and shield:
+            self.character.attributePanel['伤害加成'] += 15
+            self.is_applied = True
+        elif self.is_applied and not shield:
+            self.character.attributePanel['伤害加成'] -= 15
+            self.is_applied = False
+
+        super().update(target)
+
+    def handle_event(self, event):
+        if event.data['character'] == self.character:
+            ResistanceDebuffEffect(self.name, 
+                                   self.character,
+                                   event.data['damage'].target,
+                                   ['岩'],
+                                   20,
+                                   15*60).apply()
+            

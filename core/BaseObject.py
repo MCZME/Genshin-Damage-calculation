@@ -64,6 +64,10 @@ class LightningBladeObject(baseObject):
         # 注册事件监听
         EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
         EventBus.subscribe(EventType.AFTER_SUPERCONDUCT, self)
+        EventBus.subscribe(EventType.AFTER_ELECTRO_CHARGED, self)
+        EventBus.subscribe(EventType.AFTER_QUICKEN, self)
+        EventBus.subscribe(EventType.AFTER_AGGRAVATE, self)
+        EventBus.subscribe(EventType.AFTER_HYPERBLOOM, self)
 
     def on_finish(self, target):
         super().on_finish(target)

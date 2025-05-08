@@ -1,5 +1,5 @@
 from character.character import Character, CharacterState
-from core.effect.BaseEffect import AttackBoostEffect, HealthBoostEffect
+from core.effect.BaseEffect import AttackBoostEffect, CreepingGrassEffect, HealthBoostEffect, ShatteredIceEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.Event import CharacterSwitchEvent, EventBus
 from core.Tool import GetCurrentTime
 
@@ -68,6 +68,37 @@ class Team:
                 LightningBladeobject = LightningBladeObject()
                 LightningBladeobject.apply()
                 Team.active_resonances['强能之雷'] = True
+
+        # 冰元素共鸣（粉碎之冰）
+        if Team.element_counts.get('冰', 0) >= 2 and len(Team.team) >= 4:
+            if '粉碎之冰' not in Team.active_resonances:
+                for char in Team.team:
+                    effect = ShatteredIceEffect(char)
+                    effect.apply()
+                Team.active_resonances['粉碎之冰'] = True
+
+        # 风元素共鸣（迅捷之风）
+        if Team.element_counts.get('风', 0) >= 2 and len(Team.team) >= 4:
+            if '迅捷之风' not in Team.active_resonances:
+                for char in Team.team:
+                    effect = SwiftWindEffect(char)
+                    effect.apply()
+                Team.active_resonances['迅捷之风'] = True
+
+        # 草元素共鸣（蔓生之草）
+        if Team.element_counts.get('草', 0) >= 2 and len(Team.team) >= 4:
+            if '蔓生之草' not in Team.active_resonances:
+                effect = CreepingGrassEffect(char)
+                effect.apply()
+                Team.active_resonances['蔓生之草'] = True
+
+        # 岩元共鸣（坚定之岩）
+        if Team.element_counts.get('岩', 0) >= 2 and len(Team.team) >= 4:
+            if '坚定之岩' not in Team.active_resonances:
+                for char in Team.team:
+                    effect = SteadfastStoneEffect(char)
+                    effect.apply()
+                Team.active_resonances['坚定之岩'] = True
         
     def _check_resonance_condition(self, resonance_name):
         # 各共鸣的触发条件检查
@@ -77,6 +108,14 @@ class Team:
             return Team.element_counts.get('水', 0) >= 2 and len(Team.team) >= 4
         elif resonance_name == '强能之雷':
             return Team.element_counts.get('雷', 0) >= 2 and len(Team.team) >= 4
+        elif resonance_name == '粉碎之冰':
+            return Team.element_counts.get('冰', 0) >= 2 and len(Team.team) >= 4
+        elif resonance_name == '迅捷之风':
+            return Team.element_counts.get('风', 0) >= 2 and len(Team.team) >= 4
+        elif resonance_name == '蔓生之草':
+            return Team.element_counts.get('草', 0) >= 2 and len(Team.team) >= 4
+        elif resonance_name == '坚定之岩':
+            return Team.element_counts.get('岩', 0) >= 2 and len(Team.team) >= 4
         return False
 
     def _remove_resonance(self, resonance_name):
@@ -95,6 +134,26 @@ class Team:
                 from core.BaseObject import LightningBladeObject
                 if isinstance(obj, LightningBladeObject):
                     obj.remove()
+        elif resonance_name == '粉碎之冰':
+            for char in Team.team:
+                effects = [e for e in char.active_effects if e.name == "粉碎之冰"]
+                for effect in effects:
+                    effect.remove()
+        elif resonance_name == '迅捷之风':
+            for char in Team.team:
+                effects = [e for e in char.active_effects if e.name == "迅捷之风"]
+                for effect in effects:
+                    effect.remove()
+        elif resonance_name == '蔓生之草':
+            for char in Team.team:
+                effects = [e for e in char.active_effects if e.name == "蔓生之草"]
+                for effect in effects:
+                    effect.remove()
+        elif resonance_name == '坚定之岩':
+            for char in Team.team:
+                effects = [e for e in char.active_effects if e.name == "坚定之岩"]
+                for effect in effects:
+                    effect.remove()
         Team.active_resonances.pop(resonance_name, None)
     
     @classmethod
