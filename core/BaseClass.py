@@ -190,7 +190,7 @@ class NormalAttackSkill(SkillBase):
         if self.current_segment > self.max_segments-1 and self.current_frame >= self.total_frames:
             self.on_finish()
             return True
-        if self.current_frame <= sum(self.segment_frames[:self.max_segments]):
+        if self.current_frame <= self.total_frames - self.end_action_frame:
             self.on_frame_update(target)
         return False
     
@@ -198,7 +198,11 @@ class NormalAttackSkill(SkillBase):
         # 更新段内进度
         self.segment_progress += 1
         # 检测段结束
-        if self.segment_progress >= self.segment_frames[self.current_segment]:
+        if isinstance(self.segment_frames[self.current_segment], list):
+            segment_frames = max(self.segment_frames[self.current_segment])
+        else:
+            segment_frames = self.segment_frames[self.current_segment]
+        if self.segment_progress >= segment_frames:
             self._on_segment_end(target)
     
     def on_finish(self): 
@@ -278,9 +282,7 @@ class ChargedAttackSkill(SkillBase):
         # 攻击阶段
         if self.current_frame == self.hit_frame:
             self._apply_attack(target)
-            return True
-        return False
-
+    
     def _apply_attack(self, target):
         """应用重击伤害"""
         event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
@@ -304,6 +306,68 @@ class ChargedAttackSkill(SkillBase):
 
     def on_interrupt(self):
         super().on_interrupt()
+
+class PolearmChargedAttackSkill(ChargedAttackSkill):
+    def __init__(self, lv, total_frames=30, cd=0):
+        """
+        长柄武器重击技能 - 两段攻击
+        :param lv: 技能等级
+        :param total_frames: 总帧数
+        :param cd: 冷却时间
+        """
+        super().__init__(lv, total_frames, cd)
+        self.normal_hit_frame = 0  # 第一段攻击帧
+        self.charged_hit_frame = total_frames  # 第二段攻击帧
+
+    def start(self, caster):
+        if not super().start(caster):
+            return False
+        
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(), segment=1, before=False)
+        EventBus.publish(normal_attack_event)
+
+        return True
+
+    def on_frame_update(self, target):
+        # 第一段普通攻击
+        if self.current_frame == self.normal_hit_frame:
+            self._apply_normal_attack(target)
+            event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+            EventBus.publish(event)
+        
+        # 第二段重击攻击
+        if self.current_frame == self.charged_hit_frame:
+            self._apply_charged_attack(target)
+
+    def _apply_normal_attack(self, target):
+        """应用第一段普通攻击"""
+        damage = Damage(
+            damageMultipiler=self.damageMultipiler[0][self.lv-1],
+            element=self.element,
+            damageType=DamageType.NORMAL,
+            name='长柄武器重击-第一段'
+        )
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+
+        # 发布普通攻击事件
+        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(), segment=1, before=False)
+        EventBus.publish(normal_attack_event)
+
+    def _apply_charged_attack(self, target):
+        """应用第二段重击攻击"""
+
+        damage = Damage(
+            damageMultipiler=self.damageMultipiler[1][self.lv-1],
+            element=self.element,
+            damageType=DamageType.CHARGED,
+            name=f'重击'
+        )
+        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        EventBus.publish(damage_event)
+
+        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        EventBus.publish(event)
 
 class PlungingAttackSkill(SkillBase):
     def __init__(self, lv, total_frames=53, cd=0):
