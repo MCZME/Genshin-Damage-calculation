@@ -1,5 +1,5 @@
 from character.character import Character
-from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, MarechausseeHunterEffect, ThirstEffect
+from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, LuminescenceEffect, MarechausseeHunterEffect, ThirstEffect
 from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import DamageType
 from core.Event import EventBus, EventHandler, EventType
@@ -7,13 +7,16 @@ from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 
 class ArtifactEffect(EventHandler):
-    def __init__(self,name):
+    def __init__(self,name = ''):
         self.name = name
 
     def tow_SetEffect(self,character:Character):
         ...
 
     def four_SetEffect(self,character:Character):
+        ...
+
+    def handle_event(self, event):
         ...
 
 class GladiatorFinale(ArtifactEffect):
@@ -131,7 +134,7 @@ class SongOfDaysPast(ArtifactEffect):
             # 记录治疗量
             thirst.add_heal(event.data['healing'].final_value)
 
-class Instructor(ArtifactEffect,EventHandler):
+class Instructor(ArtifactEffect):
     def __init__(self):
         super().__init__('教官')
 
@@ -172,7 +175,7 @@ class NoblesseOblige(ArtifactEffect):
                     effect = AttackBoostEffect(self.character, c, '昔日宗室之仪', 20, 12*60)
                     effect.apply()
 
-class MarechausseeHunter(ArtifactEffect,EventHandler):
+class MarechausseeHunter(ArtifactEffect):
     def __init__(self):
         super().__init__('逐影猎人')
 
@@ -192,7 +195,7 @@ class MarechausseeHunter(ArtifactEffect,EventHandler):
             if event.data['character'] == self.character:
                 MarechausseeHunterEffect(self.character).apply()
 
-class GoldenTroupe(ArtifactEffect,EventHandler):
+class GoldenTroupe(ArtifactEffect):
     def __init__(self):
         super().__init__('黄金剧团')
         self.fourSet = False
@@ -221,7 +224,7 @@ class GoldenTroupe(ArtifactEffect,EventHandler):
             if event.data['new_character'] == self.character:
                 self.last_on_field_time = event.frame
 
-class ViridescentVenerer(ArtifactEffect,EventHandler):
+class ViridescentVenerer(ArtifactEffect):
     def __init__(self):
         super().__init__('翠绿之影')
 
@@ -243,7 +246,7 @@ class ViridescentVenerer(ArtifactEffect,EventHandler):
                                             element, 40, 10*60)
             effect.apply()
 
-class DeepwoodMemories(ArtifactEffect,EventHandler):
+class DeepwoodMemories(ArtifactEffect):
     def __init__(self):
         super().__init__('深林的记忆')
 
@@ -260,7 +263,7 @@ class DeepwoodMemories(ArtifactEffect,EventHandler):
             if event.data['character'] == self.character and event.data['damage'].damageType in [DamageType.SKILL, DamageType.BURST]:
                 ResistanceDebuffEffect('深林的记忆', self.character, event.data['damage'].target, ['草'], 30, 8*60).apply()
 
-class FlowerOfParadiseLost(ArtifactEffect,EventHandler):
+class FlowerOfParadiseLost(ArtifactEffect):
     def __init__(self):
         super().__init__('乐园遗落之花')
         self.last_tigger_time = 0
@@ -283,3 +286,54 @@ class FlowerOfParadiseLost(ArtifactEffect,EventHandler):
             if e.source == self.character and GetCurrentTime() - self.last_tigger_time > self.inveral:
                 self.last_tigger_time = GetCurrentTime()
                 FlowerOfParadiseLostEffect(self.character).apply()
+
+class LongNightsOath(ArtifactEffect):
+    def __init__(self):
+        super().__init__('长夜之誓')
+        self.last_tigger_time = -60
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        # 下落攻击伤害提升25%
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+
+    def four_SetEffect(self, character):
+        self.character = character
+        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS and event.data['character'] == self.character:
+            if event.data['damage'].damageType == DamageType.PLUNGING:
+                event.data['damage'].panel['伤害加成'] += 25
+                event.data['damage'].setDamageData('长夜之誓-两件套伤害加成', 25)
+        
+        elif event.event_type == EventType.AFTER_DAMAGE:
+            if event.data['character'] == self.character:
+                damage_type = event.data['damage'].damageType
+                if damage_type in [DamageType.PLUNGING, DamageType.CHARGED, DamageType.SKILL]:
+                    current_time = event.frame
+                    if current_time - self.last_tigger_time >= 60:
+                        # 根据攻击类型获得不同层数
+                        if damage_type == DamageType.PLUNGING:
+                            effect = LuminescenceEffect(self.character, damage_type, 1)
+                            effect.apply()
+                        else: # CHARGED or SKILL
+                            effect = LuminescenceEffect(self.character, damage_type, 2)
+                            effect.apply()
+
+__all__ = [
+    "ArtifactEffect",
+    "GladiatorFinale",
+    "ObsidianCodex",
+    "ScrolloftheHeroOfCinderCity",
+    "EmblemOfSeveredFate",
+    "SongOfDaysPast",
+    "Instructor",
+    "NoblesseOblige",
+    "MarechausseeHunter",
+    "GoldenTroupe",
+    "ViridescentVenerer",
+    "DeepwoodMemories",
+    "FlowerOfParadiseLost",
+    "LongNightsOath"
+]

@@ -235,3 +235,60 @@ class FlowerOfParadiseLostEffect(Effect):
     def remove(self):
         super().remove()
         self.removeEffect()
+
+class LuminescenceEffect(Effect, EventHandler):
+    def __init__(self, character, damage_type,stack):
+        super().__init__(character, 6*60)
+        self.name = '永照的流辉'
+        self.stack = stack
+        self.stack_time = {damage_type:6*60}
+        self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">{self.stack}层永照的流辉，下落攻击造成的伤害提升{self.stack * 15}%</span></p>
+        """
+
+    def apply(self):
+        super().apply()
+        Luminescence = next((e for e in self.character.active_effects
+                             if isinstance(e, LuminescenceEffect)), None)
+        if Luminescence:
+            Luminescence.stack = min(5,self.stack + Luminescence.stack)
+            Luminescence.stack_time.update(self.stack_time)
+            Luminescence.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{Luminescence.character.name} - {Luminescence.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">{Luminescence.stack}层永照的流辉，下落攻击造成的伤害提升{Luminescence.stack * 15}%</span></p>
+            """
+            return
+        
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        self.character.add_effect(self)
+        get_emulation_logger().log_effect(f"🌟 {self.character.name}获得永照的流辉效果")
+
+    def remove(self):
+        super().remove()
+        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_emulation_logger().log_effect(f"🌟 {self.character.name}失去永照的流辉效果")
+
+    def update(self, target):
+        romove = []
+        for i in self.stack_time.keys():
+            if self.stack_time[i] > 0:
+                self.stack_time[i] -= 1
+                if self.stack_time[i] == 0:
+                    romove.append(i)
+        for i in romove:
+            if i == DamageType.PLUNGING:
+                self.stack -= 1
+            else:
+                self.stack -= 2
+            self.msg = f"""<p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+            <p><span style="color: #c0e4e6; font-size: 12pt;">{self.stack}层永照的流辉，下落攻击造成的伤害提升{self.stack * 15}%</span></p>
+            """
+            self.stack_time.pop(i)
+
+        if len(self.stack_time) == 0:
+            self.remove()
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_DAMAGE_BONUS and event.data['character'] == self.character:
+            if event.data['damage'].damageType == DamageType.PLUNGING:
+                event.data['damage'].panel['伤害加成'] += 15 * self.stack
+                event.data['damage'].setDamageData('永照的流辉-下落攻击伤害加成', 15 * self.stack)
