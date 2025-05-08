@@ -157,8 +157,8 @@ class JumpSkill(SkillBase):
 class NormalAttackSkill(SkillBase):
     def __init__(self,lv,cd=0):
         super().__init__(name="普通攻击",total_frames=0,lv=lv,cd=cd,element=('物理',0),interruptible=False)
-        self.segment_frames = [0,0,0,0]
-        self.damageMultipiler= {}
+        self.segment_frames = [0,0,0,0]  # 支持数字或列表格式，如[10, [10,11], 30]
+        self.damageMultipiler= {}  # 格式如{1:[倍率], 2:[倍率1,倍率2], 3:[倍率]}
         # 攻击阶段控制
         self.current_segment = 0               # 当前段数（0-based）
         self.segment_progress = 0              # 当前段进度帧数
@@ -170,7 +170,14 @@ class NormalAttackSkill(SkillBase):
         self.current_segment = 0
         self.segment_progress = 0
         self.max_segments = min(n,len(self.segment_frames))           # 实际攻击段数
-        self.total_frames = sum(self.segment_frames[:self.max_segments]) + self.end_action_frame
+        # 计算总帧数（支持多帧配置）
+        total = 0
+        for seg in self.segment_frames[:self.max_segments]:
+            if isinstance(seg, list):
+                total += max(seg)  # 取多帧配置中的最大值
+            else:
+                total += seg
+        self.total_frames = total + self.end_action_frame
         get_emulation_logger().log_skill_use(f"⚔️ 开始第{self.current_segment+1}段攻击")
         
         # 发布普通攻击事件（前段）
@@ -201,9 +208,20 @@ class NormalAttackSkill(SkillBase):
         
     def _on_segment_end(self,target):
         """完成当前段攻击"""
-        # 执行段攻击效果
-        self._apply_segment_effect(target)
-        get_emulation_logger().log_skill_use(f"✅ 第{self.current_segment+1}段攻击完成")
+        segment = self.current_segment + 1
+        frame_config = self.segment_frames[self.current_segment]
+        
+        if isinstance(frame_config, list):
+            # 多帧配置，按帧触发多次伤害
+            for i, frame in enumerate(frame_config):
+                if self.segment_progress >= frame:
+                    self._apply_segment_effect(target, hit_index=i)
+        else:
+            # 单帧配置，在段末触发一次伤害
+            if self.segment_progress >= frame_config:
+                self._apply_segment_effect(target)
+                
+        get_emulation_logger().log_skill_use(f"✅ 第{segment}段攻击完成")
         # 进入下一段
         if self.current_segment < self.max_segments - 1:
             self.segment_progress = 0
@@ -213,9 +231,17 @@ class NormalAttackSkill(SkillBase):
             EventBus.publish(normal_attack_event)
         self.current_segment += 1
 
-    def _apply_segment_effect(self,target):
+    def _apply_segment_effect(self,target, hit_index=0):
+        segment = self.current_segment + 1
+        # 获取伤害倍率（支持多段配置）
+        multiplier = self.damageMultipiler[segment]
+        if isinstance(multiplier[0], list):
+            multiplier = multiplier[hit_index][self.lv-1]
+        else:
+            multiplier = multiplier[self.lv-1]
+            
         # 发布伤害事件
-        damage = Damage(self.damageMultipiler[self.current_segment+1][self.lv-1],self.element,DamageType.NORMAL,f'普通攻击 {self.current_segment+1}')
+        damage = Damage(multiplier, self.element, DamageType.NORMAL, f'普通攻击 {segment}-{hit_index+1}')
         damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
         EventBus.publish(damage_event)
 
