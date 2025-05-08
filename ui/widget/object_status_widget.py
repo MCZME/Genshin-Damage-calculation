@@ -105,6 +105,8 @@ class ObjectStatusWidget(QWidget):
             key = f"{name}_{obj_id}"
             current = obj['current_frame']
             life = obj['life_frame']
+            if life == float('inf'):
+                life = 100
             percent = (life - current) / life * 100 if life > 0 else 0
             
             if key in self.object_widgets:

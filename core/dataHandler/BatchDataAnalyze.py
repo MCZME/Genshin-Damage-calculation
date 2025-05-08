@@ -57,6 +57,7 @@ class BatchDataAnalyze:
             with open(f'./data/sim/{self.uid}/data/{self.uid}_{i}.json', 'r') as f:
                 data = json.load(f)
                 self._analyze(RestoreData(data))
+            print(f'分析数据 {i}/{self.num}')
         
         for k, e in self.result.items():
             for i in range(len(e)):

@@ -92,7 +92,7 @@ def _handle_shield(frame, event):
     return {
         'type': 'shield',
         'character': event['character'].name,
-        'shield': event['shield'].shield
+        'shield': event['shield'].shield_value
     }
 
 def _handle_damage_event(frame,data):

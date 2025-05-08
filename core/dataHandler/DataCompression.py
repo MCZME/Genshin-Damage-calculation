@@ -1,7 +1,6 @@
-# 键名缩短映射表
 import copy
 
-
+# 键名缩短映射表
 _KEY_MAPPING = {
     'character': 'c',
     'target': 't', 
