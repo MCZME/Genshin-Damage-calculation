@@ -9,8 +9,6 @@ import core.Tool as T
 from weapon.weapon import Weapon
 
 
-sword = ['息燧之笛','风鹰剑','灰河渡手','静水流涌之辉','苍古自由之誓','岩峰巡歌','祭礼剑']
-
 class FluteOfEzpitzal(Weapon,EventHandler):
     ID = 38
     def __init__(self, character, level=1, lv=1):
@@ -144,3 +142,13 @@ class SacrificialSword(Weapon,EventHandler):
                         self.last_tigger_time = T.GetCurrentTime()
                         self.character.Skill.cd_timer = self.character.Skill.cd
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
+
+sword = {
+    '息燧之笛':FluteOfEzpitzal,
+    '风鹰剑':AquilaFavonia,
+    '灰河渡手':FleuveCendreFerryman,
+    '静水流涌之辉':SplendorOfTranquilWaters,
+    '苍古自由之誓':FreedomSworn,
+    '岩峰巡歌':PeakPatrolSong,
+    '祭礼剑':SacrificialSword,
+}

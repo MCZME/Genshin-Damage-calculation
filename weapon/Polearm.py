@@ -4,7 +4,6 @@ from weapon.weapon import Weapon
 from core.Event import EventBus, EventType, EventHandler
 from core.effect.BaseEffect import AttackBoostEffect
 
-polearm = ['且住亭御咄','渔获','沙中伟贤的对答']
 
 class TamayurateinoOhanashi(Weapon, EventHandler):
     ID = 161
@@ -68,3 +67,10 @@ class DialoguesOfTheDesertSages(Weapon, EventHandler):
         summon_energy(1,self.character,('无',self.energy_restore[self.lv-1]),True,True)
         
         self.last_trigger_frame = current_frame
+
+
+polearm = {
+    '且住亭御咄':TamayurateinoOhanashi,
+    '「渔获」':TheCatch,
+    '沙中伟贤的对答':DialoguesOfTheDesertSages,
+}

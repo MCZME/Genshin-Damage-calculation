@@ -7,7 +7,6 @@ from core.effect.BaseEffect import AttackBoostEffect
 import core.Tool as T
 from weapon.weapon import Weapon
 
-catalyst = ['溢彩心念','讨龙英杰谭','万世流涌大典','祭礼残章','千夜浮梦']
 
 class VividNotions(Weapon, EventHandler):
     ID = 215
@@ -134,3 +133,11 @@ class AThousandFloatingDreams(Weapon):
             self.removeEffect()
             self.getElementNum()
             self.applyEffect()
+
+catalyst = {
+    '溢彩心念':VividNotions,
+    '讨龙英杰谭':ThrillingTalesOfDragonSlayers,
+    '万世流涌大典':TomeOfTheEternalFlow,
+    '祭礼残章':SacrificialFragments,
+    '千夜浮梦':AThousandFloatingDreams,
+}

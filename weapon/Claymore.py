@@ -5,7 +5,6 @@ from core.Logger import get_emulation_logger
 import core.Tool as T
 from .weapon import Weapon
 
-claymore = ['螭骨剑','焚曜千阳','祭礼大剑']
 
 class SerpentSpine(Weapon):
     ID = 1
@@ -160,3 +159,9 @@ class SacrificialGreatsword(Weapon, EventHandler):
                         self.last_tigger_time = T.GetCurrentTime()
                         self.character.Skill.cd_timer = self.character.Skill.cd
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
+
+claymore = {
+    '螭骨剑':SerpentSpine,
+    '焚曜千阳':AThousandBlazingSuns,
+    '祭礼大剑':SacrificialGreatsword,
+}

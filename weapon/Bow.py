@@ -5,8 +5,6 @@ import core.Tool as T
 from weapon.weapon import Weapon
 
 
-bow=['祭礼弓']
-
 class SacrificialBow(Weapon,EventHandler):
     ID = 103
     def __init__(self, character, level=1, lv=1):
@@ -26,3 +24,7 @@ class SacrificialBow(Weapon,EventHandler):
                         self.last_tigger_time = T.GetCurrentTime()
                         self.character.Skill.cd_timer = self.character.Skill.cd
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
+
+bow = {
+    '祭礼弓':SacrificialBow,
+}
