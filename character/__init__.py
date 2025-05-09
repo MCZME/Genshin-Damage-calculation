@@ -1,6 +1,6 @@
 __all__ = ['Varesa','MAVUIKA','Iansan','CITLALI','XiangLing','CHEVREUSE','BENNETT',
          'Xilonen','KaedeharaKazuha','Furina','Neuvillette','KukiShinobu','XingQiu',
-         'Nahida','Escoffier','Yelan']
+         'Nahida','Escoffier','Yelan','Skirk']
 
 character_table = {}
 
@@ -36,4 +36,7 @@ _add(inazuma_character)
 from character.SUMERU import sumeru_character
 from character.SUMERU.Nahida import Nahida
 _add(sumeru_character)
+from character.OTHER import other_character
+from character.OTHER.Skirk import Skirk
+_add(other_character)
 
