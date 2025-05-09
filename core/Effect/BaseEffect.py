@@ -180,8 +180,9 @@ class AttackValueBoostEffect(Effect):
 
 class HealthBoostEffect(Effect):
     """生命值提升效果"""
-    def __init__(self, character, name, bonus, duration):
+    def __init__(self, character, current_character, name, bonus, duration):
         super().__init__(character,duration)
+        self.current_character = current_character
         self.bonus = bonus
         self.name = name
         self.msg = f"""
@@ -191,20 +192,20 @@ class HealthBoostEffect(Effect):
         
     def apply(self):
         super().apply()
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.active_effects 
                        if isinstance(e, HealthBoostEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration
             return
             
-        self.character.add_effect(self)
-        self.character.attributePanel['生命值%'] += self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}的生命值提升了{self.bonus}%")
+        self.current_character.add_effect(self)
+        self.current_character.attributePanel['生命值%'] += self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}的生命值提升了{self.bonus}%")
 
     def remove(self):
         super().remove()
-        self.character.attributePanel['生命值%'] -= self.bonus
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name} 生命值提升效果结束")
+        self.current_character.attributePanel['生命值%'] -= self.bonus
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name} 生命值提升效果结束")
 
 class DefenseBoostEffect(Effect):
     """防御力提升效果"""

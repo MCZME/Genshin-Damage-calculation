@@ -57,7 +57,7 @@ class Team:
         if Team.element_counts.get('水', 0) >= 2 and len(Team.team) >= 4:
             if '愈疗之水' not in Team.active_resonances:
                 for char in Team.team:
-                    effect = HealthBoostEffect(char, "愈疗之水", 25, float('inf'))
+                    effect = HealthBoostEffect(char, char, "愈疗之水", 25, float('inf'))
                     effect.apply()
                 Team.active_resonances['愈疗之水'] = True
 

@@ -8,7 +8,7 @@ from core.Team import Team
 
 class STWHealthBoostEffect(HealthBoostEffect):
     def __init__(self, character):
-        super().__init__(character, '静水流涌之辉_生命值', 14, 6*60)
+        super().__init__(character, character, '静水流涌之辉_生命值', 14, 6*60)
         self.stack = 0
         self.last_trigger = 0
         self.interval = 0.2*60
