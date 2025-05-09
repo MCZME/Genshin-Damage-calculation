@@ -11,4 +11,6 @@ from .Xiangling import xiangling_table
 add('香菱','XiangLing',xiangling_table)
 from .Xingqiu import xingqiu_table
 add('行秋','Xingqiu',xingqiu_table)
+from .Yelan import yelan_table
+add('夜兰','Yelan',yelan_table)
 
