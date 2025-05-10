@@ -311,3 +311,36 @@ class RongHuaZhiGeTeamEffect(Effect):
             self.current_character.attributePanel[f'{element}元素伤害加成'] -= min((self.defense/1000)*self.bonus_per_1000[self.lv -1], 
                                                                              self.max_bonus[self.lv -1])
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}效果结束")
+
+class AzurelightEffect(Effect):
+    def __init__(self, character, lv):
+        super().__init__(character, 12*60)
+        self.name = "苍耀"
+        self.is_apply_energy = False
+        self.lv = lv
+        self.atk_bomus = [24,30,36,42,48]
+        self.cick_bonus = [40,50,60,70,80]
+        self.msg = f"""施放元素战技后的12秒内，攻击力提升{self.atk_bomus[self.lv -1]}%。持续期间，装备者的元素能量为0时，
+        攻击力还会提升{self.atk_bomus[self.lv -1]}%，且暴击伤害提升{self.cick_bonus[self.lv -1]}%"""
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects if e.name == self.name),None)
+        if existing:
+            existing.duration = self.duration
+            return
+        
+        super().apply()
+        self.character.add_effect(self)
+        self.character.attributePanel['攻击力%'] += self.atk_bomus[self.lv -1]
+        if self.character.elemental_energy.elemental_energy[1] == 0:
+            self.character.attributePanel['攻击力%'] += self.atk_bomus[self.lv -1]
+            self.character.attributePanel['暴击伤害'] += self.cick_bonus[self.lv -1]
+            self.is_apply_energy = True
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
+
+    def remove(self):
+        super().remove()
+        self.character.attributePanel['攻击力%'] -= self.atk_bomus[self.lv -1]
+        if self.is_apply_energy:
+            self.character.attributePanel['攻击力%'] -= self.atk_bomus[self.lv -1]
+            self.character.attributePanel['暴击伤害'] -= self.cick_bonus[self.lv -1]

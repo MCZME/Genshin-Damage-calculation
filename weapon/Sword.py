@@ -2,7 +2,8 @@ import random
 from core.Logger import get_emulation_logger
 from core.effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
 from core.calculation.DamageCalculation import DamageType
-from core.effect.WeaponEffect import FreedomSwornEffect, RongHuaZhiGeEffect, STWElementSkillBoostEffect, STWHealthBoostEffect
+from core.effect.WeaponEffect import (AzurelightEffect, FreedomSwornEffect, RongHuaZhiGeEffect, 
+                                      STWElementSkillBoostEffect, STWHealthBoostEffect)
 from core.Event import EventBus, EventHandler, EventType
 from core.Team import Team
 import core.Tool as T
@@ -143,7 +144,20 @@ class SacrificialSword(Weapon,EventHandler):
                         self.character.Skill.cd_timer = self.character.Skill.cd
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
 
+class Azurelight(Weapon,EventHandler):
+    ID = 216
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, Azurelight.ID, level, lv)
+
+    def skill(self):
+        EventBus.subscribe(EventType.BEFORE_SKILL,self)
+
+    def handle_event(self, event):
+        if event.data['character'] == self.character:
+            AzurelightEffect(self.character,self.lv).apply()
+
 sword = {
+    '苍耀':Azurelight,
     '息燧之笛':FluteOfEzpitzal,
     '风鹰剑':AquilaFavonia,
     '灰河渡手':FleuveCendreFerryman,
