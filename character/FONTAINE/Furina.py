@@ -534,7 +534,7 @@ class CenterOfAttentionEffect(Effect,EventHandler):
 
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.BEFORE_DAMAGE, self)
+        EventBus.unsubscribe(EventType.BEFORE_CALCULATE, self)
         EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
         EventBus.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
         EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)

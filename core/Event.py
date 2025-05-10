@@ -51,6 +51,8 @@ class EventType(Enum):
     AFTER_SHATTER = auto()       # 碎冰反应后
     BEFORE_BURNING = auto()      # 燃烧反应前
     AFTER_BURNING = auto()       # 燃烧反应后
+    BEFORE_CRYSTALLIZE = auto()   # 结晶反应前
+    AFTER_CRYSTALLIZE = auto()    # 结晶反应后
     BEFORE_SUPERCONDUCT = auto()  # 超导反应前
     AFTER_SUPERCONDUCT = auto()   # 超导反应后
     BEFORE_ELECTRO_CHARGED = auto()  # 感电反应前

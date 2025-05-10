@@ -244,6 +244,8 @@ class ReactionsEventHandler(EventHandler):
                 EventBus.publish(damage_event)
                 ReactionsEventHandler.last_bloom_time = GetCurrentTime()                 
             EventBus.publish(GameEvent(EventType.AFTER_BURGEON, event.frame,elementalReaction=e))
+        elif event.event_type == EventType.AFTER_CRYSTALLIZE:
+            EventBus.publish(GameEvent(EventType.AFTER_CRYSTALLIZE, event.frame,elementalReaction=e))
 
     def catalyze(self, event):
         e = event.data['elementalReaction']
