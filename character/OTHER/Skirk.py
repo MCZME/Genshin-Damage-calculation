@@ -3,7 +3,7 @@ from character.character import Character, CharacterState
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.Event import ChargedAttackEvent, DamageEvent, ElementalBurstEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, NormalAttackEvent
+from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, NormalAttackEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime
@@ -12,8 +12,9 @@ from core.effect.BaseEffect import Effect
 
 class RiftObject(baseObject):
     """虚境裂隙对象"""
-    def __init__(self, duration=60):
-        super().__init__("虚境裂隙", duration)
+    def __init__(self):
+        super().__init__("虚境裂隙", 20*60)
+        self.repeatable = True
 
     def on_frame_update(self, target):
         ...
@@ -421,19 +422,23 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         EventBus.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
+        if event.data['character'] is self.character:
+            return
         element = event.data['character'].element
-        if element in ['水', '冰']:
-            DeathsCrossingEffect
+        if element in ['水', '冰'] and event.data['damage'].element[0] == element:
+            DeathsCrossingEffect(self.character).apply(event.data['character'].name)
 
 class DeathsCrossingEffect(Effect, EventHandler):
-    def __init__(self):
-        super().__init__('死河渡断', 20*60)
+    def __init__(self,character):
+        super().__init__(character, 20*60)
+        self.name = '死河渡断'
         self.stacks = {}
         self.multipiler = {'普通攻击':[110,120,170],
                            '元素爆发':[105,115,160]}
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
-        <p><span style="color: #c0e4e6; font-size: 12pt;">获得{self.bonus:.2f}%生命值</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">每层死河渡断效果会使丝柯克在七相一闪模式下时进行的普通攻击造成原本110%/120%/170%的伤害，
+        且施放的元素爆发极恶技·灭造成原本105%/115%/160的伤害。</span></p>
         """
 
     def apply(self,name):
@@ -456,20 +461,21 @@ class DeathsCrossingEffect(Effect, EventHandler):
             return
         damage = event.data['damage']
         if self.character.mode == '七相一闪' and damage.damageType == DamageType.NORMAL:
-            damage.panel['独立伤害加成'] += self.multipiler['普通攻击'][len(list(self.stacks))]
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][len(list(self.stacks))])
+            damage.panel['独立伤害加成'] += self.multipiler['普通攻击'][len(list(self.stacks))-1]
+            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][len(list(self.stacks))-1])
         elif damage.damageType == DamageType.BURST:
-            damage.panel['独立伤害加成'] += self.multipiler['元素爆发'][len(list(self.stacks))]
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][len(list(self.stacks))])
+            damage.panel['独立伤害加成'] += self.multipiler['元素爆发'][len(list(self.stacks))-1]
+            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][len(list(self.stacks))-1])
 
     def update(self, target):
-        self.duration = min(self.stacks.values())
-        for i in self.stacks.keys():
-            if self.stacks[i] > 0:
-                self.stacks[i] -= 1
-            else:
-                self.stacks.pop(i)
-        if not self.stacks:
+        if self.stacks:
+            self.duration = min(self.stacks.values())
+            for i in self.stacks.keys():
+                if self.stacks[i] > 0:
+                    self.stacks[i] -= 1
+                else:
+                    self.stacks.pop(i)
+        else:
             self.remove()
 
 class PassiveSkillEffect_3(TalentEffect):
@@ -485,6 +491,7 @@ class PassiveSkillEffect_3(TalentEffect):
             if len(s) == 2:
                 for char in Team.team:
                     char.Skill.lv = min(15, char.Skill.lv + 1)
+                get_emulation_logger().log_effect(f'☄ {self.name}触发')
 
 class ConstellationEffect_1(ConstellationEffect):
     ...
@@ -516,8 +523,9 @@ class Skirk(Character):
         self.NormalAttack = NormalAttack(self.skill_params[0])
         self.ChargedAttack = ChargedAttack(self.skill_params[0])
         self.Skill = ElementalSkill(self.skill_params[1])
-        self.Burst = ElementalBurst(self.skill_params[2])
+        self.normal_Burst = ElementalBurst(self.skill_params[2])
         self.Special_Burst = SpecialElementalBurst(self.skill_params[2])
+        self.Burst = self.normal_Burst
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
         self.talent3 = PassiveSkillEffect_3()
@@ -533,15 +541,10 @@ class Skirk(Character):
 
     def _elemental_burst_impl(self):
         if self.mode == "七相一闪":
-            if self.Special_Burst.start(self):
-                self._append_state(CharacterState.BURST)
-                burstEvent = ElementalBurstEvent(self,GetCurrentTime())
-                EventBus.publish(burstEvent)
+            self.Burst = self.Special_Burst
         else:
-            if self.Burst.start(self):
-                self._append_state(CharacterState.BURST)
-                burstEvent = ElementalBurstEvent(self,GetCurrentTime())
-                EventBus.publish(burstEvent)
+            self.Burst = self.normal_Burst
+        super()._elemental_burst_impl()
 
     def elemental_skill(self, hold= True):
         self._elemental_skill_impl(hold)
