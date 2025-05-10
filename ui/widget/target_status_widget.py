@@ -195,6 +195,7 @@ class TargetStatusWidget(QWidget):
             "物理": "#9e9e9e",
             '燃': '#ff5722',
             '激': '#8bc34a',
+            '冻': '#00bcd4',
         }
         return colors.get(element.lower(), "#ffffff")
 
