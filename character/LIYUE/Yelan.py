@@ -241,7 +241,7 @@ class PassiveSkillEffect_1(TalentEffect):
         super().apply(character)
 
     def update(self, target):
-        if GetCurrentTime() == 0:
+        if GetCurrentTime() == 1:
             s = set()
             for char in Team.team:
                 s.add(char.element)

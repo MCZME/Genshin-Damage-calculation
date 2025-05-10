@@ -25,7 +25,7 @@ class FrameEndEventHandler(EventHandler):
                     'maxHP': character.maxHP,
                     'currentHP': character.currentHP,
                     'level': character.level,
-                    'skill_params': character.skill_params,
+                    'skill_params': [character.NormalAttack.lv, character.Skill.lv, character.Burst.lv],
                     'constellation': character.constellation,
                     'panel': character.attributePanel.copy(),
                     'effect' : {e.name:{
