@@ -152,7 +152,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
                 DamageType.SKILL,
                 '冻霜芭菲'
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, current_time))
+            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
             self.last_attack_time = current_time
 
 class ElementalBurst(EnergySkill):
