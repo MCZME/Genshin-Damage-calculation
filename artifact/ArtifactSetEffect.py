@@ -2,7 +2,7 @@ from character.character import Character
 from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, LuminescenceEffect, MarechausseeHunterEffect, ThirstEffect
 from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import DamageType
-from core.Event import EventBus, EventHandler, EventType
+from core.Event import EventBus, EventHandler, EventType, GameEvent
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 
@@ -321,7 +321,35 @@ class LongNightsOath(ArtifactEffect):
                             effect = LuminescenceEffect(self.character, damage_type, 2)
                             effect.apply()
 
+class FinaleOftheDeepGalleries(ArtifactEffect):
+    def __init__(self):
+        super().__init__('深廊终曲')
+        self.last_normal_damage_time = -6*60
+        self.last_burst_damage_time = -6*60
+
+    def tow_SetEffect(self, character):
+        self.character = character
+        self.character.attributePanel['冰元素伤害加成'] += 15
+
+    def four_SetEffect(self, character):
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+
+    def handle_event(self, event:GameEvent):
+        if event.data['character'] is not self.character:
+            return
+        
+        damage = event.data['damage']
+        if damage.damageType == DamageType.NORMAL and event.frame - self.last_normal_damage_time >= 6 *60:
+            self.last_burst_damage_time = event.frame
+            damage.panel['伤害加成'] += 60
+            damage.setDamageData('深廊终曲-四件套伤害加成', 60)
+        elif damage.damageType == DamageType.BURST and event.frame - self.last_burst_damage_time >= 6 *60:
+            self.last_normal_damage_time = event.frame
+            damage.panel['伤害加成'] += 60
+            damage.setDamageData('深廊终曲-四件套伤害加成', 60)
+
 __all__ = [
+    "FinaleOftheDeepGalleries",
     "ArtifactEffect",
     "GladiatorFinale",
     "ObsidianCodex",
