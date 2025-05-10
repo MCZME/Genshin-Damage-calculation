@@ -1,5 +1,5 @@
 from abc import ABC,abstractmethod
-from core.Event import DamageEvent, ElementalReactionEvent, EnergyChargeEvent, EventBus, EventType, GameEvent, ObjectEvent
+from core.Event import DamageEvent, ElementalReactionEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent, ObjectEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
@@ -159,3 +159,28 @@ class DendroCoreObject(baseObject):
 
     def on_frame_update(self, target):
         return super().on_frame_update(target)
+    
+class ShatteredIceObject(baseObject, EventHandler):
+    """粉碎之冰效果"""
+    def __init__(self):
+        super().__init__("粉碎之冰", float('inf'))
+
+    def apply(self):
+        super().apply()
+        get_emulation_logger().log_object(f'❄ 创建粉碎之冰')
+        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+
+    def on_finish(self, target):
+        super().on_finish(target)
+        EventBus.unsubscribe(EventType.BEFORE_CRITICAL, self)
+
+    def on_frame_update(self, target):
+        ...
+
+    def handle_event(self, event):
+        traget = event.data['damage'].target
+        ice = next((a for a in traget.aura.elementalAura if a['element'] in ['冰', '冻']), None)
+
+        if ice:
+            event.data['damage'].panel['暴击率'] += 15
+            event.data['damage'].setDamageData('粉碎之冰',15)

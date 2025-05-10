@@ -595,31 +595,6 @@ class BurningEffect(Effect):
         elif len(self.aura.burning_elements) == 0 or self.aura.burning_elements['current_amount'] <= 0:
             self.remove()
 
-class ShatteredIceEffect(Effect, EventHandler):
-    """粉碎之冰效果"""
-    def __init__(self, character):
-        super().__init__(character, float('inf'))
-        self.name = '粉碎之冰'
-
-    def apply(self):
-        super().apply()
-        self.character.add_effect(self)
-        get_emulation_logger().log_effect(f"{self.character.name}获得粉碎之冰")
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
-
-    def remove(self):
-        super().remove()
-        get_emulation_logger().log_effect(f"{self.character.name}: 粉碎之冰结束")
-        EventBus.unsubscribe(EventType.BEFORE_CRITICAL, self)
-
-    def handle_event(self, event):
-        traget = event.data['damage'].target
-        ice = next((a for a in traget.aure.elementalAura if a['element'] in ['冰', '冻']), None)
-
-        if ice:
-            event.data['damage'].panel['暴击率'] += 15
-            event.data['damage'].setDamageData('粉碎之冰',15)
-
 class SwiftWindEffect(Effect):
     def __init__(self, character):
         super().__init__(character, float('inf'))

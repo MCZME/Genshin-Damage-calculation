@@ -73,9 +73,9 @@ class Team:
         # 冰元素共鸣（粉碎之冰）
         if Team.element_counts.get('冰', 0) >= 2 and len(Team.team) >= 4:
             if '粉碎之冰' not in Team.active_resonances:
-                for char in Team.team:
-                    effect = ShatteredIceEffect(char)
-                    effect.apply()
+                from core.BaseObject import ShatteredIceObject
+                obj = ShatteredIceObject()
+                obj.apply()
                 Team.active_resonances['粉碎之冰'] = True
 
         # 风元素共鸣（迅捷之风）
@@ -134,12 +134,12 @@ class Team:
             for obj in Team.active_objects:
                 from core.BaseObject import LightningBladeObject
                 if isinstance(obj, LightningBladeObject):
-                    obj.remove()
+                    obj.on_finish()
         elif resonance_name == '粉碎之冰':
-            for char in Team.team:
-                effects = [e for e in char.active_effects if e.name == "粉碎之冰"]
-                for effect in effects:
-                    effect.remove()
+            for obj in Team.active_objects:
+                from core.BaseObject import ShatteredIceObject
+                if isinstance(obj, ShatteredIceObject):
+                    obj.on_finish()
         elif resonance_name == '迅捷之风':
             for char in Team.team:
                 effects = [e for e in char.active_effects if e.name == "迅捷之风"]
