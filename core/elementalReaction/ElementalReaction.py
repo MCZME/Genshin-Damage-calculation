@@ -90,6 +90,7 @@ Reaction_to_EventType = {
     ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
     ElementalReactionType.FREEZE: EventType.BEFORE_FREEZE,
     ElementalReactionType.SHATTER: EventType.BEFORE_SHATTER,
+    ElementalReactionType.CRYSTALLIZE: EventType.BEFORE_CRYSTALLIZE,
 }
 
 class ElementalReaction:
@@ -135,7 +136,7 @@ class ElementalReactionHandler(EventHandler):
                 '等级系数': r.lv_multiplier,
                 '反应系数': r.reaction_multiplier
             })
-        if r.reaction_type[1] == ElementalReactionType.SWIRL:
+        if r.reaction_type[1] in [ElementalReactionType.SWIRL, ElementalReactionType.CRYSTALLIZE]:
             r.damage.reaction_data['目标元素'] = r.target_element
 
         eventType =  Reaction_to_EventType.get(r.reaction_type[1],None)
