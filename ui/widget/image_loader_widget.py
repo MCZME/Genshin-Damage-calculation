@@ -164,9 +164,12 @@ class ImageAvatar(ImageLoaderWidget):
     
     def load_image(self, name):
         SQL = f'SELECT url FROM `character_portrait` WHERE name = "{name}"'
-        url = DR.read_data(SQL)[0][0]
-        super().load_image(url)
-        
+        try:
+            url = DR.read_data(SQL)[0][0]
+            super().load_image(url)
+        except Exception as e:
+            get_ui_logger().log_error(f"图片加载失败: {e}")
+            
     def clear_image(self):
         """清除头像图片，恢复背景状态"""
         self.label.clear()
@@ -212,5 +215,8 @@ class ImageAvatarButton(ImageButton):
 
     def load_image(self, name):
         SQL = f'SELECT url FROM `character_portrait` WHERE name = "{name}"'
-        url = DR.read_data(SQL)[0][0]
-        super()._load_image(url)
+        try:
+            url = DR.read_data(SQL)[0][0]
+            super()._load_image(url)
+        except Exception as e:
+            get_ui_logger().log_error(f"加载头像失败: {e}")

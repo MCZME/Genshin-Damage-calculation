@@ -31,6 +31,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_BLOOM,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_HYPERBLOOM,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_BURGEON,ReactionsEventHandler())
+    EventBus.subscribe(EventType.BEFORE_CRYSTALLIZE,ReactionsEventHandler())
     # 激化反应
     EventBus.subscribe(EventType.BEFORE_QUICKEN,ReactionsEventHandler())
     EventBus.subscribe(EventType.BEFORE_AGGRAVATE,ReactionsEventHandler())
