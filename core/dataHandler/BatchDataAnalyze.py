@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import os
 import json
 
 from DataRequest import MongoDB
@@ -100,4 +101,38 @@ class BatchDataAnalyze:
             } for frame in self.result.keys()],
         })
         print('分析结果数据插入成功')
-        
+    
+    def save_data(self, file_name='result.json'):
+        """
+        保存分析结果到指定目录
+        :param file_name: 文件名，默认为result.json
+        """
+        try:
+            # 创建目录
+            dir_path = f'./data/sim/{self.uid}/'
+            os.makedirs(dir_path, exist_ok=True)
+            
+            # 保存数据
+            file_path = os.path.join(dir_path, file_name)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                if isinstance(self.result, dict):
+                    json.dump({
+                        'uid': self.uid,
+                        'version': '0.1.0',
+                        'name': Config.get('batch.name'),
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        'simulation_num': self.num,
+                        'dps': self.dps,
+                        'simulation_duration': self.time,
+                        'frames': [{
+                            'frame': frame,
+                            'event': self.result[frame]
+                        } for frame in self.result.keys()],
+                    }, 
+                    f, ensure_ascii=False, indent=4)
+                else:
+                    f.write(self.result)
+            
+            print(f"数据已保存到: {file_path}")
+        except Exception as e:
+            print(f"保存数据时出错: {e}")

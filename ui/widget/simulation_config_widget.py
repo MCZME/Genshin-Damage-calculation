@@ -160,6 +160,7 @@ class ConfigEditorDialog(QDialog):
                 "window_open": "是否记录窗口打开日志",
                 "batch_sim": "是否开启批量模拟",
                 "console": "是否开启控制台输出",
+                "send_to_server": "是否将结果发送到服务器",
             }.get(key, "")
             desc = QTableWidgetItem(desc_text)
             desc.setTextAlignment(Qt.AlignCenter)
