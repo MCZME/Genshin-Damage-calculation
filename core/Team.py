@@ -1,4 +1,5 @@
 from character.character import Character, CharacterState
+from core.Logger import get_emulation_logger
 from core.effect.BaseEffect import AttackBoostEffect, CreepingGrassEffect, HealthBoostEffect, ShatteredIceEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.Event import CharacterSwitchEvent, EventBus
 from core.Tool import GetCurrentTime
@@ -201,7 +202,7 @@ class Team:
                                 return True
             else:
                 if Team.current_frame %30 == 0:
-                    print("切换角色CD中  {}".format(Team.current_frame))
+                    get_emulation_logger().log('WARN',"切换角色CD中  {}".format(Team.current_frame))
         return False
 
     def update(self,target):

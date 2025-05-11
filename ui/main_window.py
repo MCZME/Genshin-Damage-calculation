@@ -924,8 +924,8 @@ class MainWindow(QMainWindow):
 
 def simulate_multi(team_data, action_sequence, target_data, sim_file_path, sim_id, uid):
     Emulation.emulation_init()
-    from main import init
-    init()
+    from main import sim_init
+    sim_init()
     e = Emulation(team_data, action_sequence, target_data)
     return e.simulate_multi(sim_file_path, sim_id, uid)
 

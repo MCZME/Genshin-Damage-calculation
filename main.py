@@ -10,9 +10,13 @@ from core.calculation.ShieldCalculation import ShieldCalculationEventHandler
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 
-# 初始化
 def init():
     Config()
+    logger_init()
+
+# 初始化
+def sim_init():
+    init()
     EventBus.subscribe(EventType.BEFORE_DAMAGE,DamageCalculateEventHandler())
     EventBus.subscribe(EventType.BEFORE_DAMAGE,NightsoulBurstEventHandler())
     EventBus.subscribe(EventType.BEFORE_HEAL,HealingCalculateEventHandler())
@@ -40,7 +44,7 @@ def init():
     EventBus.subscribe(EventType.BEFORE_MELT,ReactionsEventHandler())
 
     EventBus.subscribe(EventType.FRAME_END, FrameEndEventHandler())
-    logger_init()
+    
 
 # todo:
 # 1. 
@@ -48,7 +52,7 @@ def init():
 # 4. 
 # 6. 
 if __name__ == '__main__':
-    init()
+    sim_init()
     
     # 初始化UI
     app = QApplication([])

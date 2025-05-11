@@ -64,7 +64,8 @@ class BatchDataAnalyze:
             for i in range(len(e)):
                 e[i]['value'] = e[i]['value'] / self.num
 
-        self.dps = sum([e1['value'] for e in self.result.values() for e1 in e]) / self.time * 60
+        self.tolal_dmg = sum([e1['value'] for e in self.result.values() for e1 in e])
+        self.dps = self.tolal_dmg / self.time * 60
 
     def _analyze(self, data):
         """
@@ -93,6 +94,7 @@ class BatchDataAnalyze:
             'name': Config.get('batch.name'),
             "created_at": datetime.now(timezone.utc).isoformat(),
             'simulation_num': self.num,
+            'total_dmg': self.tolal_dmg,
             'dps': self.dps,
             'simulation_duration': self.time,
             'frames': [{
