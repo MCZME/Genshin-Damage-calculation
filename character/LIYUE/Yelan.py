@@ -190,21 +190,19 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
         EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
-        
-        if event.data['character'] != self.character:
-            return
-        
         if event.event_type == EventType.BEFORE_NORMAL_ATTACK:
             self.attack_active = True
-        elif event.event_type == EventType.AFTER_DAMAGE and event.data['damage'].damageType == DamageType.SKILL:
+        elif (event.event_type == EventType.AFTER_DAMAGE and 
+              event.data['damage'].damageType == DamageType.SKILL and
+              event.data['character'] == self.character):
             self.skill_active = True
         elif event.event_type == EventType.AFTER_NORMAL_ATTACK:
             self.attack_active = False
 
     def on_frame_update(self, target):
         if self.attack_active and self.current_frame - self.last_attack_time >= self.attack_interval:
-            self._apply_linglong_damage(target)
             self.last_attack_time = self.current_frame
+            self._apply_linglong_damage(target)
         if self.skill_active:
             self.skill_active = False
             self._apply_linglong_damage(target) 
