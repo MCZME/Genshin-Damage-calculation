@@ -17,6 +17,11 @@ class FrameEndEventHandler(EventHandler):
             for character in Emulation.team.team:
                 name = character.name
                 character_data[name] = {
+                    'weapon': {
+                        'name': character.weapon.name,
+                        'level': character.weapon.level,
+                        'refinement': character.weapon.lv,
+                    },
                     'maxHP': character.maxHP,
                     'currentHP': character.currentHP,
                     'level': character.level,

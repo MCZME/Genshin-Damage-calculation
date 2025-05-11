@@ -121,6 +121,19 @@ class CharacterStatusDialog(QDialog):
             skills_label = QLabel(f"技能: {', '.join(map(str, data['skill_params']))}")
             skills_label.setStyleSheet("color: #4a90e2;")
             info_layout.addWidget(skills_label)
+
+        if 'weapon' in data:
+            weapon_name = QLabel(f"武器: {data['weapon']['name']}")
+            weapon_name.setStyleSheet("color: #4a90e2;")
+            info_layout.addWidget(weapon_name)
+
+            weapon_level = QLabel(f"等级: {data['weapon']['level']}")
+            weapon_level.setStyleSheet("color: #4a90e2;")
+            info_layout.addWidget(weapon_level)
+
+            weapon_refinement = QLabel(f"精炼: {data['weapon']['refinement']}")
+            weapon_refinement.setStyleSheet("color: #4a90e2;")
+            info_layout.addWidget(weapon_refinement)
             
         top_row.addLayout(info_layout)
         top_row.addStretch()
