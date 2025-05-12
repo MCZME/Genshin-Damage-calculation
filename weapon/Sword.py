@@ -156,7 +156,34 @@ class Azurelight(Weapon,EventHandler):
         if event.data['character'] == self.character:
             AzurelightEffect(self.character,self.lv).apply()
 
+class CalamityOfEshu(Weapon,EventHandler):
+    ID = 39
+    def __init__(self, character, level=1, lv=1):
+        super().__init__(character, CalamityOfEshu.ID, level, lv)
+        self.dmg_bonus = [20,25,30,35,40]
+        self.critical_bonus = [8,10,12,14,16]
+
+    def skill(self):
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+
+    def handle_event(self, event):
+        if event.data['character'] == self.character:
+            s = T.get_shield()
+            if not s:
+                return
+            
+            damage = event.data['damage']
+            if event.event_type == EventType.BEFORE_DAMAGE_BONUS and damage.damageType in [DamageType.NORMAL, DamageType.CHARGED]:
+                damage.panel['伤害加成'] += self.dmg_bonus[self.lv - 1]
+                damage.setDamageData('厄水之祸_伤害加成', self.dmg_bonus[self.lv - 1])
+            elif event.event_type == EventType.BEFORE_CRITICAL:
+                damage.panel['暴击率'] += self.critical_bonus[self.lv - 1]
+                damage.setDamageData('厄水之祸_暴击率', self.critical_bonus[self.lv - 1])
+
+
 sword = {
+    '厄水之祸':CalamityOfEshu,
     '苍耀':Azurelight,
     '息燧之笛':FluteOfEzpitzal,
     '风鹰剑':AquilaFavonia,
