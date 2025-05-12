@@ -17,6 +17,7 @@ class baseObject(ABC):
     def apply(self):
         o = next((o for o in Team.active_objects if o.name == self.name), None)
         if o and not self.repeatable:
+            o.life_frame = self.life_frame
             return
         Team.add_object(self)
         self.is_active = True
@@ -184,3 +185,22 @@ class ShatteredIceObject(baseObject, EventHandler):
         if ice:
             event.data['damage'].panel['暴击率'] += 15
             event.data['damage'].setDamageData('粉碎之冰',15)
+
+class ShieldObject(baseObject):
+    """护盾效果基类"""
+    def __init__(self, character, name, element_type, shield_value, duration):
+        super().__init__(name, duration)
+        self.character = character
+        self.element_type = element_type
+        self.shield_value = shield_value
+        self.max_shield_value = shield_value  # 记录最大护盾值
+        
+    def apply(self):
+        super().apply()
+        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
+        
+    def on_finish(self, target):
+        super().on_finish(target)
+
+    def on_frame_update(self, target):
+        ...

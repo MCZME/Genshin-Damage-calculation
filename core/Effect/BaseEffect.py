@@ -1,5 +1,5 @@
 from core.Event import DamageEvent, EventBus, EventHandler, EventType
-from core.Tool import GetCurrentTime
+from core.Tool import GetCurrentTime, get_shield
 from core.Logger import get_emulation_logger
 
 class Effect:
@@ -386,33 +386,6 @@ class ElementalInfusionEffect(Effect):
         super().remove()
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}元素附魔效果结束")
 
-class ShieldEffect(Effect):
-    """护盾效果基类"""
-    def __init__(self, character, name, element_type, shield_value, duration):
-        super().__init__(character, duration)
-        self.name = name
-        self.element_type = element_type
-        self.shield_value = shield_value
-        self.max_shield_value = shield_value  # 记录最大护盾值
-        self.current_character = character
-        
-    def apply(self):
-        super().apply()
-        existing = next((e for e in self.current_character.shield_effects 
-                       if isinstance(e, ShieldEffect) and e.name == self.name), None)
-        if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            existing.shield_value = self.shield_value  # 更新护盾值
-            return
-            
-        self.current_character.add_shield(self)
-        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
-        
-    def remove(self):
-        super().remove()
-        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}护盾效果结束")
-
-
 class ElementalMasteryBoostEffect(Effect):
     """元素精通提升效果"""
     def __init__(self, character, current_character, name, bonus, duration):
@@ -687,13 +660,14 @@ class SteadfastStoneEffect(Effect, EventHandler):
         EventBus.subscribe(EventType.AFTER_DAMAGE, self)
         # 护盾强效提升15%
         get_emulation_logger().log_effect(f"{self.character.name}获得坚定之岩")
+        from core.BaseObject import ShieldObject
 
     def remove(self):
         super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}: 坚定之岩结束")
 
     def update(self, target):
-        shield = next((e for e in self.character.active_effects if isinstance(e, ShieldEffect)),None)
+        shield = get_shield()
         if not self.is_applied and shield:
             self.character.attributePanel['伤害加成'] += 15
             self.is_applied = True
