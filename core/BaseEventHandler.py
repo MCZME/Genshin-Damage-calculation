@@ -67,17 +67,18 @@ class NightsoulBurstEventHandler(EventHandler):
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_DAMAGE:
-            if event.data['character'].association == '纳塔' and event.data['damage'].element[0] != '物理':
+            if event.data['damage'].element[0] != '物理':
                 NATLAN_character = 0
                 for i in Emulation.team.team:
                         if i.association == '纳塔':
                             NATLAN_character += 1
-                self.triggerInterval = [18,12,9][NATLAN_character-1]*60
-                if event.frame - self.last_nightsoul_burst_time > self.triggerInterval:
-                    self.last_nightsoul_burst_time = event.frame
-                    get_emulation_logger().log_effect('触发夜魂迸发')
-                    NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
-                    EventBus.publish(NightsoulBurstEvent)
+                if NATLAN_character > 0:
+                    self.triggerInterval = [18,12,9][NATLAN_character-1]*60
+                    if event.frame - self.last_nightsoul_burst_time > self.triggerInterval:
+                        self.last_nightsoul_burst_time = event.frame
+                        get_emulation_logger().log_effect('触发夜魂迸发')
+                        NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
+                        EventBus.publish(NightsoulBurstEvent)
 
 class ElementalEnergyEventHandler(EventHandler):
     def handle_event(self, event):

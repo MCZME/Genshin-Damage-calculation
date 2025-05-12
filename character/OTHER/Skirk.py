@@ -81,12 +81,15 @@ class NormalAttack(NormalAttackSkill,Infusion):
         if self.current_mode == "七相一闪":
             element = ('冰', self.apply_infusion())
             name = f'七相一闪 {segment}-{hit_index+1}'
+            self.caster.comsume_serpent_subtlety(1)
         else:
             element = self.element
             name = f'普通攻击 {segment}-{hit_index+1}'
 
         # 发布伤害事件
         damage = Damage(multiplier, element, DamageType.NORMAL, name)
+        if self.caster.mode == "七相一闪":
+            damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
         EventBus.publish(damage_event)
 
@@ -149,6 +152,10 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         """应用重击伤害"""
+
+        if self.current_mode == "七相一闪":
+            self.caster.comsume_serpent_subtlety(2)
+
         event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
         EventBus.publish(event)
 
@@ -158,6 +165,8 @@ class ChargedAttack(ChargedAttackSkill):
             DamageType.CHARGED,
             f'重击' if self.current_mode == "正常模式" else '七相一闪重击'
         )
+        if self.caster.mode == "七相一闪":
+            damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)
 
@@ -188,10 +197,7 @@ class ElementalSkill(SkillBase):
             return False
             
         # 获取蛇之狡谋
-        caster.current_serpent_subtlety = min(
-            caster.max_serpent_subtlety,
-            caster.current_serpent_subtlety + self.serpent_gain
-        )
+        caster.gain_serpent_subtlety(self.serpent_gain)
         
         # 点按切换模式
         if not hold:
@@ -203,7 +209,6 @@ class ElementalSkill(SkillBase):
             
         get_emulation_logger().log_skill_use(
             f"❄️ {caster.name} 使用{'长按' if hold else '点按'}极恶技·闪，" 
-            f"获得{self.serpent_gain}点蛇之狡谋"
         )
         return True
         
@@ -539,6 +544,7 @@ class Skirk(Character):
         self.current_serpent_subtlety = 0 
         self.max_serpent_subtlety = 100
         self.mode = "正常模式" #  "正常模式"  or "七相一闪"
+        self.mode_timer = 0
 
     def _elemental_burst_impl(self):
         if self.mode == "七相一闪":
@@ -557,6 +563,17 @@ class Skirk(Character):
             EventBus.publish(skillEvent)
 
     def update(self, target):
+        if self.mode == "七相一闪":
+            self.comsume_serpent_subtlety(1/60)
+
+            if not self.on_field:
+                self.exit_mode()
+
+            if self.mode_timer > 0:
+                self.mode_timer -= 1
+                if self.mode_timer <= 0:
+                    self.exit_mode()
+
         super().update(target)
         self.talent3.update(target)
 
@@ -566,15 +583,25 @@ class Skirk(Character):
             if obj.name == "虚境裂隙":
                 rift_count += 1
                 obj.on_finish(None)
-                self.current_serpent_subtlety += 8
+                self.gain_serpent_subtlety(8)
         
         return rift_count
 
     def gain_serpent_subtlety(self, value):
         self.current_serpent_subtlety = min(self.max_serpent_subtlety, self.current_serpent_subtlety + value)
+        get_emulation_logger().log_effect(f'☄ {self.name}获得{value}蛇之灵巧')
 
     def comsume_serpent_subtlety(self, value):
         self.current_serpent_subtlety = max(0, self.current_serpent_subtlety - value)
+
+        if self.current_serpent_subtlety <= 0:
+            self.exit_mode()
+
+    def exit_mode(self):
+        self.mode = "正常模式"
+        self.current_serpent_subtlety = 0
+        self.Skill.last_use_time = GetCurrentTime()
+        self.mode_timer = 0
 
 skirk_table = {
     'id': Skirk.ID,
