@@ -2,14 +2,14 @@ import random
 from character.SUMERU.sumeru import Sumeru
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
-from core.BaseObject import baseObject
+from core.BaseObject import ShieldObject, baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, ShieldEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.calculation.ShieldCalculation import Shield
-from core.effect.BaseEffect import Effect, ShieldEffect
+from core.effect.BaseEffect import Effect
 
 class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):
@@ -59,9 +59,9 @@ class ChargedAttack(ChargedAttackSkill):
 class PlungingAttack(PlungingAttackSkill):
     ...
 
-class VeilOfSlumberShield(ShieldEffect, EventHandler, Infusion):
+class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
     """安眠帷幕护盾"""
-    def __init__(self, character, shield_value, ):
+    def __init__(self, character, shield_value):
         shield = Shield(shield_value)
         event = ShieldEvent(character, shield, GetCurrentTime())
         EventBus.publish(event)
@@ -85,25 +85,22 @@ class VeilOfSlumberShield(ShieldEffect, EventHandler, Infusion):
 
     def apply(self):
         super().apply()
-        existing = next((e for e in self.current_character.shield_effects 
-                       if isinstance(e, ShieldEffect) and e.name == self.name), None)
+        existing = next((e for e in Team.team 
+                       if isinstance(e, ShieldObject) and e.name == self.name), None)
         if existing:
-            existing.duration = self.duration  # 刷新持续时间
-            existing.shield_value = self.shield_value  # 更新护盾值
+            existing.life_frame = self.life_frame  # 刷新持续时间
             return
             
-        self.current_character.add_shield(self)
-        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
         EventBus.subscribe(EventType.AFTER_SKILL, self)
 
-    def remove(self):
-        super().remove()
-        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}护盾效果结束")
+    def on_finish(self, target):
+        super().on_finish(target)
+        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
         EventBus.unsubscribe(EventType.AFTER_SKILL, self)
 
     def handle_event(self, event):
-        existing = next((e for e in self.current_character.shield_effects 
-                       if isinstance(e, ShieldEffect) and e.name == self.name), None)
+        existing = next((e for e in Team.active_objects 
+                       if isinstance(e, ShieldObject) and e.name == self.name), None)
         if not existing:
             return
         
@@ -115,14 +112,14 @@ class VeilOfSlumberShield(ShieldEffect, EventHandler, Infusion):
 
     def update(self, target):
         super().update(target)
-        if self.duration % self.night_stars_interval == 0 and not self.active_night_stars:
+        if self.current_frame % self.night_stars_interval == 0 and not self.active_night_stars:
             self.night_stars = min(4, self.night_stars + 1)
 
         if self.night_stars == 4 and not self.active_night_stars:
             self.active_night_stars = True
-            if self.duration < 0.45*60 * self.night_stars:
-                self.duration = 0.45*60 * self.night_stars
-            self.active_frame = self.duration
+            if self.current_frame < 0.45*60 * self.night_stars:
+                self.current_frame = 0.45*60 * self.night_stars
+            self.active_frame = self.current_frame
 
             # 产球判断
             if self.mode == 1 and GetCurrentTime() - self.last_mode_1 >= 3.5*60:
@@ -139,8 +136,8 @@ class VeilOfSlumberShield(ShieldEffect, EventHandler, Infusion):
                 for char in Team.team:
                     DawnStarEffect(self.character, char).apply()
 
-        if self.active_night_stars and self.active_frame - self.duration >= 0.45*60:
-            self.active_frame = self.duration
+        if self.active_night_stars and self.current_frame - self.active_frame >= 0.45*60:
+            self.active_frame = self.current_frame
             self.night_stars -= 1
             damage = Damage(
                 self.damageMultipiler[self.character.Skill.lv-1],

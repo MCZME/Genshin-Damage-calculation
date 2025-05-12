@@ -1,8 +1,8 @@
 from character.NATLAN.natlan import Natlan
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
-from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, ShieldEffect, Effect
-from core.BaseObject import baseObject
+from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, Effect
+from core.BaseObject import ShieldObject, baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus, NormalAttackEvent, ShieldEvent, EventHandler, EventType
 from core.calculation.ShieldCalculation import Shield
@@ -189,7 +189,7 @@ class ElementalSkill(SkillBase):
             shield = Shield(shield_value)
             event = ShieldEvent(self.caster, shield, GetCurrentTime())
             EventBus.publish(event)
-            shield = ShieldEffect(
+            shield = ShieldObject(
                 character=self.caster,
                 name="白曜护盾",
                 element_type='冰',
