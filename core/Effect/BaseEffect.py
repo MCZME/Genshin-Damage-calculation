@@ -386,7 +386,7 @@ class ElementalInfusionEffect(Effect):
         super().remove()
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}元素附魔效果结束")
 
-class ShieldEffect(Effect):
+class ShieldEffect(Effect, EventHandler):
     """护盾效果基类"""
     def __init__(self, character, name, element_type, shield_value, duration):
         super().__init__(character, duration)
@@ -394,22 +394,25 @@ class ShieldEffect(Effect):
         self.element_type = element_type
         self.shield_value = shield_value
         self.max_shield_value = shield_value  # 记录最大护盾值
+        self.current_character = character
         
     def apply(self):
         super().apply()
-        existing = next((e for e in self.character.active_effects 
+        existing = next((e for e in self.current_character.shield_effects 
                        if isinstance(e, ShieldEffect) and e.name == self.name), None)
         if existing:
             existing.duration = self.duration  # 刷新持续时间
             existing.shield_value = self.shield_value  # 更新护盾值
             return
             
-        self.character.add_shield(self)
-        get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
+        self.current_character.add_shield(self)
+        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
         
     def remove(self):
         super().remove()
-        get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
+        get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}护盾效果结束")
+
 
 class ElementalMasteryBoostEffect(Effect):
     """元素精通提升效果"""

@@ -80,7 +80,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
             EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
     
     def handle_event(self, event):
-        if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
+        if event.event_type == EventType.AFTER_CHARACTER_SWITCH and self.character.constellation >= 2:
             if event.data['old_character'] == self.current_character:
                 self.current_character.attributePanel['元素精通'] -= 250
                 self.current_character = event.data['new_character']
