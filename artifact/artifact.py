@@ -98,10 +98,12 @@ class ArtifactManager:
                     setEffect[artifact.name] += 1
         
         for key in setEffect.keys():
-            if setEffect[key] >= 2:
-                ArtfactSetEffectDict[key].tow_SetEffect(self.character)
             if setEffect[key] >= 4:
-                ArtfactSetEffectDict[key].four_SetEffect(self.character)
+                a = ArtfactSetEffectDict[key]()
+                a.four_SetEffect(self.character)
+                a.tow_SetEffect(self.character)
+            elif setEffect[key] >= 2 and setEffect[key] < 4:
+                ArtfactSetEffectDict[key]().tow_SetEffect(self.character)
     
     def to_dict(self):
         return {

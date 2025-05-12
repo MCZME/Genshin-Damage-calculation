@@ -31,6 +31,11 @@ class CinderCityEffect(ElementalDamageBoostEffect):
                         existing.apply_nightsoul(i)
             return
         for element in self.element_type:
+            if element == '冻':
+                element = '冰'
+            elif element == '激':
+                element = '草'
+            
             self.current_character.attributePanel[element+'元素伤害加成'] += self.bonus
             self.stacks[element] = self.duration
             if self.character.Nightsoul_Blessing:
