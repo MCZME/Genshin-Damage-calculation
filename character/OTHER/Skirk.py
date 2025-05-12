@@ -306,6 +306,7 @@ class DecayEffect(Effect, EventHandler):
         self.trigger_count = 0
         self.max_triggers = 10
         self.rift_count = 0  # 汲取的虚境裂隙数量
+        self.last_trigger_time = -60  # 上次触发时间
 
         self.lunar_bonus = [
             [3.5, 6.6, 8.8, 11], [4, 7.2, 9.6, 12], [4.5, 7.8, 10.4, 13],
@@ -338,12 +339,13 @@ class DecayEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}的凋尽效果结束")
 
     def handle_event(self, event):
-        if event.data['character'] == self.character:
+        if event.data['character'] == self.character and event.frame - self.last_trigger_time >= 60:
             damage = event.data['damage']
             if damage.damageType == DamageType.NORMAL:
                 damage.panel['伤害倍率'] += self.lunar_bonus[self.lv-1][self.rift_count]
                 damage.setDamageData('凋尽_倍率加成', self.lunar_bonus[self.lv-1][self.rift_count])
                 self.trigger_count += 1
+                self.last_trigger_time = event.frame
 
     def update(self, target):
         if self.trigger_count == self.max_triggers:
@@ -422,8 +424,6 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         EventBus.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
-        if event.data['character'] is self.character:
-            return
         element = event.data['character'].element
         if element in ['水', '冰'] and event.data['damage'].element[0] == element:
             DeathsCrossingEffect(self.character).apply(event.data['character'].name)
@@ -460,12 +460,13 @@ class DeathsCrossingEffect(Effect, EventHandler):
         if event.data['character'] is not self.character:
             return
         damage = event.data['damage']
+        stack = min(3, len(list(self.stacks)))
         if self.character.mode == '七相一闪' and damage.damageType == DamageType.NORMAL:
-            damage.panel['独立伤害加成'] += self.multipiler['普通攻击'][len(list(self.stacks))-1]
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][len(list(self.stacks))-1])
+            damage.panel['独立伤害加成'] += self.multipiler['普通攻击'][stack-1]
+            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][stack-1])
         elif damage.damageType == DamageType.BURST:
-            damage.panel['独立伤害加成'] += self.multipiler['元素爆发'][len(list(self.stacks))-1]
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][len(list(self.stacks))-1])
+            damage.panel['独立伤害加成'] += self.multipiler['元素爆发'][stack-1]
+            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][stack-1])
 
     def update(self, target):
         if self.stacks:
@@ -568,6 +569,12 @@ class Skirk(Character):
                 self.current_serpent_subtlety += 8
         
         return rift_count
+
+    def gain_serpent_subtlety(self, value):
+        self.current_serpent_subtlety = min(self.max_serpent_subtlety, self.current_serpent_subtlety + value)
+
+    def comsume_serpent_subtlety(self, value):
+        self.current_serpent_subtlety = max(0, self.current_serpent_subtlety - value)
 
 skirk_table = {
     'id': Skirk.ID,

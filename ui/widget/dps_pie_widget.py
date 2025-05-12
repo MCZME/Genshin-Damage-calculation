@@ -174,7 +174,7 @@ class DpsPieSelectorWidget(QWidget):
             "火": QColor("#FF4D6D"),  # 红色
             "水": QColor("#4D9FFF"),  # 蓝色
             "雷": QColor("#B388FF"),  # 紫色
-            "冰": QColor("#2ED8A3"),  # 青色
+            "冰": QColor("#06cdd6"),  # 蓝白色
             "风": QColor("#06D6A0"),  # 绿色
             "岩": QColor("#FFD166"),  # 黄色
             "草": QColor("#7CFC00"),  # 草绿色

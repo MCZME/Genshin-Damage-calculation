@@ -1,6 +1,6 @@
 from character.character import Character, CharacterState
 from core.Logger import get_emulation_logger
-from core.effect.BaseEffect import AttackBoostEffect, CreepingGrassEffect, HealthBoostEffect, ShatteredIceEffect, SteadfastStoneEffect, SwiftWindEffect
+from core.effect.BaseEffect import AttackBoostEffect, CreepingGrassEffect, HealthBoostEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.Event import CharacterSwitchEvent, EventBus
 from core.Tool import GetCurrentTime
 
