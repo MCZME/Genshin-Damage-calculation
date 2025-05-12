@@ -9,3 +9,5 @@ sumeru_character = {}
 
 from .Nahida import nahida_table
 add('纳西妲','',nahida_table)
+from .Layla import layla_table
+add('莱依拉','',layla_table)

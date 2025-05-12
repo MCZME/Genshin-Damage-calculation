@@ -386,7 +386,7 @@ class ElementalInfusionEffect(Effect):
         super().remove()
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}元素附魔效果结束")
 
-class ShieldEffect(Effect, EventHandler):
+class ShieldEffect(Effect):
     """护盾效果基类"""
     def __init__(self, character, name, element_type, shield_value, duration):
         super().__init__(character, duration)
@@ -406,7 +406,6 @@ class ShieldEffect(Effect, EventHandler):
             return
             
         self.current_character.add_shield(self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}护盾，{self.element_type}元素护盾量为{self.shield_value:.2f}")
         
     def remove(self):
