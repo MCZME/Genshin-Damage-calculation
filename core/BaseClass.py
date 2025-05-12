@@ -46,7 +46,7 @@ class SkillBase(ABC):
         self.current_frame = 0              # 当前帧
         self.cd = cd                         # 冷却时间
         self.cd_timer = cd                   # 冷却计时器
-        self.last_use_time = 0  # 上次使用时间
+        self.last_use_time = -9999  # 上次使用时间
         self.cd_frame = 1
         self.lv = lv
         self.element = element
@@ -55,6 +55,8 @@ class SkillBase(ABC):
         self.caster = caster
 
     def start(self, caster):
+        # 更新冷却计时器
+        self.cd_timer = GetCurrentTime() - self.last_use_time - self.cd_frame
         if self.cd_timer - self.cd < 0:
             get_emulation_logger().log_error(f'{self.name}技能还在冷却中')
             return False  # 技能仍在冷却中
@@ -65,8 +67,6 @@ class SkillBase(ABC):
         return True
 
     def update(self,target):
-        # 更新冷却计时器
-        self.cd_timer = GetCurrentTime() - self.last_use_time - self.cd_frame
  
         self.current_frame += 1
         if self.current_frame >= self.total_frames:

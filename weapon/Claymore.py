@@ -157,7 +157,7 @@ class SacrificialGreatsword(Weapon, EventHandler):
                 if T.GetCurrentTime() - self.last_tigger_time > self.interval:
                     if random.random() < self.chance[self.lv - 1]:
                         self.last_tigger_time = T.GetCurrentTime()
-                        self.character.Skill.cd_timer = self.character.Skill.cd
+                        self.character.Skill.last_use_time = -9999
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
 
 claymore = {
