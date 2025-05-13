@@ -64,7 +64,7 @@ class DialoguesOfTheDesertSages(Weapon, EventHandler):
             return
             
         # 触发能量恢复
-        summon_energy(1,self.character,('无',self.energy_restore[self.lv-1]),True,True)
+        summon_energy(1,self.character,('无',self.energy_restore[self.lv-1]),True,True,0)
         
         self.last_trigger_frame = current_frame
 

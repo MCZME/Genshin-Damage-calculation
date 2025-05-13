@@ -174,7 +174,7 @@ class TEFchargedBoostEffect(Effect,EventHandler):
                     existing.stack += 1
                 existing.last_tigger = GetCurrentTime()
                 if existing.stack == 3 and GetCurrentTime() - existing.last_erengy_trigger > self.erengy_interval:
-                    summon_energy(1, self.character,('无',8),True,True)
+                    summon_energy(1, self.character,('无',8),True,True,0)
                     existing.last_erengy_trigger = GetCurrentTime()
             existing.duration = self.duration
             return

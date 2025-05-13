@@ -344,7 +344,7 @@ class DecayEffect(Effect, EventHandler):
         get_emulation_logger().log_effect(f"{self.character.name}的凋尽效果结束")
 
     def handle_event(self, event):
-        if event.data['character'] == self.character and event.frame - self.last_trigger_time >= 60:
+        if event.data['character'] == self.character and event.frame - self.last_trigger_time >= 0.1*60:
             damage = event.data['damage']
             if damage.damageType == DamageType.NORMAL:
                 damage.panel['伤害倍率'] += self.lunar_bonus[self.lv-1][self.rift_count]
@@ -476,11 +476,14 @@ class DeathsCrossingEffect(Effect, EventHandler):
     def update(self, target):
         if self.stacks:
             self.duration = min(self.stacks.values())
+            remove = []
             for i in self.stacks.keys():
                 if self.stacks[i] > 0:
                     self.stacks[i] -= 1
                 else:
-                    self.stacks.pop(i)
+                    remove.append(i)
+            for i in remove:
+                del self.stacks[i]
         else:
             self.remove()
 
