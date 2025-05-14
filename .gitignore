@@ -6,3 +6,6 @@ data/
 .vosode
 DataRequest.py
 config.json
+.clineignore
+/memory-bank
+/.clinerules
