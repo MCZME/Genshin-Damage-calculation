@@ -9,3 +9,5 @@ def _add(name,character,table):
 
 from character.MONDSTADT.BENNETT import bennett_table
 _add('班尼特', 'Bennett', bennett_table)
+from character.MONDSTADT.MONA import MONA_table
+_add('莫娜', 'Mona', MONA_table)

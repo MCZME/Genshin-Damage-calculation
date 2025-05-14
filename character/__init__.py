@@ -1,6 +1,6 @@
 __all__ = ['Varesa','MAVUIKA','Iansan','CITLALI','XiangLing','CHEVREUSE','BENNETT',
          'Xilonen','KaedeharaKazuha','Furina','Neuvillette','KukiShinobu','XingQiu',
-         'Nahida','Escoffier','Yelan','Skirk','Layla']
+         'Nahida','Escoffier','Yelan','Skirk','Layla','Mona']
 
 character_table = {}
 
@@ -28,6 +28,7 @@ from character.FONTAINE.Escoffier import Escoffier
 _add(fontaine_table)
 from character.MONDSTADT import mondstadt_table
 from character.MONDSTADT.BENNETT import BENNETT
+from character.MONDSTADT.MONA import Mona
 _add(mondstadt_table)
 from character.INAZUMA import inazuma_character
 from character.INAZUMA.KaedeharaKazuha import KaedeharaKazuha
@@ -40,4 +41,3 @@ _add(sumeru_character)
 from character.OTHER import other_character
 from character.OTHER.Skirk import Skirk
 _add(other_character)
-
