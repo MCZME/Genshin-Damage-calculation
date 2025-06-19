@@ -1,3 +1,4 @@
+import random
 from character.character import Character, CharacterState
 
 from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
@@ -6,9 +7,9 @@ from core.BaseObject import baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, NormalAttackEvent
 from core.Logger import get_emulation_logger
 from core.Team import Team
-from core.Tool import GetCurrentTime
+from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.effect.BaseEffect import Effect
+from core.effect.BaseEffect import AttackBoostEffect, Effect
 
 class RiftObject(baseObject):
     """虚境裂隙对象"""
@@ -16,13 +17,17 @@ class RiftObject(baseObject):
         super().__init__("虚境裂隙", 20*60)
         self.repeatable = True
 
+    def apply(self):
+        super().apply()
+        get_emulation_logger().log_object("虚境裂隙生成")
+
     def on_frame_update(self, target):
         ...
         
-class NormalAttack(NormalAttackSkill,Infusion):
-    def __init__(self, lv):
+class NormalAttack(NormalAttackSkill,EventHandler):
+    def __init__(self, lv, infusion:Infusion):
         super().__init__(lv)
-        Infusion.__init__(self)
+        self.infusion = infusion
         # 普通模式配置
         self.normal_damage = {
             1:[54.52, 58.96, 63.4, 69.74, 74.18, 79.25, 86.22, 93.2, 100.17, 107.78, 115.39, 123, 130.6, 138.21, 145.82],
@@ -45,8 +50,11 @@ class NormalAttack(NormalAttackSkill,Infusion):
              [80.54, 87.09, 93.65, 103.02, 109.57, 117.06, 127.36, 137.67, 147.97, 159.21, 170.44, 181.68, 192.92, 204.16, 215.4]],
             5:[196.62, 212.63, 228.63, 251.5, 267.5, 285.79, 310.94, 336.09, 361.24, 388.68, 416.11, 443.55, 470.98, 498.42, 525.86]
         }
-        self.lunar_frames = [12, 12, [14, 16], [14, 16], 18]
-        self.lunar_end_action_frame = 20
+        self.lunar_frames = [22, 22, [16, 8], [17,18], 32]
+        self.lunar_end_action_frame = 34
+
+        self.last_energy_time = -15 *60
+        EventBus.subscribe(EventType.AFTER_DAMAGE,self)
 
     def _reset_config(self):
         """根据当前模式重置配置"""
@@ -60,16 +68,17 @@ class NormalAttack(NormalAttackSkill,Infusion):
             self.segment_frames = self.lunar_frames
             self.end_action_frame = self.lunar_end_action_frame
             self.lv_param = self.caster.Skill.lv
+        self.current_mode = self.caster.mode
 
     def start(self, caster, n):
 
         self.caster = caster
         self._reset_config()
-        self.current_mode = self.caster.mode
 
         return super().start(caster, n)
     
     def _apply_segment_effect(self,target, hit_index=0):
+        self._reset_config()
         segment = self.current_segment + 1
         # 获取伤害倍率（支持多段配置）
         multiplier = self.damageMultipiler[segment]
@@ -79,9 +88,8 @@ class NormalAttack(NormalAttackSkill,Infusion):
             multiplier = multiplier[self.lv_param-1]
             
         if self.current_mode == "七相一闪":
-            element = ('冰', self.apply_infusion())
+            element = ('冰', self.infusion.apply_infusion())
             name = f'七相一闪 {segment}-{hit_index+1}'
-            self.caster.comsume_serpent_subtlety(1)
         else:
             element = self.element
             name = f'普通攻击 {segment}-{hit_index+1}'
@@ -98,9 +106,16 @@ class NormalAttack(NormalAttackSkill,Infusion):
                                                 damage=damage,segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
 
+    def handle_event(self, event):
+        if event.data['character'] == self.caster and event.data['damage'].element[0] == '冰':
+            if event.frame - self.last_energy_time > 15 * 60:
+                self.last_energy_time = event.frame
+                summon_energy(4, self.caster, ('冰', 2))
+
 class ChargedAttack(ChargedAttackSkill):
-    def __init__(self, lv):
+    def __init__(self, lv, infusion:Infusion):
         super().__init__(lv, total_frames=25, cd=0)
+        self.infusion = infusion
         
         # 普通模式配置
         self.normal_damage = [
@@ -117,8 +132,8 @@ class ChargedAttack(ChargedAttackSkill):
             64.75, 70.45, 76.15, 81.84, 88.06,
             94.28, 100.49, 106.71, 112.92, 119.14
         ]
-        self.lunar_hit_frame = [9,18,20]
-        self.lunar_total_frames = 30
+        self.lunar_hit_frame = [36,12,6]
+        self.lunar_total_frames = 36 + 12 + 6 + 18
         
         self.current_mode = None
 
@@ -134,7 +149,7 @@ class ChargedAttack(ChargedAttackSkill):
             self.damageMultipiler = self.lunar_damage
             self.hit_frame  = self.lunar_hit_frame
             self.total_frames = self.lunar_total_frames
-            self.element = ('冰', 1)
+            self.element = ('冰', self.infusion.apply_infusion())
             self.lv_param = self.caster.Skill.lv
 
     def start(self, caster):
@@ -152,10 +167,6 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         """应用重击伤害"""
-
-        if self.current_mode == "七相一闪":
-            self.caster.comsume_serpent_subtlety(2)
-
         event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
         EventBus.publish(event)
 
@@ -183,7 +194,7 @@ class ElementalSkill(SkillBase):
     def __init__(self, lv):
         super().__init__(
             name="极恶技·闪",
-            total_frames=30,  # 总帧数
+            total_frames=54,  # 总帧数
             cd=9*60,         # 9秒冷却
             lv=lv,
             element=('冰', 1),
@@ -191,25 +202,14 @@ class ElementalSkill(SkillBase):
         )
         self.mode_duration = 12.5 * 60  # 七相一闪模式持续时间(帧)
         self.serpent_gain = 45  # 蛇之狡谋获取量
+        self.hold = False  # 是否为长按
         
     def start(self, caster, hold=False):
         if not super().start(caster):
             return False
-            
-        # 获取蛇之狡谋
-        caster.gain_serpent_subtlety(self.serpent_gain)
         
-        # 点按切换模式
-        if not hold:
-            caster.mode = "七相一闪"
-            # 设置模式持续时间
-            caster.mode_timer = self.mode_duration
-        else:
-            self.caster.get_rift_count()
-            
-        get_emulation_logger().log_skill_use(
-            f"❄️ {caster.name} 使用{'长按' if hold else '点按'}极恶技·闪，" 
-        )
+        self.hold = hold
+        
         return True
         
     def on_frame_update(self, target):
@@ -217,20 +217,36 @@ class ElementalSkill(SkillBase):
 
     def on_finish(self):
         super().on_finish()
-        get_emulation_logger().log_skill_use("❄️ 极恶技·闪完成")
+
+        # 获取蛇之狡谋
+        self.caster.gain_serpent_subtlety(self.serpent_gain)
+        if self.caster.constellation >= 2:
+            self.caster.gain_serpent_subtlety(10)
+        # 点按切换模式
+        if not self.hold:
+            self.caster.mode = "七相一闪"
+            # 设置模式持续时间
+            self.caster.mode_timer = self.mode_duration
+        else:
+            self.caster.get_rift_count()
+            
+        get_emulation_logger().log_skill_use(
+            f"❄️ {self.caster.name}使用 {'长按' if self.hold else '点按'} 极恶技·闪，" 
+        )
 
 class ElementalBurst(EnergySkill):
-    def __init__(self, lv):
+    def __init__(self, lv, infusion:Infusion):
         super().__init__(
             name="极恶技·灭", 
-            total_frames=60,  # 总帧数
+            total_frames=188,  # 总帧数
             cd=15*60,        # 15秒冷却
             lv=lv,
             element=('冰', 1),
             interruptible=False
         )
-        self.hit_frames = [15, 25, 35, 45, 55]  # 5段伤害帧
-        self.final_hit_frame = 58  # 最终伤害帧
+        self.infusion = infusion
+        self.hit_frames = [120, 122, 128, 138, 140]  # 5段伤害帧
+        self.final_hit_frame = 158  # 最终伤害帧
         self.min_serpent_cost = 50  # 最低消耗
         self.max_bonus_serpent = 12  # 最大加成点数
         
@@ -255,6 +271,9 @@ class ElementalBurst(EnergySkill):
         if caster.current_serpent_subtlety < self.min_serpent_cost:
             get_emulation_logger().log_error(f"{caster.name} 蛇之狡谋不足，无法释放元素爆发")
             return False
+        
+        if caster.constellation >= 2:
+            self.max_bonus_serpent = 22
             
         # 计算额外加成点数(不超过max_bonus_serpent)
         extra_serpent = min(
@@ -280,7 +299,7 @@ class ElementalBurst(EnergySkill):
         if self.current_frame in self.hit_frames:
             damage = Damage(
                 self.base_damage[self.lv-1] + self.bonus_multiplier,
-                self.element,
+                ('冰',self.infusion.apply_infusion()),
                 DamageType.BURST,
                 f'极恶技·灭-斩击{self.hit_frames.index(self.current_frame)+1}'
             )
@@ -291,7 +310,7 @@ class ElementalBurst(EnergySkill):
         if self.current_frame == self.final_hit_frame:
             damage = Damage(
                 self.final_damage[self.lv-1] + self.bonus_multiplier,
-                self.element,
+                ('冰',self.infusion.apply_infusion()),
                 DamageType.BURST,
                 '极恶技·灭-终结'
             )
@@ -358,12 +377,22 @@ class DecayEffect(Effect, EventHandler):
         if self.character.mode == '正常模式':
             self.remove()
 
+class SkirkAttackBoostEffect(AttackBoostEffect):
+    def __init__(self, character):
+        super().__init__(character, character, '坠渊-攻击力提升', 70, 12.5*60)
+
+    def update(self, target):
+        super().update(target)
+
+        if self.character.mode != '七相一闪':
+            self.remove()
+
 class SpecialElementalBurst(EnergySkill):
     """七相一闪模式下的特殊元素爆发"""
     def __init__(self, lv):
         super().__init__(
             name="极恶技·尽",
-            total_frames=60,  # 总帧数
+            total_frames=38,  # 总帧数
             cd=15*60,        # 15秒冷却
             lv=lv,
             element=('冰', 1),
@@ -375,6 +404,8 @@ class SpecialElementalBurst(EnergySkill):
             return False
             
         DecayEffect(caster, self.lv).apply()
+        if self.caster.constellation >= 2:
+            SkirkAttackBoostEffect(self.caster).apply()
         
         get_emulation_logger().log_skill_use(
             f"❄️ {caster.name} 释放极恶技·尽，获得凋尽效果"
@@ -430,7 +461,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
 
     def handle_event(self, event):
         element = event.data['character'].element
-        if element in ['水', '冰'] and event.data['damage'].element[0] == element:
+        if element in ['水', '冰'] and event.data['damage'].element[0] == element and event.data['damage'].source != self.character:
             DeathsCrossingEffect(self.character).apply(event.data['character'].name)
 
 class DeathsCrossingEffect(Effect, EventHandler):
@@ -439,7 +470,8 @@ class DeathsCrossingEffect(Effect, EventHandler):
         self.name = '死河渡断'
         self.stacks = {}
         self.multipiler = {'普通攻击':[110,120,170],
-                           '元素爆发':[105,115,160]}
+                           '元素爆发':[105,115,160],
+                           '攻击力%':[10,20,40]}
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">每层死河渡断效果会使丝柯克在七相一闪模式下时进行的普通攻击造成原本110%/120%/170%的伤害，
@@ -447,14 +479,38 @@ class DeathsCrossingEffect(Effect, EventHandler):
         """
 
     def apply(self,name):
-        existing = next((e for e in self.character.active_effects if e.name == self.name), None)
+        existing = next((e for e in self.character.active_effects if isinstance(e, DeathsCrossingEffect)), None)
         if existing:
-            existing.stacks[name]  = 20*60
+            existing.add_effect(name)
             return
         super().apply()
+        self.add_effect(name)
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f'☄ {self.character.name}获得{self.name}效果')
         EventBus.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE,self)
+
+    def add_effect(self, name):
+        if self.character.constellation >= 4:
+            self.remove_attack_boost()
+        self.stacks[name]  = 20*60
+        if self.character.constellation >= 4:
+            self.add_attack_boost()
+
+    def remove_attack_boost(self):
+        s = 0
+        for i in self.stacks.values():
+            if i > 0:
+                s += 1
+        if s != 0:
+            self.character.attributePanel['攻击力%'] -= self.multipiler['攻击力%'][s-1]
+
+    def add_attack_boost(self):
+        s = 0
+        for i in self.stacks.values():
+            if i > 0:
+                s += 1
+        if s != 0:
+            self.character.attributePanel['攻击力%'] += self.multipiler['攻击力%'][s-1]
 
     def remove(self):
         super().remove()
@@ -502,23 +558,131 @@ class PassiveSkillEffect_3(TalentEffect):
                     char.Skill.lv = min(15, char.Skill.lv + 1)
                 get_emulation_logger().log_effect(f'☄ {self.name}触发')
 
-class ConstellationEffect_1(ConstellationEffect):
-    ...
+class ConstellationEffect_1(ConstellationEffect, EventHandler):
+    def __init__(self, infusion:Infusion):
+        super().__init__('湮远')
+        self.infusion = infusion
+        self.attck_stack = []
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+
+    def handle_event(self, event):
+        o = event.data['object']
+        if o.name == '虚境裂隙' and o.current_frame < o.life_frame and self.character.level >= 20:
+            self.attck_stack.append(1 + random.randint(0, 3))
+
+    def update(self, target):
+        for i in range(len(self.attck_stack)):
+            if self.attck_stack[i] > 0:
+                self.attck_stack[i] -= 1
+                if self.attck_stack[i] == 0:
+                    damage = Damage(500, ('冰', self.infusion.apply_infusion()), DamageType.CHARGED, '湮远-晶刃攻击')
+                    EventBus.publish(DamageEvent(self.character, target, damage,GetCurrentTime()))
+                
+        self.attck_stack = [i for i in self.attck_stack if i > 0]
 
 class ConstellationEffect_2(ConstellationEffect):
-    ...
+    def __init__(self):
+        super().__init__('坠渊')
 
 class ConstellationEffect_3(ConstellationEffect):
-    ...
+    def __init__(self):
+        super().__init__('罪缘')
+
+    def apply(self, character):
+        super().apply(character)
+        self.character.Burst.lv = min(15, self.character.Burst.lv + 3)
 
 class ConstellationEffect_4(ConstellationEffect):
-    ...
+    def __init__(self):
+        super().__init__('流断')
 
 class ConstellationEffect_5(ConstellationEffect):
-    ...
+    def __init__(self):
+        super().__init__('结愿')
 
-class ConstellationEffect_6(ConstellationEffect):
-    ...
+    def apply(self, character):
+        super().apply(character)
+        self.character.Skill.lv = min(15, self.character.Skill.lv + 3)
+
+class ConstellationEffect_6(ConstellationEffect, EventHandler):
+    def __init__(self):
+        super().__init__('至源')
+
+    def apply(self, character):
+        super().apply(character)
+        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+
+    def handle_event(self, event):
+        o = event.data['object']
+        if o.name == '虚境裂隙' and o.current_frame < o.life_frame and self.character.level >= 20:
+            HavocSeverStackEffect(self.character).apply()
+
+class HavocSeverStackEffect(Effect, EventHandler):
+    def __init__(self, character):
+        super().__init__(character, 15 * 60)
+        self.name = '极恶技·斩'
+        self.stacks = []
+        self.msg1 = f"""
+        <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
+        <p><span style="color: #c0e4e6; font-size: 12pt;">丝柯克每通过固有天赋理外之理的效果汲取一枚虚境裂隙，就会获得一层极恶技·斩效果，
+        丝柯克可以消耗该效果进行协同攻击，并降低在七相一闪模式下受到的伤害，该效果持续15秒，至多叠加3层，每层独立计算持续时间。</span></p>
+        """
+
+        self.coordinated_attack_burst = -1000
+        self.coordinated_attack_normal = -1000
+
+    def apply(self):
+        existing = next((e for e in self.character.active_effects if isinstance(e, HavocSeverStackEffect)), None)
+        if existing:
+            existing.add_stack()
+            return
+        super().apply()
+        self.add_stack()
+        self.character.add_effect(self)
+        get_emulation_logger().log_effect(f'☄ {self.character.name}获得{self.name}效果')
+
+        EventBus.subscribe(EventType.BEFORE_BURST, self)
+        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+
+    def add_stack(self):
+        if len(self.stacks) < 3:
+            self.stacks.append(15 * 60)
+            self.msg = self.msg1 + f"""<p><span style="color: #c0e4e6; font-size: 12pt;">极恶技·斩:{len(self.stacks)}层</span></p>"""
+        else:
+            self.stacks[self.stacks.index(min(self.stacks))] = 15 * 60
+
+    def update(self, target):
+        for i in self.stacks:
+            if i > 0:
+                i -= 1
+            else:
+                self.stacks.remove(i)
+        if not self.stacks:
+            self.remove()
+
+        if self.coordinated_attack_burst + 10 == GetCurrentTime():
+            for _ in range(len(self.stacks)):
+                damage = Damage(750, ('冰', self.character.elemental_burst_infusion.apply_infusion()), DamageType.BURST, '极恶技·斩-协同攻击')
+                EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            self.stacks.clear()
+
+        if self.coordinated_attack_normal + 5 == GetCurrentTime():
+            for _ in range(3):
+                damage = Damage(180, ('冰', self.character.normal_attack_infusion.apply_infusion()), DamageType.NORMAL, '极恶技·斩-协同攻击')
+                EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            self.stacks.remove(min(self.stacks))
+        
+        self.msg = self.msg1 + f"""<p><span style="color: #c0e4e6; font-size: 12pt;">极恶技·斩:{len(self.stacks)}层</span></p>"""
+
+    def handle_event(self, event):
+        if event.event_type == EventType.BEFORE_BURST and self.character == event.data['character'] and self.character.mode != "七相一闪":
+            self.coordinated_attack_burst = event.frame
+        elif (event.event_type == EventType.AFTER_NORMAL_ATTACK and self.character == event.data['character'] and
+              event.data['segment'] in [3,5]):
+            self.coordinated_attack_normal = event.frame
 
 class Skirk(Character):
     ID = 100
@@ -527,23 +691,26 @@ class Skirk(Character):
 
     def _init_character(self):
         super()._init_character()
+        self.normal_attack_infusion = Infusion()
+        self.charged_attack_infusion = Infusion()
+        self.elemental_burst_infusion = Infusion()
         self.association = '极恶骑'
         self.elemental_energy = ElementalEnergy(self,('冰',0))
-        self.NormalAttack = NormalAttack(self.skill_params[0])
-        self.ChargedAttack = ChargedAttack(self.skill_params[0])
+        self.NormalAttack = NormalAttack(self.skill_params[0],self.normal_attack_infusion)
+        self.ChargedAttack = ChargedAttack(self.skill_params[0], self.charged_attack_infusion)
         self.Skill = ElementalSkill(self.skill_params[1])
-        self.normal_Burst = ElementalBurst(self.skill_params[2])
+        self.normal_Burst = ElementalBurst(self.skill_params[2],self.elemental_burst_infusion)
         self.Special_Burst = SpecialElementalBurst(self.skill_params[2])
         self.Burst = self.normal_Burst
         self.talent1 = PassiveSkillEffect_1()
         self.talent2 = PassiveSkillEffect_2()
         self.talent3 = PassiveSkillEffect_3()
-        # self.constellation_effects[0] = ConstellationEffect_1()
-        # self.constellation_effects[1] = ConstellationEffect_2()
-        # self.constellation_effects[2] = ConstellationEffect_3()
-        # self.constellation_effects[3] = ConstellationEffect_4()
-        # self.constellation_effects[4] = ConstellationEffect_5()
-        # self.constellation_effects[5] = ConstellationEffect_6()
+        self.constellation_effects[0] = ConstellationEffect_1(self.charged_attack_infusion)
+        self.constellation_effects[1] = ConstellationEffect_2()
+        self.constellation_effects[2] = ConstellationEffect_3()
+        self.constellation_effects[3] = ConstellationEffect_4()
+        self.constellation_effects[4] = ConstellationEffect_5()
+        self.constellation_effects[5] = ConstellationEffect_6()
         self.current_serpent_subtlety = 0 
         self.max_serpent_subtlety = 100
         self.mode = "正常模式" #  "正常模式"  or "七相一闪"
@@ -567,7 +734,7 @@ class Skirk(Character):
 
     def update(self, target):
         if self.mode == "七相一闪":
-            self.comsume_serpent_subtlety(1/60)
+            self.comsume_serpent_subtlety(0.1153)
 
             if not self.on_field:
                 self.exit_mode()
@@ -592,7 +759,7 @@ class Skirk(Character):
 
     def gain_serpent_subtlety(self, value):
         self.current_serpent_subtlety = min(self.max_serpent_subtlety, self.current_serpent_subtlety + value)
-        get_emulation_logger().log_effect(f'☄ {self.name}获得{value}蛇之灵巧')
+        get_emulation_logger().log_effect(f'☄ {self.name}获得{value}蛇之狡谋')
 
     def comsume_serpent_subtlety(self, value):
         self.current_serpent_subtlety = max(0, self.current_serpent_subtlety - value)
