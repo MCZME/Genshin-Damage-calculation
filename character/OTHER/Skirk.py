@@ -487,7 +487,7 @@ class DeathsCrossingEffect(Effect, EventHandler):
         self.add_effect(name)
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f'☄ {self.character.name}获得{self.name}效果')
-        EventBus.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE,self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
 
     def add_effect(self, name):
         if self.character.constellation >= 4:
@@ -523,10 +523,10 @@ class DeathsCrossingEffect(Effect, EventHandler):
         damage = event.data['damage']
         stack = min(3, len(list(self.stacks)))
         if self.character.mode == '七相一闪' and damage.damageType == DamageType.NORMAL:
-            damage.panel['独立伤害加成'] += self.multipiler['普通攻击'][stack-1]
+            damage.panel['伤害倍率'] *= self.multipiler['普通攻击'][stack-1] / 100
             damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][stack-1])
         elif damage.damageType == DamageType.BURST:
-            damage.panel['独立伤害加成'] += self.multipiler['元素爆发'][stack-1]
+            damage.panel['伤害倍率'] *= self.multipiler['元素爆发'][stack-1] / 100
             damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][stack-1])
 
     def update(self, target):
