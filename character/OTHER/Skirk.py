@@ -356,7 +356,7 @@ class DecayEffect(Effect, EventHandler):
         if self.character.level >= 20:
             self.rift_count = min(3, self.rift_count + self.character.get_rift_count())
         get_emulation_logger().log_effect(f"{self.character.name}获得凋尽效果")
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
         
     def remove(self):
         super().remove()
@@ -366,8 +366,8 @@ class DecayEffect(Effect, EventHandler):
         if event.data['character'] == self.character and event.frame - self.last_trigger_time >= 0.1*60:
             damage = event.data['damage']
             if damage.damageType == DamageType.NORMAL:
-                damage.panel['伤害倍率'] += self.lunar_bonus[self.lv-1][self.rift_count]
-                damage.setDamageData('凋尽_倍率加成', self.lunar_bonus[self.lv-1][self.rift_count])
+                damage.panel['伤害加成'] += self.lunar_bonus[self.lv-1][self.rift_count]
+                damage.setDamageData('凋尽_伤害加成', self.lunar_bonus[self.lv-1][self.rift_count])
                 self.trigger_count += 1
                 self.last_trigger_time = event.frame
 

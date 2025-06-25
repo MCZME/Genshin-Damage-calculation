@@ -350,7 +350,7 @@ class MastermindEffect(Effect, EventHandler):
         super().apply()
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f"✨ {self.character.name} 取胜者，大小通吃：获得{self.breakthrough_arrows}次破局失")
-        EventBus.subscribe(EventType.BEFORE_CALCULATE,self)
+        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
 
     def remove(self):
         super().remove()
@@ -358,7 +358,7 @@ class MastermindEffect(Effect, EventHandler):
 
     def handle_event(self, event):
         damage = event.data['damage']
-        if damage.damageType == DamageType.NORMAL and self.breakthrough_arrows > 0:
+        if self.character == damage.source and damage.damageType == DamageType.NORMAL and self.breakthrough_arrows > 0:
             damage.damageMultipiler = self.damage_ratio[self.character.skill_params[0]] * 1.56
             damage.element = ('水', 1)
             damage.damageType = DamageType.CHARGED

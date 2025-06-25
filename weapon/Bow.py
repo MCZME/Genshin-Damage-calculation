@@ -26,7 +26,7 @@ class SacrificialBow(Weapon,EventHandler):
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
 
 class AquaSimulacra(Weapon):
-    ID = 103
+    ID = 130
     def __init__(self, character, level=1, lv=1):
         super().__init__(character, AquaSimulacra.ID, level, lv)
         self.hp_bonus = [16,20,24,28,32]
