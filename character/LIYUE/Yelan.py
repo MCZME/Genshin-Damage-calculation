@@ -14,7 +14,7 @@ class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):
         super().__init__(lv=lv)
         self.segment_frames = [13, 15, 26, [35, 49]]
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [40.68,43.99,47.3,52.03,55.34,59.13,64.33,69.53,74.73,80.41,86.09,91.76,97.44,103.11,108.79],  
             2: [39.04,42.22,45.4,49.94,53.12,56.75,61.74,66.74,71.73,77.18,82.63,88.08,93.52,98.97,104.42],  
             3: [51.6,55.8,60,66,70.2,75,81.6,88.2,94.8,102,109.2,116.4,123.6,130.8,138], 
@@ -72,7 +72,7 @@ class ChargedAttack(ChargedAttackSkill):
             
         # 创建伤害事件
         damage = Damage(
-            damageMultipiler=damage_value,
+            damageMultiplier=damage_value,
             element=element,
             damageType=DamageType.CHARGED,
             name=name,
@@ -90,7 +90,7 @@ class ElementalSkill(SkillBase):
         
         # 技能参数配置
         self.hit_frame = 31  # 命中帧
-        self.damageMultipiler = [22.61,24.31,26.01,28.27,29.96,31.66,33.92,36.18,38.44,40.7,42.97,45.23,48.05,50.88,53.71]
+        self.damageMultiplier = [22.61,24.31,26.01,28.27,29.96,31.66,33.92,36.18,38.44,40.7,42.97,45.23,48.05,50.88,53.71]
         self.breakthrough_chance = 0.34  # 破局矢触发概率
         self.cd_frame = 33
         self.stack_count = 1
@@ -118,7 +118,7 @@ class ElementalSkill(SkillBase):
 
     def _apply_skill_damage(self, target):
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.lv-1],
             element=self.element,
             damageType=DamageType.SKILL,
             name='萦络纵命索'
@@ -142,7 +142,7 @@ class ElementalBurst(EnergySkill):
     def __init__(self, lv):
         super().__init__(name="渊图玲珑骰", total_frames=91, cd=18, lv=lv, element=('水', 2))
         self.hit_frame = 76  # 命中帧
-        self.damageMultipiler = [7.31,7.86,8.4,9.14,9.68,10.23,10.96,11.69,12.42,13.15,13.89,14.62,15.53,16.44,17.36]  # 技能伤害比例
+        self.damageMultiplier = [7.31,7.86,8.4,9.14,9.68,10.23,10.96,11.69,12.42,13.15,13.89,14.62,15.53,16.44,17.36]  # 技能伤害比例
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
@@ -150,7 +150,7 @@ class ElementalBurst(EnergySkill):
 
     def _apply_burst_damage(self, target):
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.lv-1],
             element=self.element,
             damageType=DamageType.BURST,
             name='渊图玲珑骰'

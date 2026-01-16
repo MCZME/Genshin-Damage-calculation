@@ -14,7 +14,7 @@ class NormalAttack(NormalAttackSkill):
         super().__init__(lv)
         self.segment_frames = [13, 14, 30, 29, 42]
         self.end_action_frame = 53
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [44.98, 48.64, 52.3, 57.53, 61.19, 65.38, 71.13, 76.88, 82.63, 88.91, 96.1, 104.56, 113.02, 121.47, 130.7],
             2: [45.24, 48.92, 52.6, 57.86, 61.54, 65.75, 71.54, 77.32, 83.11, 89.42, 96.65, 105.16, 113.66, 122.17, 131.45],
             3: [25.8 + 30.96, 27.9 + 33.48, 30 + 36, 33 + 39.6, 35.1 + 42.12, 37.5 + 45, 40.8 + 48.96, 44.1 + 52.92, 
@@ -28,7 +28,7 @@ class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv):
         super().__init__(lv, total_frames=30)
         self.hit_frame = 20
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             43 + 74.65, 46.5 + 80.72, 50 + 86.8, 55 + 95.48, 58.5 + 101.56,
             62.5 + 108.5, 68 + 118.05, 73.5 + 127.6, 79 + 137.14, 85 + 147.56,
             91.88 + 159.5, 99.96 + 173.53, 108.05 + 187.57, 116.13 + 201.6, 124.95 + 216.91
@@ -37,7 +37,7 @@ class ChargedAttack(ChargedAttackSkill):
 class PlungingAttack(PlungingAttackSkill):
     def __init__(self, lv):
         super().__init__(lv, total_frames=60)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '下坠期间伤害': [81.83, 88.49, 95.16, 104.67, 111.33, 118.94, 129.41, 139.88, 150.35, 161.76, 173.18, 184.6, 196.02, 207.44, 218.86],
             '低空坠地冲击伤害': [163.63, 176.95, 190.27, 209.3, 222.62, 237.84, 258.77, 279.7, 300.63, 323.46, 346.29, 369.12, 391.96, 414.79, 437.62],
             '高空坠地冲击伤害': [204.39, 221.02, 237.66, 261.42, 278.06, 297.07, 323.21, 349.36, 375.5, 404.02, 432.54, 461.06, 489.57, 518.09, 546.61]
@@ -68,7 +68,7 @@ class PlungingAttack(PlungingAttackSkill):
 
         # 基础下落攻击伤害
         damage = Damage(
-            self.damageMultipiler[damage_type_key][self.lv - 1],
+            self.damageMultiplier[damage_type_key][self.lv - 1],
             ('风', 1) if luanlan_effect else ('物理',0),
             DamageType.PLUNGING,
             f'下落攻击·乱岚拨止-{self.height_type}' if luanlan_effect else f'下落攻击-{self.height_type}'
@@ -86,7 +86,7 @@ class ElementalSkill(SkillBase):
         }
         
         # 伤害倍率参数
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '点按伤害': [192, 206.4, 220.8, 240, 254.4, 268.8, 288, 307.2, 
                       326.4, 345.6, 364.8, 384, 408, 432, 456],
             '长按伤害': [260.8, 280.36, 299.92, 326, 345.56, 365.12, 391.2, 
@@ -146,7 +146,7 @@ class ElementalSkill(SkillBase):
         if self.current_frame == self.hit_frame:
             name = '长按伤害' if self.hold else '点按伤害'
             damage = Damage(
-                self.damageMultipiler[name][self.lv - 1],
+                self.damageMultiplier[name][self.lv - 1],
                 self.element,
                 DamageType.SKILL,
                 f'千早振-{name}'

@@ -13,7 +13,7 @@ class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):
         super().__init__(lv)
         self.segment_frames = [13,16,21,49,50]
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1:[44.55, 48.17, 51.8, 56.98, 60.61, 64.75, 70.45, 76.15, 81.84, 88.06, 94.28, 100.49, 106.71, 112.92, 119.14],
             2:[42.74, 46.22, 49.7, 54.67, 58.15, 62.12, 67.59, 73.06, 78.53, 84.49, 90.45, 96.42, 102.38, 108.35, 114.31],
             3:[54.61, 59.06, 63.5, 69.85, 74.3, 79.37, 86.36, 93.34, 100.33, 107.95, 115.57, 123.19, 130.81, 138.43, 146.05],
@@ -24,7 +24,7 @@ class NormalAttack(NormalAttackSkill):
 class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv):
         super().__init__(lv, total_frames=40)
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             [55.9 + 60.72, 60.45 + 65.66, 65.0 + 70.6, 71.5 + 77.66, 76.05 + 82.6, 
              81.25 + 88.25, 88.4 + 96.02, 95.55 + 103.78, 102.7 + 111.55, 
              110.5 + 120.02, 118.3 + 128.49, 126.1 + 136.96, 133.9 + 145.44, 
@@ -47,9 +47,9 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         # 计算当前段伤害
-        damage_value = self.damageMultipiler[0][self.lv-1] * (0.5 if hit_index == 0 else 0.5)  # 两段各50%伤害
+        damage_value = self.damageMultiplier[0][self.lv-1] * (0.5 if hit_index == 0 else 0.5)  # 两段各50%伤害
         damage = Damage(
-            damageMultipiler=damage_value,
+            damageMultiplier=damage_value,
             element=self.element,
             damageType=DamageType.CHARGED,
             name=f'重击第{hit_index+1}段'
@@ -65,7 +65,7 @@ class PlungingAttack(PlungingAttackSkill):
     """下落攻击"""
     def __init__(self, lv):
         super().__init__(lv)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '下坠期间伤害': [63.93, 69.14, 74.34, 81.77, 86.98, 92.93, 101.1, 109.28, 
                           117.46, 126.38, 135.3, 144.22, 153.14, 162.06, 170.98],
             '低空坠地冲击伤害': [127.84, 138.24, 148.65, 163.51, 173.92, 185.81, 202.16, 
@@ -137,7 +137,7 @@ class ElementalSkill(SkillBase):
         
         if self.hold_mode == 0:  # 点按
             damage = Damage(
-                damageMultipiler=self.tap_damage[self.lv-1],
+                damageMultiplier=self.tap_damage[self.lv-1],
                 element=('火', 1),
                 damageType=DamageType.SKILL,
                 name='热情过载(点按)'
@@ -145,7 +145,7 @@ class ElementalSkill(SkillBase):
         elif self.hold_mode == 1:  # 一段蓄力
             damage_value = self.hold1_damage[hit_index][self.lv-1]
             damage = Damage(
-                damageMultipiler=damage_value,
+                damageMultiplier=damage_value,
                 element=('火', 1),
                 damageType=DamageType.SKILL,
                 name=f'热情过载(一段蓄力第{hit_index+1}段)'
@@ -154,14 +154,14 @@ class ElementalSkill(SkillBase):
             if hit_index < 2:  # 前两段普通攻击
                 damage_value = self.hold2_damage[hit_index][self.lv-1]
                 damage = Damage(
-                    damageMultipiler=damage_value,
+                    damageMultiplier=damage_value,
                     element=('火', 1),
                     damageType=DamageType.SKILL,
                     name=f'热情过载(二段蓄力第{hit_index+1}段)'
                 )
             else:  # 第三段爆炸
                 damage = Damage(
-                    damageMultipiler=self.hold2_damage[2][self.lv-1],
+                    damageMultiplier=self.hold2_damage[2][self.lv-1],
                     element=('火', 1),
                     damageType=DamageType.SKILL,
                     name='热情过载(爆炸)'

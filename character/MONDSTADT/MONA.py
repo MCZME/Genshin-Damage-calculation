@@ -13,7 +13,7 @@ class NormalAttack(NormalAttackSkill,Infusion):
         super().__init__(lv, cd)
         Infusion.__init__(self) 
         self.segment_frames = [11,21,34,41]
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [37.6, 40.42, 43.24, 47.0, 49.82, 52.64, 56.4, 60.16, 63.92, 67.68, 71.44, 75.2, 79.9, 84.6, 89.3],  # 第一段攻击1-15级倍率
             2: [36.0, 38.7, 41.4, 45.0, 47.7, 50.4, 54.0, 57.6, 61.2, 64.8, 68.4, 72.0, 76.5, 81.0, 85.5],  # 第二段攻击1-15级倍率
             3: [44.8, 48.16, 51.52, 56.0, 59.36, 62.72, 67.2, 71.68, 76.16, 80.64, 85.12, 89.6, 95.2, 100.8, 106.4],  # 第三段攻击1-15级倍率
@@ -28,7 +28,7 @@ class NormalAttack(NormalAttackSkill,Infusion):
 class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv):
         super().__init__(lv, total_frames=105)
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             149.72, 160.95, 172.18, 187.15, 198.38, 
             209.61, 224.58, 239.55, 254.52, 269.5, 
             285.07, 305.43, 325.79, 346.15, 366.51

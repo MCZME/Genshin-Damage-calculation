@@ -12,7 +12,7 @@ class NormalAttack(NormalAttackSkill):
     def __init__(self, lv, cd=0):
         super().__init__(lv, cd)
         self.segment_frames = [19, 26, 46]  # 三段攻击的命中帧
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [54.58, 58.67, 62.76, 68.22, 72.31, 76.41, 81.87, 87.32, 92.78, 98.24, 103.7, 109.15, 115.98, 122.8, 129.62],  # 一段伤害
             2: [46.25, 49.71, 53.18, 57.81, 61.28, 64.74, 69.37, 73.99, 78.62, 83.24, 87.87, 92.49, 98.27, 104.05, 109.83],  # 二段伤害
             3: [72.34, 77.76, 83.19, 90.42, 95.85, 101.27, 108.51, 115.74, 122.97, 130.21, 137.44, 144.68, 153.72, 162.76, 171.8]   # 三段伤害
@@ -48,7 +48,7 @@ class NormalAttack(NormalAttackSkill):
         # 创建伤害对象
         element = ('水', 1 if should_attach else 0)
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
             element=element,
             damageType=DamageType.NORMAL,
             name=f'普通攻击 第{self.current_segment+1}段'
@@ -71,7 +71,7 @@ class NormalAttack(NormalAttackSkill):
 class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=212, cd=0):
         super().__init__(lv, total_frames, cd)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '重击伤害': [136.8, 147.06, 157.32, 171.0, 181.26, 191.52, 205.2, 218.88, 232.56, 246.24, 259.92, 273.6, 290.7, 307.8, 324.9],
             '衡平推裁伤害': [7.32, 7.91, 8.51, 9.36, 9.96, 10.64, 11.57, 12.51, 13.45, 14.47, 15.49, 16.51, 17.53, 18.55, 19.57]
         }

@@ -59,12 +59,12 @@ class NormalAttack(NormalAttackSkill,EventHandler):
     def _reset_config(self):
         """根据当前模式重置配置"""
         if self.caster.mode == "正常模式":
-            self.damageMultipiler = self.normal_damage
+            self.damageMultiplier = self.normal_damage
             self.segment_frames = self.normal_frames
             self.end_action_frame = self.normal_end_action_frame
             self.lv_param = self.lv
         else:  # lunar模式
-            self.damageMultipiler = self.lunar_damage
+            self.damageMultiplier = self.lunar_damage
             self.segment_frames = self.lunar_frames
             self.end_action_frame = self.lunar_end_action_frame
             self.lv_param = self.caster.Skill.lv
@@ -81,7 +81,7 @@ class NormalAttack(NormalAttackSkill,EventHandler):
         self._reset_config()
         segment = self.current_segment + 1
         # 获取伤害倍率（支持多段配置）
-        multiplier = self.damageMultipiler[segment]
+        multiplier = self.damageMultiplier[segment]
         if isinstance(multiplier[0], list):
             multiplier = multiplier[hit_index][self.lv_param-1]
         else:
@@ -140,13 +140,13 @@ class ChargedAttack(ChargedAttackSkill):
     def _reset_config(self):
         """根据当前模式重置配置"""
         if self.caster.mode == "正常模式":
-            self.damageMultipiler = self.normal_damage
+            self.damageMultiplier = self.normal_damage
             self.hit_frame  = self.normal_hit_frame
             self.total_frames = self.normal_total_frames
             self.element = ('物理', 0)
             self.lv_param = self.lv
         else:  # 七相一闪模式
-            self.damageMultipiler = self.lunar_damage
+            self.damageMultiplier = self.lunar_damage
             self.hit_frame  = self.lunar_hit_frame
             self.total_frames = self.lunar_total_frames
             self.element = ('冰', self.infusion.apply_infusion())
@@ -171,7 +171,7 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         damage = Damage(
-            self.damageMultipiler[self.lv_param-1],
+            self.damageMultiplier[self.lv_param-1],
             self.element,
             DamageType.CHARGED,
             f'重击' if self.current_mode == "正常模式" else '七相一闪重击'
@@ -524,10 +524,10 @@ class DeathsCrossingEffect(Effect, EventHandler):
         stack = min(3, len(list(self.stacks)))
         if self.character.mode == '七相一闪' and damage.damageType == DamageType.NORMAL:
             damage.panel['伤害倍率'] *= self.multipiler['普通攻击'][stack-1] / 100
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['普通攻击'][stack-1])
+            damage.setDamageData('死河渡断_伤害加成',self.multipiler['普通攻击'][stack-1])
         elif damage.damageType == DamageType.BURST:
             damage.panel['伤害倍率'] *= self.multipiler['元素爆发'][stack-1] / 100
-            damage.setDamageData('死河渡断_独立伤害加成',self.multipiler['元素爆发'][stack-1])
+            damage.setDamageData('死河渡断_伤害加成',self.multipiler['元素爆发'][stack-1])
 
     def update(self, target):
         if self.stacks:

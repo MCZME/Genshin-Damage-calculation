@@ -47,7 +47,7 @@ class IansanNormalAttack(NormalAttackSkill):
     def __init__(self, lv):
         super().__init__(lv=lv)
         self.segment_frames = [10, 20, 30]  # 三段攻击的帧数分布
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [46.98, 50.8, 54.62, 60.09, 63.91, 68.28, 74.29, 80.3, 86.3, 92.86, 99.41, 105.97, 112.52, 119.08, 125.63],
             2: [42.76, 46.25, 49.73, 54.7, 58.18, 62.16, 67.63, 73.1, 78.57, 84.53, 90.5, 96.47, 102.44, 108.4, 114.37],
             3: [64.39, 69.63, 74.87, 82.36, 87.6, 93.59, 101.82, 110.06, 118.29, 127.28, 136.26, 145.25, 154.23, 163.22, 172.2]
@@ -71,12 +71,12 @@ class IansanChargedAttack(ChargedAttackSkill):
         self.element = ('雷', 1)
         self.normal_hit_frame = 27
         self.normal_total_frames = self.normal_hit_frame + 20
-        self.damageMultipiler = [100.28, 108.44, 116.6, 128.26, 136.42, 145.75, 158.58, 171.4, 
+        self.damageMultiplier = [100.28, 108.44, 116.6, 128.26, 136.42, 145.75, 158.58, 171.4, 
                                  184.23, 198.22, 212.21, 226.2, 240.2, 254.19, 268.18, ]
         # 夜魂状态参数
         self.nightsoul_hit_frame = 28
         self.nightsoul_total_frames = self.nightsoul_hit_frame + 18
-        self.nightsoul_damageMultipiler = [84.19, 91.05, 97.9, 107.69, 114.54, 122.37, 133.14,
+        self.nightsoul_damageMultiplier = [84.19, 91.05, 97.9, 107.69, 114.54, 122.37, 133.14,
                                         143.91, 154.68, 166.43, 178.18, 189.93, 201.67, 213.42, 225.17, ]
 
 
@@ -87,11 +87,11 @@ class IansanChargedAttack(ChargedAttackSkill):
         if self.caster.Nightsoul_Blessing:
             self.hit_frame = self.nightsoul_hit_frame
             self.total_frames = self.nightsoul_total_frames
-            self.damageMultipiler = self.nightsoul_damageMultipiler
+            self.damageMultiplier = self.nightsoul_damageMultiplier
         else:
             self.hit_frame = self.normal_hit_frame
             self.total_frames = self.normal_total_frames
-            self.damageMultipiler = self.damageMultipiler           
+            self.damageMultiplier = self.damageMultiplier           
         # 检查电掣雷驰效果
         has_lightning_dash = any(isinstance(effect, LightningDashEffect) 
                              for effect in caster.active_effects)
@@ -107,7 +107,7 @@ class IansanChargedAttack(ChargedAttackSkill):
         clamped_lv = min(max(self.lv, 1), 15) - 1
         
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[clamped_lv],
+            damageMultiplier=self.damageMultiplier[clamped_lv],
             element=self.element if self.caster.Nightsoul_Blessing else ('物理',0),
             damageType=DamageType.CHARGED,
             name='雷霆飞缒' if self.caster.Nightsoul_Blessing else self.name
@@ -138,13 +138,13 @@ class ElementalSkill(SkillBase):
                         element=('雷', 1),
                         interruptible=False)
         self.hit_frame = 12  # 命中帧
-        self.damageMultipiler = [286.4, 307.88, 329.36, 358, 379.48, 400.96, 
+        self.damageMultiplier = [286.4, 307.88, 329.36, 358, 379.48, 400.96, 
             429.6, 458.24, 486.88, 515.52, 544.16, 572.8, 608.6, 644.4, 680.2, ]
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
             damage = Damage(
-                self.damageMultipiler[self.lv - 1],
+                self.damageMultiplier[self.lv - 1],
                 self.element,
                 DamageType.SKILL,
                 '电掣雷驰',

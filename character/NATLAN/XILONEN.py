@@ -87,7 +87,7 @@ class XilonenNormalAttack(NormalAttackSkill):
         self.attach_sequence = [1, 0, 0, 1, 0, 0]  # 元素附着序列
         self.sequence_pos = 0  # 当前序列位置
         self.last_attach_time = 0  # 上次元素附着时间(帧数)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [51.79, 56.01, 60.22, 66.25, 70.46, 75.28, 81.9, 88.53, 95.15, 102.38, 109.61, 116.83, 124.06, 131.29, 138.51],
             2: [27.37 + 27.37, 29.6 + 29.6, 31.83 + 31.83, 35.01 + 35.01, 37.24 + 37.24, 39.79 + 39.79, 43.29 + 43.29, 46.79 + 46.79, 50.29 + 50.29, 54.11 + 54.11, 57.93 + 57.93, 61.75 + 61.75, 65.57 + 65.57, 69.39 + 69.39, 73.21 + 73.21],
             3: [72.95, 78.89, 84.83, 93.31, 99.25, 106.03, 115.36, 124.69, 134.02, 144.2, 154.38, 164.56, 174.74, 184.92, 195.1]
@@ -95,7 +95,7 @@ class XilonenNormalAttack(NormalAttackSkill):
         
         # 刃轮巡猎参数
         self.night_soul_segment_frames = [17, 20, 33, 41]  # 四段踢击的帧数
-        self.night_soul_damageMultipiler = {
+        self.night_soul_damageMultiplier = {
             1: [56.02, 60.58, 65.14, 71.66, 76.22, 81.43, 88.59, 95.76, 102.92, 110.74, 118.56, 126.38, 134.19, 142.01, 149.83],
             2: [55.05, 59.53, 64.01, 70.41, 74.89, 80.01, 87.05, 94.09, 101.13, 108.82, 116.5, 124.18, 131.86, 139.54, 147.22],
             3: [65.82, 71.17, 76.53, 84.18, 89.54, 95.66, 104.08, 112.5, 120.92, 130.1, 139.28, 148.47, 157.65, 166.84, 176.02],
@@ -106,11 +106,11 @@ class XilonenNormalAttack(NormalAttackSkill):
         # 检查夜魂加持状态
         if caster.Nightsoul_Blessing:
             self.segment_frames = self.night_soul_segment_frames
-            self.damageMultipiler = self.night_soul_damageMultipiler
+            self.damageMultiplier = self.night_soul_damageMultiplier
             self.element = ('岩', 1)  # 岩元素伤害
         else:
             self.segment_frames = self.normal_segment_frames
-            self.damageMultipiler = self.damageMultipiler
+            self.damageMultiplier = self.damageMultiplier
             self.element = ('物理', 0)  # 普通伤害
             
         if not super().start(caster, n):
@@ -143,7 +143,7 @@ class XilonenNormalAttack(NormalAttackSkill):
             # 夜魂状态下基于防御力的岩元素伤害
             element = ('岩', 1 if should_attach else 0)
             damage = Damage(
-                damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+                damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
                 element=element,
                 damageType=DamageType.NORMAL,
                 name=f'刃轮巡猎·{self.name} 第{self.current_segment+1}段'
@@ -153,7 +153,7 @@ class XilonenNormalAttack(NormalAttackSkill):
             damage.setDamageData('不可覆盖', True)
         else:
             damage = Damage(
-                damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+                damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
                 element=self.element,
                 damageType=DamageType.NORMAL,
                 name=f'{self.name} 第{self.current_segment+1}段'
@@ -183,7 +183,7 @@ class ElementalSkill(SkillBase):
             element=('岩', 1),
             interruptible=False
         )
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             179.2, 192.64, 206.08, 224, 237.44, 250.88, 268.8, 286.72, 304.64,
             322.56, 340.48, 358.4, 380.8, 403.2, 425.6]
         self.hit_frame = 9  # 命中帧数

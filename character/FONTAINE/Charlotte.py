@@ -21,7 +21,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
         self.segment_frames = [13, 35, 41]  # 命中帧
         self.end_action_frame = 43     
         # 伤害倍率表(1-15级)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [49.85, 53.58, 57.32, 62.31, 66.05, 69.78, 74.77, 79.75, 84.74, 89.72, 94.71, 99.69, 105.92, 112.15, 118.38],  # 一段伤害
             2: [43.38, 46.63, 49.88, 54.22, 57.47, 60.73, 65.06, 69.4, 73.74, 78.08, 82.41, 86.75, 92.17, 97.59, 103.02],  # 二段伤害
             3: [64.6, 69.45, 74.29, 80.75, 85.6, 90.44, 96.9, 103.36, 109.82, 116.28, 122.74, 129.2, 137.28, 145.35, 153.43]   # 三段伤害
@@ -29,7 +29,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
 
     def _apply_segment_effect(self, target):
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
             element=('冰', self.apply_infusion()),
             damageType=DamageType.NORMAL,
             name=f'普通攻击 第{self.current_segment+1}段'
@@ -54,7 +54,7 @@ class ChargedAttack(ChargedAttackSkill):
         # 命中帧和总帧数
         self.hit_frame = 67
         # 伤害倍率表(1-15级)
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             100.51, 108.05, 115.59, 125.64, 133.18, 140.72, 
             150.77, 160.82, 170.87, 180.92, 190.97, 201.02, 
             213.59, 226.15, 238.72
@@ -77,7 +77,7 @@ class ChargedAttack(ChargedAttackSkill):
         if current_time - self.last_arkhe_time >= self.arkhe_cooldown:
             self.last_arkhe_time = current_time
             arkhe_damage = Damage(
-                damageMultipiler=self.arkhe_damage_multipliers[self.lv-1],
+                damageMultiplier=self.arkhe_damage_multipliers[self.lv-1],
                 element=('冰', 1),
                 damageType=DamageType.CHARGED,
                 name='灵息之刺'

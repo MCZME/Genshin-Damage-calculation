@@ -15,7 +15,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
         Infusion.__init__(self)
         self.segment_frames = [23, 22, 33, 52]
         self.end_action_frame = 31
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [40.3, 43.33, 46.35, 50.38, 53.4, 56.43, 60.46, 64.49, 68.52, 72.55, 76.58, 80.61, 85.65, 90.69, 95.72],
             2: [36.97, 39.75, 42.52, 46.22, 48.99, 51.76, 55.46, 59.16, 62.86, 66.55, 70.25, 73.95, 78.57, 83.19, 87.81],
             3: [45.87, 49.32, 52.76, 57.34, 60.78, 64.22, 68.81, 73.4, 77.99, 82.57, 87.16, 91.75, 97.48, 103.22, 108.95],
@@ -24,7 +24,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
 
     def _apply_segment_effect(self, target):
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
             element=('草', self.apply_infusion()),
             damageType=DamageType.NORMAL,
             name=f'普通攻击 第{self.current_segment+1}段'
@@ -47,7 +47,7 @@ class ChargedAttack(ChargedAttackSkill):
         super().__init__(lv, total_frames, cd)
         self.hit_frame = 65
         self.element = ('草', 1)
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             132, 141.9, 151.8, 165, 174.9, 184.8, 198, 
             211.2, 224.4, 237.6, 250.8, 264, 280.5, 297, 313.5
         ]
@@ -147,7 +147,7 @@ class ElementalSkill(SkillBase):
             '长按': [32, 58] 
         }
         
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '点按': [98.4, 105.78, 113.16, 123, 130.38, 137.76, 147.6, 157.44, 
                    167.28, 177.12, 186.96, 196.8, 209.1, 221.4, 233.7],
             '长按': [130.4, 140.18, 149.96, 163, 172.78, 182.56, 195.6, 208.64,
@@ -175,7 +175,7 @@ class ElementalSkill(SkillBase):
         mode = '长按' if self.hold else '点按'
         if self.current_frame == self.skill_frames[mode][0]:
             damage = Damage(
-                self.damageMultipiler[mode][self.lv-1],
+                self.damageMultiplier[mode][self.lv-1],
                 element=('草', 1),
                 damageType=DamageType.SKILL,
                 name='所闻遍计·' + mode

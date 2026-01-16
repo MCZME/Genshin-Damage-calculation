@@ -60,7 +60,7 @@ class ElementalSkill(SkillBase):
             element=('火', 1),
             interruptible=False,
         )
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             111.28, 119.63, 127.97, 139.1, 147.45, 155.79, 166.92, 178.05, 189.18, 200.3, 211.43, 222.56, 236.47, 250.38, 264.29
         ]
         self.summon_frame = 40  # 召唤锅巴的帧数（第40帧）
@@ -68,7 +68,7 @@ class ElementalSkill(SkillBase):
     def on_frame_update(self, target):
         if self.current_frame == self.summon_frame:
             damage = Damage(
-                self.damageMultipiler[self.lv-1],
+                self.damageMultiplier[self.lv-1],
                 element=('火', 1),
                 damageType=DamageType.SKILL,
                 name='锅巴出击'
@@ -134,7 +134,7 @@ class ElementalBurst(EnergySkill):
             caster=caster
         )
         self.cd_frame = 19
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '一段挥舞': [72, 77.4, 82.8, 90, 95.4, 100.8, 108, 115.2, 122.4, 129.6, 136.8, 144, 153, 162, 171],
             '二段挥舞': [88, 94.6, 101.2, 110, 116.6, 123.2, 132, 140.8, 149.6, 158.4, 167.2, 176, 187, 198, 209],
             '三段挥舞': [109.6, 117.82, 126.04, 137, 145.22, 153.44, 164.4, 175.36, 186.32, 197.28, 208.24, 219.2, 232.9, 246.6, 260.3],
@@ -148,7 +148,7 @@ class ElementalBurst(EnergySkill):
             swing_index = self.swing_frames.index(self.current_frame)
             damage_type = ['一段挥舞', '二段挥舞', '三段挥舞'][swing_index]
             damage = Damage(
-                self.damageMultipiler[damage_type][self.lv-1],
+                self.damageMultiplier[damage_type][self.lv-1],
                 element=('火', 2),
                 damageType=DamageType.BURST,
                 name=f'{self.name} {damage_type}'
@@ -160,7 +160,7 @@ class ElementalBurst(EnergySkill):
         if self.current_frame == 56:
             pyronado = PyronadoObject(
                 caster=self.caster,
-                damage_multiplier=self.damageMultipiler['旋火轮'],
+                damage_multiplier=self.damageMultiplier['旋火轮'],
                 lv=self.lv
             )
             pyronado.apply()

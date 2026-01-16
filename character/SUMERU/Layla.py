@@ -15,7 +15,7 @@ class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):
         super().__init__(lv)
         # 三段攻击的伤害倍率 (1-15级)
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [51.22, 55.39, 59.56, 65.51, 69.68, 74.44, 80.99, 87.55, 94.1, 101.24, 108.39, 115.54, 122.68, 129.83, 136.98],
             2: [48.48, 52.43, 56.38, 62.01, 65.96, 70.47, 76.67, 82.87, 89.07, 95.84, 102.6, 109.37, 116.13, 122.9, 129.66],
             3: [72.97, 78.91, 84.85, 93.34, 99.28, 106.07, 115.4, 124.73, 134.07, 144.25, 154.43, 164.61, 174.8, 184.98, 195.16]
@@ -29,7 +29,7 @@ class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv):
         super().__init__(lv, total_frames=34)
         # 两段重击的伤害倍率 (1-15级)
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             [47.73, 51.62, 55.5, 61.05, 64.94, 69.38, 75.48, 81.59, 87.69, 94.35, 101.01, 107.67, 114.33, 120.99, 127.65],  # 第一段
             [52.55, 56.82, 61.1, 67.21, 71.49, 76.38, 83.1, 89.82, 96.54, 103.87, 111.2, 118.53, 125.87, 133.2, 140.53]   # 第二段
         ]
@@ -45,7 +45,7 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.hit_frames.index(self.current_frame)][self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.hit_frames.index(self.current_frame)][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
             name=f'重击-'+str(self.hit_frames.index(self.current_frame)+1),
@@ -71,7 +71,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
         self.last_night_stars_time = 0
         self.active_night_stars = False
         self.active_frame = 0
-        self.damageMultipiler = [14.72, 15.82, 16.93, 18.4, 19.5, 20.61, 22.08, 23.55, 25.02, 
+        self.damageMultiplier = [14.72, 15.82, 16.93, 18.4, 19.5, 20.61, 22.08, 23.55, 25.02, 
                                  26.5, 27.97, 29.44, 31.28, 33.12, 34.96, ]
         
         if self.character.constellation >= 6:
@@ -140,7 +140,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
             self.active_frame = self.current_frame
             self.night_stars -= 1
             damage = Damage(
-                self.damageMultipiler[self.character.Skill.lv-1],
+                self.damageMultiplier[self.character.Skill.lv-1],
                 ('冰',self.apply_infusion()),
                 DamageType.SKILL,
                 '晚星'
@@ -162,7 +162,7 @@ class ElementalSkill(SkillBase):
     def __init__(self, lv):
         super().__init__("垂裳端凝之夜", total_frames=41, cd=12*60, lv=lv, element=("冰",1))
         # 技能伤害倍率 (1-15级)
-        self.damageMultipiler = [12.8, 13.76, 14.72, 16, 16.96, 17.92, 19.2, 20.48, 21.76, 23.04, 24.32, 25.6, 27.2, 28.8, 30.4]
+        self.damageMultiplier = [12.8, 13.76, 14.72, 16, 16.96, 17.92, 19.2, 20.48, 21.76, 23.04, 24.32, 25.6, 27.2, 28.8, 30.4]
         # 护盾基础吸收量 (1-15级) [生命值%, 固定值]
         self.shield_values = [
             [10.8, 1040.01], [11.61, 1144.02], [12.42, 1256.71], [13.5, 1378.06], 
@@ -177,7 +177,7 @@ class ElementalSkill(SkillBase):
         if self.current_frame == self.hit_frame:
             # 造成伤害
             damage = Damage(
-                self.damageMultipiler[self.lv-1],
+                self.damageMultiplier[self.lv-1],
                 self.element,
                 DamageType.SKILL,
                 '垂裳端凝之夜'

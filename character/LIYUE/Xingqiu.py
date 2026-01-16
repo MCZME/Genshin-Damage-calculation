@@ -16,7 +16,7 @@ class NormalAttack(NormalAttackSkill):
         self.segment_frames = [10,22,25,29,39]
         self.end_action_frame = 37
         
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1: [46.61, 50.41, 54.2, 59.62, 63.41, 67.75, 73.71, 79.67, 85.64, 92.14, 99.59, 108.36, 117.12, 125.88, 135.45],
             2: [47.64, 51.52, 55.4, 60.94, 64.82, 69.25, 75.34, 81.44, 87.53, 94.18, 101.8, 110.76, 119.71, 128.67, 138.44],
             3: [28.55, 30.88, 33.2, 36.52, 38.84, 41.5, 45.15, 48.8, 52.46, 56.44, 61.01, 66.37, 71.74, 77.11, 82.97],  # 每击两次
@@ -28,7 +28,7 @@ class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=32, cd=0):
         super().__init__(lv, total_frames, cd)
         self.hit_frames = [8, 20]  
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             [47.3, 51.15, 55.0, 60.5, 64.35, 68.75, 74.8, 80.85, 86.9, 93.5, 101.06, 109.96, 118.85, 127.74, 137.45],  # 第一段
             [56.16, 60.73, 65.3, 71.83, 76.4, 81.63, 88.81, 95.99, 103.17, 111.01, 119.99, 130.55, 141.11, 151.67, 163.18]  # 第二段
         ]
@@ -45,7 +45,7 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[segment][self.lv-1],
+            damageMultiplier=self.damageMultiplier[segment][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
             name=f'重击第{segment+1}段'
@@ -93,7 +93,7 @@ class ElementalSkill(SkillBase):
         self.hit_frames = [12, 31]
         self.cd_frame = 12
         
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             [168, 180.6, 193.2, 210, 222.6, 235.2, 252, 268.8, 285.6, 302.4, 319.2, 336, 357, 378, 399],  # 第一段
             [191.2, 205.54, 219.88, 239, 253.34, 267.68, 286.8, 305.92, 325.04, 344.16, 363.28, 382.4, 406.3, 430.2, 454.1]  # 第二段
         ]
@@ -114,7 +114,7 @@ class ElementalSkill(SkillBase):
     def _apply_damage(self, target, segment):
         """应用技能伤害"""
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[segment][self.lv-1],
+            damageMultiplier=self.damageMultiplier[segment][self.lv-1],
             element=self.element,
             damageType=DamageType.SKILL,
             name=f'古华剑·画雨笼山第{segment+1}段'
@@ -135,7 +135,7 @@ class RainSwordStanceObject(baseObject,EventHandler,Infusion):
         self.last_attach_time = -2*60
         self.last_attack_time = -50
         self.attack_interval = 1*60
-        self.damageMultipiler = [
+        self.damageMultiplier = [
             54.27, 58.34, 62.41, 67.84, 71.91, 75.98, 81.41, 86.84, 92.26, 97.69, 
             103.12, 108.54, 115.33, 122.11, 128.9
         ]
@@ -163,7 +163,7 @@ class RainSwordStanceObject(baseObject,EventHandler,Infusion):
                 self.last_attack_time = current_time
                 for _ in range(self.sequence_n[self.sequence_pos_n]):
                     damage = Damage(
-                        self.damageMultipiler[self.lv-1],
+                        self.damageMultiplier[self.lv-1],
                         ('水', self.apply_infusion()),
                         DamageType.BURST,
                         '虹剑势·剑雨'

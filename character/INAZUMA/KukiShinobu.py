@@ -28,7 +28,7 @@ class ChargedAttack(ChargedAttackSkill):
         self.hit_frame = [14, 25]
         self.total_frames = 35
         
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1:[55.63, 60.16, 64.69, 71.16, 75.69, 80.86, 87.98, 95.09, 102.21, 109.97, 117.74, 125.5, 133.26, 141.02, 148.79],
             2:[66.77, 72.2, 77.63, 85.4, 90.83, 97.04, 105.58, 114.12, 122.66, 131.98, 141.29, 150.61, 159.93, 169.24, 178.56]
         }
@@ -43,7 +43,7 @@ class ChargedAttack(ChargedAttackSkill):
         EventBus.publish(event)
 
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[i+1][self.lv-1],
+            damageMultiplier=self.damageMultiplier[i+1][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
             name=f'重击'
@@ -88,7 +88,7 @@ class SanctifyingRingObject(baseObject):
     def _apply_effect(self, target):
         # 造成伤害
         damage = Damage(
-            damageMultipiler=self.damage_values[self.skill_lv-1],
+            damageMultiplier=self.damage_values[self.skill_lv-1],
             element=('雷', 1),
             damageType=DamageType.SKILL,
             name='越祓草轮伤害'
@@ -134,14 +134,14 @@ class ElementalSkill(SkillBase):
             interruptible=False
         )
         self.hit_frame = 11 
-        self.damageMultipiler = [75.71, 81.39, 87.07, 94.64, 100.32, 106, 113.57, 121.14, 
+        self.damageMultiplier = [75.71, 81.39, 87.07, 94.64, 100.32, 106, 113.57, 121.14, 
                               128.71, 136.28, 143.85, 151.42, 160.89, 170.35, 179.82]
         self.cd_frame = 7
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
             damage = Damage(
-                damageMultipiler=self.damageMultipiler[self.lv-1],
+                damageMultiplier=self.damageMultiplier[self.lv-1],
                 element=('雷', 1),
                 damageType=DamageType.SKILL,
                 name='越祓雷草之轮'
@@ -190,7 +190,7 @@ class PurificationFieldObject(baseObject):
         hp_multiplier, base_damage = self.damage_multipliers[self.skill_lv-1]
         
         damage = Damage(
-            damageMultipiler=hp_multiplier,
+            damageMultiplier=hp_multiplier,
             element=('雷', 1),
             damageType=DamageType.BURST,
             name='御咏鸣神刈山祭'

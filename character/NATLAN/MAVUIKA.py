@@ -28,7 +28,7 @@ class RingOfSearingRadianceObject(baseObject):
                 return 
             self.character.consume_night_soul(3)
             damage = Damage(
-                damageMultipiler=self.damage_multiplier[self.character.Skill.lv-1], 
+                damageMultiplier=self.damage_multiplier[self.character.Skill.lv-1], 
                 element=('火',1),
                 damageType=DamageType.SKILL,
                 name='焚曜之环'
@@ -48,7 +48,7 @@ class ElementalSkill(SkillBase, EventHandler):
         super().__init__(name="诸火武装", total_frames=15, cd=15*60, lv=lv, 
                         element=('火', 1), interruptible=False)
         
-        self.damageMultipiler ={'伤害':[74.4, 79.98, 85.56, 93, 98.58, 104.16, 111.6, 119.04, 
+        self.damageMultiplier ={'伤害':[74.4, 79.98, 85.56, 93, 98.58, 104.16, 111.6, 119.04, 
                                       126.48, 133.92, 141.36, 148.8, 158.1, 167.4, 176.7, ]}
 
         EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
@@ -71,7 +71,7 @@ class ElementalSkill(SkillBase, EventHandler):
 
     def on_frame_update(self, target):
         if self.current_frame == 7:
-            damage = Damage(damageMultipiler=self.damageMultipiler['伤害'][self.lv-1], 
+            damage = Damage(damageMultiplier=self.damageMultiplier['伤害'][self.lv-1], 
                             element=('火',1), 
                             damageType=DamageType.SKILL,
                             name=self.name)
@@ -140,11 +140,11 @@ class FurnaceEffect(Effect, EventHandler):
             if event.data['character'] == self.character and self.character.mode == '驰轮车':
                 damage = event.data['damage']
                 if damage.damageType == DamageType.NORMAL:
-                    normal_bonus = self.character.Burst.damageMultipiler['驰轮车普通攻击伤害提升'][self.character.Burst.lv-1]
+                    normal_bonus = self.character.Burst.damageMultiplier['驰轮车普通攻击伤害提升'][self.character.Burst.lv-1]
                     damage.panel['伤害倍率'] += self.consumed_will * normal_bonus
                     damage.setDamageData('死生之炉提升', self.consumed_will * normal_bonus)
                 elif damage.damageType == DamageType.CHARGED:
-                    heavy_bonus = self.character.Burst.damageMultipiler['驰轮车重击伤害提升'][self.character.Burst.lv-1]
+                    heavy_bonus = self.character.Burst.damageMultiplier['驰轮车重击伤害提升'][self.character.Burst.lv-1]
                     damage.panel['伤害倍率'] += self.consumed_will * heavy_bonus
                     damage.setDamageData('死生之炉提升', self.consumed_will * heavy_bonus)
 
@@ -152,7 +152,7 @@ class ElementalBurst(SkillBase, EventHandler):
     def __init__(self, lv, caster=None):
         super().__init__(name="燔天之时", total_frames=141, cd=18*60, lv=lv, caster=caster,
                         element=('火', 1))
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '坠日斩':[444.8, 478.16, 511.52, 556, 589.36, 622.72, 667.2, 711.68, 
                    756.16, 800.64, 845.12, 889.6, 945.2, 1000.8, 1056.4, ],
             '坠日斩伤害提升':[1.6,1.72,1.84,2,2.12,2.24,2.4,2.56,2.72,2.88,3.04,3.2,3.4,3.6,3.8],
@@ -188,10 +188,10 @@ class ElementalBurst(SkillBase, EventHandler):
 
     # 坠日斩
     def _perform_plunge_attack(self,target):
-        damage = Damage(damageMultipiler=self.damageMultipiler['坠日斩'][self.lv-1]+self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1],
+        damage = Damage(damageMultiplier=self.damageMultiplier['坠日斩'][self.lv-1]+self.consumed_will*self.damageMultiplier['坠日斩伤害提升'][self.lv-1],
                         element=('火',1), damageType=DamageType.BURST,
                         name="坠日斩")
-        damage.setDamageData('死生之炉提升', self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1])
+        damage.setDamageData('死生之炉提升', self.consumed_will*self.damageMultiplier['坠日斩伤害提升'][self.lv-1])
         damage.setDamageData('夜魂伤害', True)
         damage.setDamageData('不可覆盖', True)
         damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())

@@ -15,7 +15,7 @@ class VaresaNormalAttack(NormalAttackSkill,Infusion):
 
         self.normal_segment_frames = [30, 28, 58]  # 普通攻击的帧数
         
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1:[46.78, 50.29, 53.8, 58.47, 61.98, 65.49, 70.17, 74.85, 79.52, 84.2, 88.88, 93.56, 99.4, 105.25, 111.1, ],
             2:[40.03, 43.03, 46.03, 50.03, 53.04, 56.04, 60.04, 64.04, 68.05, 72.05, 76.05, 80.06, 85.06, 90.06, 95.07, ],
             3:[56.31, 60.54, 64.76, 70.39, 74.61, 78.84, 84.47, 90.1, 95.73, 101.36, 106.99, 112.63, 119.66, 126.7, 133.74, ],
@@ -38,10 +38,10 @@ class VaresaNormalAttack(NormalAttackSkill,Infusion):
         passion_effect = next((e for e in caster.active_effects if isinstance(e, PassionEffect)), None)
         if passion_effect:
             self.segment_frames = self.passion_segment_frames
-            self.damageMultipiler = self.passionMultipiler
+            self.damageMultiplier = self.passionMultipiler
         else:
             self.segment_frames = self.normal_segment_frames
-            self.damageMultipiler = self.damageMultipiler
+            self.damageMultiplier = self.damageMultiplier
             
         if not super().start(caster,n):
             return False
@@ -51,14 +51,14 @@ class VaresaNormalAttack(NormalAttackSkill,Infusion):
         passion_effect = next((e for e in self.caster.active_effects if isinstance(e, PassionEffect)), None)
         if passion_effect:
             damage = Damage(
-                damageMultipiler=self.passionMultipiler[self.current_segment+1][self.lv-1],
+                damageMultiplier=self.passionMultipiler[self.current_segment+1][self.lv-1],
                 element=('雷', self.apply_infusion()),
                 damageType=DamageType.NORMAL,
                 name=f'炽热激情·{self.name} 第{self.current_segment+1}段'
             )
         else:
             damage = Damage(
-                damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+                damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
                 element=('雷', self.apply_infusion()),
                 damageType=DamageType.NORMAL,
                 name=f'{self.name} 第{self.current_segment+1}段'
@@ -83,7 +83,7 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
 
         self.normal_hit_frame = 38
         self.normal_total_frames = 68
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             '下坠期间伤害': [74.59, 80.66, 86.73, 95.4, 101.47, 108.41, 117.95, 127.49, 137.03, 147.44, 157.85, 168.26, 178.66, 189.07, 199.48],
             '低空坠地冲击伤害': [149.14, 161.28, 173.42, 190.77, 202.91, 216.78, 235.86, 254.93, 274.01, 294.82, 315.63, 336.44, 357.25, 378.06, 398.87],
             '高空坠地冲击伤害': [186.29, 201.45, 216.62, 238.28, 253.44, 270.77, 294.6, 318.42, 342.25, 368.25, 394.24, 420.23, 446.23, 472.22, 498.21]
@@ -107,11 +107,11 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
         if passion_effect:
             self.hit_frame = self.passion_hit_frame
             self.total_frames = self.passion_total_frames
-            self.damageMultipiler = self.passionMultipiler
+            self.damageMultiplier = self.passionMultipiler
         else:
             self.hit_frame = self.normal_hit_frame
             self.total_frames = self.normal_total_frames
-            self.damageMultipiler = self.damageMultipiler
+            self.damageMultiplier = self.damageMultiplier
             
         self.height_type = '高空' if is_high else '低空'
         event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
@@ -128,7 +128,7 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             base_damage = self.passionMultipiler[damage_type_key][clamped_lv]
 
         else:
-            base_damage = self.damageMultipiler[damage_type_key][clamped_lv]
+            base_damage = self.damageMultiplier[damage_type_key][clamped_lv]
 
         # 检查虹色坠击效果
         rainbow_effect = next((e for e in self.caster.active_effects if isinstance(e, RainbowPlungeEffect)), None)
@@ -164,7 +164,7 @@ class VaresaChargedAttack(ChargedAttackSkill):
         self.element = ('雷', 1)  # 雷元素伤害
         self.normal_hit_frame = 54
         self.normal_total_frames=self.normal_hit_frame+40
-        self.damageMultipiler = [89.28, 95.98, 102.67, 111.6, 118.3, 124.99, 133.92, 142.85, 151.78,
+        self.damageMultiplier = [89.28, 95.98, 102.67, 111.6, 118.3, 124.99, 133.92, 142.85, 151.78,
                                   160.7, 169.63, 178.56, 189.72, 200.88, 212.04, ]
         
         self.passion_hit_frame = 42
@@ -181,11 +181,11 @@ class VaresaChargedAttack(ChargedAttackSkill):
         if passion_effect:
             self.hit_frame = self.passion_hit_frame
             self.total_frames = self.passion_total_frames
-            self.damageMultipiler = self.passionMultipiler
+            self.damageMultiplier = self.passionMultipiler
         else:
             self.hit_frame = self.normal_hit_frame
             self.total_frames = self.normal_total_frames
-            self.damageMultipiler = self.damageMultipiler
+            self.damageMultiplier = self.damageMultiplier
         chase_effect = next((e for e in self.caster.active_effects if isinstance(e, ChaseEffect)), None)
         if chase_effect:
             self.hit_frame = 14

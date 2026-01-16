@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Dict, List
+from abc import ABC, abstractmethod
+from enum import Enum, auto
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 from core.dataHandler.DataHandler import send_to_handler
 
@@ -109,18 +111,18 @@ class EventType(Enum):
 # 事件类
 # --------------------------
 class GameEvent:
-    def __init__(self, event_type: EventType, frame, **kwargs):
-        self.event_type = event_type
-        self.frame = frame
-        self.data = kwargs        # 扩展数据
-        self.cancelled = False    # 是否取消事件
+    def __init__(self, event_type: EventType, frame: int, **kwargs: Any) -> None:
+        self.event_type: EventType = event_type
+        self.frame: int = frame
+        self.data: Dict[str, Any] = kwargs        # 扩展数据
+        self.cancelled: bool = False    # 是否取消事件
 
 class FrameEndEvent(GameEvent):
-    def __init__(self, frame):
+    def __init__(self, frame: int) -> None:
         super().__init__(EventType.FRAME_END, frame)
 
 class DamageEvent(GameEvent):
-    def __init__(self, source, target, damage, frame, before=True, **kwargs):
+    def __init__(self, source: Any, target: Any, damage: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             damage.setSource(source)
             damage.setTarget(target)
@@ -131,7 +133,7 @@ class DamageEvent(GameEvent):
                                              'damage':damage}})
 
 class CharacterSwitchEvent(GameEvent):
-    def __init__(self, old_character, new_character, frame, before=True, **kwargs):
+    def __init__(self, old_character: Any, new_character: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
         else:
@@ -142,7 +144,7 @@ class CharacterSwitchEvent(GameEvent):
                                      'new_character':new_character}})
 
 class NightSoulBlessingEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
         else:
@@ -151,7 +153,7 @@ class NightSoulBlessingEvent(GameEvent):
                                              'character':character}})
 
 class NormalAttackEvent(GameEvent):
-    def __init__(self, character, frame, segment, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, segment: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_NORMAL_ATTACK, frame=frame, segment=segment, character=character, **kwargs)
         else:
@@ -161,7 +163,7 @@ class NormalAttackEvent(GameEvent):
                                              'segment':segment}})
 
 class ChargedAttackEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
         else:
@@ -170,7 +172,7 @@ class ChargedAttackEvent(GameEvent):
                                              'character':character}})
 
 class PlungingAttackEvent(GameEvent):
-    def __init__(self, character, frame, is_plunging_impact=True, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, is_plunging_impact: bool = True, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
         else:
@@ -181,7 +183,7 @@ class PlungingAttackEvent(GameEvent):
                                              }})
 
 class NightSoulChangeEvent(GameEvent):
-    def __init__(self, character, amount, frame, before=True, **kwargs):
+    def __init__(self, character: Any, amount: float, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
@@ -191,7 +193,7 @@ class NightSoulChangeEvent(GameEvent):
                                      'amount':amount}}) 
 
 class ElementalBurstEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_BURST, frame=frame, character=character, **kwargs)
         else:
@@ -200,7 +202,7 @@ class ElementalBurstEvent(GameEvent):
                                      'character':character}})
 
 class ElementalSkillEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
+    def __init__(self, character: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_SKILL, frame=frame, character=character, **kwargs)
         else:
@@ -209,7 +211,7 @@ class ElementalSkillEvent(GameEvent):
                                      'character':character}})
 
 class HealChargeEvent(GameEvent):
-    def __init__(self, character, amount, frame, before=True, **kwargs):
+    def __init__(self, character: Any, amount: float, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
         else:
@@ -219,7 +221,7 @@ class HealChargeEvent(GameEvent):
                                      'amount':amount}})
 
 class ElementalReactionEvent(GameEvent):
-    def __init__(self,elementalReaction, frame, before=True, **kwargs):
+    def __init__(self, elementalReaction: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_ELEMENTAL_REACTION, frame=frame, elementalReaction=elementalReaction, **kwargs)
         else:
@@ -228,7 +230,7 @@ class ElementalReactionEvent(GameEvent):
                                      'elementalReaction':elementalReaction}})
 
 class HealEvent(GameEvent):
-    def __init__(self, source, target, healing, frame, before=True, **kwargs):
+    def __init__(self, source: Any, target: Any, healing: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             healing.set_source(source)
             healing.set_target(target)
@@ -239,7 +241,7 @@ class HealEvent(GameEvent):
                                              'healing':healing,}})
 
 class HurtEvent(GameEvent):
-    def __init__(self, source, target, amount, frame, before=True, **kwargs):
+    def __init__(self, source: Any, target: Any, amount: float, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_HURT, frame=frame, character=source, target=target, amount=amount, **kwargs)
         else:
@@ -250,7 +252,7 @@ class HurtEvent(GameEvent):
                                              'amount':amount,}})
 
 class ShieldEvent(GameEvent):
-    def __init__(self, source, shield, frame, before=True, **kwargs):
+    def __init__(self, source: Any, shield: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
         else:
@@ -260,7 +262,7 @@ class ShieldEvent(GameEvent):
                                              'shield':shield,}})
 
 class EnergyChargeEvent(GameEvent):
-    def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):
+    def __init__(self, character: Any, amount: float, frame: int, is_fixed: bool = False, is_alone: bool = False, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone,amount=amount, is_fixed=is_fixed, **kwargs)
         else:
@@ -272,7 +274,7 @@ class EnergyChargeEvent(GameEvent):
                                      'is_alone':is_alone}})
             
 class ObjectEvent(GameEvent):
-    def __init__(self, object, frame, before=True,**kwargs):
+    def __init__(self, object: Any, frame: int, before: bool = True, **kwargs: Any) -> None:
         if before:
             super().__init__(EventType.OBJECT_CREATE, frame=frame, object=object, **kwargs)
             send_to_handler(frame, {'event':{'type':EventType.OBJECT_CREATE
@@ -285,7 +287,7 @@ class ObjectEvent(GameEvent):
 # 事件处理器接口
 class EventHandler(ABC):
     @abstractmethod
-    def handle_event(self, event: GameEvent):
+    def handle_event(self, event: GameEvent) -> None:
         pass
 
 # 事件总线
@@ -293,20 +295,20 @@ class EventBus:
     _handlers: Dict[EventType, List[EventHandler]] = {}
 
     @classmethod
-    def subscribe(cls, event_type: EventType, handler: EventHandler):
+    def subscribe(cls, event_type: EventType, handler: EventHandler) -> None:
         if event_type not in cls._handlers:
             cls._handlers[event_type] = []
         cls._handlers[event_type].append(handler)
 
     @classmethod
-    def unsubscribe(cls, event_type: EventType, handler: EventHandler):
+    def unsubscribe(cls, event_type: EventType, handler: EventHandler) -> None:
         if event_type in cls._handlers:
             cls._handlers[event_type].remove(handler)
             if not cls._handlers[event_type]:
                 del cls._handlers[event_type]
 
     @classmethod
-    def publish(cls, event: GameEvent):
+    def publish(cls, event: GameEvent) -> None:
         if event.event_type in cls._handlers.copy():
             for handler in cls._handlers[event.event_type]:
                 if event.cancelled:
@@ -314,5 +316,5 @@ class EventBus:
                 handler.handle_event(event)
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         cls._handlers.clear()

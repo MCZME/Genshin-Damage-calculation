@@ -16,7 +16,7 @@ class ArkheAttackHandler(EventHandler):
         super().__init__()
         self.character = character
         self.last_trigger_time = -360  # 初始值确保第一次攻击可以触发
-        self.damageMultipiler = [9.46, 10.23, 11, 12.1, 12.87, 13.75, 14.96, 
+        self.damageMultiplier = [9.46, 10.23, 11, 12.1, 12.87, 13.75, 14.96, 
                                  16.17, 17.38, 18.7, 20.02, 21.34, 22.66, 23.98, 25.3, ]
 
         EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
@@ -26,7 +26,7 @@ class ArkheAttackHandler(EventHandler):
             current_time = event.frame
             if current_time - self.last_trigger_time >= 360:
                 name = '流涌之刃' if self.character.arkhe == '荒性' else '灵息之刺'
-                damage = Damage(self.damageMultipiler[self.character.NormalAttack.lv - 1],
+                damage = Damage(self.damageMultiplier[self.character.NormalAttack.lv - 1],
                                 ('水',0),
                                 DamageType.NORMAL,
                                 name)
@@ -54,7 +54,7 @@ class SalonMember(baseObject,EventHandler):
     
     def on_frame_update(self, target):
         if self.current_frame - self.last_attack_time >= self.attack_interval:
-            damage = Damage(self.damageMultipiler[self.character.Skill.lv - 1],
+            damage = Damage(self.damageMultiplier[self.character.Skill.lv - 1],
                             ('水',1),
                             DamageType.SKILL,
                             self.name)
@@ -93,7 +93,7 @@ class Usher(SalonMember):
     def __init__(self, character, life_frame=0):
         super().__init__(character, "乌瑟勋爵", life_frame)
         self.character = character
-        self.damageMultipiler = [5.96, 6.41, 6.85, 7.45, 7.9, 8.34, 8.94, 9.54, 10.13, 10.73, 11.32, 11.92, 12.67, 13.41, 14.16]
+        self.damageMultiplier = [5.96, 6.41, 6.85, 7.45, 7.9, 8.34, 8.94, 9.54, 10.13, 10.73, 11.32, 11.92, 12.67, 13.41, 14.16]
 
     def apply(self):
         super().apply()

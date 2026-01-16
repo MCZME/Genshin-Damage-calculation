@@ -16,7 +16,7 @@ class NormalAttack(NormalAttackSkill,Infusion):
         Infusion.__init__(self)
         self.segment_frames = [22,32,80]
         self.end_action_frame = 20
-        self.damageMultipiler = {
+        self.damageMultiplier = {
             1:[43.41, 46.66, 49.92, 54.26, 57.51, 60.77, 65.11, 69.45, 73.79, 78.13, 82.47, 86.81, 92.24, 97.67, 103.09, ],
             2:[38.81, 41.72, 44.64, 48.52, 51.43, 54.34, 58.22, 62.1, 65.98, 69.86, 73.75, 77.63, 82.48, 87.33, 92.18, ],
             3:[53.77, 57.8, 61.84, 67.21, 71.25, 75.28, 80.66, 86.03, 91.41, 96.79, 102.17, 107.54, 114.26, 120.99, 127.71, ],
@@ -24,7 +24,7 @@ class NormalAttack(NormalAttackSkill,Infusion):
 
     def _apply_segment_effect(self, target):
         damage = Damage(
-            damageMultipiler=self.damageMultipiler[self.current_segment+1][self.lv-1],
+            damageMultiplier=self.damageMultiplier[self.current_segment+1][self.lv-1],
             element=('冰', self.apply_infusion()),
             damageType=DamageType.NORMAL,
             name=f'普通攻击 第{self.current_segment+1}段'
@@ -150,7 +150,7 @@ class ElementalSkill(SkillBase):
         )
         self.hit_frame = 29  # 伤害触发帧
         self.shield_frame = 29+25  # 护盾触发帧
-        self.damageMultipiler = [72.96, 78.43, 83.9, 91.2, 96.67, 102.14, 109.44, 
+        self.damageMultiplier = [72.96, 78.43, 83.9, 91.2, 96.67, 102.14, 109.44, 
                                 116.74, 124.03, 131.33, 138.62, 145.92, 155.04, 164.16, 173.28]
         self.shield_base = [1386.68, 1525.36, 1675.61, 1837.41, 2010.77, 2195.68, 
                           2392.16, 2600.19, 2819.77, 3050.92, 3293.62, 3547.88, 3813.7, 4091.07, 4380]
@@ -170,7 +170,7 @@ class ElementalSkill(SkillBase):
             izpapalotl.apply()
             # 造成冰元素范围伤害
             damage = Damage(
-                self.damageMultipiler[self.lv-1],
+                self.damageMultiplier[self.lv-1],
                 self.element,
                 DamageType.SKILL,
                 '霜昼黑星'
