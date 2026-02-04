@@ -1,7 +1,7 @@
 __pycache__
 genshin_damage_calculation/
 driver
-data/
+/data
 .vscode/
 .vosode
 DataRequest.py
