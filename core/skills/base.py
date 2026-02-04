@@ -52,9 +52,18 @@ class SkillBase(ABC):
         return False
 
     @abstractmethod
-    def on_frame_update(self, target): pass
-    
-    def on_finish(self): 
+    def on_frame_update(self, target: Any):
+        """ASM 每一帧的回调"""
+        pass
+
+    def on_execute_hit(self, target: Any, hit_index: int):
+        """
+        当 ASM 推进到伤害判定点时触发的回调。
+        由具体的子类（如 GenericSkill）实现伤害发布。
+        """
+        pass
+
+    def on_finish(self):
         self.current_frame = 0
 
     def on_interrupt(self): 

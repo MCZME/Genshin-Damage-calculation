@@ -88,9 +88,14 @@ class ActionManager:
         # TODO: 集成资源消耗逻辑
 
     def _trigger_hit(self):
-        # 发布命中相关的事件
-        # 这里的具体伤害数据需要与 Skill 系统对接
-        get_emulation_logger().log("ASM", f"{self.character.name} 动作 {self.current_action.data.name} 触发命中点")
+        """
+        触发命中点逻辑。
+        """
+        instance = self.current_action
+        if instance.skill_obj and hasattr(instance.skill_obj, 'on_execute_hit'):
+            # 计算当前命中的索引 (total - remaining)
+            hit_idx = len(instance.data.hit_frames) - len(instance.hit_frames_pending) - 1
+            instance.skill_obj.on_execute_hit(self.ctx.target, hit_idx)
 
     def _can_cancel_current(self, next_action_name: str) -> bool:
         if not self.current_action:

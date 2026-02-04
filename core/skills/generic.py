@@ -52,11 +52,15 @@ class GenericSkill(SkillBase):
     def on_frame_update(self, target: Any):
         """
         ASM 每一帧的回调逻辑。
-        检查当前帧是否为伤害判定点。
+        目前通用逻辑已由 ASM 处理命中检查，此处可留空或处理持续性效果。
         """
-        if self.current_frame in self.hit_frames:
-            hit_index = self.hit_frames.index(self.current_frame)
-            self._apply_damage(target, hit_index)
+        pass
+
+    def on_execute_hit(self, target: Any, hit_index: int):
+        """
+        当 ASM 命中点触发时的标准回调。
+        """
+        self._apply_damage(target, hit_index)
 
     def _apply_damage(self, target: Any, hit_index: int):
         """执行具体的伤害发布逻辑"""
