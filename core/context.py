@@ -117,14 +117,18 @@ def create_context() -> SimulationContext:
     from core.systems.shield_system import ShieldSystem
     from core.systems.energy_system import EnergySystem
     from core.systems.natlan_system import NatlanSystem
+    from core.registry import initialize_registry
+    
+    # 1. 初始化注册表 (加载所有角色/武器类)
+    initialize_registry()
     
     ctx = SimulationContext()
     set_context(ctx)
     
-    # 初始化系统管理器
+    # 2. 初始化系统管理器
     ctx.system_manager = SystemManager(ctx)
     
-    # 自动装配核心系统
+    # 3. 自动装配核心系统
     ctx.system_manager.add_system(DamageSystem)
     ctx.system_manager.add_system(ReactionSystem)
     ctx.system_manager.add_system(HealthSystem)
