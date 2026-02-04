@@ -58,9 +58,10 @@ def discover_modules(package_name: str):
         try:
             importlib.import_module(module_name)
         except Exception as e:
-            # 这里记录错误但继续扫描，防止单个文件报错导致全盘失效
-            from core.logger import get_emulation_logger
-            get_emulation_logger().log_error(f"无法发现模块 {module_name}: {e}")
+            # 记录错误但不崩溃，允许渐进式重构。
+            # 大多数错误可能是因为引用了已删除的 CharacterState 或旧方法名。
+            from core.logger import get_ui_logger
+            get_ui_logger().log_info(f"跳过加载未重构的模块 {module_name}: {e}")
 
 def initialize_registry():
     """

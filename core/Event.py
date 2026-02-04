@@ -34,11 +34,9 @@ class EventType(Enum):
     BEFORE_FIXED_DAMAGE = auto()
     AFTER_FIXED_DAMAGE = auto()
 
-    # 元素反应 (通用)
+    # 元素反应
     BEFORE_ELEMENTAL_REACTION = auto()
     AFTER_ELEMENTAL_REACTION = auto()
-    
-    # 具体反应
     BEFORE_FREEZE = auto()
     AFTER_FREEZE = auto()
     BEFORE_QUICKEN = auto()
@@ -72,7 +70,7 @@ class EventType(Enum):
     BEFORE_BURGEON = auto()
     AFTER_BURGEON = auto()
 
-    # 生命与防御
+    # 生命、防御与状态
     BEFORE_HEALTH_CHANGE = auto()
     AFTER_HEALTH_CHANGE = auto()
     BEFORE_HEAL = auto()
@@ -86,7 +84,7 @@ class EventType(Enum):
     OBJECT_CREATE = auto()
     OBJECT_DESTROY = auto()
 
-    # 动作相关
+    # 动作与状态
     BEFORE_NORMAL_ATTACK = auto()
     AFTER_NORMAL_ATTACK = auto()
     BEFORE_CHARGED_ATTACK = auto()
@@ -104,7 +102,7 @@ class EventType(Enum):
     BEFORE_FALLING = auto()
     AFTER_FALLING = auto()
 
-    # 资源与系统
+    # 资源与纳塔机制
     BEFORE_ENERGY_CHANGE = auto()
     AFTER_ENERGY_CHANGE = auto()
     BEFORE_CHARACTER_SWITCH = auto()
@@ -122,7 +120,7 @@ class EventType(Enum):
 class GameEvent:
     event_type: EventType
     frame: int
-    source: Any = None # 事件产生的实体
+    source: Any = None
     cancelled: bool = False
     propagation_stopped: bool = False
     data: Dict[str, Any] = field(default_factory=dict)
@@ -134,27 +132,30 @@ class GameEvent:
         self.cancelled = True
 
 # --------------------------
-# 核心事件定义 (使用 Dataclass 替代 kwargs)
+# 结构化事件定义 (Dataclasses)
 # --------------------------
 
 @dataclass
 class DamageEvent(GameEvent):
     target: Any = None
     damage: Any = None
-    # 构造函数微调：兼容旧代码的 source, target, damage 传参
     def __post_init__(self):
-        self.data["character"] = self.source
-        self.data["target"] = self.target
-        self.data["damage"] = self.damage
+        # 保持与旧 System 的兼容性字段映射
+        self.data.update({"character": self.source, "target": self.target, "damage": self.damage})
 
 @dataclass
 class HealEvent(GameEvent):
     target: Any = None
     healing: Any = None
     def __post_init__(self):
-        self.data["character"] = self.source
-        self.data["target"] = self.target
-        self.data["healing"] = self.healing
+        self.data.update({"character": self.source, "target": self.target, "healing": self.healing})
+
+@dataclass
+class HealthChangeEvent(GameEvent):
+    """替代原 HealChargeEvent，统一处理 HP 增减"""
+    amount: float = 0.0
+    def __post_init__(self):
+        self.data.update({"character": self.source, "amount": self.amount})
 
 @dataclass
 class EnergyChargeEvent(GameEvent):
@@ -162,31 +163,48 @@ class EnergyChargeEvent(GameEvent):
     is_fixed: bool = False
     is_alone: bool = False
     def __post_init__(self):
-        self.data["character"] = self.source
-        self.data["amount"] = self.amount
-        self.data["is_fixed"] = self.is_fixed
-        self.data["is_alone"] = self.is_alone
+        self.data.update({"character": self.source, "amount": self.amount, "is_fixed": self.is_fixed, "is_alone": self.is_alone})
 
 @dataclass
 class CharacterSwitchEvent(GameEvent):
     old_character: Any = None
     new_character: Any = None
     def __post_init__(self):
-        self.data["old_character"] = self.old_character
-        self.data["new_character"] = self.new_character
+        self.data.update({"old_character": self.old_character, "new_character": self.new_character})
 
 @dataclass
 class ElementalReactionEvent(GameEvent):
     elemental_reaction: Any = None
     def __post_init__(self):
-        self.data["elementalReaction"] = self.elemental_reaction # 暂时保留旧 key 兼容 System
+        self.data["elementalReaction"] = self.elemental_reaction
 
-# 为了保持兼容性，后续几十个简单的 Event 类暂时使用 GameEvent 代理
-# 新架构下应鼓励直接使用 GameEvent(EventType.XXX, ...)
+@dataclass
+class HurtEvent(GameEvent):
+    target: Any = None
+    amount: float = 0.0
+    def __post_init__(self):
+        self.data.update({"character": self.source, "target": self.target, "amount": self.amount})
 
-class FrameEndEvent(GameEvent):
-    def __init__(self, frame):
-        super().__init__(EventType.FRAME_END, frame)
+@dataclass
+class ShieldEvent(GameEvent):
+    shield: Any = None
+    def __post_init__(self):
+        self.data.update({"character": self.source, "shield": self.shield})
+
+@dataclass
+class ActionEvent(GameEvent):
+    """通用动作事件 (普攻、技能、大招等)"""
+    action_name: str = ""
+    segment: int = 1
+    is_plunging_impact: bool = True
+    def __post_init__(self):
+        self.data.update({"character": self.source, "segment": self.segment, "is_plunging_impact": self.is_plunging_impact})
+
+@dataclass
+class ObjectEvent(GameEvent):
+    object: Any = None
+    def __post_init__(self):
+        self.data["object"] = self.object
 
 # --------------------------
 # 代理与接口
@@ -201,7 +219,7 @@ from core.context import get_context
 
 class EventBus:
     """
-    [Deprecated] 静态代理类。
+    [Deprecated] 仅作为 Context Engine 的静态代理。
     """
     @classmethod
     def subscribe(cls, event_type: EventType, handler: EventHandler):

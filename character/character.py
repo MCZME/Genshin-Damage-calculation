@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Union
 
 import core.tool as T
@@ -7,12 +8,13 @@ from core.action.action_manager import ActionManager
 from core.context import get_context
 from core.mechanics.aura import ElementalAura
 from core.event import (
-    ElementalBurstEvent,
-    ElementalSkillEvent,
+    ActionEvent,
+    DamageEvent,
     EventBus,
     EventType,
     GameEvent,
-    HealChargeEvent,
+    HealthChangeEvent,
+    HealEvent,
 )
 from core.logger import get_emulation_logger
 
@@ -84,11 +86,14 @@ class Character(ABC):
         self.weapon: Any = None
         self.artifact_manager: Any = None
 
-        # ASM 引擎初始化
+        # ASM 引擎与事件引擎初始化
         try:
             ctx = get_context()
+            self.event_engine = ctx.event_engine
         except RuntimeError:
             ctx = None
+            self.event_engine = None
+            
         self.action_manager = ActionManager(self, ctx)
 
         self._init_character()
@@ -117,24 +122,48 @@ class Character(ABC):
 
     def heal(self, amount: float) -> None:
         """接收治疗"""
-        event = HealChargeEvent(self, amount, T.GetCurrentTime())
+        event = HealthChangeEvent(
+            event_type=EventType.BEFORE_HEALTH_CHANGE,
+            frame=T.GetCurrentTime(),
+            source=self,
+            amount=amount
+        )
         EventBus.publish(event)
+        
         origin_hp = self.current_hp
-        self.current_hp = min(self.max_hp, self.current_hp + event.data["amount"])
-        after_event = HealChargeEvent(self, self.current_hp - origin_hp, T.GetCurrentTime(), before=False)
+        self.current_hp = min(self.max_hp, self.current_hp + event.amount)
+        
+        after_event = HealthChangeEvent(
+            event_type=EventType.AFTER_HEALTH_CHANGE,
+            frame=T.GetCurrentTime(),
+            source=self,
+            amount=self.current_hp - origin_hp
+        )
         EventBus.publish(after_event)
 
     def hurt(self, amount: float) -> None:
         """受到直接扣血"""
-        event = HealChargeEvent(self, -amount, T.GetCurrentTime())
+        event = HealthChangeEvent(
+            event_type=EventType.BEFORE_HEALTH_CHANGE,
+            frame=T.GetCurrentTime(),
+            source=self,
+            amount=-amount
+        )
         EventBus.publish(event)
+        
         origin_hp = self.current_hp
-        self.current_hp = max(0.0, self.current_hp + event.data["amount"])
-        after_event = HealChargeEvent(self, self.current_hp - origin_hp, T.GetCurrentTime(), before=False)
+        self.current_hp = max(0.0, self.current_hp + event.amount)
+        
+        after_event = HealthChangeEvent(
+            event_type=EventType.AFTER_HEALTH_CHANGE,
+            frame=T.GetCurrentTime(),
+            source=self,
+            amount=self.current_hp - origin_hp
+        )
         EventBus.publish(after_event)
 
     def _request_action(self, name: str, params: Any = None) -> bool:
-        """ASM 动作请求入口"""
+        """ASM 统一动作请求入口"""
         action_data = self._get_action_data(name, params)
         return self.action_manager.request_action(action_data)
 
@@ -171,11 +200,21 @@ class Character(ABC):
 
     def elemental_skill(self) -> None:
         if self._request_action("elemental_skill"):
-            EventBus.publish(ElementalSkillEvent(self, T.GetCurrentTime()))
+            EventBus.publish(ActionEvent(
+                event_type=EventType.BEFORE_SKILL,
+                frame=T.GetCurrentTime(),
+                source=self,
+                action_name="elemental_skill"
+            ))
 
     def elemental_burst(self) -> None:
         if self._request_action("elemental_burst"):
-            EventBus.publish(ElementalBurstEvent(self, T.GetCurrentTime()))
+            EventBus.publish(ActionEvent(
+                event_type=EventType.BEFORE_BURST,
+                frame=T.GetCurrentTime(),
+                source=self,
+                action_name="elemental_burst"
+            ))
 
     def apply_talents(self) -> None:
         """应用固有天赋与命座效果"""

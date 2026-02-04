@@ -84,8 +84,9 @@ class ActionManager:
         self.current_action = ActionInstance(data)
         get_emulation_logger().log("ASM", f"{self.character.name} 开始执行动作: {data.name}")
         
-        # 处理一次性逻辑 (如扣能量/体力)
-        # TODO: 集成资源消耗逻辑
+        # 建立运行时绑定
+        if self.current_action.skill_obj:
+            self.current_action.skill_obj.caster = self.character
 
     def _trigger_hit(self):
         """

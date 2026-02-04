@@ -51,9 +51,8 @@ class SkillBase(ABC):
         self.on_frame_update(target)
         return False
 
-    @abstractmethod
     def on_frame_update(self, target: Any):
-        """ASM 每一帧的回调"""
+        """ASM 每一帧的回调。可选实现。"""
         pass
 
     def on_execute_hit(self, target: Any, hit_index: int):
