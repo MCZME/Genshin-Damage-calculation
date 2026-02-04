@@ -15,6 +15,7 @@ from core.skills.common import (
     PolearmChargedAttackSkill, 
     PlungingAttackSkill
 )
+from core.skills.generic import GenericSkill
 
 __all__ = [
     'TalentEffect', 'ConstellationEffect',
@@ -22,5 +23,6 @@ __all__ = [
     'SkillBase', 'EnergySkill',
     'DashSkill', 'JumpSkill',
     'NormalAttackSkill', 'ChargedAttackSkill', 
-    'PolearmChargedAttackSkill', 'PlungingAttackSkill'
+    'PolearmChargedAttackSkill', 'PlungingAttackSkill',
+    'GenericSkill'
 ]

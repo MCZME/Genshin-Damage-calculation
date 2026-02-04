@@ -77,8 +77,9 @@ class SimulationContext:
     team: Optional[Any] = None
     target: Optional[Any] = None
     
-    # 系统管理器
+    # 系统管理器与日志
     system_manager: Optional[Any] = None
+    logger: Optional[Any] = None
 
     def advance_frame(self) -> None:
         self.current_frame += 1
@@ -90,6 +91,8 @@ class SimulationContext:
         self.event_engine.clear()
         self.team = None
         self.target = None
+        if self.logger:
+            self.logger.log_info("Context Reset")
 
 # ---------------------------------------------------------
 # Context Management (Singleton-like Access)
@@ -118,6 +121,7 @@ def create_context() -> SimulationContext:
     from core.systems.energy_system import EnergySystem
     from core.systems.natlan_system import NatlanSystem
     from core.registry import initialize_registry
+    from core.logger import SimulationLogger
     
     # 1. 初始化注册表 (加载所有角色/武器类)
     initialize_registry()
@@ -125,10 +129,13 @@ def create_context() -> SimulationContext:
     ctx = SimulationContext()
     set_context(ctx)
     
-    # 2. 初始化系统管理器
+    # 2. 初始化日志 (每个 Context 拥有独立 Logger)
+    ctx.logger = SimulationLogger()
+    
+    # 3. 初始化系统管理器
     ctx.system_manager = SystemManager(ctx)
     
-    # 3. 自动装配核心系统
+    # 4. 自动装配核心系统
     ctx.system_manager.add_system(DamageSystem)
     ctx.system_manager.add_system(ReactionSystem)
     ctx.system_manager.add_system(HealthSystem)
