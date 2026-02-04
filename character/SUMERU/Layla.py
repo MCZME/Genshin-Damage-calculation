@@ -7,8 +7,8 @@ from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, 
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.calculation.DamageCalculation import Damage, DamageType
-from core.calculation.ShieldCalculation import Shield
+from core.action.damage import Damage, DamageType
+from core.action.shield import Shield
 from core.effect.BaseEffect import Effect
 
 class NormalAttack(NormalAttackSkill):

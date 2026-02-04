@@ -1,7 +1,7 @@
 from character.character import Character
 from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, LuminescenceEffect, MarechausseeHunterEffect, ThirstEffect
 from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
-from core.calculation.DamageCalculation import DamageType
+from core.action.damage import DamageType
 from core.event import EventBus, EventHandler, EventType, GameEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy

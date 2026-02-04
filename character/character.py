@@ -5,7 +5,7 @@ import core.tool as T
 from core.action.action_data import ActionFrameData
 from core.action.action_manager import ActionManager
 from core.context import get_context
-from core.elementalReaction.ElementalAura import ElementalAura
+from core.mechanics.aura import ElementalAura
 from core.event import (
     ElementalBurstEvent,
     ElementalSkillEvent,

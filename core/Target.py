@@ -1,4 +1,4 @@
-from core.elementalReaction.ElementalAura import ElementalAura
+from core.mechanics.aura import ElementalAura
 
 class Target:
     def __init__(self, data):
@@ -27,14 +27,15 @@ class Target:
     def get_current_resistance(self):
         return self.current_resistance
     
-    def getElementalAura(self):
-        return self.aura.getElementalAura()
+    def get_aura_list(self):
+        return self.aura.get_aura_list()
     
-    def setElementalAura(self, elementalAura):
-        self.aura.setElementalAura(elementalAura)
+    def set_aura_list(self, aura_list):
+        self.aura.set_aura_list(aura_list)
 
     def apply_elemental_aura(self, damage):
-        return self.aura.apply_elemental_aura(damage)
+        # 保持旧的方法名供外部调用，但内部转发给新方法
+        return self.aura.apply_damage_element(damage)
 
     def add_effect(self, effect):
         self.effects.append(effect)

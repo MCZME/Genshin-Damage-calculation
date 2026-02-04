@@ -1,7 +1,7 @@
 from character.character import Character
 from core.event import DamageEvent, EventBus
 from core.team import Team
-from core.calculation.DamageCalculation import Damage, DamageType
+from core.action.damage import Damage, DamageType
 from core.target import Target
 
 

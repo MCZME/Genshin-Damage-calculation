@@ -1,288 +1,197 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Dict, List
-
-from core.dataHandler.DataHandler import send_to_handler
+from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
 
 # --------------------------
 # 事件类型枚举
 # --------------------------
 class EventType(Enum):
-    FRAME_END = auto()  # 每帧结束时
-    BEFORE_DAMAGE = auto()       # 伤害计算前
-    AFTER_DAMAGE = auto()        # 伤害计算后
-    BEFORE_CALCULATE = auto()  # 计算前
-    AFTER_CALCULATE = auto()     # 计算后
-    BEFORE_ATTACK = auto()        # 攻击力计算前
-    AFTER_ATTACK = auto()         # 攻击力计算后
-    BEFORE_DAMAGE_MULTIPLIER = auto()  # 伤害倍率计算前
-    AFTER_DAMAGE_MULTIPLIER = auto()   # 伤害倍率计算后
-    BEFORE_DAMAGE_BONUS = auto()  # 伤害加成计算前
-    AFTER_DAMAGE_BONUS = auto()   # 伤害加成计算后
-    BEFORE_CRITICAL = auto()     # 暴击率计算前
-    AFTER_CRITICAL = auto()      # 暴击率计算后
-    BEFORE_CRITICAL_BRACKET = auto()      # 暴击伤害计算前
-    AFTER_CRITICAL_BRACKET = auto()       # 暴击伤害计算后
-    BEFORE_DEFENSE = auto()       # 防御力计算前
-    AFTER_DEFENSE = auto()       # 防御力计算后
-    BEFORE_RESISTANCE = auto()   # 抗性计算前
-    AFTER_RESISTANCE = auto()    # 抗性计算后
-    BEFORE_INDEPENDENT_DAMAGE = auto()  # 独立伤害倍率计算前
-    AFTER_INDEPENDENT_DAMAGE = auto()   # 独立伤害倍率计算后
-    BEFORE_ELEMENTAL_REACTION = auto()  # 元素反应触发前
-    AFTER_ELEMENTAL_REACTION = auto()   # 元素反应触发后
-    BEFORE_FREEZE = auto()       # 冻结反应前
-    AFTER_FREEZE = auto()        # 冻结反应后
-    BEFORE_QUICKEN = auto()     # 原激化反应前
-    AFTER_QUICKEN = auto()      # 原激化反应后
-    BEFORE_AGGRAVATE = auto()     # 超激化反应前
-    AFTER_AGGRAVATE = auto()      # 超激化反应后
-    BEFORE_SPREAD = auto()     # 蔓激化反应前
-    AFTER_SPREAD = auto()      # 蔓激化反应后
-    BEFORE_VAPORIZE = auto()     # 蒸发反应前
-    AFTER_VAPORIZE = auto()      # 蒸发反应后
-    BEFORE_MELT = auto()         # 融化反应前
-    AFTER_MELT = auto()          # 融化反应后
-    BEFORE_OVERLOAD = auto()     # 超载反应前
-    AFTER_OVERLOAD = auto()      # 超载反应后
-    BEFORE_SWIRL = auto()        # 扩散反应前
-    AFTER_SWIRL = auto()         # 扩散反应后
-    BEFORE_SHATTER = auto()      # 碎冰反应前
-    AFTER_SHATTER = auto()       # 碎冰反应后
-    BEFORE_BURNING = auto()      # 燃烧反应前
-    AFTER_BURNING = auto()       # 燃烧反应后
-    BEFORE_CRYSTALLIZE = auto()   # 结晶反应前
-    AFTER_CRYSTALLIZE = auto()    # 结晶反应后
-    BEFORE_SUPERCONDUCT = auto()  # 超导反应前
-    AFTER_SUPERCONDUCT = auto()   # 超导反应后
-    BEFORE_ELECTRO_CHARGED = auto()  # 感电反应前
-    AFTER_ELECTRO_CHARGED = auto()   # 感电反应后
-    BEFORE_BLOOM = auto()        # 绽放反应前
-    AFTER_BLOOM = auto()         # 绽放反应后
-    BEFORE_HYPERBLOOM = auto()      # 超绽放反应前
-    AFTER_HYPERBLOOM = auto()       # 超绽放反应后
-    BEFORE_BURGEON = auto()      # 烈绽放反应前
-    AFTER_BURGEON = auto()       # 烈绽放反应后
-    BEFORE_FIXED_DAMAGE = auto()  # 固定伤害加成计算前
-    AFTER_FIXED_DAMAGE = auto()   # 固定伤害加成计算后
+    # 核心循环
+    FRAME_END = auto()
+    
+    # 伤害相关
+    BEFORE_DAMAGE = auto()
+    AFTER_DAMAGE = auto()
+    BEFORE_CALCULATE = auto()
+    AFTER_CALCULATE = auto()
+    BEFORE_ATTACK = auto()
+    AFTER_ATTACK = auto()
+    BEFORE_DAMAGE_MULTIPLIER = auto()
+    AFTER_DAMAGE_MULTIPLIER = auto()
+    BEFORE_DAMAGE_BONUS = auto()
+    AFTER_DAMAGE_BONUS = auto()
+    BEFORE_CRITICAL = auto()
+    AFTER_CRITICAL = auto()
+    BEFORE_CRITICAL_BRACKET = auto()
+    AFTER_CRITICAL_BRACKET = auto()
+    BEFORE_DEFENSE = auto()
+    AFTER_DEFENSE = auto()
+    BEFORE_RESISTANCE = auto()
+    AFTER_RESISTANCE = auto()
+    BEFORE_INDEPENDENT_DAMAGE = auto()
+    AFTER_INDEPENDENT_DAMAGE = auto()
+    BEFORE_FIXED_DAMAGE = auto()
+    AFTER_FIXED_DAMAGE = auto()
 
-    BEFORE_HEALTH_CHANGE = auto()  # 角色血量变化前
-    AFTER_HEALTH_CHANGE = auto()   # 角色血量变化后
-    BEFORE_HEAL = auto()         # 治疗计算前
-    AFTER_HEAL = auto()          # 治疗后
-    BEFORE_HURT = auto()         # 受伤计算前
-    AFTER_HURT = auto()          # 受伤后
-    BEFORE_SHIELD_CREATION = auto()  # 护盾生成前
-    AFTER_SHIELD_CREATION = auto()   # 护盾生成后
+    # 元素反应 (通用)
+    BEFORE_ELEMENTAL_REACTION = auto()
+    AFTER_ELEMENTAL_REACTION = auto()
+    
+    # 具体反应
+    BEFORE_FREEZE = auto()
+    AFTER_FREEZE = auto()
+    BEFORE_QUICKEN = auto()
+    AFTER_QUICKEN = auto()
+    BEFORE_AGGRAVATE = auto()
+    AFTER_AGGRAVATE = auto()
+    BEFORE_SPREAD = auto()
+    AFTER_SPREAD = auto()
+    BEFORE_VAPORIZE = auto()
+    AFTER_VAPORIZE = auto()
+    BEFORE_MELT = auto()
+    AFTER_MELT = auto()
+    BEFORE_OVERLOAD = auto()
+    AFTER_OVERLOAD = auto()
+    BEFORE_SWIRL = auto()
+    AFTER_SWIRL = auto()
+    BEFORE_SHATTER = auto()
+    AFTER_SHATTER = auto()
+    BEFORE_BURNING = auto()
+    AFTER_BURNING = auto()
+    BEFORE_CRYSTALLIZE = auto()
+    AFTER_CRYSTALLIZE = auto()
+    BEFORE_SUPERCONDUCT = auto()
+    AFTER_SUPERCONDUCT = auto()
+    BEFORE_ELECTRO_CHARGED = auto()
+    AFTER_ELECTRO_CHARGED = auto()
+    BEFORE_BLOOM = auto()
+    AFTER_BLOOM = auto()
+    BEFORE_HYPERBLOOM = auto()
+    AFTER_HYPERBLOOM = auto()
+    BEFORE_BURGEON = auto()
+    AFTER_BURGEON = auto()
 
-    OBJECT_CREATE = auto()  # 对象创建
-    OBJECT_DESTROY = auto()  # 对象销毁
+    # 生命与防御
+    BEFORE_HEALTH_CHANGE = auto()
+    AFTER_HEALTH_CHANGE = auto()
+    BEFORE_HEAL = auto()
+    AFTER_HEAL = auto()
+    BEFORE_HURT = auto()
+    AFTER_HURT = auto()
+    BEFORE_SHIELD_CREATION = auto()
+    AFTER_SHIELD_CREATION = auto()
 
-    BEFORE_NORMAL_ATTACK = auto()  # 普通攻击前
-    AFTER_NORMAL_ATTACK = auto()   # 普通攻击后
-    BEFORE_CHARGED_ATTACK = auto()  # 重击前
-    AFTER_CHARGED_ATTACK = auto()   # 重击后
-    BEFORE_PLUNGING_ATTACK = auto()  # 下落攻击前
-    AFTER_PLUNGING_ATTACK = auto()   # 下落攻击后
-    BEFORE_SKILL = auto()        # 技能使用前
-    AFTER_SKILL = auto()         # 技能使用后
-    BEFORE_BURST = auto()        # 爆发使用前
-    AFTER_BURST = auto()         # 爆发使用后
-    BEFORE_DASH = auto()         # 冲刺前
-    AFTER_DASH = auto()          # 冲刺后
-    BEFORE_JUMP = auto()         # 跳跃前
-    AFTER_JUMP = auto()          # 跳跃后
-    BEFORE_FALLING = auto()     # 下落前
-    AFTER_FALLING = auto()       # 下落后
+    # 对象生命周期
+    OBJECT_CREATE = auto()
+    OBJECT_DESTROY = auto()
 
-    BEFORE_ENERGY_CHANGE = auto()  # 能量变化前
-    AFTER_ENERGY_CHANGE = auto()   # 能量变化后
-    BEFORE_CHARACTER_SWITCH = auto()   # 角色切换前
-    AFTER_CHARACTER_SWITCH = auto()    # 角色切换后
-    BEFORE_NIGHTSOUL_BLESSING = auto()  # 夜魂加持之前
-    AFTER_NIGHTSOUL_BLESSING = auto()  # 夜魂加持结束后
-    BEFORE_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之前
-    AFTER_NIGHT_SOUL_CHANGE = auto()  # 夜魂改变之后
-    NightsoulBurst = auto()      # 夜魂迸发
+    # 动作相关
+    BEFORE_NORMAL_ATTACK = auto()
+    AFTER_NORMAL_ATTACK = auto()
+    BEFORE_CHARGED_ATTACK = auto()
+    AFTER_CHARGED_ATTACK = auto()
+    BEFORE_PLUNGING_ATTACK = auto()
+    AFTER_PLUNGING_ATTACK = auto()
+    BEFORE_SKILL = auto()
+    AFTER_SKILL = auto()
+    BEFORE_BURST = auto()
+    AFTER_BURST = auto()
+    BEFORE_DASH = auto()
+    AFTER_DASH = auto()
+    BEFORE_JUMP = auto()
+    AFTER_JUMP = auto()
+    BEFORE_FALLING = auto()
+    AFTER_FALLING = auto()
+
+    # 资源与系统
+    BEFORE_ENERGY_CHANGE = auto()
+    AFTER_ENERGY_CHANGE = auto()
+    BEFORE_CHARACTER_SWITCH = auto()
+    AFTER_CHARACTER_SWITCH = auto()
+    BEFORE_NIGHTSOUL_BLESSING = auto()
+    AFTER_NIGHTSOUL_BLESSING = auto()
+    BEFORE_NIGHT_SOUL_CHANGE = auto()
+    AFTER_NIGHT_SOUL_CHANGE = auto()
+    NIGHTSOUL_BURST = auto()
 
 # --------------------------
-# 事件类
+# 事件基类
 # --------------------------
+@dataclass
 class GameEvent:
-    def __init__(self, event_type: EventType, frame, **kwargs):
-        self.event_type = event_type
-        self.frame = frame
-        self.data = kwargs        # 扩展数据
-        self.cancelled = False    # 是否取消事件
+    event_type: EventType
+    frame: int
+    source: Any = None # 事件产生的实体
+    cancelled: bool = False
+    propagation_stopped: bool = False
+    data: Dict[str, Any] = field(default_factory=dict)
+
+    def stop_propagation(self):
+        self.propagation_stopped = True
+
+    def cancel(self):
+        self.cancelled = True
+
+# --------------------------
+# 核心事件定义 (使用 Dataclass 替代 kwargs)
+# --------------------------
+
+@dataclass
+class DamageEvent(GameEvent):
+    target: Any = None
+    damage: Any = None
+    # 构造函数微调：兼容旧代码的 source, target, damage 传参
+    def __post_init__(self):
+        self.data["character"] = self.source
+        self.data["target"] = self.target
+        self.data["damage"] = self.damage
+
+@dataclass
+class HealEvent(GameEvent):
+    target: Any = None
+    healing: Any = None
+    def __post_init__(self):
+        self.data["character"] = self.source
+        self.data["target"] = self.target
+        self.data["healing"] = self.healing
+
+@dataclass
+class EnergyChargeEvent(GameEvent):
+    amount: Any = None
+    is_fixed: bool = False
+    is_alone: bool = False
+    def __post_init__(self):
+        self.data["character"] = self.source
+        self.data["amount"] = self.amount
+        self.data["is_fixed"] = self.is_fixed
+        self.data["is_alone"] = self.is_alone
+
+@dataclass
+class CharacterSwitchEvent(GameEvent):
+    old_character: Any = None
+    new_character: Any = None
+    def __post_init__(self):
+        self.data["old_character"] = self.old_character
+        self.data["new_character"] = self.new_character
+
+@dataclass
+class ElementalReactionEvent(GameEvent):
+    elemental_reaction: Any = None
+    def __post_init__(self):
+        self.data["elementalReaction"] = self.elemental_reaction # 暂时保留旧 key 兼容 System
+
+# 为了保持兼容性，后续几十个简单的 Event 类暂时使用 GameEvent 代理
+# 新架构下应鼓励直接使用 GameEvent(EventType.XXX, ...)
 
 class FrameEndEvent(GameEvent):
     def __init__(self, frame):
         super().__init__(EventType.FRAME_END, frame)
 
-class DamageEvent(GameEvent):
-    def __init__(self, source, target, damage, frame, before=True, **kwargs):
-        if before:
-            damage.setSource(source)
-            damage.setTarget(target)
-            super().__init__(EventType.BEFORE_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_DAMAGE, frame=frame, character=source, target=target, damage=damage, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_DAMAGE,
-                                             'damage':damage}})
+# --------------------------
+# 代理与接口
+# --------------------------
 
-class CharacterSwitchEvent(GameEvent):
-    def __init__(self, old_character, new_character, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_CHARACTER_SWITCH, frame=frame, old_character=old_character, new_character=new_character, **kwargs)
-            send_to_handler(frame, 
-                            {'event':{'type':EventType.AFTER_CHARACTER_SWITCH,
-                                     'old_character':old_character,
-                                     'new_character':new_character}})
-
-class NightSoulBlessingEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_NIGHTSOUL_BLESSING, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_NIGHTSOUL_BLESSING,
-                                             'character':character}})
-
-class NormalAttackEvent(GameEvent):
-    def __init__(self, character, frame, segment, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_NORMAL_ATTACK, frame=frame, segment=segment, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_NORMAL_ATTACK, frame=frame, segment=segment, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_NORMAL_ATTACK,
-                                             'character':character,
-                                             'segment':segment}})
-
-class ChargedAttackEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_CHARGED_ATTACK, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_CHARGED_ATTACK,
-                                             'character':character}})
-
-class PlungingAttackEvent(GameEvent):
-    def __init__(self, character, frame, is_plunging_impact=True, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_PLUNGING_ATTACK, is_plunging_impact=is_plunging_impact, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_PLUNGING_ATTACK,
-                                            'character':character,
-                                            'is_plunging_impact':is_plunging_impact
-                                             }})
-
-class NightSoulChangeEvent(GameEvent):
-    def __init__(self, character, amount, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_NIGHT_SOUL_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_NIGHT_SOUL_CHANGE, 
-                                     'character':character,
-                                     'amount':amount}}) 
-
-class ElementalBurstEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_BURST, frame=frame, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_BURST, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_BURST,
-                                     'character':character}})
-
-class ElementalSkillEvent(GameEvent):
-    def __init__(self, character, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_SKILL, frame=frame, character=character, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_SKILL, frame=frame, character=character, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_SKILL,
-                                     'character':character}})
-
-class HealChargeEvent(GameEvent):
-    def __init__(self, character, amount, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_HEALTH_CHANGE, frame=frame, character=character, amount=amount, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_HEALTH_CHANGE, 
-                                     'character':character,
-                                     'amount':amount}})
-
-class ElementalReactionEvent(GameEvent):
-    def __init__(self,elementalReaction, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_ELEMENTAL_REACTION, frame=frame, elementalReaction=elementalReaction, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_ELEMENTAL_REACTION, frame=frame, elementalReaction=elementalReaction, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_ELEMENTAL_REACTION,
-                                     'elementalReaction':elementalReaction}})
-
-class HealEvent(GameEvent):
-    def __init__(self, source, target, healing, frame, before=True, **kwargs):
-        if before:
-            healing.set_source(source)
-            healing.set_target(target)
-            super().__init__(EventType.BEFORE_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_HEAL, frame=frame, character=source, target=target, healing=healing, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_HEAL,
-                                             'healing':healing,}})
-
-class HurtEvent(GameEvent):
-    def __init__(self, source, target, amount, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_HURT, frame=frame, character=source, target=target, amount=amount, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_HURT, frame=frame, character=source, target=target, amount=amount, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_HURT,
-                                             'character':source,
-                                             'target':target,
-                                             'amount':amount,}})
-
-class ShieldEvent(GameEvent):
-    def __init__(self, source, shield, frame, before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_SHIELD_CREATION, frame=frame, character=source, shield=shield, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.BEFORE_SHIELD_CREATION,
-                                             'character':source,
-                                             'shield':shield,}})
-
-class EnergyChargeEvent(GameEvent):
-    def __init__(self, character, amount, frame, is_fixed=False, is_alone=False,before=True, **kwargs):
-        if before:
-            super().__init__(EventType.BEFORE_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone,amount=amount, is_fixed=is_fixed, **kwargs)
-        else:
-            super().__init__(EventType.AFTER_ENERGY_CHANGE, frame=frame, character=character, is_alone=is_alone, amount=amount, is_fixed=is_fixed, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.AFTER_ENERGY_CHANGE,
-                                     'character':character,
-                                     'amount':amount,
-                                     'is_fixed':is_fixed,
-                                     'is_alone':is_alone}})
-            
-class ObjectEvent(GameEvent):
-    def __init__(self, object, frame, before=True,**kwargs):
-        if before:
-            super().__init__(EventType.OBJECT_CREATE, frame=frame, object=object, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.OBJECT_CREATE
-                                        ,'object':object}})
-        else:
-            super().__init__(EventType.OBJECT_DESTROY, frame=frame, object=object, **kwargs)
-            send_to_handler(frame, {'event':{'type':EventType.OBJECT_DESTROY
-                                        ,'object':object}})
-
-# 事件处理器接口
 class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
@@ -290,14 +199,10 @@ class EventHandler(ABC):
 
 from core.context import get_context
 
-# 事件总线 (Static Proxy to Context EventEngine)
 class EventBus:
     """
-    [Deprecated] 这是一个静态代理类，用于兼容旧代码。
-    它将所有调用转发给当前 SimulationContext 中的 EventEngine 实例。
-    新代码应直接使用 get_context().event_engine。
+    [Deprecated] 静态代理类。
     """
-
     @classmethod
     def subscribe(cls, event_type: EventType, handler: EventHandler):
         get_context().event_engine.subscribe(event_type, handler)

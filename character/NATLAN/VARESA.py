@@ -3,7 +3,7 @@ from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.logger import get_emulation_logger
 from core.effect.BaseEffect import Effect
-from core.calculation.DamageCalculation import Damage, DamageType
+from core.action.damage import Damage, DamageType
 from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
 from core.tool import GetCurrentTime, summon_energy
 

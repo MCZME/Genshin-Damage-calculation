@@ -1,7 +1,7 @@
 import random
 from core.logger import get_emulation_logger
 from core.effect.BaseEffect import DefenseBoostEffect, EnergyRechargeBoostEffect
-from core.calculation.DamageCalculation import DamageType
+from core.action.damage import DamageType
 from core.effect.WeaponEffect import (AzurelightEffect, FreedomSwornEffect, RongHuaZhiGeEffect, 
                                       STWElementSkillBoostEffect, STWHealthBoostEffect)
 from core.event import EventBus, EventHandler, EventType

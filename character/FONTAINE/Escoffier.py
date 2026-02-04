@@ -7,8 +7,8 @@ from core.event import DamageEvent, EventBus, EventHandler, EventType, HealEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.calculation.DamageCalculation import Damage, DamageType
-from core.calculation.HealingCalculation import Healing, HealingType
+from core.action.damage import Damage, DamageType
+from core.action.healing import Healing, HealingType
 from core.effect.BaseEffect import Effect, ResistanceDebuffEffect
 
 class NormalAttack(NormalAttackSkill):

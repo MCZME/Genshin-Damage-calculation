@@ -2,7 +2,7 @@ from character.INAZUMA.inazuma import Inazuma
 from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import baseObject
-from core.calculation.DamageCalculation import Damage, DamageType
+from core.action.damage import Damage, DamageType
 from core.effect.BaseEffect import Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from core.event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType
 from core.logger import get_emulation_logger

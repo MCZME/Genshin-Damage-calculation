@@ -8,7 +8,7 @@ from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, Eve
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.calculation.DamageCalculation import Damage, DamageType
+from core.action.damage import Damage, DamageType
 from core.effect.BaseEffect import AttackBoostEffect, Effect
 
 class RiftObject(baseObject):

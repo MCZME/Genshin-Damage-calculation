@@ -4,9 +4,9 @@ from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalE
                              NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.effect.BaseEffect import Effect
 from core.BaseObject import ArkheObject, baseObject
-from core.calculation.DamageCalculation import Damage, DamageType
+from core.action.damage import Damage, DamageType
 from core.event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
-from core.calculation.HealingCalculation import Healing, HealingType
+from core.action.healing import Healing, HealingType
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
