@@ -1,5 +1,6 @@
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
+from core.context import create_context, get_context
 from core.dataHandler.DataHandler import clear_data, save_report
 from core.Event import EventBus, FrameEndEvent
 from core.Logger import get_emulation_logger
@@ -18,9 +19,14 @@ class Emulation():
 
     def __init__(self, team_data, action_sequence, target_data):
         super().__init__()
+        # 初始化上下文
+        self.ctx = create_context()
+        
         self.team_data = team_data
         self.action_sequence = action_sequence
         Emulation.target = Target(target_data)
+        # 将 target 注入 context
+        self.ctx.target = Emulation.target
 
     def set_log_file(self, file=None):
         if file is None:
@@ -38,12 +44,22 @@ class Emulation():
         """
         模拟执行一系列动作。
         """
+        # 获取当前上下文
+        ctx = get_context()
+
         self.n = 0
         self.set_data()
+        
+        # 将 team 注入 context
+        ctx.team = Emulation.team
+        
         action = iter(self._actions)
         self.next_character = next(action)
         Emulation.team.swap(self.next_character)
+        
         Team.current_frame = 0 # 初始化当前帧数
+        ctx.current_frame = 0
+        
         if hasattr(self, 'progress_queue') and self.progress_queue:
             try:
                 self.progress_queue.put({
@@ -63,7 +79,11 @@ class Emulation():
             get_emulation_logger().log("Team","最后一个动作开始执行")
 
         while True:
-            Emulation.current_frame += 1
+            # 推进帧
+            ctx.advance_frame()
+            # 同步旧的静态变量以兼容
+            Emulation.current_frame = ctx.current_frame
+            
             if self._update(self.target,action):
                 if hasattr(self, 'progress_queue') and self.progress_queue:
                     self.progress_queue.put(None)
@@ -73,8 +93,10 @@ class Emulation():
         Emulation.team.update(target)
         Emulation.target.update()
 
-        event = FrameEndEvent(Emulation.current_frame)
-        EventBus.publish(event)
+        ctx = get_context()
+        event = FrameEndEvent(ctx.current_frame)
+        # 直接使用 context 的 engine 发布
+        ctx.event_engine.publish(event)
 
         if self.next_character is not None and Emulation.team.swap(self.next_character):
             get_emulation_logger().log("Team","切换成功")
@@ -103,6 +125,8 @@ class Emulation():
 
     @classmethod
     def emulation_init(cls):
+        # 静态初始化时也需要创建上下文
+        create_context()
         Emulation.current_frame = 0
         Team.clear()
         EventBus.clear()

@@ -14,8 +14,11 @@ def attributeId(attributeId):
     return AttributeId[attributeId]
 
 def GetCurrentTime():
-    from Emulation import Emulation
-    return Emulation.current_frame
+    from core.context import get_context
+    try:
+        return get_context().current_frame
+    except RuntimeError:
+        return 0
 
 reaction_coefficients = {
     1: 17.17, 2: 18.54, 3: 19.9, 4: 21.27, 5: 22.65, 6: 24.65, 7: 26.64, 8: 28.87, 9: 31.37, 10: 34.14,

@@ -288,31 +288,28 @@ class EventHandler(ABC):
     def handle_event(self, event: GameEvent):
         pass
 
-# 事件总线
+from core.context import get_context
+
+# 事件总线 (Static Proxy to Context EventEngine)
 class EventBus:
-    _handlers: Dict[EventType, List[EventHandler]] = {}
+    """
+    [Deprecated] 这是一个静态代理类，用于兼容旧代码。
+    它将所有调用转发给当前 SimulationContext 中的 EventEngine 实例。
+    新代码应直接使用 get_context().event_engine。
+    """
 
     @classmethod
     def subscribe(cls, event_type: EventType, handler: EventHandler):
-        if event_type not in cls._handlers:
-            cls._handlers[event_type] = []
-        cls._handlers[event_type].append(handler)
+        get_context().event_engine.subscribe(event_type, handler)
 
     @classmethod
     def unsubscribe(cls, event_type: EventType, handler: EventHandler):
-        if event_type in cls._handlers:
-            cls._handlers[event_type].remove(handler)
-            if not cls._handlers[event_type]:
-                del cls._handlers[event_type]
+        get_context().event_engine.unsubscribe(event_type, handler)
 
     @classmethod
     def publish(cls, event: GameEvent):
-        if event.event_type in cls._handlers.copy():
-            for handler in cls._handlers[event.event_type]:
-                if event.cancelled:
-                    break
-                handler.handle_event(event)
+        get_context().event_engine.publish(event)
 
     @classmethod
     def clear(cls):
-        cls._handlers.clear()
+        get_context().event_engine.clear()
