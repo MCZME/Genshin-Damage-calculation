@@ -1,7 +1,7 @@
 import random
 from character.character import Character, CharacterState
 
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, NormalAttackEvent

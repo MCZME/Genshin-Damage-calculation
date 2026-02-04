@@ -1,6 +1,6 @@
 import random
 from character.SUMERU.sumeru import Sumeru
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import ShieldObject, baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, ShieldEvent

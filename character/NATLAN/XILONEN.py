@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from core.BaseClass import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.base_class import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent

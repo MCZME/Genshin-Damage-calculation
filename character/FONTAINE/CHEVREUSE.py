@@ -1,6 +1,6 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.base_class import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import ArkheObject, baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent

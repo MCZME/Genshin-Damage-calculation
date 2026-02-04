@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from core.BaseClass import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
+from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
 from core.BaseObject import baseObject
 from core.effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent

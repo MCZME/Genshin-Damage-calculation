@@ -1,6 +1,6 @@
 import random
 from character.LIYUE.liyue import Liyue
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, 
                             NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
 from core.Event import DamageEvent, EventBus, EventHandler, EventType

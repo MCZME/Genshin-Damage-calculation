@@ -1,5 +1,5 @@
 from character.character import Character
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
 from core.Event import DamageEvent, EventBus, EventHandler, EventType

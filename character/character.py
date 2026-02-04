@@ -5,8 +5,11 @@ from core.Event import ElementalBurstEvent, ElementalSkillEvent, EventBus, Event
 from core.Logger import get_emulation_logger
 import core.Tool as T
 from core.elementalReaction.ElementalAura import ElementalAura
+from core.context import get_context
+from core.action.action_manager import ActionManager
+from core.action.action_data import ActionFrameData
 
-# 角色状态枚举
+# 角色状态枚举 (保留用于兼容性)
 class CharacterState(Enum):
     IDLE = auto()        # 空闲状态
     NORMAL_ATTACK = auto()    # 普通攻击
@@ -73,10 +76,37 @@ class Character:
         self.falling_speed = 5
         self.weapon = None
         self.artifactManager = None
-        self.state = [CharacterState.IDLE]
         self.on_field = False
+        
+        # ASM 引擎初始化
+        try:
+            ctx = get_context()
+        except RuntimeError:
+            ctx = None
+        self.action_manager = ActionManager(self, ctx)
+        
         self._init_character()    # 初始化特有属性
         self.apply_talents()
+
+    @property
+    def state(self):
+        """兼容旧代码：从 ASM 状态推导 CharacterState 列表"""
+        if not self.action_manager.current_action:
+            return [CharacterState.IDLE]
+        
+        # 映射 ASM 动作名称到旧状态枚举
+        name = self.action_manager.current_action.data.name
+        mapping = {
+            'normal_attack': CharacterState.NORMAL_ATTACK,
+            'charged_attack': CharacterState.CHARGED_ATTACK,
+            'elemental_skill': CharacterState.SKILL,
+            'elemental_burst': CharacterState.BURST,
+            'plunging_attack': CharacterState.PLUNGING_ATTACK,
+            'dash': CharacterState.DASH,
+            'jump': CharacterState.JUMP,
+            'skip': CharacterState.SKIP
+        }
+        return [mapping.get(name, CharacterState.IDLE)]
 
     def _get_data(self,level):
         l = T.level(level)
@@ -117,9 +147,6 @@ class Character:
         self.weapon.updatePanel()
         self.weapon.skill()
 
-    def setConstellation(self,c):
-        self.constellation = c
-
     def heal(self,amount):
         event = HealChargeEvent(self,amount,T.GetCurrentTime())
         EventBus.publish(event)
@@ -136,79 +163,58 @@ class Character:
         event = HealChargeEvent(self,self.currentHP-orginHP,T.GetCurrentTime(),before=False)
         EventBus.publish(event)
 
-    def skip(self,n):
-        self.skip_frame = n
-        self._append_state(CharacterState.SKIP)
+    def _request_action(self, name, params=None):
+        """ASM 统一动作请求入口"""
+        # 获取动作帧数据
+        action_data = self._get_action_data(name, params)
+        return self.action_manager.request_action(action_data)
+
+    def _get_action_data(self, name, params) -> ActionFrameData:
+        """
+        获取动作元数据。
+        未来应从数据库或配置文件读取。目前为兼容旧逻辑，动态构造。
+        """
+        # 基础默认值 (旧逻辑通常假设动作完成才结束)
+        # 这里尝试从旧的 Skill 对象中获取大概的时间
+        total_frames = 60 # 默认 1 秒
+        hit_frames = []
+        
+        if name == 'normal_attack':
+            # 普攻旧逻辑通常在 start 时就开始了
+            total_frames = 30 # 简化假设
+            hit_frames = [10]
+        elif name == 'elemental_skill':
+            total_frames = 60
+            hit_frames = [20]
+        elif name == 'elemental_burst':
+            total_frames = 120
+            hit_frames = [40]
+            
+        return ActionFrameData(name=name, total_frames=total_frames, hit_frames=hit_frames)
+
+    def skip(self, n):
+        self._request_action('skip', n)
 
     def dash(self):
-        '''冲刺'''
-        self._dash_impl()
-    
-    def _dash_impl(self):
-        if self.Dash.start(self):
-            self._append_state(CharacterState.DASH)
+        self._request_action('dash')
 
     def jump(self):
-        '''跳跃'''
-        self._jump_impl()
+        self._request_action('jump')
 
-    def _jump_impl(self):
-        if self.Jump.start(self):
-            self._append_state(CharacterState.JUMP)
-
-    def normal_attack(self,n):
-        """普攻"""
-        self._normal_attack_impl(n)
-
-    @abstractmethod
-    def _normal_attack_impl(self,n):
-        """普攻具体实现"""
-        if self.NormalAttack.start(self,n):
-            self._append_state(CharacterState.NORMAL_ATTACK)
+    def normal_attack(self, n):
+        self._request_action('normal_attack', n)
 
     def charged_attack(self):
-        """重击（需体力）"""
-        self._charged_attack_impl()
-    
-    @abstractmethod
-    def _charged_attack_impl(self):
-        """重击具体实现"""
-        if self.ChargedAttack.start(self):
-            self._append_state(CharacterState.CHARGED_ATTACK)
+        self._request_action('charged_attack')
 
-    def plunging_attack(self,is_high=False):
-        """下落攻击"""
-        self._plunging_attack_impl(is_high)
-
-    @abstractmethod
-    def _plunging_attack_impl(self,is_high):
-        """下落攻击具体实现"""
-        if self.PlungingAttack.start(self,is_high):
-            self._append_state(CharacterState.PLUNGING_ATTACK)
+    def plunging_attack(self, is_high=False):
+        self._request_action('plunging_attack', is_high)
 
     def elemental_skill(self):
-        """元素战技"""
-        self._elemental_skill_impl()
-    
-    @abstractmethod
-    def _elemental_skill_impl(self):
-        """元素战技具体实现"""
-        if self.Skill.start(self):
-            self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,T.GetCurrentTime())
-            EventBus.publish(skillEvent)
+        self._request_action('elemental_skill')
             
     def elemental_burst(self):
-        """元素爆发"""
-        self._elemental_burst_impl()
-
-    @abstractmethod
-    def _elemental_burst_impl(self):
-        """元素爆发具体实现"""
-        if self.Burst.start(self):
-            self._append_state(CharacterState.BURST)
-            burstEvent = ElementalBurstEvent(self,T.GetCurrentTime())
-            EventBus.publish(burstEvent)
+        self._request_action('elemental_burst')
             
     def apply_talents(self):
         """应用天赋效果"""
@@ -225,52 +231,22 @@ class Character:
                     effect.apply(self)
 
     def update(self,target):
+        # 1. 更新效果与元素附着
         self.update_effects(target)
         self.aura.update()
         if self.weapon is not None:
             self.weapon.update(target)
-        for i in self.state:
-            if i == CharacterState.SKILL:
-                if self.Skill.update(target):
-                    self.state.remove(CharacterState.SKILL)
-                    skillEvent = ElementalSkillEvent(self,T.GetCurrentTime(),False)
-                    EventBus.publish(skillEvent)
-            elif i == CharacterState.BURST:
-                if self.Burst.update(target):
-                    self.state.remove(CharacterState.BURST)
-                    burstEvent = ElementalBurstEvent(self,T.GetCurrentTime(),False)
-                    EventBus.publish(burstEvent)
-            elif i == CharacterState.NORMAL_ATTACK:
-                if self.NormalAttack.update(target):
-                    self.state.remove(CharacterState.NORMAL_ATTACK)
-            elif i == CharacterState.CHARGED_ATTACK:
-                if self.ChargedAttack.update(target):
-                    self.state.remove(CharacterState.CHARGED_ATTACK)
-            elif i == CharacterState.PLUNGING_ATTACK:
-                if self.PlungingAttack.update(target):
-                    self.state.remove(CharacterState.PLUNGING_ATTACK)
-            elif i == CharacterState.SKIP:
-                self.skip_frame -= 1
-                if self.skip_frame <= 0:
-                    self.state.remove(CharacterState.SKIP)
-            elif i == CharacterState.DASH:
-                if self.Dash.update(target):
-                    self.state.remove(CharacterState.DASH)
-            elif i == CharacterState.JUMP:
-                if self.Jump.update(target):
-                    self.state.remove(CharacterState.JUMP)
-            elif i == CharacterState.FALL:
-                self.height = max(0, self.height - self.falling_speed)
-                self.movement += self.falling_speed
-                if self.height <= 0:
-                    self.state.remove(CharacterState.FALL)
-                    EventBus.publish(GameEvent(EventType.AFTER_FALLING,T.GetCurrentTime(),character = self))
+            
+        # 2. 驱动 ASM
+        self.action_manager.update()
+        
+        # 3. 处理命座更新
         if self.constellation > 0:
             for effect in self.constellation_effects[:self.constellation]:
                 if effect is not None:
                     effect.update(target)
-        if len(self.state) == 0:
-            self._append_state(CharacterState.IDLE)
+                    
+        # 4. 血量更新
         self.updateHealth()
 
     def updateHealth(self):
@@ -300,15 +276,6 @@ class Character:
         for talent in self.talent_effects:
             if talent is not None:
                 talent.update(target)
-
-    def _append_state(self,state):
-        if state is not CharacterState.IDLE:
-            if CharacterState.IDLE in self.state:
-                self.state.remove(CharacterState.IDLE)
-            self.state.append(state)
-        elif state is CharacterState.IDLE:
-            self.state.clear()
-            self.state.append(state)
 
     def add_effect(self, effect):
         self.active_effects.append(effect)

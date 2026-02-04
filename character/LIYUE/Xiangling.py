@@ -1,6 +1,6 @@
 from character.LIYUE.liyue import Liyue
 from character.character import Character
-from core.BaseClass import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
+from core.base_class import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType

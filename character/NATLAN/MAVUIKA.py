@@ -1,7 +1,7 @@
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from core.BaseClass import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
+from core.base_class import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType

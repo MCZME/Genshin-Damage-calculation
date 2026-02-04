@@ -1,5 +1,5 @@
 import random
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from character.INAZUMA.inazuma import Inazuma
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, ObjectEvent

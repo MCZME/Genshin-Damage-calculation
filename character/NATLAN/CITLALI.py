@@ -1,5 +1,5 @@
 from character.NATLAN.natlan import Natlan
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, Effect
 from core.BaseObject import ShieldObject, baseObject

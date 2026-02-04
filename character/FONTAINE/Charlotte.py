@@ -1,6 +1,6 @@
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect,
                             Infusion)
 from core.BaseObject import ArkheObject, baseObject

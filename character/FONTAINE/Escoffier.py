@@ -1,6 +1,6 @@
 import random
 from character.FONTAINE.fontaine import Fontaine
-from core.BaseClass import (ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, 
+from core.base_class import (ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, 
                             PolearmChargedAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import ArkheObject, baseObject
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, ObjectEvent

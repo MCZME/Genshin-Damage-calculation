@@ -1,5 +1,5 @@
 from character.character import Character, CharacterState
-from core.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect, PlungingAttackSkill, SkillBase, TalentEffect
+from core.base_class import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect, PlungingAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import baseObject
 from core.Logger import get_emulation_logger
 from core.team import Team

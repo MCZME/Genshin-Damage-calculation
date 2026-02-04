@@ -1,6 +1,6 @@
 import types
 from character.FONTAINE.fontaine import Fontaine
-from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, 
+from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, 
                              NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.effect.BaseEffect import Effect
 from core.BaseObject import ArkheObject, baseObject

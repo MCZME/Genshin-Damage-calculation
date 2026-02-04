@@ -1,6 +1,6 @@
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
-from core.BaseClass import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
+from core.base_class import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.Logger import get_emulation_logger
 from core.effect.BaseEffect import Effect
 from core.calculation.DamageCalculation import Damage, DamageType
