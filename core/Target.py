@@ -1,4 +1,3 @@
-from DataRequest import DR
 from core.elementalReaction.ElementalAura import ElementalAura
 
 class Target:

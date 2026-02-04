@@ -1,63 +1,108 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from core.tool import level as level_to_idx, attributeId as attr_id_to_name
+from core.data.database import db_manager
 
 class DataRepository(ABC):
     """
     数据仓库接口，定义了获取角色、武器和技能元数据的标准方法。
     """
     @abstractmethod
-    def get_character_data(self, character_id: int) -> Dict[str, Any]:
-        """获取角色基础统计数据 (role_stats)"""
+    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+        """获取角色在特定等级的基础属性"""
         pass
 
     @abstractmethod
-    def get_weapon_data(self, weapon_name: str) -> Dict[str, Any]:
-        """获取武器基础属性"""
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+        """获取武器在特定等级的基础属性"""
         pass
 
     @abstractmethod
-    def query(self, sql: str) -> List[Any]:
-        """执行通用查询 (用于兼容旧逻辑)"""
+    def query(self, sql: str, params: Optional[tuple] = None) -> List[Any]:
+        """执行通用查询"""
         pass
 
 class MySQLDataRepository(DataRepository):
     """
-    MySQL 数据仓库实现，包装现有的 DataRequest 逻辑。
+    MySQL 数据仓库实现，深度整合项目数据库表结构。
     """
     def __init__(self):
-        from DataRequest import DR
-        self.dr = DR
+        self.db = db_manager
+        self.level_cols = ['1', '20', '40', '50', '60', '70', '80', '90']
 
-    def get_character_data(self, character_id: int) -> Dict[str, Any]:
-        sql = f"SELECT * FROM `role_stats` WHERE role_id = {character_id}"
-        result = self.dr.read_data(sql)
-        if not result:
-            raise ValueError(f"Character ID {character_id} not found in database.")
-        return result[0]
+    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+        idx = level_to_idx(level)
+        col = self.level_cols[idx]
+        
+        # 1. 获取基础信息
+        char_info = self.db.execute_query(f"SELECT Name, Element, type FROM `character` WHERE ID = {character_id}")
+        if not char_info:
+            raise ValueError(f"Character ID {character_id} not found.")
+        name, element, ctype = char_info[0]
 
-    def get_weapon_data(self, weapon_name: str) -> Dict[str, Any]:
-        # 假设武器数据也在 MySQL 中，具体 SQL 需根据实际表结构调整
-        # 这里先提供通用查询
-        sql = f"SELECT * FROM `weapon_stats` WHERE name = '{weapon_name}'"
-        result = self.dr.read_data(sql)
-        return result[0] if result else {}
+        # 2. 获取三围属性
+        hp = self.db.execute_query(f"SELECT `{col}` FROM `basehp` WHERE ID = {character_id}")[0][0]
+        atk = self.db.execute_query(f"SELECT `{col}` FROM `baseatk` WHERE ID = {character_id}")[0][0]
+        df = self.db.execute_query(f"SELECT `{col}` FROM `basedef` WHERE ID = {character_id}")[0][0]
 
-    def query(self, sql: str) -> List[Any]:
-        return self.dr.read_data(sql)
+        # 3. 获取突破属性
+        breakthrough = self.db.execute_query(f"SELECT `{col}`, AttributeId FROM `breakthrough_attribute` WHERE ID = {character_id}")
+        bt_val, bt_id = breakthrough[0]
+        bt_name = attr_id_to_name(bt_id)
+
+        return {
+            "name": name,
+            "element": element,
+            "type": ctype,
+            "base_hp": float(hp),
+            "base_atk": float(atk),
+            "base_def": float(df),
+            "breakthrough_attribute": bt_name,
+            "breakthrough_value": float(bt_val)
+        }
+
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+        idx = level_to_idx(level)
+        col = self.level_cols[idx]
+
+        w_info = self.db.execute_query(f"SELECT ID, type, Rarity FROM `weapon` WHERE Name = '{weapon_name}'")
+        if not w_info:
+            raise ValueError(f"Weapon {weapon_name} not found.")
+        wid, wtype, rarity = w_info[0]
+
+        atk = self.db.execute_query(f"SELECT `{col}` FROM `w_atk` WHERE ID = {wid}")[0][0]
+        sub_info = self.db.execute_query(f"SELECT `{col}`, AttributeId FROM `w_secondary_attribute` WHERE ID = {wid}")
+        
+        stats = {
+            "name": weapon_name,
+            "type": wtype,
+            "rarity": rarity,
+            "base_atk": float(atk),
+            "secondary_attribute": None,
+            "secondary_value": 0.0
+        }
+
+        if sub_info:
+            val, aid = sub_info[0]
+            stats["secondary_attribute"] = attr_id_to_name(aid)
+            stats["secondary_value"] = float(val)
+
+        return stats
+
+    def query(self, sql: str, params: Optional[tuple] = None) -> List[Any]:
+        return self.db.execute_query(sql, params)
 
 class MockDataRepository(DataRepository):
-    """
-    用于单元测试的 Mock 仓库。
-    """
-    def __init__(self, char_map=None, weapon_map=None):
-        self.char_map = char_map or {}
-        self.weapon_map = weapon_map or {}
+    """用于单元测试的 Mock 仓库"""
+    def __init__(self, char_data=None, weapon_data=None):
+        self.char_data = char_data or {}
+        self.weapon_data = weapon_data or {}
 
-    def get_character_data(self, character_id: int) -> Dict[str, Any]:
-        return self.char_map.get(character_id, {})
+    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+        return self.char_data.get(character_id, {})
 
-    def get_weapon_data(self, weapon_name: str) -> Dict[str, Any]:
-        return self.weapon_map.get(weapon_name, {})
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+        return self.weapon_data.get(weapon_name, {})
 
     def query(self, sql: str) -> List[Any]:
         return []

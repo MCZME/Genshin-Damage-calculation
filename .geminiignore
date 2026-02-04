@@ -4,7 +4,6 @@ driver/
 /data
 .vscode/
 .vosode
-DataRequest.py
 config.json
 .clineignore
 /memory-bank

@@ -25,46 +25,48 @@ class CharacterState(Enum):
 class Character:
     """"
     角色基类：
-    角色等级为20，60等，自动视为已突破
+    不再负责数据库查询，所有基础属性 (base_data) 由外部注入。
     """
-    def __init__(self, id=1, level=1, skill_params=[1,1,1], constellation=0):
+    def __init__(self, id=1, level=1, skill_params=[1,1,1], constellation=0, base_data: dict = None):
         self.id = id
         self.level = level
         self.skill_params = skill_params
-        self.attributeData ={
-            "生命值" : 0,
-            "固定生命值": 0,
-            "攻击力": 0,
-            "固定攻击力":0,
-            "防御力": 0,
-            "固定防御力":0,
-            "元素精通" : 0,
-            "暴击率" : 5,
-            "暴击伤害" : 50,
-            "元素充能效率" : 100,
-            "治疗加成" : 0,
-            "受治疗加成" : 0,
-            "火元素伤害加成": 0,
-            "水元素伤害加成": 0,
-            "雷元素伤害加成": 0,
-            "冰元素伤害加成": 0,
-            "岩元素伤害加成": 0,
-            "风元素伤害加成": 0,
-            "草元素伤害加成": 0,
-            "物理伤害加成": 0,
-            "生命值%" : 0,
-            "攻击力%": 0,
-            "防御力%": 0,
-            "伤害加成": 0
+        
+        # 基础属性模板
+        self.attributeData = {
+            "生命值": 0, "固定生命值": 0, "攻击力": 0, "固定攻击力": 0, "防御力": 0, "固定防御力": 0,
+            "元素精通": 0, "暴击率": 5, "暴击伤害": 50, "元素充能效率": 100,
+            "治疗加成": 0, "受治疗加成": 0, "火元素伤害加成": 0, "水元素伤害加成": 0, "雷元素伤害加成": 0,
+            "冰元素伤害加成": 0, "岩元素伤害加成": 0, "风元素伤害加成": 0, "草元素伤害加成": 0,
+            "物理伤害加成": 0, "生命值%": 0, "攻击力%": 0, "防御力%": 0, "伤害加成": 0
         }
-        SQL = "SELECT * FROM `role_stats` WHERE role_id = {}".format(self.id)
-        self.data = DR.read_data(SQL)[0]
-        self.name = self.data[1]
-        self.element = self.data[2]
-        self.type = self.data[3]
-        self._get_data(level)
-        self.attributePanel = self.attributeData.copy()
 
+        # 数据注入与基础信息初始化
+        if base_data:
+            self.name = base_data.get('name', 'Unknown')
+            self.element = base_data.get('element', '无')
+            self.type = base_data.get('type', 'Unknown')
+            
+            # 填充数值
+            self.attributeData["生命值"] = base_data.get('base_hp', 0)
+            self.attributeData["攻击力"] = base_data.get('base_atk', 0)
+            self.attributeData["防御力"] = base_data.get('base_def', 0)
+            
+            # 处理突破属性
+            bt_name = base_data.get('breakthrough_attribute')
+            bt_val = base_data.get('breakthrough_value', 0)
+            if bt_name:
+                if bt_name == "元素伤害加成":
+                    self.attributeData[self.element + bt_name] += bt_val
+                else:
+                    self.attributeData[bt_name] = self.attributeData.get(bt_name, 0) + bt_val
+        else:
+            # 兼容模式：如果没有注入数据，则保持默认
+            self.name = "Unknown"
+            self.element = "无"
+            self.type = "Unknown"
+
+        self.attributePanel = self.attributeData.copy()
         self.association = None
         self.constellation = constellation
 

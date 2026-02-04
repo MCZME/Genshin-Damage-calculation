@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QPushButton, QStyle
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QObject, Signal, Qt, QUrl, QSize
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
-from DataRequest import DR
+from core.data.database import db_manager
 from core.logger import get_ui_logger
 import hashlib
 import os
@@ -165,8 +165,10 @@ class ImageAvatar(ImageLoaderWidget):
     def load_image(self, name):
         SQL = f'SELECT url FROM `character_portrait` WHERE name = "{name}"'
         try:
-            url = DR.read_data(SQL)[0][0]
-            super().load_image(url)
+            results = db_manager.execute_query(SQL)
+            if results:
+                url = results[0][0]
+                super().load_image(url)
         except Exception as e:
             get_ui_logger().log_error(f"图片加载失败: {e}")
             
@@ -216,7 +218,9 @@ class ImageAvatarButton(ImageButton):
     def load_image(self, name):
         SQL = f'SELECT url FROM `character_portrait` WHERE name = "{name}"'
         try:
-            url = DR.read_data(SQL)[0][0]
-            super()._load_image(url)
+            results = db_manager.execute_query(SQL)
+            if results:
+                url = results[0][0]
+                super()._load_image(url)
         except Exception as e:
             get_ui_logger().log_error(f"加载头像失败: {e}")
