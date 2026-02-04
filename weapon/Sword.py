@@ -5,7 +5,7 @@ from core.calculation.DamageCalculation import DamageType
 from core.effect.WeaponEffect import (AzurelightEffect, FreedomSwornEffect, RongHuaZhiGeEffect, 
                                       STWElementSkillBoostEffect, STWHealthBoostEffect)
 from core.Event import EventBus, EventHandler, EventType
-from core.Team import Team
+from core.team import Team
 import core.Tool as T
 from weapon.weapon import Weapon
 

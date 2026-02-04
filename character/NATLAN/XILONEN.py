@@ -6,7 +6,7 @@ from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent
 from core.calculation.HealingCalculation import Healing, HealingType
 from core.Logger import get_emulation_logger
 from core.Tool import GetCurrentTime, summon_energy
-from core.Team import Team
+from core.team import Team
 
 class BladeRollerEffect(Effect,EventHandler):
     """刃轮巡猎效果"""

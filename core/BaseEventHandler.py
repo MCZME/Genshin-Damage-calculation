@@ -4,7 +4,7 @@ from core.calculation.DamageCalculation import Damage, DamageType
 from core.dataHandler.DataHandler import send_to_handler
 from core.effect.BaseEffect import BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect
 from core.Event import DamageEvent, EnergyChargeEvent, EventBus, EventHandler, EventType, GameEvent
-from core.Team import Team
+from core.team import Team
 from core.Tool import GetCurrentTime
 from core.Logger import get_emulation_logger
 

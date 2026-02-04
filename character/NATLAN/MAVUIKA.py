@@ -6,7 +6,7 @@ from core.effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effec
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
-from core.Team import Team
+from core.team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.Logger import get_emulation_logger
 

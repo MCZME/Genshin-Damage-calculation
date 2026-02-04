@@ -46,7 +46,7 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
         EventBus.publish(energy_event)
 
 def get_shield(name = None):
-    from core.Team import Team
+    from core.team import Team
     from core.BaseObject import ShieldObject
     if name:
         shield = next((e for e in Team.active_objects if isinstance(e, ShieldObject) and e.name == name), None)

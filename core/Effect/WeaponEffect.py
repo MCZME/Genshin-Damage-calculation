@@ -3,7 +3,7 @@ from core.effect.BaseEffect import Effect, HealthBoostEffect
 from core.Event import EventBus, EventHandler, EventType
 from core.Logger import get_emulation_logger
 from core.Tool import GetCurrentTime, summon_energy
-from core.Team import Team
+from core.team import Team
 
 
 class STWHealthBoostEffect(HealthBoostEffect):

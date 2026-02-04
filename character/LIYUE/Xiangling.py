@@ -6,7 +6,7 @@ from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus
 from core.Tool import GetCurrentTime, summon_energy
-from core.Team import Team
+from core.team import Team
 
 class GuobaObject(baseObject):
     """锅巴对象"""

@@ -3,7 +3,7 @@ from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffe
 from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import DamageType
 from core.Event import EventBus, EventHandler, EventType, GameEvent
-from core.Team import Team
+from core.team import Team
 from core.Tool import GetCurrentTime, summon_energy
 
 class ArtifactEffect(EventHandler):

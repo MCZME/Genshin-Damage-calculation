@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from core.Map import CharacterClassMap, WeaponClassMap
-from core.Team import Team
+from core.team import Team
 from core.data.repository import DataRepository
 from core.Logger import get_emulation_logger
 

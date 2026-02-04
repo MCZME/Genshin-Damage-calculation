@@ -8,7 +8,7 @@ from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
 from core.calculation.HealingCalculation import Healing, HealingType
 from core.Logger import get_emulation_logger
-from core.Team import Team
+from core.team import Team
 from core.Tool import GetCurrentTime, summon_energy
 
 class ArkheAttackHandler(EventHandler):

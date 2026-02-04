@@ -5,7 +5,7 @@ from core.BaseClass import (ChargedAttackSkill, ConstellationEffect, ElementalEn
 from core.BaseObject import ShieldObject, baseObject
 from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, ShieldEvent
 from core.Logger import get_emulation_logger
-from core.Team import Team
+from core.team import Team
 from core.Tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.calculation.ShieldCalculation import Shield

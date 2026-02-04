@@ -2,7 +2,7 @@ from character.character import Character, CharacterState
 from core.BaseClass import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect, PlungingAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import baseObject
 from core.Logger import get_emulation_logger
-from core.Team import Team
+from core.team import Team
 from core.effect.BaseEffect import AttackValueBoostEffect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.Event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
