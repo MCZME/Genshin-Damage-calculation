@@ -6,7 +6,8 @@ from core.action.reaction import (ElementalReaction, ElementalReactionType, Reac
 from core.action.damage import Damage, DamageType
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
-from core.effect.BaseEffect import (BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect)
+from core.effect.elemental import BurningEffect, ElectroChargedEffect
+from core.effect.debuff import ResistanceDebuffEffect
 from core.entities.elemental_entities import DendroCoreObject
 
 # 事件类型映射

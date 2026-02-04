@@ -1,7 +1,8 @@
 from typing import List, Optional, Dict, Any
 from character.character import Character
 from core.logger import get_emulation_logger
-from core.effect.BaseEffect import AttackBoostEffect, CreepingGrassEffect, HealthBoostEffect, SteadfastStoneEffect, SwiftWindEffect
+from core.effect.stat_modifier import AttackBoostEffect, HealthBoostEffect
+from core.effect.resonance import CreepingGrassEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.event import CharacterSwitchEvent, EventBus
 from core.tool import GetCurrentTime
 from core.context import get_context

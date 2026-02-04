@@ -1,6 +1,5 @@
 from core.event import EnergyChargeEvent, EventBus
 
-
 def level(level):
     Level = [1,20,40,50,60,70,80,90]
     for i in Level:
@@ -36,7 +35,7 @@ def get_reaction_multiplier(level):
     return reaction_coefficients[level]
 
 def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False, time=40):
-    from core.BaseObject import EnergyDropsObject
+    from core.entities.energy import EnergyDropsObject
     if time != 0:
         for _ in range(num):
             EnergyDropsObject(character, element_energy, time, is_fixed, is_alone).apply()
@@ -47,7 +46,7 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
 
 def get_shield(name = None):
     from core.team import Team
-    from core.BaseObject import ShieldObject
+    from core.entities.combat_entities import ShieldObject
     if name:
         shield = next((e for e in Team.active_objects if isinstance(e, ShieldObject) and e.name == name), None)
     else:

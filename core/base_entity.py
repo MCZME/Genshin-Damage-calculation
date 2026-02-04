@@ -1,57 +1,46 @@
-from abc import ABC, abstractmethod
-from core.event import EventBus, ObjectEvent
-from core.logger import get_emulation_logger
-# 移除 from core.team import Team，因为它会导致复杂的循环依赖
-from core.tool import GetCurrentTime
-from core.context import get_context, EventEngine
+from typing import Any, Optional
 
-class BaseEntity(ABC):
+class BaseEntity:
     """
-    所有游戏实体（召唤物、护盾、能量球等）的基类。
-    集成局部事件引擎，支持事件冒泡。
+    仿真世界中的实体基类（召唤物、领域、护盾等）。
     """
-    def __init__(self, name, life_frame=0):
+    def __init__(self, name: str, life_frame: float = float('inf')):
         self.name = name
-        self.is_active = False
-        self.current_frame = 0
         self.life_frame = life_frame
-        self.repeatable = False
+        self.current_frame = 0
+        self.is_active = True
         
+        # 自动关联 Context 和局部事件引擎
+        from core.context import get_context
         try:
-            parent_engine = get_context().event_engine
-            self.event_engine = EventEngine(parent=parent_engine)
+            self.ctx = get_context()
+            self.event_engine = self.ctx.event_engine
         except RuntimeError:
-            self.event_engine = EventEngine()
+            self.ctx = None
+            self.event_engine = None
 
     def apply(self):
-        try:
-            ctx = get_context()
-            # 未来 Team 应该在 Context 中，且 active_objects 是 Context 的属性
-            if ctx.team:
-                # 暂时兼容旧逻辑，但通过 context 访问
-                # 如果 Team.active_objects 还没重构，这里可能还需要微调
-                # 为了测试跑通，我们先假设 ctx.team 有 add_object 方法
-                ctx.team.add_object(self)
-        except (RuntimeError, AttributeError):
-            # 如果没有上下文或队伍，仅设置激活状态
-            pass
-            
-        self.is_active = True
-        self.event_engine.publish(ObjectEvent(self, GetCurrentTime()))
+        """应用实体到队伍中"""
+        from core.team import Team
+        Team.add_object(self)
 
-    def update(self, target):
+    def update(self, target: Any):
+        """每帧驱动逻辑"""
+        if not self.is_active: return
+        
         self.current_frame += 1
         if self.current_frame >= self.life_frame:
             self.on_finish(target)
+            self.is_active = False
+            return
+            
         self.on_frame_update(target)
 
-    @abstractmethod
-    def on_frame_update(self, target):
-        """每帧更新逻辑"""
-        ...
+    def on_frame_update(self, target: Any): pass
+    def on_finish(self, target: Any): pass
 
-    def on_finish(self, target):
-        """生命周期结束时的逻辑"""
-        get_emulation_logger().log_object(f'{self.name} 存活时间结束')
-        self.is_active = False
-        self.event_engine.publish(ObjectEvent(self, GetCurrentTime(), False))
+# ---------------------------------------------------------
+# 兼容性别名 (用于旧代码中对 BaseObject/baseObject 的引用)
+# ---------------------------------------------------------
+BaseObject = BaseEntity
+baseObject = BaseEntity

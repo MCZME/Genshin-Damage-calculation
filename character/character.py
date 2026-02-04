@@ -85,6 +85,8 @@ class Character(ABC):
 
         self.weapon: Any = None
         self.artifact_manager: Any = None
+        self.active_effects: List[Any] = []
+        self.shield_effects: List[Any] = []
 
         # ASM 引擎与事件引擎初始化
         try:

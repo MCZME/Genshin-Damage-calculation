@@ -8,7 +8,7 @@ from core.action.damage import Damage, DamageType
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.entities.elemental_entities import DendroCoreObject
-from core.effect.BaseEffect import ElementalInfusionEffect
+from core.effect.elemental import ElementalInfusionEffect
 from core.tool import GetCurrentTime
 
 # ---------------------------------------------------------

@@ -1,9 +1,9 @@
 from typing import Any
 from core.effect.common import TalentEffect, ConstellationEffect
-from core.event import EventType, EventHandler, GameEvent
+from core.event import EventBus, EventType, EventHandler, GameEvent
 from core.action.healing import HealingType
 from core.action.damage import Damage, DamageType
-from core.effect.BaseEffect import AttackBoostEffect
+from core.effect.stat_modifier import AttackBoostEffect
 from core.team import Team
 from core.tool import GetCurrentTime
 from character.FONTAINE.charlotte.entities import VerificationEffect, DamageEffect, HealEvent
