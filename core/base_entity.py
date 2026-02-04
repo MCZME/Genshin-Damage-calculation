@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from core.Event import EventBus, ObjectEvent
-from core.Logger import get_emulation_logger
+from core.event import EventBus, ObjectEvent
+from core.logger import get_emulation_logger
 # 移除 from core.team import Team，因为它会导致复杂的循环依赖
-from core.Tool import GetCurrentTime
+from core.tool import GetCurrentTime
 from core.context import get_context, EventEngine
 
 class BaseEntity(ABC):

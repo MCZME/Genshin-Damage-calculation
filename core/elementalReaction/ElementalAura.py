@@ -1,6 +1,6 @@
 from math import sqrt
-from core.Event import ElementalReactionEvent, EventBus
-from core.Tool import GetCurrentTime
+from core.event import ElementalReactionEvent, EventBus
+from core.tool import GetCurrentTime
 from core.elementalReaction.ElementalReaction import ElementalReaction, ElementalReactionType, ReactionMMap
 
 class ElementalAura:

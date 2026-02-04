@@ -1,10 +1,10 @@
 import random
-from core.Logger import get_emulation_logger
+from core.logger import get_emulation_logger
 from core.team import Team
 from core.effect.WeaponEffect import DuskGlowEffect, MorningGlowEffect, TEFchargedBoostEffect
-from core.Event import EventBus, EventHandler, EventType
+from core.event import EventBus, EventHandler, EventType
 from core.effect.BaseEffect import AttackBoostEffect
-import core.Tool as T
+import core.tool as T
 from weapon.weapon import Weapon
 
 

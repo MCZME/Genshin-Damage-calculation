@@ -1,7 +1,7 @@
 from typing import Optional, List, Any
 from core.action.action_data import ActionFrameData, ActionState
-from core.Event import EventType, GameEvent, DamageEvent
-from core.Logger import get_emulation_logger
+from core.event import EventType, GameEvent, DamageEvent
+from core.logger import get_emulation_logger
 
 class ActionInstance:
     """正在运行的动作实例"""

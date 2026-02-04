@@ -1,7 +1,7 @@
 from core.base_entity import BaseEntity
-from core.Event import EnergyChargeEvent, EventBus
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.event import EnergyChargeEvent, EventBus
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 
 class EnergyDropsObject(BaseEntity):
     def __init__(self, character, element_energy, life_frame=60, is_fixed=False, is_alone=False):

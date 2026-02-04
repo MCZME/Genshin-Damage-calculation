@@ -10,7 +10,7 @@ from ui.widget.analysis_result_widget import AnalysisResultWidget
 from ui.widget.loading_widget import LoadingWidget
 
 from core.dataHandler.DataHandler import send_to_window
-from core.Logger import get_ui_logger
+from core.logger import get_ui_logger
 
 class ResultWindow(QMainWindow):
     def __init__(self):

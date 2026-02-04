@@ -1,8 +1,8 @@
 import random
 from core.calculation.DamageCalculation import DamageType
-from core.Event import EventBus, EventHandler, EventType
-from core.Logger import get_emulation_logger
-import core.Tool as T
+from core.event import EventBus, EventHandler, EventType
+from core.logger import get_emulation_logger
+import core.tool as T
 from .weapon import Weapon
 
 

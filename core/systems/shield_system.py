@@ -1,8 +1,8 @@
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.Event import EventType, ShieldEvent
+from core.event import EventType, ShieldEvent
 from core.action.shield import Shield
-from core.Logger import get_emulation_logger
+from core.logger import get_emulation_logger
 
 # ---------------------------------------------------------
 # Shield Calculation Helper

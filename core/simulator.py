@@ -1,7 +1,7 @@
 from typing import List, Tuple, Any, Optional
 from core.context import SimulationContext, get_context
-from core.Event import FrameEndEvent
-from core.Logger import get_emulation_logger
+from core.event import FrameEndEvent
+from core.logger import get_emulation_logger
 
 class Simulator:
     """

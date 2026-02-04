@@ -3,7 +3,7 @@ from PySide6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCatego
 from PySide6.QtGui import QPainter, QFont
 from PySide6.QtCore import Qt, Signal
 
-from core.Logger import get_ui_logger
+from core.logger import get_ui_logger
 
 class VerticalLabelChart(QWidget):
     bar_clicked = Signal(int)

@@ -1,11 +1,11 @@
 from typing import Dict, Any
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.Event import (GameEvent, EventType, ElementalReactionEvent, DamageEvent)
+from core.event import (GameEvent, EventType, ElementalReactionEvent, DamageEvent)
 from core.action.reaction import (ElementalReaction, ElementalReactionType, ReactionMMap)
 from core.action.damage import Damage, DamageType
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 from core.effect.BaseEffect import (BurningEffect, ElectroChargedEffect, ResistanceDebuffEffect)
 from core.entities.elemental_entities import DendroCoreObject
 

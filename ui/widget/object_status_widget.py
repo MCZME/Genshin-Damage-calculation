@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QHBoxLayout,
                               QSizePolicy, QScrollArea, QGridLayout)
 from PySide6.QtCore import Qt
-from core.Logger import get_ui_logger
+from core.logger import get_ui_logger
 
 class ObjectStatusWidget(QWidget):
     def __init__(self):

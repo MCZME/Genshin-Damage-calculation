@@ -2,11 +2,11 @@ from character.FONTAINE.fontaine import Fontaine
 from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import ArkheObject, baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
+from core.event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
 from core.calculation.HealingCalculation import Healing, HealingType
 from core.team import Team
-from core.Tool import GetCurrentTime, summon_energy
-from core.Logger import get_emulation_logger
+from core.tool import GetCurrentTime, summon_energy
+from core.logger import get_emulation_logger
 
 class NormalAttack(NormalAttackSkill):
     def __init__(self, lv, cd=0):

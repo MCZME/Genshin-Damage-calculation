@@ -72,7 +72,7 @@ ReactionMMap: Dict[Tuple[str, str], Tuple[ElementalReactionType, float]] = {
             ('岩', '冻'): (ElementalReactionType.SHATTER, 3),
 }
 
-from core.Tool import get_reaction_multiplier
+from core.tool import get_reaction_multiplier
 
 class ElementalReaction:
     def __init__(self, damage):

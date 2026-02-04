@@ -4,10 +4,10 @@ from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEn
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.effect.BaseEffect import Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
-from core.Event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType
-from core.Logger import get_emulation_logger
+from core.event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType
+from core.logger import get_emulation_logger
 from core.team import Team
-from core.Tool import GetCurrentTime, summon_energy
+from core.tool import GetCurrentTime, summon_energy
 
 class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):

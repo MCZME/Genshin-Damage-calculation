@@ -3,7 +3,7 @@ import os
 import json
 
 from DataRequest import MongoDB
-from core.Config import Config
+from core.config import Config
 from core.dataHandler.DataCompression import RestoreData
 
 

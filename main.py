@@ -1,8 +1,8 @@
-from core.Event import EventType
-from core.BaseEventHandler import FrameEndEventHandler
-from core.Config import Config
+from core.event import EventType
+from core.base_event_handler import FrameEndEventHandler
+from core.config import Config
 from core.context import create_context, get_context
-from core.Logger import logger_init, manage_log_files
+from core.logger import logger_init, manage_log_files
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 

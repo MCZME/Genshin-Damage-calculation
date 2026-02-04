@@ -2,10 +2,10 @@ from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from character.character import CharacterState
 from core.context import create_context, get_context
 from core.dataHandler.DataHandler import clear_data, save_report
-from core.Event import EventBus, FrameEndEvent
-from core.Logger import get_emulation_logger
-from core.Map import CharacterClassMap, WeaponClassMap
-from core.Target import Target
+from core.event import EventBus, FrameEndEvent
+from core.logger import get_emulation_logger
+from core.map import CharacterClassMap, WeaponClassMap
+from core.target import Target
 from core.team import Team
 import threading
 

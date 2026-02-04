@@ -14,18 +14,18 @@ sys.modules["pymongo"] = MagicMock()
 
 # Mock Team (防止循环依赖)
 mock_team = MagicMock()
-sys.modules["core.Team"] = MagicMock(Team=mock_team)
+sys.modules["core.team"] = MagicMock(Team=mock_team)
 
 # Mock Logger
 mock_logger = MagicMock()
-sys.modules["core.Logger"] = MagicMock(get_emulation_logger=lambda: mock_logger)
+sys.modules["core.logger"] = MagicMock(get_emulation_logger=lambda: mock_logger)
 
 # 将项目根目录加入 path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.context import create_context, get_context
 from core.base_entity import BaseEntity
-from core.Event import GameEvent, EventType, DamageEvent
+from core.event import GameEvent, EventType, DamageEvent
 from core.action.damage import Damage, DamageType
 # 延迟导入 DamageSystem，确保上面的 Mock 已生效
 from core.systems.damage_system import DamageSystem

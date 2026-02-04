@@ -1,7 +1,7 @@
 from character.character import Character
-from core.Event import EventBus, NightSoulBlessingEvent, NightSoulChangeEvent
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.event import EventBus, NightSoulBlessingEvent, NightSoulChangeEvent
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 
 
 class Natlan(Character):

@@ -4,8 +4,8 @@ from core.base_class import ConstellationEffect, ElementalEnergy, EnergySkill, N
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from core.BaseObject import baseObject
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Event import DamageEvent, EventBus
-from core.Tool import GetCurrentTime, summon_energy
+from core.event import DamageEvent, EventBus
+from core.tool import GetCurrentTime, summon_energy
 from core.team import Team
 
 class GuobaObject(baseObject):

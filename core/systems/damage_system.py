@@ -3,13 +3,13 @@ import random
 
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.Event import GameEvent, DamageEvent, EventType
+from core.event import GameEvent, DamageEvent, EventType
 from core.action.damage import Damage, DamageType
-from core.Config import Config
-from core.Logger import get_emulation_logger
+from core.config import Config
+from core.logger import get_emulation_logger
 from core.entities.elemental_entities import DendroCoreObject
 from core.effect.BaseEffect import ElementalInfusionEffect
-from core.Tool import GetCurrentTime
+from core.tool import GetCurrentTime
 
 # ---------------------------------------------------------
 # Calculation Helper (Logic Container)

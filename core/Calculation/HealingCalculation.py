@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from character.character import Character
-from core.Event import EventBus, EventHandler, EventType, GameEvent, HealEvent, HurtEvent
-from core.Logger import get_emulation_logger
+from core.event import EventBus, EventHandler, EventType, GameEvent, HealEvent, HurtEvent
+from core.logger import get_emulation_logger
 
 class HealingType(Enum):
     NORMAL = auto()      # 普通治疗

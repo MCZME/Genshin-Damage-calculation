@@ -3,7 +3,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QObject, Signal, Qt, QUrl, QSize
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from DataRequest import DR
-from core.Logger import get_ui_logger
+from core.logger import get_ui_logger
 import hashlib
 import os
 

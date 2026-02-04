@@ -1,7 +1,7 @@
 from core.calculation.DamageCalculation import DamageType
-from core.Tool import summon_energy
+from core.tool import summon_energy
 from weapon.weapon import Weapon
-from core.Event import EventBus, EventType, EventHandler
+from core.event import EventBus, EventType, EventHandler
 from core.effect.BaseEffect import AttackBoostEffect
 
 

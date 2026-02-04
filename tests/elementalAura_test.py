@@ -1,8 +1,8 @@
 from character.character import Character
-from core.Event import DamageEvent, EventBus
+from core.event import DamageEvent, EventBus
 from core.team import Team
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Target import Target
+from core.target import Target
 
 
 def test_ELECTRO_CHARGED():

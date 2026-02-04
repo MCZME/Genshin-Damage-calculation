@@ -1,11 +1,11 @@
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
-from core.Logger import get_emulation_logger
+from core.logger import get_emulation_logger
 from core.effect.BaseEffect import Effect
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
-from core.Tool import GetCurrentTime, summon_energy
+from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
+from core.tool import GetCurrentTime, summon_energy
 
 class VaresaNormalAttack(NormalAttackSkill,Infusion):
     def __init__(self, lv):

@@ -1,7 +1,7 @@
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.Event import EventType, GameEvent
-from core.Logger import get_emulation_logger
+from core.event import EventType, GameEvent
+from core.logger import get_emulation_logger
 
 class NatlanSystem(GameSystem):
     """

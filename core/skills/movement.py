@@ -1,7 +1,7 @@
 from core.skills.base import SkillBase
-from core.Event import EventBus, EventType, GameEvent
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.event import EventBus, EventType, GameEvent
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 
 class DashSkill(SkillBase):
     def __init__(self, total_frames, v=0, caster=None, interruptible=False):

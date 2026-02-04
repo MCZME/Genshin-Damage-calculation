@@ -1,6 +1,6 @@
 from core.base_entity import BaseEntity
-from core.Event import DamageEvent, EventBus
-from core.Tool import GetCurrentTime
+from core.event import DamageEvent, EventBus
+from core.tool import GetCurrentTime
 
 class ArkheObject(BaseEntity):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):

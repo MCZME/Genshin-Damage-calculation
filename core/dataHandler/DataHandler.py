@@ -35,7 +35,7 @@ def send_to_window(data_type):
         return generate_object_report()
 
 def handel_event(frame, event):
-    from core.Event import EventType
+    from core.event import EventType
     
     if event['type'] == EventType.AFTER_DAMAGE:
         _handle_damage_event(frame, event['damage'])

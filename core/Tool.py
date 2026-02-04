@@ -1,4 +1,4 @@
-from core.Event import EnergyChargeEvent, EventBus
+from core.event import EnergyChargeEvent, EventBus
 
 
 def level(level):

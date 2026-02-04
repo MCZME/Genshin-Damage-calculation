@@ -2,7 +2,7 @@ import json
 import multiprocessing
 
 from Emulation import Emulation
-from core.Config import Config
+from core.config import Config
 from main import init
 
 

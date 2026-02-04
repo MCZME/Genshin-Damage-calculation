@@ -5,8 +5,8 @@ import os
 import uuid
 
 from Emulation import Emulation
-from core.Config import Config
-from core.Logger import get_ui_logger
+from core.config import Config
+from core.logger import get_ui_logger
 from core.dataHandler.BatchDataAnalyze import BatchDataAnalyze
 
 

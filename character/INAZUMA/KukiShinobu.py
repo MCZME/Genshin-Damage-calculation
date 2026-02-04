@@ -2,10 +2,10 @@ import random
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from character.INAZUMA.inazuma import Inazuma
-from core.Event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, ObjectEvent
-from core.Logger import get_emulation_logger
+from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, ObjectEvent
+from core.logger import get_emulation_logger
 from core.team import Team
-from core.Tool import GetCurrentTime, summon_energy
+from core.tool import GetCurrentTime, summon_energy
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.BaseObject import baseObject
 from core.calculation.HealingCalculation import Healing, HealingType

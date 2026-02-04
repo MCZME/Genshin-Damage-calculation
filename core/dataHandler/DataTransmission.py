@@ -4,7 +4,7 @@ import paramiko
 import os
 
 from DataRequest import MongoDB
-from core.Config import Config
+from core.config import Config
 from core.dataHandler.BatchDataAnalyze import BatchDataAnalyze
 
 class LogSFTP:

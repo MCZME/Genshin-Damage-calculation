@@ -1,4 +1,4 @@
-from core.Tool import GetCurrentTime
+from core.tool import GetCurrentTime
 
 class Infusion:
     def __init__(self, attach_sequence=[1, 0, 0], interval=2.5*60, max_attach=8):

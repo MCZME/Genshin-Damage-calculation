@@ -3,8 +3,8 @@ import os
 import glob
 import zipfile
 from datetime import datetime
-from core.Config import Config
-from core.Tool import GetCurrentTime
+from core.config import Config
+from core.tool import GetCurrentTime
 
 class BaseLogger:
     def __init__(self, name):

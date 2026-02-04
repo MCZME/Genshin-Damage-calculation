@@ -1,6 +1,6 @@
 from core.base_entity import BaseEntity
-from core.Event import EventBus, EventHandler, EventType
-from core.Logger import get_emulation_logger
+from core.event import EventBus, EventHandler, EventType
+from core.logger import get_emulation_logger
 
 class ShatteredIceObject(BaseObject, EventHandler):
     """粉碎之冰效果"""

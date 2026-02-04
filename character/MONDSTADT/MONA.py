@@ -2,9 +2,9 @@ from character.character import Character
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.Event import DamageEvent, EventBus, EventHandler, EventType
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.event import DamageEvent, EventBus, EventHandler, EventType
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 from core.calculation.DamageCalculation import Damage, DamageType
 from core.effect.BaseEffect import DamageBoostEffect
 

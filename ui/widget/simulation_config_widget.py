@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel,
                               QLineEdit, QComboBox)
 from PySide6.QtGui import QColor
 from PySide6.QtCore import Qt
-from core.Config import Config
+from core.config import Config
                               
 class ConfigEditorDialog(QDialog):
     """配置编辑器对话框"""

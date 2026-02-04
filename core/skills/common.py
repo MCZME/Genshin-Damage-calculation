@@ -1,9 +1,9 @@
 from core.skills.base import SkillBase
 from core.action.damage import Damage, DamageType
-from core.Event import (ChargedAttackEvent, DamageEvent, EventBus, 
+from core.event import (ChargedAttackEvent, DamageEvent, EventBus, 
                         EventType, GameEvent, NormalAttackEvent, PlungingAttackEvent)
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime
 
 class NormalAttackSkill(SkillBase):
     def __init__(self, lv, cd=0):

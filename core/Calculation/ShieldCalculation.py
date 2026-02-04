@@ -1,4 +1,4 @@
-from core.Event import EventBus, EventHandler, EventType, ShieldEvent
+from core.event import EventBus, EventHandler, EventType, ShieldEvent
 
 class Shield:
     def __init__(self, base_multiplier):

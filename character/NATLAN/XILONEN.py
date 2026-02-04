@@ -2,10 +2,10 @@ from character.NATLAN.natlan import Natlan
 from core.base_class import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from core.calculation.DamageCalculation import Damage, DamageType
-from core.Event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
+from core.event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
 from core.calculation.HealingCalculation import Healing, HealingType
-from core.Logger import get_emulation_logger
-from core.Tool import GetCurrentTime, summon_energy
+from core.logger import get_emulation_logger
+from core.tool import GetCurrentTime, summon_energy
 from core.team import Team
 
 class BladeRollerEffect(Effect,EventHandler):
