@@ -4,13 +4,13 @@
 
 ## 1. 分支管理 (Branching Model)
 
-项目采用类 GitHub Flow 的管理模式：
+项目采用类 GitHub Flow 的管理模式，明确 `dev` 为主要集成环境：
 
-*   **`main` 分支**: 稳定版本，受保护分支。
-*   **`dev` 分支**: 开发集成中心，所有 `feature` 分支的基准。
-*   **`feature/` 分支**: 功能开发（如 `feature/character-mavika`）。
-*   **`fix/` 分支**: 错误修复。
-*   **命名规范**: `feature/功能名称` 或 `fix/Issue编号`。
+*   **`main` 分支**: 稳定版本，受保护分支。仅接受来自 `dev` 的合并。
+*   **`dev` 分支**: 开发集成中心。所有 `feature` 和 `fix` 分支的基准。
+*   **`feature/` 分支**: 功能开发（从 `dev` 切出）。
+*   **命名规范**: `feature/issue-ID-brief` 或 `fix/issue-ID-brief`。
+*   **生命周期**: 任务开始时创建，PR 合并后立即删除本地与远程分支。
 
 ## 2. 人机协同流程 (Human-AI Collaboration)
 

@@ -12,6 +12,9 @@ description: 强制执行原神伤害计算器项目的开发标准和 GitHub �
 ### 1. 任务启动 (Task Start)
 - **强制检查**: 任何编码工作前必须确认已关联 GitHub Issue。
 - **里程碑**: 必须关联当前活跃里程碑。
+- **分支管理**: 
+    - 必须基于 `dev` 分支创建功能分支: `git checkout dev && git pull && git checkout -b feature/issue-ID`。
+    - 严禁直接在 `main` 或 `dev` 分支上开发。
 - **自动化流转**: 
     1. 认领并初始化: `gh issue edit <ID> --add-label "status:plan-pending" --assignee @me --milestone "<Milestone>"`。
     2. 卡片移动: 将项目卡片移至 `🎯 Todo` 进行方案设计。
@@ -27,8 +30,12 @@ description: 强制执行原神伤害计算器项目的开发标准和 GitHub �
 
 ### 3. 完成与交接 (Handover)
 - **打标并移动**: 开发完成后，运行 `gh issue edit <ID> --add-label "status:implemented"`，并将卡片移至 `🧪 Review & GUI Test`。
+- **PR 流程**: 
+    - 开启 Pull Request 指向 `dev` 分支。
+    - PR 标题应包含 Issue ID: `feat: description #ID`。
+    - 描述中使用 `Closes #ID` 实现自动关联。
 - **同步清单**: 更新 Issue Body 勾选子任务。
-- **发布足迹**: 发送 `gh issue comment <ID> --body "🚀 [Progress]: 已完成核心改动。"`。
+- **发布足迹**: 发送 `gh issue comment <ID> --body "🚀 [Progress]: 已完成核心改动，PR 已开启。"`。
 
 ### 4. 任务关闭 (Closing)
 - **清理**: 验证通过后，运行 `gh issue edit <ID> --remove-label "status:implemented"`。
