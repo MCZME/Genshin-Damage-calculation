@@ -1,18 +1,21 @@
-from Emulation import Emulation
-from core.Team import Team
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from core.dataHandler.DataHandler import send_to_handler
+from core.context import get_context
 
 class FrameEndEventHandler(EventHandler):
     '''帧结束事件处理类'''
     def handle_event(self, event):
         if event.event_type == EventType.FRAME_END:
-            character_data = {}
-            # 兼容性处理：如果 Emulation.team 还没准备好或者已经被移除
-            if not hasattr(Emulation, 'team') or not Emulation.team:
+            try:
+                ctx = get_context()
+            except RuntimeError:
                 return
 
-            for character in Emulation.team.team:
+            if not ctx.team:
+                return
+
+            character_data = {}
+            for character in ctx.team.team:
                 name = character.name
                 character_data[name] = {
                     'weapon': {
@@ -42,26 +45,25 @@ class FrameEndEventHandler(EventHandler):
                 }
             
             # Target 数据收集
-            if not Emulation.target:
+            if not ctx.target:
                 return
                 
             target_data = {}
-            target_data['name'] = Emulation.target.name
+            target_data['name'] = ctx.target.name
             target_data['effect'] = {e.name:{
                         'duration':e.duration,
-                        'max_duration':e.max_duration,} for e in Emulation.target.effects}
-            target_data['defense'] = Emulation.target.defense
-            target_data['elemental_aura'] = [{'element':e['element'],'amount':e['current_amount']} for e in Emulation.target.aura.elementalAura]
-            if Emulation.target.aura.burning_elements:
-                target_data['elemental_aura'].append({'element':'燃','amount':Emulation.target.aura.burning_elements['current_amount']})
-            if Emulation.target.aura.quicken_elements:
-                target_data['elemental_aura'].append({'element':'激','amount':Emulation.target.aura.quicken_elements['current_amount']})
-            target_data['resistance'] = Emulation.target.current_resistance.copy()
+                        'max_duration':e.max_duration,} for e in ctx.target.effects}
+            target_data['defense'] = ctx.target.defense
+            target_data['elemental_aura'] = [{'element':e['element'],'amount':e['current_amount']} for e in ctx.target.aura.elementalAura]
+            if ctx.target.aura.burning_elements:
+                target_data['elemental_aura'].append({'element':'燃','amount':ctx.target.aura.burning_elements['current_amount']})
+            if ctx.target.aura.quicken_elements:
+                target_data['elemental_aura'].append({'element':'激','amount':ctx.target.aura.quicken_elements['current_amount']})
+            target_data['resistance'] = ctx.target.current_resistance.copy()
 
             # Object 数据收集
             object_data =  []
-            # 这里的 Team.active_objects 是静态代理，应该能工作
-            for obj in Team.active_objects:
+            for obj in ctx.team.active_objects:
                 object_data.append({'name':obj.name,
                                     'current_frame':obj.current_frame,
                                     'life_frame':obj.life_frame})

@@ -1,7 +1,6 @@
 from typing import Any
 from core.effect.base import BaseEffect
 from core.tool import GetCurrentTime
-from core.team import Team
 
 class RongHuaZhiGeEffect(BaseEffect):
     """荣花之歌 - 个人效果"""
@@ -28,8 +27,11 @@ class RongHuaZhiGeEffect(BaseEffect):
                 self._update_panel(1)
                 if self.stack == 2:
                     # 触发全队效果
-                    for char in Team.team:
-                        RongHuaZhiGeTeamEffect(char, self.owner, self.lv).apply()
+                    from core.context import get_context
+                    ctx = get_context()
+                    if ctx.team:
+                        for char in ctx.team.team:
+                            RongHuaZhiGeTeamEffect(char, self.owner, self.lv).apply()
             self.last_trigger = GetCurrentTime()
             self.duration = self.max_duration
 

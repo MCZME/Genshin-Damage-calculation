@@ -1,7 +1,6 @@
 from core.base_entity import BaseEntity
 from core.event import DamageEvent, ElementalReactionEvent, EventType, GameEvent, EventHandler
 from core.logger import get_emulation_logger
-from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
 from core.action.reaction import ElementalReaction
 
@@ -34,8 +33,11 @@ class LightningBladeObject(BaseEntity, EventHandler):
         if event.frame - self.last_trigger_time < self.cooldown:
             return
         self.last_trigger_time = event.frame
-        summon_energy(1, Team.current_character, ('雷', 2))
-        get_emulation_logger().log_effect('🔋 触发强能之雷，产生雷微粒')
+        from core.context import get_context
+        ctx = get_context()
+        if ctx.team and ctx.team.current_character:
+            summon_energy(1, ctx.team.current_character, ('雷', 2))
+            get_emulation_logger().log_effect('🔋 触发强能之雷，产生雷微粒')
 
 class DendroCoreObject(BaseEntity):
     """草原核"""
