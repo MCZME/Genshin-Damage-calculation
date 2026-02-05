@@ -18,34 +18,43 @@
 2.  **合并**: 通过 Pull Request 合并回 `main`。
 3.  **同步与删除 (清理)**: PR 合并后，开发者必须在本地执行：
     ```bash
-    git checkout main
-    git pull && git fetch --prune
-    git branch -d <feature-branch-name>
+    git checkout main ; git pull ; git fetch --prune ; git branch -d <feature-branch-name>
     ```
 
 ## 2. 提交与 PR 规范
 
 ### 提交消息 (Commit Messages)
-采用 Conventional Commits 格式，且描述部分必须使用**中文**:
+采用 Conventional Commits 格式，且**正文必须使用中文**:
 *   **格式**: `<type>: <中文描述> #<ID>`
 *   **示例**: `feat: 增加 SimulationContext 的健康检查逻辑 #9`
 
 ### Pull Request (PR)
 *   **语言**: 标题和描述均使用中文。
 *   **基准**: Base 分支设为 `main`。
-*   **自动关闭**: 描述中必须包含 `Closes #ID`。由于合并目标是 `main`，GitHub 将在合并后自动关闭关联 Issue。
+*   **自动关闭**: 描述中必须包含 `Closes #ID`。
 
-## 3. 人机协同流程 (Human-AI Collaboration)
+## 3. Issue 开发标准作业程序 (SOP)
 
-任务执行遵循“对齐-执行-验证”三部曲：
+当开始处理一个 Issue 时，必须遵循以下流程：
 
-1.  **意图对齐 (Alignment)**:
-    *   **人类角色**: 提出需求/Issue。
-    *   **AI 角色**: 产出中文技术方案，明确改动点。
-2.  **迭代执行 (Iteration)**:
-    *   **AI 角色**: 负责“编写测试 -> 实现逻辑 -> 运行 Lint”。
-3.  **结果沉淀 (Persistence)**:
-    *   **AI 角色**: 生成符合规范的中文提交和 PR。
+### 第一阶段：启动与方案对齐 (Start & Align)
+1.  **状态流转**: 在 GitHub Projects 中将卡片移动至 `Todo`。
+2.  **分支管理**: 基于 `main` 分支创建新分支 `feature/描述`。
+3.  **技术提案**: 提交一份简短的方案草案（中文），明确 Impact、Logic、Events。
+
+### 第二阶段：测试驱动 (Test-First)
+1.  **复现/定义**: 在 `tests/` 目录下编写测试用例。
+2.  **执行**: 运行测试，确认当前状态下测试失败。
+
+### 第三阶段：实现与验证 (Implement & Verify)
+1.  **编码**: 严格执行 `references/standards.md` 中的规范。
+2.  **自测**: 运行测试确保通过。
+3.  **合规性检查**: 运行 `ruff check .`。
+
+### 第四阶段：交接与评审 (Handover)
+1.  **提交**: 遵循中文提交规范。
+2.  **PR**: 开启指向 `main` 的 PR，描述包含 `Closes #ID`。
+3.  **同步**: 更新任务清单。
 
 ## 4. 关键交接标签 (Key Handover Labels)
 
@@ -55,3 +64,4 @@
 ## 5. 环境与工具
 *   **Lint**: Ruff。
 *   **Test**: Pytest / 项目自定义仿真。
+*   **AI Context**: 持续维护 `GEMINI.md`。
