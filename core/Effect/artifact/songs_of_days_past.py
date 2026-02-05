@@ -2,7 +2,6 @@ from typing import Any
 from core.effect.base import BaseEffect
 from core.event import EventHandler, EventType, GameEvent
 from core.action.damage import DamageType
-from core.team import Team
 
 class ThirstEffect(BaseEffect):
     """渴盼效果 - 记录治疗量"""
@@ -34,7 +33,9 @@ class WaveEffect(BaseEffect, EventHandler):
 
     def handle_event(self, event: GameEvent):
         damage = event.data['damage']
-        if (damage.source in Team.team and 
+        from core.context import get_context
+        ctx = get_context()
+        if ctx.team and (damage.source in ctx.team.team and 
             damage.damage_type in [DamageType.NORMAL, DamageType.CHARGED, DamageType.SKILL, DamageType.BURST, DamageType.PLUNGING]):
             damage.panel['固定伤害基础值加成'] += self.bonus
             self.hit_count += 1

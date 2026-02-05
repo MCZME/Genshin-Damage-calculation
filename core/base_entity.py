@@ -21,8 +21,8 @@ class BaseEntity:
 
     def apply(self):
         """应用实体到队伍中"""
-        from core.team import Team
-        Team.add_object(self)
+        if self.ctx and self.ctx.team:
+            self.ctx.team.add_object(self)
 
     def update(self, target: Any):
         """每帧驱动逻辑"""
