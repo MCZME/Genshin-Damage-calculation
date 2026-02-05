@@ -99,6 +99,18 @@ class SimulationContext:
     def advance_frame(self) -> None:
         self.current_frame += 1
 
+    def health_check(self) -> bool:
+        """
+        验证上下文健康状态。
+        检查 EventEngine 和基础组件是否就绪。
+        """
+        if self.event_engine is None:
+            return False
+        # 如果有 logger，记录一条健康日志
+        if self.logger:
+            self.logger.log_info("Context health check passed.")
+        return True
+
     def reset(self) -> None:
         self.current_frame = 0
         self.global_move_dist = 0.0
