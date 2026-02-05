@@ -81,6 +81,21 @@ class SimulationContext:
     system_manager: Optional[Any] = None
     logger: Optional[Any] = None
 
+    # 上下文管理器状态
+    _token: Optional[Any] = field(default=None, init=False, repr=False)
+
+    def __enter__(self) -> 'SimulationContext':
+        """进入 with 块时自动设置为当前上下文。"""
+        self._token = _current_context.set(self)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """退出 with 块时自动清理。"""
+        if self._token:
+            _current_context.reset(self._token)
+            self._token = None
+        self.reset()
+
     def advance_frame(self) -> None:
         self.current_frame += 1
 
