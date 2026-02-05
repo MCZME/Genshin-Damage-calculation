@@ -1,0 +1,44 @@
+name: "🐛 Bug Report"
+description: "报告计算偏差或程序错误"
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "感谢反馈！请尽量提供详细的数据以便复现。"
+  - type: input
+    id: version
+    attributes:
+      label: "游戏/项目版本"
+      placeholder: "例如: v5.3 / commit hash"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "错误描述"
+      description: "发生了什么？计算结果与实际差多少？"
+      placeholder: "预期伤害: 10000, 实际伤害: 8500"
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: "配置详情"
+      description: "涉及的角色、等级、命座、武器、圣遗物套装及关键属性。"
+  - type: textarea
+    id: steps
+    attributes:
+      label: "复现步骤"
+      placeholder: "1. 选择角色 X
+2. 释放 E 技能
+3. 触发超激化反应"
+  - type: textarea
+    id: checklist
+    attributes:
+      label: "任务清单"
+      value: |
+        ### 待办事项
+        - [ ] 复现问题并编写测试用例
+        - [ ] 定位逻辑缺陷
+        - [ ] 修复代码并验证单元测试
+        - [ ] (可选) 同步更新文档

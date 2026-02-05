@@ -1,0 +1,26 @@
+name: "🛠️ Refactor"
+description: "记录架构改进、性能优化或代码清理"
+labels: ["type:refactor"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "重构动机"
+      description: "为什么要重构？解决了哪些痛点？"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: "影响范围"
+      description: "哪些模块会被改动？是否涉及破坏性 API 变更？"
+  - type: textarea
+    id: checklist
+    attributes:
+      label: "任务清单"
+      value: |
+        ### 执行计划
+        - [ ] 分析现有架构依赖
+        - [ ] 产出重构方案 (Plan)
+        - [ ] 分步实施改动
+        - [ ] 运行全量测试回归

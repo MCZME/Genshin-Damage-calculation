@@ -3,5 +3,10 @@
     "fileFiltering": {
       "respectGitIgnore": false
     }
+  },
+  "general": {
+    "sessionRetention": {
+      "enabled": true
+    }
   }
 }

@@ -1,0 +1,34 @@
+name: "✨ Feature Request"
+description: "提议新角色、武器、圣遗物或机制实现"
+labels: ["type:feature"]
+body:
+  - type: input
+    id: entity_name
+    attributes:
+      label: "实体/机制名称"
+      placeholder: "例如: 希诺宁 (Xilonen)"
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: "数据来源/参考链接"
+      description: "请提供官方数值或可靠的倍率表链接（如 Honey Hunter）。"
+    validations:
+      required: true
+  - type: textarea
+    id: mechanics
+    attributes:
+      label: "核心机制描述"
+      description: "简述该特性的核心计算逻辑（如：基于防御力的增益、特殊的元素转化等）。"
+  - type: textarea
+    id: checklist
+    attributes:
+      label: "任务清单"
+      value: |
+        ### 实施步骤
+        - [ ] 收集并确认基础数值
+        - [ ] 在 `core/systems` 中增加必要的逻辑支撑
+        - [ ] 实现实体类 (Character/Weapon/Artifact)
+        - [ ] 编写全流程仿真测试
+        - [ ] 在 GUI 中验证显示与交互
