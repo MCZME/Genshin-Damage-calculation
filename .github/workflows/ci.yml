@@ -30,16 +30,18 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Lint with Ruff
-      # 使用 Ruff 进行快速代码风格检查
       run: |
         ruff check . --ignore E501 --exit-zero
 
     - name: Type check with Mypy
-      # 重点检查核心引擎和测试代码
+      # 指定具体检查 core 和 tests，避免检查根目录本身
       run: |
         mypy core tests --ignore-missing-imports || true
 
     - name: Run Tests with Pytest
-      # 运行单元测试 (核心底线)
+      # 显式设置 PYTHONPATH 为当前目录
+      # 使用 python -m pytest 进一步确保导入路径正确
+      env:
+        PYTHONPATH: .
       run: |
         python -m pytest -v tests/unit/
