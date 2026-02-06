@@ -5,28 +5,35 @@ description: 强制执行原神伤害计算器项目的开发标准和 GitHub �
 
 # Skill: Genshin Dev Flow
 
-作为项目的主导 AI 开发者，你必须严格遵循本项目的一系列 SOP 和自动化规范。
+作为项目的主导 AI 开发者，你必须严格遵循本项目的一系列 SOP 和自动化规范。本 Skill 仅作为高层级的工作流导引，具体的管理、编码和协作细节请查阅 `references/` 下的文档。
 
 ## 核心职责
 
-### 1. 任务启动 (Task Start)
-- **强制检查**: 任何编码工作前必须确认已关联 GitHub Issue。
-- **里程碑**: 必须关联当前活跃里程碑。
-- **分支管理**: 从 `main` 切出描述性分支（`feature/描述`）。
-- **自动化流转**: 
-    1. 认领并初始化: `gh issue edit <ID> --add-label "status:plan-pending" --assignee @me --milestone "<Milestone>"`。
-    2. **看板同步**: 运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Todo`。
-- **方案对齐**: 编码前输出 Technical Proposal（中文）。
+### 0. 🔍 上下文感知 (Context Awareness) [CRITICAL]
+- **启动必做**: 任何任务开始前，**必须**首先运行：
+  `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
+- **阅读报告**: 仔细阅读输出的 Git 状态、Issue 列表、里程碑和 `.gemini/CURRENT_STATE.md`。
+- **状态维护**: 始终知晓当前的“存档点”和活跃任务。
 
-### 2. 实施阶段 (Implementation)
-- **启动开发**: 方案确认后，运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> "In Progress"`，并删除 `status:plan-pending` 标签。
-- **测试先行**: 修改逻辑前，在 `tests/` 下编写脚本。
-- **提交规范**: 提交信息使用中文，格式 `<type>: 简短描述 #ID`。每次提交后同步 Issue Checklist。
+### 1. 任务全生命周期流程
+请根据当前任务阶段，严格遵守以下文档中定义的 SOP：
 
-### 3. 完成与交接 (Handover)
-- **看板同步**: 开发完成开启 PR 后，运行 `gh issue edit <ID> --add-label "status:implemented"`，并运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Review`。
-- **PR 目标**: 始终指向 `main`。
+- **项目管理规范 (Rules & States)**: 参见 `references/management.md`。
+  - 包含：Issue 模板要求、标签定义与状态含义、里程碑设计、看板流转逻辑。
+- **代码实现与工程标准 (Coding Standards)**: 参见 `references/standards.md`。
+  - 包含：命名约定、类型标注、异常处理、代码风格。
+- **开发工作流规范 (Operations & SOP)**: 参见 `references/workflow.md`。
+  - 包含：上下文感知 (Context Awareness)、Issue 开发 5 阶段 SOP、分支与提交规范、工具命令参考。
 
-### 4. 收尾清理 (Post-Merge Cleanup)
-- **同步与删除**: 当 PR 被合并后，切换回 `main` 并删除本地分支。
-- **归档**: 确认 Issue 关闭，清理 `status:implemented` 标签，运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Done`。
+### 2. 存档与同步 (State Persistence)
+- **存档**: 在 PR 合并后或任务告一段落时，**必须**更新 `.gemini/CURRENT_STATE.md`。
+- **看板同步**: 使用 `scripts/sync_board.py` 脚本实时同步 GitHub Project 看板状态。
+
+## 关键资源 (Critical Resources)
+- **参考文档库**: `.gemini/skills/skill-genshin-dev-flow/references/` (请按需查阅)
+- **核心脚本**:
+  - `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py` (获取上下文)
+  - `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> <Column>` (同步看板)
+- **测试/运行入口**:
+  - `python test.py` (标准测试入口)
+  - `python main.py` (应用入口)
