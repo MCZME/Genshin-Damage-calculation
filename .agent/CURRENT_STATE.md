@@ -4,14 +4,18 @@
 **Status:** 🚀 Ready for new task
 
 ## 📝 Recent Context
-- **Last Action:** Initialized new development flow tools.
-- **Focus:** Cleaning up technical debt & refactoring core systems.
+- **Last Action:** Cleaned up technical debt and aligned core engine systems (Issue #14).
+- **Focus:** Extracted `AttributeCalculator` for unified attribute retrieval; refactored `DamageSystem` and `HealthSystem`.
+- **Improvements:** 
+    - Resolved case-sensitivity issue for `core/tool.py`.
+    - Enhanced `BaseEntity` to support explicit context passing.
+    - Added unit test `tests/test_core_refactor_unit.py` to verify core logic.
 
 ## 📌 Critical Knowledge
-- **Test Entry:** `python test.py` (Do NOT use batch_sim_test.py)
-- **Build/Run:** `python main.py`
-- **Source of Truth:** GitHub Issues & Milestones
+- **New Utility:** `core/systems/utils.py:AttributeCalculator` should be used for all base attribute (ATK, HP, DEF) calculations.
+- **Entity Init:** `BaseEntity` now accepts an optional `context` argument to avoid singleton dependency.
+- **File Naming:** Core utility is renamed to `core/tool.py` (lowercase) for consistency.
 
 ## 🔜 Next Steps
-1.  Run `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py` to check for assigned issues.
-2.  Create/Pick an issue to start working.
+1.  Verify full engine compatibility with refactored `AttributeCalculator`.
+2.  Continue identifying and removing redundant logic in other systems (e.g., `ShieldSystem`).

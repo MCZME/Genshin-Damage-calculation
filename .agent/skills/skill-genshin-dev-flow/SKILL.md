@@ -13,6 +13,7 @@ description: 强制执行原神伤害计算器项目的开发标准和 GitHub �
 - **启动必做**: 任何任务开始前，**必须**首先运行：
   `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
 - **阅读报告**: 仔细阅读输出的 Git 状态、Issue 列表、里程碑和 `.gemini/CURRENT_STATE.md`。
+- **阅读开发文档**: 任务开始前必须熟悉 `references/` 下的管理、编码和工作流规范。
 - **状态维护**: 始终知晓当前的“存档点”和活跃任务。
 
 ### 1. 任务全生命周期流程
