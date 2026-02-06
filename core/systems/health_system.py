@@ -1,4 +1,5 @@
 from typing import Union, Tuple
+from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import EventType, GameEvent, HealEvent, HurtEvent
@@ -16,24 +17,18 @@ class Calculation:
 
     def get_attack(self):
         """获取攻击力"""
-        attribute = self.source.attributePanel if self.healing.multiplier_provider == '来源' else self.target.attributePanel
-        atk0 = attribute['攻击力']
-        atk1 = atk0 * attribute['攻击力%'] / 100 + attribute['固定攻击力']
-        return atk0 + atk1
+        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
+        return AttributeCalculator.get_attack(entity)
 
     def get_hp(self):
         """获取生命值"""
-        attribute = self.source.attributePanel if self.healing.multiplier_provider == '来源' else self.target.attributePanel
-        hp0 = attribute['生命值']
-        hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
-        return hp0 + hp1
+        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
+        return AttributeCalculator.get_hp(entity)
 
     def get_defense(self):
         """获取防御力"""
-        attribute = self.source.attributePanel if self.healing.multiplier_provider == '来源' else self.target.attributePanel
-        df0 = attribute['防御力']
-        df1 = df0 * attribute['防御力%'] / 100 + attribute['固定防御力']
-        return df0 + df1
+        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
+        return AttributeCalculator.get_defense(entity)
 
     def get_multiplier(self) -> Union[float, Tuple[float, float]]:
         """获取倍率"""

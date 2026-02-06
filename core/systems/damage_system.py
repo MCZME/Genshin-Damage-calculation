@@ -1,6 +1,7 @@
 from typing import List, Optional
 import random
 
+from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import GameEvent, DamageEvent, EventType
@@ -30,25 +31,19 @@ class Calculation:
         self.damage.setPanel('固定伤害基础值加成', 0)
 
     def attack(self):
-        attributePanel = self.source.attributePanel
-        atk0 = attributePanel['攻击力']
-        atk1 = atk0 * attributePanel['攻击力%']/100 + attributePanel['固定攻击力']
-        self.damage.setPanel('攻击力', atk0+atk1)
-        return atk0+atk1
+        val = AttributeCalculator.get_attack(self.source)
+        self.damage.setPanel('攻击力', val)
+        return val
 
     def health(self):
-        attribute = self.source.attributePanel
-        hp0 = attribute['生命值']
-        hp1 = hp0 * attribute['生命值%'] / 100 + attribute['固定生命值']
-        self.damage.setPanel('生命值', hp0+hp1)
-        return hp0 + hp1
+        val = AttributeCalculator.get_hp(self.source)
+        self.damage.setPanel('生命值', val)
+        return val
 
     def DEF(self):
-        attribute = self.source.attributePanel
-        def0 = attribute['防御力']
-        def1 = def0 * attribute['防御力%'] / 100 + attribute['固定防御力']
-        self.damage.setPanel('防御力', def0+def1)
-        return def0 + def1
+        val = AttributeCalculator.get_defense(self.source)
+        self.damage.setPanel('防御力', val)
+        return val
 
     def damageMultipiler(self):
         self.damage.setPanel('伤害倍率', self.damage.damageMultipiler)

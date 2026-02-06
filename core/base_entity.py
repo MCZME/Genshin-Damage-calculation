@@ -4,20 +4,24 @@ class BaseEntity:
     """
     仿真世界中的实体基类（召唤物、领域、护盾等）。
     """
-    def __init__(self, name: str, life_frame: float = float('inf')):
+    def __init__(self, name: str, life_frame: float = float('inf'), context=None):
         self.name = name
         self.life_frame = life_frame
         self.current_frame = 0
         self.is_active = True
         
-        # 自动关联 Context 和局部事件引擎
-        from core.context import get_context
-        try:
-            self.ctx = get_context()
+        # 优先使用传入的 context，否则尝试自动获取
+        if context:
+            self.ctx = context
             self.event_engine = self.ctx.event_engine
-        except RuntimeError:
-            self.ctx = None
-            self.event_engine = None
+        else:
+            from core.context import get_context
+            try:
+                self.ctx = get_context()
+                self.event_engine = self.ctx.event_engine
+            except RuntimeError:
+                self.ctx = None
+                self.event_engine = None
 
     def apply(self):
         """应用实体到队伍中"""
