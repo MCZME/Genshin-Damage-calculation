@@ -19,8 +19,8 @@ class GoldenTroupe(BaseArtifactSet):
         if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
             if event.data["character"] == self.character:
                 damage = event.data["damage"]
-                d_type = getattr(damage, "damage_type", getattr(damage, "damageType", None))
-                if d_type == DamageType.SKILL:
+                
+                if damage.damage_type == DamageType.SKILL:
                     # 两件套 20%
                     damage.panel["伤害加成"] += 20
                     damage.setDamageData("黄金剧团-两件套", 20)

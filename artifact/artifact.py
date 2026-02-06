@@ -56,8 +56,8 @@ class ArtifactManager:
                 for k, v in artifact.sub.items():
                     panel_totals[k] = panel_totals.get(k, 0.0) + v
         
-        # 统一使用 attribute_panel (兼容处理)
-        attr_panel = getattr(self.character, "attribute_panel", getattr(self.character, "attributePanel", {}))
+        # 严格使用新架构的 attribute_panel
+        attr_panel = self.character.attribute_panel
         
         for key, val in panel_totals.items():
             if key == "攻击力":
@@ -87,10 +87,6 @@ class ArtifactManager:
                 effect_instance.apply_2_set_effect(self.character)
             if count >= 4:
                 effect_instance.apply_4_set_effect(self.character)
-    
-    # 兼容旧代码调用
-    def updatePanel(self): self.update_panel()
-    def setEffect(self): self.set_effect()
 
     def to_dict(self) -> Dict[str, Any]:
         return {

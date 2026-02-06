@@ -84,12 +84,8 @@ class Weapon:
 
     def update_panel(self) -> None:
         """将武器属性应用到角色的面板上。"""
-        # 兼容处理：尝试获取 attribute_panel 或 attributePanel
-        panel = getattr(
-            self.character,
-            "attribute_panel",
-            getattr(self.character, "attributePanel", {}),
-        )
+        # 严格使用新架构的 attribute_panel
+        panel = self.character.attribute_panel
         for attr, value in self.attribute_data.items():
             if attr in panel:
                 panel[attr] += value
