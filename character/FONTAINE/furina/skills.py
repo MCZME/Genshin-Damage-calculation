@@ -1,6 +1,6 @@
 from typing import Any
 from core.skills.base import SkillBase, EnergySkill
-from core.skills.common import NormalAttackSkill, ChargedAttackSkill
+from core.skills.common import ChargedAttackSkill
 from core.action.damage import Damage, DamageType
 from core.action.action_data import ActionFrameData
 from core.event import EventHandler, EventType, GameEvent, DamageEvent

@@ -1,6 +1,5 @@
-from core.event import EventType
 from core.config import Config
-from core.context import create_context, get_context
+from core.context import create_context
 from core.logger import logger_init, manage_log_files
 from ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication

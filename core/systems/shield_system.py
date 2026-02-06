@@ -3,7 +3,6 @@ from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import EventType, ShieldEvent
 from core.action.shield import Shield
-from core.logger import get_emulation_logger
 
 # ---------------------------------------------------------
 # Shield Calculation Helper

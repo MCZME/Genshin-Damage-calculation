@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from core.tool import level as level_to_idx, attributeId as attr_id_to_name
 from core.data.database import db_manager
 

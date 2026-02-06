@@ -174,7 +174,7 @@ class ChargedAttack(ChargedAttackSkill):
             self.damageMultipiler[self.lv_param-1],
             self.element,
             DamageType.CHARGED,
-            f'重击' if self.current_mode == "正常模式" else '七相一闪重击'
+            '重击' if self.current_mode == "正常模式" else '七相一闪重击'
         )
         if self.caster.mode == "七相一闪":
             damage.setDamageData('不可覆盖',True)

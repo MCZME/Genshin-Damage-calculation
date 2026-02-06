@@ -1,11 +1,10 @@
 import random
 from PySide6.QtWidgets import (QVBoxLayout, QWidget, QLabel,
                               QPushButton, QHBoxLayout, QProgressBar, QStyle,
-                              QGridLayout, QApplication)
+                              QGridLayout)
 
 from ui.widget.character_status_dialog import CharacterStatusDialog, EffectDisplayWidget, EnergyDisplayWidget
 from PySide6.QtCore import Qt, QObject
-from PySide6.QtGui import QPixmap
 
 class CharacterStatusCard(QWidget):
     """单个角色状态卡片组件"""

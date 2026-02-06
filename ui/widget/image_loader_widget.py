@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QPushButton, QStyle
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QPushButton
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QObject, Signal, Qt, QUrl, QSize
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
@@ -153,7 +153,7 @@ class ImageLoaderWidget(QWidget):
             Qt.KeepAspectRatio, 
             Qt.SmoothTransformation
         ))
-        get_ui_logger().log_info(f"图片加载成功")
+        get_ui_logger().log_info("图片加载成功")
 
     def on_image_error(self, error):
         get_ui_logger().log_error(f"图片加载失败: {error}")

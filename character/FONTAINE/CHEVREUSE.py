@@ -209,7 +209,7 @@ class ElementalSkill(SkillBase, EventHandler):
                     life_frame=surge_frame - trigger_frame
                 )
                 surge.apply()
-                get_emulation_logger().log_object(f"🌊 生成流涌之刃")
+                get_emulation_logger().log_object("🌊 生成流涌之刃")
                 summon_energy(4, self.caster, ('火', 2))
         return False
     

@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Any, Tuple, Optional
+from abc import ABC
+from typing import Any, Tuple
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
 from core.action.action_data import ActionFrameData

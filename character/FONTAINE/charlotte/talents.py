@@ -1,12 +1,12 @@
 from typing import Any
 from core.effect.common import TalentEffect, ConstellationEffect
-from core.event import EventBus, EventType, EventHandler, GameEvent
+from core.event import EventType, EventHandler, GameEvent
 from core.action.healing import HealingType
 from core.action.damage import Damage, DamageType
 from core.effect.stat_modifier import AttackBoostEffect
 from core.team import Team
 from core.tool import GetCurrentTime
-from character.FONTAINE.charlotte.entities import VerificationEffect, DamageEffect, HealEvent
+from character.FONTAINE.charlotte.entities import VerificationEffect, DamageEffect
 
 class PassiveSkillEffect_1(TalentEffect):
     """天赋1：冲击力瞬间"""
@@ -116,7 +116,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                 self._trigger_coordination(damage.target)
 
     def _trigger_coordination(self, target):
-        from core.action.damage import Damage, DamageType
+        from core.action.damage import DamageType
         from core.action.healing import Healing, HealingType
         from core.event import DamageEvent, HealEvent
         

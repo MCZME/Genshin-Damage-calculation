@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
         self.logger.log_button_click(f"开始计算: 队伍{len(team_data)}人, 动作序列{len(action_sequence)}个")
         
         # 自动保存当前配置
-        filename = f"./data/last_file.json"
+        filename = "./data/last_file.json"
         os.makedirs("./data", exist_ok=True)
         with open(filename, "w", encoding="utf-8") as f:
             json.dump({

@@ -1,10 +1,6 @@
-import random
-from core.logger import get_emulation_logger
-from core.effect.stat_modifier import DefenseBoostEffect, EnergyRechargeBoostEffect
 from core.action.damage import DamageType
 
 from core.event import EventBus, EventHandler, EventType
-from core.team import Team
 import core.tool as T
 from weapon.weapon import Weapon
 from core.registry import register_weapon

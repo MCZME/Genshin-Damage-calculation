@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type, TypeVar, Optional
+from typing import Any, Dict, Type, TypeVar
 from core.entities.base_entity import BaseEntity
 from core.context import get_context
 

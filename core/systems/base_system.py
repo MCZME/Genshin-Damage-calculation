@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-from core.context import SimulationContext, EventEngine, EventHandlerType
+from core.context import SimulationContext, EventEngine
 
 class GameSystem(ABC):
     """

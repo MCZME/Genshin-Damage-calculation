@@ -5,7 +5,6 @@ from core.effect.stat_modifier import AttackBoostEffect, HealthBoostEffect
 from core.effect.resonance import CreepingGrassEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.event import CharacterSwitchEvent, EventBus
 from core.tool import GetCurrentTime
-from core.context import get_context
 
 class Team:
     """

@@ -1,11 +1,11 @@
 from typing import Any
 from core.effect.base import BaseEffect
 from core.effect.common import TalentEffect, ConstellationEffect
-from core.event import EventHandler, EventType, GameEvent, HealEvent, DamageEvent
+from core.event import EventHandler, EventType, GameEvent, HealEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
 from core.action.healing import Healing, HealingType
-from core.action.damage import Damage, DamageType
+from core.action.damage import DamageType
 
 class UniversalExaltationEffect(BaseEffect):
     """普世欢腾效果 (大招增益)"""

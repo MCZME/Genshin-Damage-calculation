@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import core.tool as T
 from core.action.action_data import ActionFrameData
@@ -9,14 +8,10 @@ from core.context import get_context
 from core.mechanics.aura import ElementalAura
 from core.event import (
     ActionEvent,
-    DamageEvent,
     EventBus,
     EventType,
-    GameEvent,
     HealthChangeEvent,
-    HealEvent,
 )
-from core.logger import get_emulation_logger
 
 
 class Character(ABC):

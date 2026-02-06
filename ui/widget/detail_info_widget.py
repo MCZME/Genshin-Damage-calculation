@@ -1,5 +1,4 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QScrollArea, QFrame,
-                               QGridLayout, QSizePolicy)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QScrollArea, QGridLayout)
 from PySide6.QtCore import Qt
 
 class InfoCardWidget(QWidget):
@@ -99,18 +98,18 @@ class InfoCardWidget(QWidget):
                 else:
                     display_text = f"<b>{label}:</b> {value}"
                 item = QLabel(display_text)
-                item.setStyleSheet(f"""
-                    QLabel {{
+                item.setStyleSheet("""
+                    QLabel {
                         font-size: 14px;
                         color: #444444;
                         padding: 0;
                         background: transparent;
-                    }}
+                    }
                     
-                    QLabel:hover {{
+                    QLabel:hover {
                         background: transparent;
                         color: #222222;
-                    }}
+                    }
                 """)
                 info_layout.addWidget(item, i // 2, i % 2)
         

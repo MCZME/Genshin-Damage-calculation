@@ -2,8 +2,7 @@ import random
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from character.INAZUMA.inazuma import Inazuma
-from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, ObjectEvent
-from core.logger import get_emulation_logger
+from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
 from core.action.damage import Damage, DamageType
@@ -46,7 +45,7 @@ class ChargedAttack(ChargedAttackSkill):
             damageMultipiler=self.damageMultipiler[i+1][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
-            name=f'重击'
+            name='重击'
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)

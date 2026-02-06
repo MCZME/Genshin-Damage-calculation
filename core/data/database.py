@@ -1,5 +1,4 @@
 import mysql.connector
-from mysql.connector import pooling
 from typing import List, Any, Optional
 from core.config import Config
 

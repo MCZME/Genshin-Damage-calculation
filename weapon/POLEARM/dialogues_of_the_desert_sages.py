@@ -1,8 +1,6 @@
-from core.action.damage import DamageType
 from core.tool import summon_energy
 from weapon.weapon import Weapon
 from core.event import EventBus, EventType, EventHandler
-from core.effect.stat_modifier import AttackBoostEffect
 from core.registry import register_weapon
 
 @register_weapon("沙中伟贤的对答", "长柄武器")

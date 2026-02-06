@@ -1,5 +1,5 @@
-from typing import List, Tuple, Any, Optional
-from core.context import SimulationContext, get_context
+from typing import List, Tuple, Any
+from core.context import SimulationContext
 from core.event import FrameEndEvent
 from core.logger import get_emulation_logger
 

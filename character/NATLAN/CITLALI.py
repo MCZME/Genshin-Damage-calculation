@@ -320,7 +320,7 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
         if event.event_type == EventType.NightsoulBurst:
             # 队伍角色触发夜魂迸发时恢复4点夜魂值
             self.character.gain_night_soul(4)
-            get_emulation_logger().log_skill_use(f"❄️ 天赋「白燧蝶的星衣」触发，恢复4点夜魂值")
+            get_emulation_logger().log_skill_use("❄️ 天赋「白燧蝶的星衣」触发，恢复4点夜魂值")
         elif event.event_type == EventType.BEFORE_FIXED_DAMAGE and event.data['character'] == self.character:
             if event.data['damage'].damageType == DamageType.BURST and event.data['damage'].name == '诸曜饬令·冰风暴':
                 event.data['damage'].panel['固定伤害基础值加成'] += self.character.attributePanel['元素精通'] * 12

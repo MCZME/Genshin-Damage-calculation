@@ -1,5 +1,3 @@
-from core.action.damage import DamageType
-from core.tool import summon_energy
 from weapon.weapon import Weapon
 from core.event import EventBus, EventType, EventHandler
 from core.effect.stat_modifier import AttackBoostEffect

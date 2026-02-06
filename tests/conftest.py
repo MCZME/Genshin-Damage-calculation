@@ -2,7 +2,7 @@ import pytest
 from core.context import EventEngine
 from core.config import Config
 from core.action.damage import Damage, DamageType
-from core.systems.damage_system import DamageSystem, DamageContext, DamagePipeline
+from core.systems.damage_system import DamageSystem, DamageContext
 
 # -----------------------------------------------------------------------------
 # 基础 Mock 对象

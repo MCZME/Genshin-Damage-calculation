@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import (QFrame, QVBoxLayout, QLabel, QPushButton,
+from PySide6.QtWidgets import (QFrame, QLabel, QPushButton,
                                QVBoxLayout,QSizePolicy, QWidget)
 from PySide6.QtCore import (Qt, QMimeData)
 from PySide6.QtGui import (QDrag, QPixmap)

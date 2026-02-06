@@ -15,6 +15,7 @@ class ViridescentVenerer(BaseArtifactSet):
     
 
     def apply_2_set_effect(self, character: Any) -> None:
+        pass
 
     def apply_4_set_effect(self, character: Any) -> None:
         EventBus.subscribe(EventType.BEFORE_SWIRL, self)

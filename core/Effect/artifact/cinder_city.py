@@ -1,6 +1,5 @@
 from typing import Any, Dict
-from core.effect.base import BaseEffect, StackingRule
-from core.logger import get_emulation_logger
+from core.effect.base import BaseEffect
 
 class CinderCityEffect(BaseEffect):
     """烬城勇者绘卷套装效果"""

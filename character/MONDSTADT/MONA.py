@@ -139,7 +139,7 @@ class BubbleObject(baseObject, EventHandler):
                 GetCurrentTime()
             )
             EventBus.publish(damage_event)
-            get_emulation_logger().log_effect(f"✨ 泡影破裂，触发星异效果")
+            get_emulation_logger().log_effect("✨ 泡影破裂，触发星异效果")
             self.on_finish(event.data['target'])
 
     def on_finish(self, target):

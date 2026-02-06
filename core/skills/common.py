@@ -5,9 +5,7 @@ from core.action.action_data import ActionFrameData
 from core.event import (
     ActionEvent,
     DamageEvent,
-    EventBus,
     EventType,
-    GameEvent,
 )
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime

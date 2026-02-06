@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.action.reaction import (
     ElementalReaction,

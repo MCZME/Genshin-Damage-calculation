@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 class ActionState(Enum):
     """动作状态机状态"""

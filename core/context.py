@@ -1,6 +1,6 @@
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional
 
 # ---------------------------------------------------------
 # 类型定义 (前置声明，避免循环引用)

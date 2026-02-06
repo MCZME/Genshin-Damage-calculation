@@ -1,8 +1,8 @@
-from typing import Any, Tuple
+from typing import Any
 from core.effect.base import BaseEffect
-from core.event import DamageEvent, EventBus
+from core.event import DamageEvent
 from core.tool import GetCurrentTime
-from core.action.damage import Damage, DamageType
+from core.action.damage import Damage
 
 class ElementalInfusionEffect(BaseEffect):
     """元素附魔效果"""

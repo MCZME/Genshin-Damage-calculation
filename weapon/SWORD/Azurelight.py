@@ -1,9 +1,5 @@
 from typing import Any
-from core.logger import get_emulation_logger
-from core.action.damage import DamageType
-from core.event import EventBus, EventHandler, EventType, GameEvent
-from core.team import Team
-import core.tool as T
+from core.event import EventHandler, EventType, GameEvent
 from weapon.weapon import Weapon
 from core.registry import register_weapon
 from core.effect.base import BaseEffect

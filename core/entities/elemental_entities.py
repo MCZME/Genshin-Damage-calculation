@@ -1,8 +1,7 @@
 from core.entities.base_entity import BaseEntity
-from core.event import DamageEvent, ElementalReactionEvent, EventType, GameEvent, EventHandler
+from core.event import EventType, GameEvent, EventHandler
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime, summon_energy
-from core.action.reaction import ElementalReaction
+from core.tool import summon_energy
 
 class LightningBladeObject(BaseEntity, EventHandler):
     """强能之雷 (雷共鸣)"""

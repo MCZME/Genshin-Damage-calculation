@@ -1,5 +1,4 @@
 from typing import Dict, Any, List
-from character.character import Character
 from core.registry import register_character
 from character.FONTAINE.fontaine import Fontaine
 from core.mechanics.energy import ElementalEnergy

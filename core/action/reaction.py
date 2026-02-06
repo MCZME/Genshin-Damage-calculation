@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Tuple, Optional, Any
+from typing import Dict, Tuple
 
 class ElementalReactionType(Enum):
     VAPORIZE = '蒸发'

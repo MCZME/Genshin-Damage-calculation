@@ -66,7 +66,7 @@ class Natlan(Character):
         self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
         EventBus.publish(self.before_nightsoulBlessingevent)
         self.Nightsoul_Blessing = True
-        get_emulation_logger().log_effect(f"🌙 夜魂加持")
+        get_emulation_logger().log_effect("🌙 夜魂加持")
 
     def romve_NightSoulBlessing(self):
         self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)

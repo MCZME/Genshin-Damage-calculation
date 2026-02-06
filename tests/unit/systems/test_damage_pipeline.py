@@ -1,5 +1,5 @@
 import pytest
-from core.systems.damage_system import DamagePipeline, DamageContext
+from core.systems.damage_system import DamagePipeline
 from core.config import Config
 
 class TestDamagePipelineUnit:

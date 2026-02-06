@@ -48,7 +48,7 @@ class ChargedAttack(ChargedAttackSkill):
             damageMultipiler=self.damageMultipiler[self.hit_frames.index(self.current_frame)][self.lv-1],
             element=self.element,
             damageType=DamageType.CHARGED,
-            name=f'重击-'+str(self.hit_frames.index(self.current_frame)+1),
+            name='重击-'+str(self.hit_frames.index(self.current_frame)+1),
         )
         damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
         EventBus.publish(damage_event)

@@ -218,7 +218,7 @@ class ElementalSkill(SkillBase):
                     caster=self.caster,
                 )
                 droplet.apply()
-                logger.log_effect(f"🌊 生成源水之滴")
+                logger.log_effect("🌊 生成源水之滴")
         
             # 芒性伤害 - 灵息之刺
             if (current_time - self.last_arkhe_time >= self.arkhe_interval):  # 主伤害触发后才开始计时
@@ -310,7 +310,7 @@ class ElementalBurst(EnergySkill):
                     caster=self.caster,
                 )
                 droplet.apply()
-                logger.log_effect(f"🌊 生成源水之滴")
+                logger.log_effect("🌊 生成源水之滴")
 
     def on_finish(self):
         return super().on_finish()
