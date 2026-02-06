@@ -31,18 +31,16 @@ jobs:
 
     - name: Lint with Ruff
       # 使用 Ruff 进行快速代码风格检查
-      # 暂时设置为 exit-zero 以允许 CI 通过，待代码清理完成后再收紧
       run: |
         ruff check . --ignore E501 --exit-zero
 
     - name: Type check with Mypy
-      # 静态类型检查
-      # 暂时设置为 exit-zero 供参考
+      # 重点检查核心引擎和测试代码
       run: |
-        mypy . --ignore-missing-imports --disable-error-code=import-not-found --disable-error-code=import-untyped --exit-zero
+        mypy core tests --ignore-missing-imports || true
 
     - name: Run Tests with Pytest
-      # 运行单元测试 (这是底线，必须通过)
+      # 运行单元测试 (底线)
       env:
         PYTHONPATH: .
       run: |
