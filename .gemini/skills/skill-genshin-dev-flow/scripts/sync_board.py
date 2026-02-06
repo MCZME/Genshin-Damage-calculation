@@ -11,7 +11,7 @@ STATUS_MAPPING = {
     "Backlog": "28b21aa1",
     "Todo": "8f43802f",
     "In Progress": "42d38a7e",
-    "Review": "7ef8a5f2",
+    "Review & GUI Test": "7ef8a5f2",
     "Done": "6cab3f25"
 }
 

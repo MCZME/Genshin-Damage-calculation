@@ -1,23 +1,22 @@
 # Current Development State
 
 **Last Updated:** 2026-02-06
-**Status:** 🛠️ In Progress (圣遗物重构已完成核心架构)
+**Status:** 🛠️ In Progress (核心引擎命名规范化已完成)
 
 ## 📝 Recent Context
-- **Last Action:** 完成了圣遗物模块的原子化重构与自动注册机制 (Issue #17)。
-- **Branch:** `refactor/artifact-architecture`
-- **Focus:** 圣遗物套装逻辑解耦与 ArtifactManager 优化。
+- **Last Action:** 彻底移除了 `Damage` 类中的驼峰命名兼容层，并同步适配了 `DamageSystem` 和 `ReactionSystem` (Issue #21, PR #22)。
+- **Branch:** `main` (待 PR 合并)
+- **Focus:** 核心引擎 `snake_case` 标准化。
 - **Improvements:**
-    - **核心架构**: 建立了 `BaseArtifactSet` 基类，规范了生命周期方法 (`apply_2_set_effect`, `apply_4_set_effect`)。
-    - **自动注册**: 实现了 `@register_artifact_set` 装饰器，套装效果现由 `core/registry.py` 动态扫描加载。
-    - **管理器重构**: `ArtifactManager` 已支持动态激活套装效果，并统一了 `snake_case` 属性访问。
-    - **物理拆分**: 将套装逻辑从单一文件拆分至 `artifact/sets/` 目录下的独立模块。
+    - **Damage 类**: 移除了所有 `@property` 兼容层，统一使用 `damage_multiplier`, `set_panel` 等符合 PEP 8 的接口。
+    - **系统适配**: `core/systems/` 下的核心系统已完成对新 API 的适配。
 
 ## 📌 Critical Knowledge
-- **注册机制**: 套装必须继承 `BaseArtifactSet` 并使用装饰器注册，否则无法被 `ArtifactManager` 发现。
-- **当前状态**: 核心链路已跑通（已验证角斗士套装），部分自动生成的套装文件可能存在缩进细节问题，将在后续集成时修复。
+- **重大变更**: 移除兼容层后，所有尚未重构的角色和武器文件（仍使用驼峰命名者）将会报错。这是为了强制项目完全迁移至新标准。
+- **开发流**: 启用了 `skill-genshin-dev-flow`，严格遵循 Issue -> Proposal -> Implementation 的 SOP。
 
 ## 🔜 Next Steps
-1.  **实体系统重构**: 启动 Issue #18，优化 `BaseEntity` 生命周期与交互架构。
-2.  **角色全量迁移**: 批量修复角色类的导入路径，彻底移除对 `core.BaseObject` 的依赖。
-3.  **最终仿真运行**: 待所有核心模块规范化后，恢复 `test.py` 的全量测试。
+1.  **伤害系统评估**: 对 `core/systems/damage_system.py` 进行深度评估，优化 `Calculation` 类的逻辑结构和扩展性。
+2.  **全量角色适配**: 启动批量重构，修复因 `Damage` API 变更导致的角色模块报错。
+3.  **最终仿真运行**: 待系统重构稳定后，恢复 `test.py` 的全量测试。
+
