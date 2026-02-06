@@ -52,7 +52,7 @@ class ReactionSystem(GameSystem):
             self._process_reaction_init(event)
         elif event.event_type == EventType.AFTER_CRYSTALLIZE:
             # 结晶特殊处理
-            self.engine.publish(GameEvent(EventType.AFTER_CRYSTALLIZE, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_CRYSTALLIZE, event.frame, data={'elementalReaction': event.data['elementalReaction']}))
         else:
             # 处理具体反应逻辑 (分发到 amplifying, transformative, catalyze)
             reaction = event.data.get('elementalReaction')
@@ -89,18 +89,20 @@ class ReactionSystem(GameSystem):
         # 发布具体的反应前置事件 (如 BEFORE_VAPORIZE)
         next_event_type = Reaction_to_EventType.get(r.reaction_type[1])
         if next_event_type:
-            self.engine.publish(GameEvent(next_event_type, GetCurrentTime(), elementalReaction=r))
+            self.engine.publish(GameEvent(next_event_type, GetCurrentTime(), data={'elementalReaction': r}))
             
         # 记录日志并发布反应后事件 (原有逻辑)
-        elemental_event = ElementalReactionEvent(r, GetCurrentTime(), before=False)
+        elemental_event = ElementalReactionEvent(EventType.AFTER_ELEMENTAL_REACTION, GetCurrentTime(), 
+                                                 source=r.source, elemental_reaction=r)
         self.engine.publish(elemental_event)
         get_emulation_logger().log_reaction(f"🔁{r.source.name}触发了 {r.reaction_type[1].value} 反应")
 
     def amplifying(self, event):
+        r = event.data['elementalReaction']
         if event.event_type == EventType.BEFORE_MELT:
-            self.engine.publish(GameEvent(EventType.AFTER_MELT, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_MELT, event.frame, data={'elementalReaction': r}))
         elif event.event_type == EventType.BEFORE_VAPORIZE:
-            self.engine.publish(GameEvent(EventType.AFTER_VAPORIZE, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_VAPORIZE, event.frame, data={'elementalReaction': r}))
 
     def transformative(self, event):
         e = event.data['elementalReaction']
@@ -118,7 +120,6 @@ class ReactionSystem(GameSystem):
             damage_args = (0, ('雷', 0), DamageType.REACTION, '感电')
             after_type = EventType.AFTER_ELECTRO_CHARGED
             ElectroChargedEffect(e.damage.source, e.damage.target, Damage(*damage_args)).apply()
-            # 感电比较特殊，伤害由 Effect 触发，这里可能不需要直接 publish damage
             damage_args = None 
         elif event.event_type == EventType.BEFORE_SWIRL:
             damage_args = (0, (e.target_element, 0), DamageType.REACTION, '扩散')
@@ -167,19 +168,23 @@ class ReactionSystem(GameSystem):
             damage.reaction_type = e.damage.reaction_type
             damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
             damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(DamageEvent(e.damage.source, e.damage.target, damage, GetCurrentTime()))
+            
+            # 修复：指明 EventType.BEFORE_DAMAGE，并按正确顺序传参
+            # DamageEvent(event_type, frame, source, target, damage)
+            self.engine.publish(DamageEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), 
+                                           source=e.damage.source, target=e.damage.target, damage=damage))
 
-        self.engine.publish(GameEvent(after_type, event.frame, elementalReaction=e))
+        self.engine.publish(GameEvent(after_type, event.frame, data={'elementalReaction': e}))
 
     def catalyze(self, event):
         e = event.data['elementalReaction']
         if event.event_type == EventType.BEFORE_QUICKEN:
-            self.engine.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame, data={'elementalReaction': e}))
         elif event.event_type == EventType.BEFORE_AGGRAVATE:
             e.damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
             e.damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame, data={'elementalReaction': e}))
         elif event.event_type == EventType.BEFORE_SPREAD:
             e.damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
             e.damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(GameEvent(EventType.AFTER_SPREAD, event.frame, elementalReaction=event.data['elementalReaction']))
+            self.engine.publish(GameEvent(EventType.AFTER_SPREAD, event.frame, data={'elementalReaction': e}))

@@ -22,7 +22,7 @@ class EnergySystem(GameSystem):
             return
 
         source_character = event.data.get('character')
-        if event.data['is_alone']:
+        if event.data.get('is_alone', False):
             character = event.data['character']
             self._apply_energy(character, amount, event.data['is_fixed'], event.data['is_alone'], team_obj, source_character)
         else:
@@ -31,25 +31,25 @@ class EnergySystem(GameSystem):
 
     def _apply_energy(self, character, amount, is_fixed, is_alone, team_obj, source_character):
         if is_fixed:
-            emergy_value = min(amount[1], 
+            energy_value = min(amount[1], 
                                    character.elemental_energy.elemental_energy[1] -
                                    character.elemental_energy.current_energy)
-            character.elemental_energy.current_energy += emergy_value
+            character.elemental_energy.current_energy += energy_value
         else:
             rate = self.get_rate(character, amount[0], team_obj)
-            emergy_value = amount[1] * rate[0] * rate[1] * rate[2]
-            emergy_value = min(emergy_value, 
+            energy_value = amount[1] * rate[0] * rate[1] * rate[2]
+            energy_value = min(energy_value, 
                                    character.elemental_energy.elemental_energy[1] -
                                    character.elemental_energy.current_energy)
-            character.elemental_energy.current_energy += emergy_value
+            character.elemental_energy.current_energy += energy_value
             
-        # 修复作用域错误：使用传入的 source_character
         if is_alone or (not is_alone and character == source_character): 
-             get_emulation_logger().log_energy(character, emergy_value)
+             get_emulation_logger().log_energy(character, energy_value)
 
-        e_event = EnergyChargeEvent(character, (amount[0], emergy_value),
-                                    GetCurrentTime(),
-                                    before=False,
+        # 修复：指明 EventType 并移除不支持的 before 关键字
+        e_event = EnergyChargeEvent(EventType.AFTER_ENERGY_CHANGE, GetCurrentTime(),
+                                    source=character,
+                                    amount=(amount[0], energy_value),
                                     is_fixed=is_fixed,
                                     is_alone=is_alone)
         self.engine.publish(e_event)
@@ -71,6 +71,6 @@ class EnergySystem(GameSystem):
             element_rate = 1.0
         else:
             element_rate = 0.5
-        emergy_rate = AttributeCalculator.get_energy_recharge(character)
+        energy_rate = AttributeCalculator.get_energy_recharge(character)
         
-        return (team_rate, element_rate, emergy_rate)
+        return (team_rate, element_rate, energy_rate)

@@ -75,21 +75,22 @@ ReactionMMap: Dict[Tuple[str, str], Tuple[ElementalReactionType, float]] = {
 from core.tool import get_reaction_multiplier
 
 class ElementalReaction:
-    def __init__(self, damage):
+    def __init__(self, damage, source_element=None, target_element=None):
         self.source = damage.source
         self.damage = damage
         self.reaction_type = None
         self.reaction_multiplier = None
         self.lv_multiplier = None
         self.target = damage.target
-        self.source_element = None
-        self.target_element = None
+        self.source_element = source_element
+        self.target_element = target_element
 
     def set_reaction_elements(self, source_element, target_element):
         self.source_element = source_element
         self.target_element = target_element
     
-    def setReaction(self, reaction_type, reaction_multiplier):
+    def set_reaction(self, reaction_type, reaction_multiplier):
+        """设置反应类型并注入等级系数（如果是剧变/激化）"""
         if reaction_type in [ElementalReactionType.VAPORIZE, ElementalReactionType.MELT]:
             self.reaction_type = ('增幅反应', reaction_type)
         elif reaction_type in [ElementalReactionType.OVERLOAD, ElementalReactionType.ELECTRO_CHARGED,

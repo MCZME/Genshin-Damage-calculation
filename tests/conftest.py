@@ -23,9 +23,11 @@ def init_config():
 
 class MockAttributeEntity:
     """模拟拥有属性面板的实体 (角色/怪物)"""
-    def __init__(self, name="TestEntity", level=90):
+    def __init__(self, name="TestEntity", level=90, element='火'):
         self.name = name
         self.level = level
+        self.element = element
+        self.on_field = True # 是否前台
         self.attributePanel = {
             '攻击力': 1000.0,
             '固定攻击力': 0.0,
@@ -40,11 +42,19 @@ class MockAttributeEntity:
             '暴击率': 5.0,
             '暴击伤害': 50.0,
             '伤害加成': 0.0,
-            # 常见元素伤害加成
+            '元素充能效率': 100.0, # 基础 100%
             '火元素伤害加成': 0.0,
             '水元素伤害加成': 0.0,
             '物理伤害加成': 0.0
         }
+        
+        # 能量系统支持
+        class EnergyInfo:
+            def __init__(self, element, max_energy):
+                self.elemental_energy = (element, max_energy)
+                self.current_energy = 0.0
+        self.elemental_energy = EnergyInfo(element, 80.0)
+        
         self.active_effects = []
         self.defense = 500.0
         self.current_resistance = {}
