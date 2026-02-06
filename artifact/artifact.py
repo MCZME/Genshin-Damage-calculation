@@ -1,6 +1,6 @@
 from enum import Enum
-from artifact.ArtfactSetEffectDict import ArtfactSetEffectDict
-from character.character import Character
+from typing import Any, Dict, List, Optional
+from core.registry import ArtifactSetMap
 
 class ArtifactPiece(Enum):
     Flower_of_Life = 0
@@ -10,102 +10,89 @@ class ArtifactPiece(Enum):
     Circlet_of_Logos = 4
 
 class Artifact:
-    def __init__(self,name,piece:ArtifactPiece,main=None,sub=None):
+    """圣遗物单项数据类。"""
+    def __init__(self, name: str, piece: ArtifactPiece, main: Dict[str, float] = None, sub: Dict[str, float] = None):
         self.name = name
         self.piece = piece
-        if main == None:
-            raise Exception("圣遗物主属性不能为空")
-        else:
-            self.main = main
-        if sub == None:
-            self.sub = {}
-        else:
-            self.sub = sub
+        if main is None:
+            raise ValueError("圣遗物主属性不能为空")
+        self.main = main
+        self.sub = sub or {}
     
-    def getMain(self):
-        return self.main
-
-    def getSub(self):
-        return self.sub
-    
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            'name': self.name,
-            'piece': self.piece.name,
-            'main': self.main,
-            'sub': self.sub
+            "name": self.name,
+            "piece": self.piece.name,
+            "main": self.main,
+            "sub": self.sub
         }
 
 class ArtifactManager:
-
-    def __init__(self,set:list[Artifact],character:Character):
+    """
+    圣遗物管理器。
+    负责处理圣遗物的数值加成与套装效果触发。
+    """
+    def __init__(self, artifacts: List[Artifact], character: Any):
         self.character = character
-        self.Set = {
-        'Flower_of_Life':None,
-        'Plume_of_Death':None,
-        'Sands_of_Eon':None,
-        'Goblet_of_Eonothem':None,
-        'Circlet_of_Logos':None
+        self.artifacts: Dict[str, Optional[Artifact]] = {
+            "Flower_of_Life": None,
+            "Plume_of_Death": None,
+            "Sands_of_Eon": None,
+            "Goblet_of_Eonothem": None,
+            "Circlet_of_Logos": None
         }
-        for artifact in set:
-            if artifact.piece == ArtifactPiece.Flower_of_Life:
-                self.Set['Flower_of_Life'] = artifact
-            elif artifact.piece == ArtifactPiece.Plume_of_Death:
-                self.Set['Plume_of_Death'] = artifact
-            elif artifact.piece == ArtifactPiece.Sands_of_Eon:
-                self.Set['Sands_of_Eon'] = artifact
-            elif artifact.piece == ArtifactPiece.Goblet_of_Eonothem:
-                self.Set['Goblet_of_Eonothem'] = artifact
-            elif artifact.piece == ArtifactPiece.Circlet_of_Logos:  
-                self.Set['Circlet_of_Logos'] = artifact
+        for artifact in artifacts:
+            self.artifacts[artifact.piece.name] = artifact
     
-    def updatePanel(self):
-        panel = {}
-        for artifact in self.Set.values():
-            if artifact != None:
-                t = artifact.getMain()
-                k = list(t.keys())[0]
-                if k not in panel.keys():
-                    panel[k] = t[k]
-                else:
-                    panel[k] += t[k]
-                t = artifact.getSub()
-                for key in t.keys():
-                    if key not in panel.keys():
-                        panel[key] = t[key]
-                    else:
-                        panel[key] += t[key]
+    def update_panel(self) -> None:
+        """将圣遗物基础数值应用到角色面板。"""
+        panel_totals: Dict[str, float] = {}
+        for artifact in self.artifacts.values():
+            if artifact:
+                # 合并主属性
+                for k, v in artifact.main.items():
+                    panel_totals[k] = panel_totals.get(k, 0.0) + v
+                # 合并副属性
+                for k, v in artifact.sub.items():
+                    panel_totals[k] = panel_totals.get(k, 0.0) + v
         
-        attributePanel = self.character.attributePanel
-        for key in panel.keys():
-            if key == '攻击力':
-                attributePanel['固定攻击力'] += panel[key]
-            elif key == '生命值':
-                attributePanel['固定生命值'] += panel[key]
-            elif key == '防御力':
-                attributePanel['固定防御力'] += panel[key]
+        # 统一使用 attribute_panel (兼容处理)
+        attr_panel = getattr(self.character, "attribute_panel", getattr(self.character, "attributePanel", {}))
+        
+        for key, val in panel_totals.items():
+            if key == "攻击力":
+                attr_panel["固定攻击力"] = attr_panel.get("固定攻击力", 0.0) + val
+            elif key == "生命值":
+                attr_panel["固定生命值"] = attr_panel.get("固定生命值", 0.0) + val
+            elif key == "防御力":
+                attr_panel["固定防御力"] = attr_panel.get("固定防御力", 0.0) + val
             else:
-                attributePanel[key] += panel[key]
-        
+                attr_panel[key] = attr_panel.get(key, 0.0) + val
     
-    def setEffect(self):
-        setEffect = {}
-        for artifact in self.Set.values():
-            if artifact != None:
-                if artifact.name not in setEffect.keys():
-                    setEffect[artifact.name] = 1
-                else:
-                    setEffect[artifact.name] += 1
+    def set_effect(self) -> None:
+        """激活套装效果。"""
+        set_counts: Dict[str, int] = {}
+        for artifact in self.artifacts.values():
+            if artifact:
+                set_counts[artifact.name] = set_counts.get(artifact.name, 0) + 1
         
-        for key in setEffect.keys():
-            if setEffect[key] >= 4:
-                a = ArtfactSetEffectDict[key]()
-                a.four_SetEffect(self.character)
-                a.tow_SetEffect(self.character)
-            elif setEffect[key] >= 2 and setEffect[key] < 4:
-                ArtfactSetEffectDict[key]().tow_SetEffect(self.character)
+        for name, count in set_counts.items():
+            cls = ArtifactSetMap.get(name)
+            if not cls:
+                continue
+            
+            # 实例化套装效果
+            effect_instance = cls()
+            if count >= 2:
+                effect_instance.apply_2_set_effect(self.character)
+            if count >= 4:
+                effect_instance.apply_4_set_effect(self.character)
     
-    def to_dict(self):
+    # 兼容旧代码调用
+    def updatePanel(self): self.update_panel()
+    def setEffect(self): self.set_effect()
+
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            'set': [artifact.to_dict() for artifact in self.Set.values() if artifact]
+            "set": [art.to_dict() for art in self.artifacts.values() if art]
         }

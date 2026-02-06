@@ -1,27 +1,23 @@
 # Current Development State
 
 **Last Updated:** 2026-02-06
-**Status:** ✅ 已完成 (v2.0.0 核心引擎清理阶段)
+**Status:** 🛠️ In Progress (圣遗物重构已完成核心架构)
 
 ## 📝 Recent Context
-- **Last Action:** 完成了核心引擎的技术债清理与架构规范化 (Issue #14)。
-- **Branch:** `refactor/technical-debt-cleanup`
-- **Focus:** 统一属性计算入口、迁移实体架构、移除所有遗留兼容层。
-- **Final Improvements:**
-    - **属性计算标准化**: 扩展 `AttributeCalculator` 成为全系属性（伤害、防御、生命、能量、治疗、护盾）的唯一提取入口，消除了对 `attributePanel` 的字典硬编码访问。
-    - **架构解耦**: 
-        - 将 `BaseEntity` 迁移至 `core/entities/base_entity.py`。
-        - 彻底删除了 `base_class.py`, `map.py`, `base_entity.py` (旧路径), `base_event_handler.py` 等遗留 shim 文件。
-        - 统一了 `core` 目录下的 `snake_case` 命名规范（除个别外部依赖文件外）。
-    - **系统重构**: 深度重构了 `DamageSystem`, `ShieldSystem`, `HealthSystem`, `EnergySystem`。
-    - **Bug 修复**: 解决了跨平台文件名大小写敏感导致的导入错误（`team.py`, `tool.py`）。
+- **Last Action:** 完成了圣遗物模块的原子化重构与自动注册机制 (Issue #17)。
+- **Branch:** `refactor/artifact-architecture`
+- **Focus:** 圣遗物套装逻辑解耦与 ArtifactManager 优化。
+- **Improvements:**
+    - **核心架构**: 建立了 `BaseArtifactSet` 基类，规范了生命周期方法 (`apply_2_set_effect`, `apply_4_set_effect`)。
+    - **自动注册**: 实现了 `@register_artifact_set` 装饰器，套装效果现由 `core/registry.py` 动态扫描加载。
+    - **管理器重构**: `ArtifactManager` 已支持动态激活套装效果，并统一了 `snake_case` 属性访问。
+    - **物理拆分**: 将套装逻辑从单一文件拆分至 `artifact/sets/` 目录下的独立模块。
 
 ## 📌 Critical Knowledge
-- **标准导入**: 实体基类现位于 `core.entities.base_entity.BaseEntity`。
-- **注册机制**: 角色与武器注册现在完全依赖 `core/registry.py`。
-- **运行规范**: 开发环境需使用虚拟环境，PowerShell 中命令分隔符为 `;`。
+- **注册机制**: 套装必须继承 `BaseArtifactSet` 并使用装饰器注册，否则无法被 `ArtifactManager` 发现。
+- **当前状态**: 核心链路已跑通（已验证角斗士套装），部分自动生成的套装文件可能存在缩进细节问题，将在后续集成时修复。
 
 ## 🔜 Next Steps
-1.  **角色类全量迁移**: 启动下一阶段 Issue，使用自动化脚本批量更新 `character/` 目录下的导入路径和 `BaseObject` 引用。
-2.  **仿真恢复**: 在修复角色类引用后，恢复 `test.py` 的全量集成测试。
-3.  **DataHandler 优化**: 规划对数据处理层的命名与逻辑清理。
+1.  **实体系统重构**: 启动 Issue #18，优化 `BaseEntity` 生命周期与交互架构。
+2.  **角色全量迁移**: 批量修复角色类的导入路径，彻底移除对 `core.BaseObject` 的依赖。
+3.  **最终仿真运行**: 待所有核心模块规范化后，恢复 `test.py` 的全量测试。

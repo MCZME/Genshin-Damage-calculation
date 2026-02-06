@@ -42,6 +42,15 @@ def register_weapon(weapon_name: str, weapon_type: str = None):
         return cls
     return decorator
 
+def register_artifact_set(set_name: str):
+    """
+    圣遗物套装注册装饰器。
+    """
+    def decorator(cls: Type[Any]):
+        ArtifactSetMap[set_name] = cls
+        return cls
+    return decorator
+
 # ---------------------------------------------------------
 # 动态发现逻辑
 # ---------------------------------------------------------
@@ -70,8 +79,7 @@ def initialize_registry():
     """
     discover_modules("character")
     discover_modules("weapon")
-    # 如果圣遗物也需要动态注册
-    # discover_modules("artifact")
+    discover_modules("artifact.sets")
     
     # 同步更新武器分类表 (用于 UI)
     from weapon import update_weapon_table
