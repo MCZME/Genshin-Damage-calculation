@@ -39,12 +39,7 @@ jobs:
       run: |
         mypy core tests --ignore-missing-imports || true
 
-        - name: Run Tests with Pytest
-
-          # 运行单元测试 (核心底线)
-
-          run: |
-
-            python -m pytest -v tests/unit/
-
-    
+    - name: Run Tests with Pytest
+      # 运行单元测试 (核心底线)
+      run: |
+        python -m pytest -v tests/unit/
