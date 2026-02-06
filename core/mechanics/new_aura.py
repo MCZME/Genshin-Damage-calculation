@@ -3,6 +3,13 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple, Any
 import math
 
+from core.action.reaction import (
+    ElementalReactionType, 
+    ReactionResult, 
+    ReactionCategory, 
+    REACTION_CLASSIFICATION
+)
+
 class Element(Enum):
     PYRO = "火"
     HYDRO = "水"
@@ -40,14 +47,6 @@ class Gauge:
         self.current_gauge -= amount
         if self.current_gauge < 0: self.current_gauge = 0
 
-@dataclass
-class ReactionResult:
-    name: str
-    source_element: Element
-    target_element: Element
-    multiplier: float = 1.0
-    gauge_consumed: float = 0.0
-
 class NewAuraManager:
     def __init__(self):
         self.auras: List[Gauge] = []
@@ -81,29 +80,28 @@ class NewAuraManager:
 
         results = []
         rem_u = attack_u
-        # 核心：记录是否触发了会阻止附着的反应
         prevent_attachment = False
 
         # 1. 特殊状态反应 (优先)
         if self.frozen_gauge:
             tax = self._get_tax(attack_element, Element.FROZEN)
             if tax > 0:
-                prevent_attachment = True # 凡反应必阻止附着
+                prevent_attachment = True
                 consume = min(self.frozen_gauge.current_gauge, rem_u * tax)
                 self.frozen_gauge.consume(consume)
-                # 只有非风/岩攻击才损耗攻击量
                 if attack_element not in [Element.ANEMO, Element.GEO]:
                     rem_u -= consume / tax
                 
-                name = "碎冰" if attack_element == Element.GEO else self._get_amplifying_name(attack_element, Element.CRYO)
-                results.append(ReactionResult(name, attack_element, Element.FROZEN, self._get_mult(attack_element, Element.CRYO), consume))
+                # 创建结构化结果
+                r_type = self._map_to_reaction_type(attack_element, Element.CRYO)
+                results.append(self._build_result(r_type, attack_element, Element.FROZEN, consume))
                 if self.frozen_gauge.current_gauge <= 0: self.frozen_gauge = None
 
         if self.quicken_gauge:
             if attack_element == Element.ELECTRO:
-                results.append(ReactionResult("超激化", attack_element, Element.QUICKEN))
+                results.append(self._build_result(ElementalReactionType.AGGRAVATE, attack_element, Element.QUICKEN))
             elif attack_element == Element.DENDRO:
-                results.append(ReactionResult("蔓激化", attack_element, Element.QUICKEN))
+                results.append(self._build_result(ElementalReactionType.SPREAD, attack_element, Element.QUICKEN))
             else:
                 tax = self._get_tax(attack_element, Element.QUICKEN)
                 if tax > 0:
@@ -113,26 +111,23 @@ class NewAuraManager:
                     if attack_element not in [Element.ANEMO, Element.GEO]:
                         rem_u -= consume / tax
                     
-                    r_name = "绽放" if attack_element == Element.HYDRO else "燃烧"
-                    results.append(ReactionResult(r_name, attack_element, Element.QUICKEN, 1.0, consume))
+                    r_type = ElementalReactionType.BLOOM if attack_element == Element.HYDRO else ElementalReactionType.BURNING
+                    results.append(self._build_result(r_type, attack_element, Element.QUICKEN, consume))
                     if self.quicken_gauge.current_gauge <= 0: self.quicken_gauge = None
 
-        # 2. 状态转换判定 (风/岩除外)
+        # 2. 状态转换判定
         if attack_element not in [Element.ANEMO, Element.GEO]:
-            # 冻结
             if self._check_combo(attack_element, Element.HYDRO, Element.CRYO):
                 prevent_attachment = True
                 target_el = Element.CRYO if attack_element == Element.HYDRO else Element.HYDRO
                 existing = next(a for a in self.auras if a.element == target_el)
-                consume_val = min(existing.current_gauge, attack_u) # 1:1 消耗
+                consume_val = min(existing.current_gauge, attack_u)
                 self.frozen_gauge = Gauge.create(Element.FROZEN, 2.0)
                 self.frozen_gauge.current_gauge = 2 * consume_val
                 existing.consume(consume_val)
                 if existing.current_gauge <= 0: self.auras.remove(existing)
-                results.append(ReactionResult("冻结", attack_element, target_el))
-                rem_u = 0 # 触发转换攻击量全损
-
-            # 激化
+                results.append(self._build_result(ElementalReactionType.FREEZE, attack_element, target_el))
+                rem_u = 0
             elif self._check_combo(attack_element, Element.ELECTRO, Element.DENDRO):
                 prevent_attachment = True
                 target_el = Element.ELECTRO if attack_element == Element.DENDRO else Element.DENDRO
@@ -142,18 +137,17 @@ class NewAuraManager:
                 self.quicken_gauge.current_gauge = val
                 existing.consume(val)
                 if existing.current_gauge <= 0: self.auras.remove(existing)
-                results.append(ReactionResult("原激化", attack_element, target_el))
+                results.append(self._build_result(ElementalReactionType.QUICKEN, attack_element, target_el))
                 rem_u = 0
 
-        # 3. 常规消耗反应 (仅当还有攻击量时)
+        # 3. 常规消耗反应
         if rem_u > 0:
             for aura in self.auras[:]:
                 if rem_u <= 0: break
-                # 感电特殊：共存
                 if {attack_element, aura.element} == {Element.HYDRO, Element.ELECTRO}:
-                    self.is_electro_charged = True
-                    # 感电初次碰撞视作反应，但允许附着
-                    results.append(ReactionResult("感电", attack_element, aura.element))
+                    if not self.is_electro_charged:
+                        self.is_electro_charged = True
+                        results.append(self._build_result(ElementalReactionType.ELECTRO_CHARGED, attack_element, aura.element))
                     continue
                 
                 tax = self._get_tax(attack_element, aura.element)
@@ -164,20 +158,62 @@ class NewAuraManager:
                     if attack_element not in [Element.ANEMO, Element.GEO]:
                         rem_u -= consume / tax
                     
-                    r_name = self._get_reaction_name(attack_element, aura.element)
-                    results.append(ReactionResult(r_name, attack_element, aura.element, self._get_mult(attack_element, aura.element), consume))
+                    r_type = self._map_to_reaction_type(attack_element, aura.element)
+                    results.append(self._build_result(r_type, attack_element, aura.element, consume))
                     if aura.current_gauge <= 0: self.auras.remove(aura)
 
-        # 4. 状态后续更新
+        # 4. 状态更新
         if self._check_combo(attack_element, Element.PYRO, Element.DENDRO) or (self.quicken_gauge and attack_element == Element.PYRO):
             self.is_burning = True
 
-        # 5. 附着执行
-        # 高等元素论：如果触发了非感电/非燃烧的消耗型反应，则严禁附着
+        # 5. 附着执行 (风岩除外)
+        if attack_element in [Element.ANEMO, Element.GEO]: return results
         if rem_u > 0.001 and not prevent_attachment:
             self._attach(attack_element, attack_u)
 
         return results
+
+    def _build_result(self, r_type: ElementalReactionType, source: Element, target: Element, consume: float = 0.0) -> ReactionResult:
+        category = REACTION_CLASSIFICATION.get(r_type, ReactionCategory.STATUS)
+        mult = self._get_mult(source, target) if category == ReactionCategory.AMPLIFYING else 1.0
+        
+        # 碎冰特殊倍率 (虽然属于剧变，但逻辑上可映射)
+        if r_type == ElementalReactionType.SHATTER: mult = 3.0 
+        
+        return ReactionResult(
+            reaction_type=r_type,
+            category=category,
+            source_element=source,
+            target_element=target,
+            multiplier=mult,
+            gauge_consumed=consume
+        )
+
+    def _map_to_reaction_type(self, atk: Element, target: Element) -> ElementalReactionType:
+        m = {
+            (Element.HYDRO, Element.PYRO): ElementalReactionType.VAPORIZE,
+            (Element.PYRO, Element.HYDRO): ElementalReactionType.VAPORIZE,
+            (Element.PYRO, Element.CRYO): ElementalReactionType.MELT,
+            (Element.CRYO, Element.PYRO): ElementalReactionType.MELT,
+            (Element.ELECTRO, Element.PYRO): ElementalReactionType.OVERLOAD,
+            (Element.PYRO, Element.ELECTRO): ElementalReactionType.OVERLOAD,
+            (Element.ELECTRO, Element.HYDRO): ElementalReactionType.ELECTRO_CHARGED,
+            (Element.HYDRO, Element.ELECTRO): ElementalReactionType.ELECTRO_CHARGED,
+            (Element.CRYO, Element.ELECTRO): ElementalReactionType.SUPERCONDUCT,
+            (Element.ELECTRO, Element.CRYO): ElementalReactionType.SUPERCONDUCT,
+            (Element.HYDRO, Element.DENDRO): ElementalReactionType.BLOOM,
+            (Element.DENDRO, Element.HYDRO): ElementalReactionType.BLOOM,
+            (Element.ANEMO, Element.PYRO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.HYDRO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.CRYO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.ELECTRO): ElementalReactionType.SWIRL,
+            (Element.GEO, Element.PYRO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.HYDRO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.CRYO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.ELECTRO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.FROZEN): ElementalReactionType.SHATTER,
+        }
+        return m.get((atk, target), ElementalReactionType.VAPORIZE) # 兜底
 
     def _get_tax(self, attack: Element, target: Element) -> float:
         if attack in [Element.ANEMO, Element.GEO] and target == Element.QUICKEN: return 0.0
@@ -224,22 +260,6 @@ class NewAuraManager:
             existing.decay_rate = max(existing.decay_rate, new_a.decay_rate)
         else:
             self.auras.append(new_a)
-
-    def _get_reaction_name(self, a, b):
-        m = {(Element.HYDRO, Element.PYRO): "蒸发", (Element.PYRO, Element.CRYO): "融化",
-             (Element.ELECTRO, Element.PYRO): "超载", (Element.HYDRO, Element.ELECTRO): "感电",
-             (Element.CRYO, Element.ELECTRO): "超导", (Element.HYDRO, Element.DENDRO): "绽放",
-             (Element.ANEMO, Element.PYRO): "扩散", (Element.ANEMO, Element.HYDRO): "扩散",
-             (Element.ANEMO, Element.CRYO): "扩散", (Element.ANEMO, Element.ELECTRO): "扩散",
-             (Element.GEO, Element.PYRO): "结晶", (Element.GEO, Element.HYDRO): "结晶",
-             (Element.GEO, Element.CRYO): "结晶", (Element.GEO, Element.ELECTRO): "结晶"}
-        return m.get((a, b), m.get((b, a), "未知反应"))
-
-    def _get_amplifying_name(self, atk, target):
-        """增幅反应专用名称判定"""
-        if {atk, target} == {Element.PYRO, Element.HYDRO}: return "蒸发"
-        if {atk, target} == {Element.PYRO, Element.CRYO}: return "融化"
-        return "扩散" if atk == Element.ANEMO else "无"
 
     def _get_mult(self, a, b):
         if (a, b) == (Element.HYDRO, Element.PYRO): return 2.0

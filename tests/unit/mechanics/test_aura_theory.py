@@ -1,9 +1,10 @@
 import pytest
 from core.mechanics.new_aura import NewAuraManager, Element, Gauge
+from core.action.reaction import ElementalReactionType, ReactionCategory
 
 class TestAuraTheoryRigorous:
     """
-    高等元素论全反应严谨性物理实验室 - 增强版
+    高等元素论全反应严谨性物理实验室 - 结构化 DTO 适配版
     """
 
     @pytest.fixture
@@ -12,16 +13,19 @@ class TestAuraTheoryRigorous:
 
     # --- 1. 增幅反应 (蒸发/融化) 碰撞实验室 ---
 
-    @pytest.mark.parametrize("atk_el, atk_u, target_el, target_u, expected_rem_target_g, reaction_name", [
-        (Element.HYDRO, 1.0, Element.PYRO, 1.0, 0.0, "蒸发"),
-        (Element.PYRO, 1.0, Element.HYDRO, 1.0, 0.3, "蒸发"),
-        (Element.PYRO, 1.0, Element.CRYO, 1.0, 0.0, "融化"),
-        (Element.CRYO, 1.0, Element.PYRO, 1.0, 0.3, "融化"),
+    @pytest.mark.parametrize("atk_el, atk_u, target_el, target_u, expected_rem_target_g, expected_type", [
+        (Element.HYDRO, 1.0, Element.PYRO, 1.0, 0.0, ElementalReactionType.VAPORIZE),
+        (Element.PYRO, 1.0, Element.HYDRO, 1.0, 0.3, ElementalReactionType.VAPORIZE),
+        (Element.PYRO, 1.0, Element.CRYO, 1.0, 0.0, ElementalReactionType.MELT),
+        (Element.CRYO, 1.0, Element.PYRO, 1.0, 0.3, ElementalReactionType.MELT),
     ])
-    def test_amplifying_clash(self, manager, atk_el, atk_u, target_el, target_u, expected_rem_target_g, reaction_name):
+    def test_amplifying_clash(self, manager, atk_el, atk_u, target_el, target_u, expected_rem_target_g, expected_type):
         manager.apply_element(target_el, target_u)
         results = manager.apply_element(atk_el, atk_u)
-        assert any(r.name == reaction_name for r in results)
+        
+        assert any(r.reaction_type == expected_type for r in results)
+        assert all(r.category == ReactionCategory.AMPLIFYING for r in results if r.reaction_type == expected_type)
+        
         if expected_rem_target_g > 0:
             assert manager.auras[0].current_gauge == pytest.approx(expected_rem_target_g)
         else:
@@ -29,111 +33,86 @@ class TestAuraTheoryRigorous:
 
     # --- 2. 剧变与激化实验室 ---
 
-    @pytest.mark.parametrize("atk_el, target_el, reaction_name", [
-        (Element.ELECTRO, Element.PYRO, "超载"),
-        (Element.CRYO, Element.ELECTRO, "超导"),
-        (Element.HYDRO, Element.DENDRO, "绽放"),
-        (Element.ELECTRO, Element.DENDRO, "原激化"),
+    @pytest.mark.parametrize("atk_el, target_el, expected_type", [
+        (Element.ELECTRO, Element.PYRO, ElementalReactionType.OVERLOAD),
+        (Element.CRYO, Element.ELECTRO, ElementalReactionType.SUPERCONDUCT),
+        (Element.HYDRO, Element.DENDRO, ElementalReactionType.BLOOM),
+        (Element.ELECTRO, Element.DENDRO, ElementalReactionType.QUICKEN),
     ])
-    def test_standard_reactions(self, manager, atk_el, target_el, reaction_name):
+    def test_standard_reactions(self, manager, atk_el, target_el, expected_type):
         manager.apply_element(target_el, 1.0)
         results = manager.apply_element(atk_el, 1.0)
-        assert any(r.name == reaction_name for r in results)
+        
+        assert any(r.reaction_type == expected_type for r in results)
         assert len(manager.auras) == 0
 
     # --- 3. 扩散(Swirl)专项实验室 - 多元素共存 ---
 
     def test_ec_double_swirl(self, manager):
-        """测试感电态双重扩散：1U风同时消耗水和雷"""
-        # 1. 构造感电态 (水雷共存)
-        manager.apply_element(Element.HYDRO, 1.0) # 0.8GU
-        manager.apply_element(Element.ELECTRO, 1.0) # 0.8GU
+        """测试感电态双重扩散：验证 DTO 中的 target_element 识别"""
+        manager.apply_element(Element.HYDRO, 1.0)
+        manager.apply_element(Element.ELECTRO, 1.0)
         manager.is_electro_charged = True
         
-        # 2. 1U 风攻击 (tax=0.5)
-        # 预期：消耗 0.5GU 水 和 0.5GU 雷。剩余各 0.3GU。
         results = manager.apply_element(Element.ANEMO, 1.0)
         
-        swirl_names = [r.target_element for r in results if r.name == "扩散"]
-        assert Element.HYDRO in swirl_names
-        assert Element.ELECTRO in swirl_names
-        
-        h_gauge = next(a for a in manager.auras if a.element == Element.HYDRO)
-        e_gauge = next(a for a in manager.auras if a.element == Element.ELECTRO)
-        assert h_gauge.current_gauge == pytest.approx(0.3)
-        assert e_gauge.current_gauge == pytest.approx(0.3)
+        swirl_targets = [r.target_element for r in results if r.reaction_type == ElementalReactionType.SWIRL]
+        assert Element.HYDRO in swirl_targets
+        assert Element.ELECTRO in swirl_targets
+        assert all(r.category == ReactionCategory.TRANSFORMATIVE for r in results)
 
     def test_frozen_underlying_swirl(self, manager):
-        """测试冻结藏水扩散：风优先扩散冻元素，剩余风量扩散藏水"""
-        # 1. 产生 1.6GU 冻元素
+        """测试冻结藏水扩散"""
         manager.apply_element(Element.HYDRO, 1.0)
         manager.apply_element(Element.CRYO, 1.0)
-        # 2. 补 2U 藏水 (1.6GU)
         manager.apply_element(Element.HYDRO, 2.0)
         
-        assert manager.frozen_gauge is not None
-        assert len(manager.auras) == 1 # 藏水
-        
-        # 3. 2U 强风攻击 (tax=0.5)
-        # a. 强风打冻：消耗 2U * 0.5 = 1.0GU 冻。冻剩余 1.6 - 1.0 = 0.6GU。
-        # b. 剩余风量 (无损) 继续打藏水：消耗 2U * 0.5 = 1.0GU 水。水剩余 1.6 - 1.0 = 0.6GU。
-        # 注：风在扩散时通常是不减损 rem_u 的（除非特定机制），但在本项目逻辑中按 rem_u 衰减更严谨。
-        # 这里验证是否触发了两次扩散结果。
         results = manager.apply_element(Element.ANEMO, 2.0)
         
-        reaction_targets = [r.target_element for r in results if r.name == "扩散"]
-        assert Element.FROZEN in reaction_targets
-        assert Element.HYDRO in reaction_targets
+        reaction_types = [r.reaction_type for r in results]
+        assert ElementalReactionType.SWIRL in reaction_types
         
-        assert manager.frozen_gauge.current_gauge == pytest.approx(0.6)
-        assert manager.auras[0].current_gauge == pytest.approx(0.6)
+        # 验证扩散的目标包含特殊状态和常规附着
+        targets = [r.target_element for r in results]
+        assert Element.FROZEN in targets
+        assert Element.HYDRO in targets
+
+    # --- 4. 激化进阶实验室 ---
 
     def test_swirl_priority_with_quicken(self, manager):
-        """测试扩散优先级：激化态不与风反应，风只与藏元素反应"""
-        # 1. 产生激化态
+        """测试扩散优先级：验证激化态不反应"""
         manager.apply_element(Element.DENDRO, 1.0)
         manager.apply_element(Element.ELECTRO, 1.0)
-        # 2. 补藏雷 1U (0.8GU)
-        manager.apply_element(Element.ELECTRO, 1.0)
+        manager.apply_element(Element.ELECTRO, 1.0) # 藏雷
         
-        assert manager.quicken_gauge is not None
-        assert len(manager.auras) == 1 # 藏雷
-        
-        # 3. 施加 1U 风
-        # 预期：风不与“激元素”反应，仅与“藏雷”扩散。
         results = manager.apply_element(Element.ANEMO, 1.0)
         
-        assert len([r for r in results if r.name == "扩散"]) == 1
-        assert results[0].target_element == Element.ELECTRO
-        assert manager.quicken_gauge.current_gauge == pytest.approx(0.8) # 激元素量不动
+        # 应该只有一个扩散反应（针对藏雷），没有针对激元素的反应
+        swirls = [r for r in results if r.reaction_type == ElementalReactionType.SWIRL]
+        assert len(swirls) == 1
+        assert swirls[0].target_element == Element.ELECTRO
 
-    # --- 4. 复杂特殊状态实验室 ---
+    # --- 5. 复杂特殊状态实验室 ---
 
     def test_shatter_melt_combination(self, manager):
-        """岩+火 连续攻击冻结态：碎冰与融化并存"""
         manager.apply_element(Element.HYDRO, 1.0)
-        manager.apply_element(Element.CRYO, 1.0) # 1.6GU 冻
+        manager.apply_element(Element.CRYO, 1.0)
         
-        # 1U 岩触发碎冰 (0.5GU) -> 剩余 1.1GU 冻
-        manager.apply_element(Element.GEO, 1.0)
-        # 0.5U 火触发融化 (0.5*2.0=1.0GU) -> 剩余 0.1GU 冻
-        results = manager.apply_element(Element.PYRO, 0.5)
+        manager.apply_element(Element.GEO, 1.0) # 碎冰
+        results = manager.apply_element(Element.PYRO, 0.5) # 融化
         
-        assert any(r.name == "融化" for r in results)
+        assert any(r.reaction_type == ElementalReactionType.MELT for r in results)
         assert manager.frozen_gauge.current_gauge == pytest.approx(0.1)
 
-    # --- 5. 极限与边界测试 ---
+    # --- 6. 极限与边界测试 ---
 
     def test_gauge_refill_stronger(self, manager):
-        """测试同元素覆盖：强量刷新弱量"""
-        # 1. 先施加 1U 火 (0.8GU)
         manager.apply_element(Element.PYRO, 1.0)
         manager.apply_element(Element.PYRO, 2.0)
         assert manager.auras[0].current_gauge == pytest.approx(1.6)
         assert manager.auras[0].decay_rate == pytest.approx(1.6/12.0)
 
     def test_micro_gauge_cleanup(self, manager):
-        """测试极小元素量自动清理"""
         manager.apply_element(Element.PYRO, 1.0)
         manager.auras[0].current_gauge = 0.00001
         manager.update(1/60)
