@@ -1,4 +1,4 @@
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, EventBus
 from core.tool import GetCurrentTime
 

@@ -44,5 +44,8 @@ def DamageBoostEffect(source, owner, name, bonus, duration):
 def CritRateBoostEffect(owner, name, bonus, duration):
     return StatModifierEffect(owner, name, {"暴击率": bonus}, duration)
 
+def ElementalMasteryBoostEffect(source, owner, name, bonus, duration):
+    return StatModifierEffect(owner, name, {"元素精通": bonus}, duration)
+
 def HealthBoostEffect(source, owner, name, bonus, duration):
     return StatModifierEffect(owner, name, {"生命值%": bonus}, duration)

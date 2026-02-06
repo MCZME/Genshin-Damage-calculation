@@ -1,5 +1,4 @@
 from core.event import EventType
-from core.base_event_handler import FrameEndEventHandler
 from core.config import Config
 from core.context import create_context, get_context
 from core.logger import logger_init, manage_log_files
@@ -15,10 +14,6 @@ def sim_init():
     init()
     # 创建并初始化模拟上下文 (这会自动装配所有核心子系统)
     ctx = create_context()
-    
-    # 暂时保留 FrameEndEventHandler 用于 UI 更新
-    ctx.event_engine.subscribe(EventType.FRAME_END, FrameEndEventHandler())
- # 这种写法不对，还是用 EventBus 代理或者直接指定
     
 
 # todo:

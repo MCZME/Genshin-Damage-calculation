@@ -4,7 +4,7 @@ from core.context import create_context, get_context
 from core.dataHandler.DataHandler import clear_data, save_report
 from core.event import EventBus, FrameEndEvent
 from core.logger import get_emulation_logger
-from core.map import CharacterClassMap, WeaponClassMap
+from core.registry import CharacterClassMap, WeaponClassMap
 from core.target import Target
 from core.team import Team
 import threading
