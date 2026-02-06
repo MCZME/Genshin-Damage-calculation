@@ -138,7 +138,7 @@ class DamagePipeline:
 
     def _notify_modifiers(self, ctx: DamageContext):
         """发布计算前通知，供其他系统修改 context.stats"""
-        event = GameEvent(EventType.BEFORE_CALCULATE, GetCurrentTime(), character=ctx.source, damage_context=ctx)
+        event = GameEvent(EventType.BEFORE_CALCULATE, GetCurrentTime(), source=ctx.source, data={"damage_context": ctx})
         self.engine.publish(event)
         
         # 计算防御与抗性（在此处计算，以便事件可以修改防御或抗性相关参数，尽管目前是直接计算系数）
