@@ -1,15 +1,15 @@
 import pytest
-from core.mechanics.new_aura import NewAuraManager, Element, Gauge
+from core.mechanics.aura import AuraManager, Element, Gauge
 from core.action.reaction import ElementalReactionType, ReactionCategory
 
 class TestAuraTheoryRigorous:
     """
-    高等元素论全反应严谨性物理实验室 - 结构化 DTO 适配版
+    高等元素论全反应严谨性物理实验室 - 正式集成版
     """
 
     @pytest.fixture
     def manager(self):
-        return NewAuraManager()
+        return AuraManager()
 
     # --- 1. 增幅反应 (蒸发/融化) 碰撞实验室 ---
 

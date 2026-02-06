@@ -123,18 +123,26 @@ class DamagePipeline:
     def _preprocess_reaction(self, ctx: DamageContext):
         if ctx.damage.element[0] == '物理': return
         
-        mult = ctx.target.apply_elemental_aura(ctx.damage)
-        if mult:
-            ctx.stats["反应基础倍率"] = mult
-            em = ctx.stats["元素精通"]
-            # 基础精通加成 (增幅反应)
-            if ctx.damage.reaction_type and ctx.damage.reaction_type[0] != '激化反应':
+        # apply_elemental_aura 现在返回 List[ReactionResult]
+        reaction_results = ctx.target.apply_elemental_aura(ctx.damage)
+        
+        # 暂时只处理增幅类反应对当前伤害的影响 (逻辑与旧系统对齐)
+        from core.action.reaction import ReactionCategory, ElementalReactionType
+        for res in reaction_results:
+            if res.category == ReactionCategory.AMPLIFYING:
+                ctx.stats["反应基础倍率"] = res.multiplier
+                em = ctx.stats["元素精通"]
                 ctx.stats["反应加成系数"] += (2.78 * em) / (em + 1400)
-            # 激化特殊处理
-            elif ctx.damage.reaction_type and ctx.damage.reaction_type[0] == '激化反应':
-                # 直接从 damage.data 获取等级系数
+            
+            elif res.reaction_type in [ElementalReactionType.AGGRAVATE, ElementalReactionType.SPREAD]:
+                # 激化处理
+                mult = 1.15 if res.reaction_type == ElementalReactionType.AGGRAVATE else 1.25
                 level_coeff = ctx.damage.data.get('等级系数', 0)
+                em = ctx.stats["元素精通"]
                 ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
+        
+        # 将反应结果存入 damage.data，供 ReactionSystem (后续) 使用
+        ctx.damage.data['reaction_results'] = reaction_results
 
     def _notify_modifiers(self, ctx: DamageContext):
         """发布计算前通知，供其他系统修改 context.stats"""

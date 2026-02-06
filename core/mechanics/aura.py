@@ -1,477 +1,272 @@
-from math import sqrt
-from typing import Any, Dict, List, Optional, Tuple
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Tuple, Any
+import math
 
 from core.action.reaction import (
-    ElementalReaction,
-    ElementalReactionType,
-    ReactionMMap,
+    ElementalReactionType, 
+    ReactionResult, 
+    ReactionCategory, 
+    REACTION_CLASSIFICATION
 )
-from core.event import ElementalReactionEvent, EventBus
-from core.tool import GetCurrentTime
 
+class Element(Enum):
+    PYRO = "火"
+    HYDRO = "水"
+    CRYO = "冰"
+    ELECTRO = "雷"
+    DENDRO = "草"
+    ANEMO = "风"
+    GEO = "岩"
+    PHYSICAL = "物理"
+    FROZEN = "冻"
+    QUICKEN = "激"
 
-class ElementalAura:
-    """
-    元素附着与反应处理器。
-    负责维护实体身上的元素状态（Aura）并计算元素反应的消耗与触发。
-    """
-
-    def __init__(self):
-        self.aura_list: List[Dict[str, Any]] = []
-        self.burning_elements: Dict[str, Any] = {}
-        self.quicken_elements: Dict[str, Any] = {}
-
-    def get_aura_list(self) -> List[Dict[str, Any]]:
-        """获取当前附着的元素列表"""
-        return self.aura_list
-
-    def set_aura_list(self, aura_list: List[Dict[str, Any]]) -> None:
-        """设置附着元素列表"""
-        self.aura_list = aura_list
-
-    def apply_damage_element(self, damage: Any) -> Optional[float]:
-        """
-        应用伤害带来的元素附着或触发反应。
-        返回反应倍率（如果是增幅反应）或 None。
-        """
-        element_type, amount = damage.element
-        if amount <= 0:
-            return None
-
-        if self._check_reactions(element_type):
-            return self.process_elemental_reactions(damage)
-        else:
-            if element_type not in {"风", "岩"}:
-                self._attach_new_element(element_type, amount)
-            return None
-
-    def process_elemental_reactions(self, damage: Any) -> Optional[float]:
-        """处理复合元素反应逻辑 (冻结、感电、燃烧、激化及其叠加态)"""
-        reaction_triggers: List[Optional[float]] = []
-
-        # 1. 优先处理冻结状态下的反应
-        freeze = next((x for x in self.aura_list if x["element"] == "冻" and x["current_amount"] > 0), None)
-        if freeze:
-            return self.handle_in_freeze_reaction(damage)
-
-        # 2. 处理感电状态 (水雷共存)
-        electro_charged = [x for x in self.aura_list if x["element"] in ["水", "雷"] and x["current_amount"] > 0]
-        if electro_charged and (
-            len(electro_charged) == 2
-            or (
-                damage.element[0] in ["水", "雷"]
-                and damage.element[0] != electro_charged[0]["element"]
-                and len(electro_charged) == 1
-            )
-        ):
-            return self.handle_electro_charged_reaction(damage)
-
-        # 3. 处理燃烧状态
-        if self.burning_elements:
-            return self.handle_in_burning_reaction(damage)
-
-        # 4. 处理激化状态
-        if self.quicken_elements:
-            return self.handle_in_quicken_reaction(damage)
-
-        # 5. 处理常规冻结反应触发
-        freeze_check = next(
-            (
-                x for x in self.aura_list 
-                if x["element"] in ["水", "冰"] 
-                and x["current_amount"] > 0 
-                and damage.element[0] != x["element"]
-            ),
-            None,
-        )
-        if freeze_check and damage.element[0] in ["水", "冰"]:
-            return self.handle_freeze_reaction(damage)
-
-        # 6. 处理常规双元素反应
-        for aura in self.aura_list:
-            base_element = aura["element"]
-            base_amount = aura["current_amount"]
-            reaction_info = ReactionMMap.get((damage.element[0], base_element))
-            
-            if not reaction_info:
-                continue
-
-            rtype, rmult = reaction_info
-            
-            if rtype == ElementalReactionType.BURNING:
-                reaction_triggers.append(self.handle_burning_reaction(damage))
-                continue
-            elif rtype == ElementalReactionType.QUICKEN:
-                reaction_triggers.append(self.handle_quicken_reaction(damage))
-                continue
-            elif damage.element[1] > 0:
-                # 计算消耗比例
-                ratio = self._get_element_ratio(damage.element[0], base_element)
-                
-                # 计算实际消耗
-                actual_base_consumed = damage.element[1] * ratio[1] / ratio[0]
-                actual_trigger_consumed = base_amount * ratio[0] / ratio[1]
-                
-                # 更新元素量
-                aura["current_amount"] -= actual_base_consumed
-                damage.element = (damage.element[0], damage.element[1] - actual_trigger_consumed)
-                    
-                # 触发反应事件
-                e = ElementalReaction(damage)
-                e.set_reaction_elements(damage.element[0], base_element if base_element != "冻" else "冰")
-                EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-                
-                # 记录结果 (增幅反应返回倍率，剧变返回 None)
-                if e.reaction_type[0] == "剧变反应":
-                    reaction_triggers.append(None)
-                else:
-                    reaction_triggers.append(e.reaction_multiplier)
-                
-                if damage.element[1] <= 0:
-                    break
-                
-        # 返回最高倍率 (针对增幅反应)
-        valid_triggers = [x for x in reaction_triggers if x is not None]
-        return max(valid_triggers) if valid_triggers else None
-
-    def handle_electro_charged_reaction(self, damage: Any) -> Optional[float]:
-        """处理感电反应 (水雷共存)"""
-        reaction_triggers = []
-        if damage.element[0] in ["水", "雷"]:
-            base_element = next(
-                (a["element"] for a in self.aura_list if a["element"] in ["水", "雷"] and a["element"] != damage.element[0]), 
-                None
-            )
-            self._attach_new_element(damage.element[0], damage.element[1])
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], base_element)
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-        else:
-            # 外部元素触发感电消耗
-            s = {"水": 1, "雷": 0}
-            for aura in sorted(self.aura_list, key=lambda x: s.get(x["element"], 6)):
-                r = ReactionMMap.get((damage.element[0], aura["element"]))
-                if r:
-                    ratio = self._get_element_ratio(damage.element[0], aura["element"])
-                    actual_trigger_consumed = aura["current_amount"] * ratio[0] / ratio[1]
-                    actual_base_consumed = damage.element[1] * ratio[1] / ratio[0]
-                    
-                    if aura["current_amount"] >= actual_base_consumed:
-                        aura["current_amount"] -= actual_base_consumed
-                        damage.element = (damage.element[0], 0.0)
-                    else:
-                        aura["current_amount"] = 0.0
-                        damage.element = (damage.element[0], damage.element[1] - actual_trigger_consumed)
-                    
-                    e = ElementalReaction(damage)
-                    e.set_reaction_elements(damage.element[0], aura["element"])
-                    EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-
-                    if e.reaction_type[0] != "剧变反应":
-                        reaction_triggers.append(e.reaction_multiplier)
-                
-                if damage.element[1] <= 0 or damage.element[0] == "岩":
-                    break
-                    
-        return max(reaction_triggers) if reaction_triggers else None
-
-    def handle_in_freeze_reaction(self, damage: Any) -> Optional[float]:
-        """处理冻结状态下的反应 (破冰、反应叠加)"""
-        freeze_aura = next((a for a in self.aura_list if a["element"] == "冻"), None)
-        if not freeze_aura:
-            return None
-            
-        # 碎冰判定
-        if (damage.element[0] == "岩" or getattr(damage, "hit_type", None) == "钝击") and freeze_aura["current_amount"] > 0.5:
-            freeze_aura["current_amount"] -= 8.0
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], "冻")
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-            
-        self.update() # 推进状态
-        
-        if damage.element[0] == "风":
-            s = {"火": 0, "雷": 1, "水": 2, "冰": 3, "冻": 6}
-            return self._handle_in_freeze_special_reaction(damage, s)
-        elif damage.element[0] in ["雷", "火"]:
-            s = {"冻": 1, "冰": 0}
-            return self._handle_in_freeze_special_reaction(damage, s)
-        elif damage.element[0] in ["水", "冰"]:
-            self.handle_freeze_reaction(damage)
-            
-        return None
+@dataclass
+class Gauge:
+    element: Element
+    u_value: float
+    max_gauge: float
+    current_gauge: float
+    decay_rate: float
     
-    def _handle_in_freeze_special_reaction(self, damage: Any, sort_list: Dict[str, int]) -> Optional[float]:
-        reaction_triggers = []
-        for aura in sorted(self.aura_list, key=lambda x: sort_list.get(x["element"], 6)):
-            r = ReactionMMap.get((damage.element[0], aura["element"]))
-            if r and r[0] == ElementalReactionType.ELECTRO_CHARGED:
-                continue # 冻结状态下不直接触发感电
-            elif r:
-                ratio = self._get_element_ratio(damage.element[0], aura["element"])
-                actual_trigger_consumed = aura["current_amount"] * ratio[0] / ratio[1]
-                actual_base_consumed = damage.element[1] * ratio[1] / ratio[0]
-                
-                if aura["current_amount"] >= actual_base_consumed:
-                    aura["current_amount"] -= actual_base_consumed
-                    damage.element = (damage.element[0], 0.0)
-                else:
-                    aura["current_amount"] = 0.0
-                    damage.element = (damage.element[0], damage.element[1] - actual_trigger_consumed)
-                
-                e = ElementalReaction(damage)
-                e.set_reaction_elements(damage.element[0], aura["element"] if aura["element"] != "冻" else "冰")
-                EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-                
-                if e.reaction_type[0] != "剧变反应":
-                    reaction_triggers.append(e.reaction_multiplier)
-                if damage.element[1] <= 0:
-                    break
-        return max(reaction_triggers) if reaction_triggers else None
+    @classmethod
+    def create(cls, element: Element, u_value: float):
+        max_g = 0.8 * u_value
+        if u_value <= 1.0: duration = 9.5
+        elif u_value <= 2.0: duration = 12.0
+        else: duration = 17.0
+        decay = max_g / duration
+        return cls(element, u_value, max_g, max_g, decay)
 
-    def handle_freeze_reaction(self, damage: Any) -> None:
-        """触发冻结"""
-        base_element = next((a for a in self.aura_list if a["element"] in ["水", "冰"] and a["element"] != damage.element[0]), None)
-        if base_element:
-            amount = min(damage.element[1], base_element["current_amount"])
-            base_element["current_amount"] -= amount
-            if base_element["current_amount"] < 0.001: base_element["current_amount"] = 0
-            
-            self._attach_freeze_element("冻", 2 * amount)
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], base_element["element"])
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-        else:
-            self._attach_new_element(damage.element[0], damage.element[1])
+    def update(self, dt: float):
+        self.current_gauge -= self.decay_rate * dt
+        if self.current_gauge < 0: self.current_gauge = 0
 
-    def handle_burning_reaction(self, damage: Any) -> None:
-        """触发燃烧"""
-        base_aura = next((a for a in self.aura_list if a["element"] in ["火", "草"] and a["element"] != damage.element[0]), None)
-        if base_aura or (self.quicken_elements and damage.element[0] == "火"):
-            self._attach_burning_element(damage.element[0], damage.element[1])
-            self.burning_elements = {
-                "element": "燃",
-                "initial_amount": 2.0,
-                "current_amount": 2.0,
-                "decay_rate": 0.0
-            }
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], base_aura["element"] if base_aura else "激")
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-            
-            # 燃烧导致的草元素快速衰减
-            if damage.element[0] == "火":
-                if self.quicken_elements:
-                    self.quicken_elements["decay_rate"] *= 4
-                else:
-                    grass = next((a for a in self.aura_list if a["element"] == "草"), None)
-                    if grass: grass["decay_rate"] *= 4
-        else:
-            self._attach_new_element(damage.element[0], damage.element[1])
+    def consume(self, amount: float):
+        self.current_gauge -= amount
+        if self.current_gauge < 0: self.current_gauge = 0
 
-    def handle_in_burning_reaction(self, damage: Any) -> Optional[float]:
-        """燃烧状态下的后续反应"""
-        reaction_triggers = []
-        if damage.element[0] not in ["火", "草"]:
-            s = {"火": 0, "草": 1}
-            for aura in sorted(self.aura_list, key=lambda x: s.get(x["element"], 6)):
-                r = ReactionMMap.get((damage.element[0], aura["element"]))
-                if r:
-                    ratio = self._get_element_ratio(damage.element[0], aura["element"])
-                    base_amount = max(self.burning_elements["current_amount"], damage.element[1]) if aura["element"] == "火" else aura["current_amount"]
+class AuraManager:
+    def __init__(self):
+        self.auras: List[Gauge] = []
+        self.frozen_gauge: Optional[Gauge] = None
+        self.quicken_gauge: Optional[Gauge] = None
+        self.is_electro_charged: bool = False
+        self.ec_timer: float = 0.0
+        self.is_burning: bool = False
+
+    def update(self, dt: float = 1/60):
+        for a in self.auras[:]:
+            a.update(dt)
+            if a.current_gauge <= 0: self.auras.remove(a)
+        if self.frozen_gauge:
+            self.frozen_gauge.update(dt)
+            if self.frozen_gauge.current_gauge <= 0: self.frozen_gauge = None
+        if self.quicken_gauge:
+            self.quicken_gauge.update(dt)
+            if self.quicken_gauge.current_gauge <= 0: self.quicken_gauge = None
+        if self.is_electro_charged:
+            self.ec_timer += dt
+            if self.ec_timer >= 1.0:
+                self.ec_timer = 0
+                self._apply_ec_tick()
+        if self.is_burning:
+            self._apply_burning_tick(dt)
+
+    def apply_element(self, attack_element: Element, attack_u: float) -> List[ReactionResult]:
+        if attack_element == Element.PHYSICAL or attack_u <= 0:
+            return []
+
+        results = []
+        rem_u = attack_u
+        prevent_attachment = False
+
+        # 1. 特殊状态反应 (优先)
+        if self.frozen_gauge:
+            tax = self._get_tax(attack_element, Element.FROZEN)
+            if tax > 0:
+                prevent_attachment = True
+                consume = min(self.frozen_gauge.current_gauge, rem_u * tax)
+                self.frozen_gauge.consume(consume)
+                if attack_element not in [Element.ANEMO, Element.GEO]:
+                    rem_u -= consume / tax
+                
+                r_type = ElementalReactionType.SHATTER if attack_element == Element.GEO else self._map_reaction(attack_element, Element.CRYO)
+                results.append(self._create_result(r_type, attack_element, Element.FROZEN, consume))
+                if self.frozen_gauge.current_gauge <= 0: self.frozen_gauge = None
+
+        if self.quicken_gauge:
+            if attack_element == Element.ELECTRO:
+                results.append(self._create_result(ElementalReactionType.AGGRAVATE, attack_element, Element.QUICKEN))
+            elif attack_element == Element.DENDRO:
+                results.append(self._create_result(ElementalReactionType.SPREAD, attack_element, Element.QUICKEN))
+            else:
+                tax = self._get_tax(attack_element, Element.QUICKEN)
+                if tax > 0:
+                    prevent_attachment = True
+                    consume = min(self.quicken_gauge.current_gauge, rem_u * tax)
+                    self.quicken_gauge.consume(consume)
+                    if attack_element not in [Element.ANEMO, Element.GEO]:
+                        rem_u -= consume / tax
                     
-                    actual_base_consumed = damage.element[1] * ratio[1] / ratio[0]
-                    actual_trigger_consumed = base_amount * ratio[0] / ratio[1]
-                    
-                    if aura["current_amount"] >= actual_base_consumed:
-                        aura["current_amount"] -= actual_base_consumed
-                        damage.element = (damage.element[0], 0.0)
-                    else:
-                        aura["current_amount"] = 0.0
-                        damage.element = (damage.element[0], damage.element[1] - actual_trigger_consumed)
-                    
-                    if aura["element"] == "火":
-                        self.burning_elements["current_amount"] -= actual_base_consumed
-                        
-                    e = ElementalReaction(damage)
-                    e.set_reaction_elements(damage.element[0], aura["element"])
-                    EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-                    
-                    if e.reaction_type[0] != "剧变反应":
-                        reaction_triggers.append(e.reaction_multiplier)
-                    if damage.element[1] <= 0:
-                        break
-        else:
-            self._attach_burning_element(damage.element[0], damage.element[1])
+                    r_type = ElementalReactionType.BLOOM if attack_element == Element.HYDRO else ElementalReactionType.BURNING
+                    results.append(self._create_result(r_type, attack_element, Element.QUICKEN, consume))
+                    if self.quicken_gauge.current_gauge <= 0: self.quicken_gauge = None
 
-        return max(reaction_triggers) if reaction_triggers else None
+        # 2. 状态转换判定 (风岩除外)
+        if attack_element not in [Element.ANEMO, Element.GEO]:
+            # 冻结
+            if self._check_combo(attack_element, Element.HYDRO, Element.CRYO):
+                prevent_attachment = True
+                target_el = Element.CRYO if attack_element == Element.HYDRO else Element.HYDRO
+                existing = next(a for a in self.auras if a.element == target_el)
+                consume_val = min(existing.current_gauge, attack_u)
+                self.frozen_gauge = Gauge.create(Element.FROZEN, 2.0)
+                self.frozen_gauge.current_gauge = 2 * consume_val
+                existing.consume(consume_val)
+                if existing.current_gauge <= 0: self.auras.remove(existing)
+                results.append(self._create_result(ElementalReactionType.FREEZE, attack_element, target_el))
+                rem_u -= consume_val
+            # 激化
+            elif self._check_combo(attack_element, Element.ELECTRO, Element.DENDRO):
+                prevent_attachment = True
+                target_el = Element.ELECTRO if attack_element == Element.DENDRO else Element.DENDRO
+                existing = next(a for a in self.auras if a.element == target_el)
+                val = min(existing.current_gauge, attack_u)
+                self.quicken_gauge = Gauge.create(Element.QUICKEN, 1.0)
+                self.quicken_gauge.current_gauge = val
+                existing.consume(val)
+                if existing.current_gauge <= 0: self.auras.remove(existing)
+                results.append(self._create_result(ElementalReactionType.QUICKEN, attack_element, target_el))
+                rem_u -= val
 
-    def handle_quicken_reaction(self, damage: Any) -> None:
-        """触发原激化"""
-        base_aura = next((a for a in self.aura_list if a["element"] in ["雷", "草"] and a["element"] != damage.element[0]), None)
-        if base_aura:
-            amount = min(damage.element[1], base_aura["current_amount"])
-            base_aura["current_amount"] -= amount
-            self._attach_quicken_element(amount)
-            
-            e = ElementalReaction(damage)
-            e.set_reaction_elements(damage.element[0], base_aura["element"])
-            EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-        else:
-            self._attach_new_element(damage.element[0], damage.element[1])
-
-    def handle_in_quicken_reaction(self, damage: Any) -> Optional[float]:
-        """激化状态下的后续反应"""
-        reaction_triggers = []
-        s = {"雷": 3, "草": 4, "水": 1, "冰": 2, "火": 0}
-        for aura in sorted(self.aura_list, key=lambda x: s.get(x["element"], 6)):
-            r = ReactionMMap.get((damage.element[0], aura["element"]))
-            if r:
-                ratio = self._get_element_ratio(damage.element[0], aura["element"])
-                if aura["element"] == "草":
-                    self.quicken_elements["current_amount"] -= damage.element[1] * ratio[1] / ratio[0]
+        # 3. 常规消耗反应
+        if rem_u > 0:
+            for aura in self.auras[:]:
+                if rem_u <= 0: break
+                # 感电共存处理
+                if {attack_element, aura.element} == {Element.HYDRO, Element.ELECTRO}:
+                    if not self.is_electro_charged:
+                        self.is_electro_charged = True
+                        results.append(self._create_result(ElementalReactionType.ELECTRO_CHARGED, attack_element, aura.element))
+                    continue
                 
-                if aura["current_amount"] >= damage.element[1] * ratio[1] / ratio[0]:
-                    aura["current_amount"] -= damage.element[1] * ratio[1] / ratio[0]
-                    damage.element = (damage.element[0], 0.0)
-                else:
-                    damage.element = (damage.element[0], damage.element[1] - aura["current_amount"] * ratio[0] / ratio[1])
-                    aura["current_amount"] = 0.0
+                tax = self._get_tax(attack_element, aura.element)
+                if tax > 0:
+                    prevent_attachment = True
+                    consume = min(aura.current_gauge, rem_u * tax)
+                    aura.consume(consume)
+                    if attack_element not in [Element.ANEMO, Element.GEO]:
+                        rem_u -= consume / tax
+                    
+                    r_type = self._map_reaction(attack_element, aura.element)
+                    results.append(self._create_result(r_type, attack_element, aura.element, consume))
+                    if aura.current_gauge <= 0: self.auras.remove(aura)
 
-                e = ElementalReaction(damage)
-                e.set_reaction_elements(damage.element[0], aura["element"])
-                EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
+        # 4. 状态标记
+        if self._check_combo(attack_element, Element.HYDRO, Element.ELECTRO):
+            self.is_electro_charged = True
+        if self._check_combo(attack_element, Element.PYRO, Element.DENDRO) or (self.quicken_gauge and attack_element == Element.PYRO):
+            self.is_burning = True
 
-                if e.reaction_type[0] != "剧变反应":
-                    reaction_triggers.append(e.reaction_multiplier)
-                if damage.element[1] <= 0:
-                    break
-        
-        # 激化元素本身的后续判定
-        if self.quicken_elements.get("current_amount", 0) > 0:
-            r = ReactionMMap.get((damage.element[0], "激"))
-            if r:
-                if r[0] == ElementalReactionType.BURNING:
-                    self.handle_burning_reaction(damage)
-                elif r[0] in [ElementalReactionType.AGGRAVATE, ElementalReactionType.SPREAD]:
-                    self._attach_new_element(damage.element[0], damage.element[1])
-                else:
-                    ratio = self._get_element_ratio(damage.element[0], "激")
-                    if self.quicken_elements["current_amount"] >= damage.element[1] * ratio[1] / ratio[0]:
-                        self.quicken_elements["current_amount"] -= damage.element[1] * ratio[1] / ratio[0]
-                        damage.element = (damage.element[0], 0.0)
-                    else:
-                        damage.element = (damage.element[0], damage.element[1] - self.quicken_elements["current_amount"] * ratio[0] / ratio[1])
-                        self.quicken_elements["current_amount"] = 0.0
-                
-                e = ElementalReaction(damage)
-                e.set_reaction_elements(damage.element[0], "激")
-                EventBus.publish(ElementalReactionEvent(e, GetCurrentTime()))
-                if e.reaction_type[0] != "剧变反应":
-                    reaction_triggers.append(e.reaction_multiplier)
+        if attack_element in [Element.ANEMO, Element.GEO]: return results
+        if rem_u > 0.001 and not prevent_attachment:
+            self._attach(attack_element, attack_u)
 
-        return max(reaction_triggers) if reaction_triggers else None
+        return results
 
-    def _get_element_ratio(self, trigger: str, base: str) -> Tuple[float, float]:
-        """获取元素消耗比例 (trigger:base)"""
-        if (trigger, base) in [("水", "火"), ("火", "冰"), ("火", "冻"), ("草", "水")]:
-            return (1.0, 2.0)
-        if (trigger, base) in [("火", "水"), ("冰", "火"), ("水", "草")]:
-            return (2.0, 1.0)
-        if trigger in {"风", "岩"} and base in {"水", "雷", "冰", "火", "冻"}:
-            return (2.0, 1.0)
-        return (1.0, 1.0)
+    def _create_result(self, r_type: ElementalReactionType, source: Element, target: Element, consume: float = 0.0) -> ReactionResult:
+        category = REACTION_CLASSIFICATION.get(r_type, ReactionCategory.STATUS)
+        mult = self._get_mult(source, target) if category == ReactionCategory.AMPLIFYING else 1.0
+        return ReactionResult(
+            reaction_type=r_type,
+            category=category,
+            source_element=source,
+            target_element=target,
+            multiplier=mult,
+            gauge_consumed=consume
+        )
 
-    def _attach_new_element(self, element_type: str, applied_amount: float) -> None:
-        """处理新元素附着"""
-        existing = next((a for a in self.aura_list if a["element"] == element_type), None)
-        duration = 7.0 + applied_amount * 2.5
-
-        if existing:
-            new_amount = applied_amount * 0.8
-            if new_amount > existing["current_amount"]:
-                existing.update({"initial_amount": new_amount, "current_amount": new_amount})
-        else:
-            amount = applied_amount * 0.8
-            self.aura_list.append({
-                "element": element_type,
-                "initial_amount": amount,
-                "current_amount": amount,
-                "decay_rate": amount / duration
-            })
-
-    def _attach_freeze_element(self, element_type: str, applied_amount: float) -> None:
-        """处理冻元素附着 (特殊时长公式)"""
-        existing = next((a for a in self.aura_list if a["element"] == element_type), None)
-        duration = 2 * sqrt(5 * applied_amount + 4) - 4
-
-        if existing:
-            duration = duration * 0.7 + existing["current_amount"] / existing["decay_rate"]
-            amount = max(applied_amount, existing["current_amount"])
-            existing.update({"initial_amount": amount, "current_amount": amount, "decay_rate": amount / duration})
-        else:
-            self.aura_list.append({
-                "element": element_type,
-                "initial_amount": applied_amount,
-                "current_amount": applied_amount,
-                "decay_rate": applied_amount / duration
-            })
-
-    def _attach_burning_element(self, element_type: str, applied_amount: float) -> None:
-        """处理燃烧反应元素附着"""
-        existing = next((a for a in self.aura_list if a["element"] == element_type), None)
-        duration = 7.0 + applied_amount * 2.5
-
-        if existing:
-            new_amount = applied_amount * 0.8
-            if new_amount > existing["current_amount"]:
-                existing.update({"initial_amount": new_amount, "current_amount": new_amount})
-        else:
-            amount = applied_amount * 0.8
-            decay_rate = amount / duration if element_type != "草" else 4 * amount / duration
-            self.aura_list.append({
-                "element": element_type,
-                "initial_amount": amount,
-                "current_amount": amount,
-                "decay_rate": decay_rate
-            })
-
-    def _attach_quicken_element(self, applied_amount: float) -> None:
-        """处理原激化反应元素附着"""
-        duration = 5 * applied_amount + 6
-        self.quicken_elements = {
-            "element": "激",
-            "initial_amount": applied_amount,
-            "current_amount": applied_amount,
-            "decay_rate": applied_amount / duration
+    def _map_reaction(self, atk: Element, target: Element) -> ElementalReactionType:
+        table = {
+            (Element.HYDRO, Element.PYRO): ElementalReactionType.VAPORIZE,
+            (Element.PYRO, Element.HYDRO): ElementalReactionType.VAPORIZE,
+            (Element.PYRO, Element.CRYO): ElementalReactionType.MELT,
+            (Element.CRYO, Element.PYRO): ElementalReactionType.MELT,
+            (Element.ELECTRO, Element.PYRO): ElementalReactionType.OVERLOAD,
+            (Element.PYRO, Element.ELECTRO): ElementalReactionType.OVERLOAD,
+            (Element.ELECTRO, Element.HYDRO): ElementalReactionType.ELECTRO_CHARGED,
+            (Element.HYDRO, Element.ELECTRO): ElementalReactionType.ELECTRO_CHARGED,
+            (Element.CRYO, Element.ELECTRO): ElementalReactionType.SUPERCONDUCT,
+            (Element.ELECTRO, Element.CRYO): ElementalReactionType.SUPERCONDUCT,
+            (Element.HYDRO, Element.DENDRO): ElementalReactionType.BLOOM,
+            (Element.DENDRO, Element.HYDRO): ElementalReactionType.BLOOM,
+            (Element.ANEMO, Element.PYRO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.HYDRO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.CRYO): ElementalReactionType.SWIRL,
+            (Element.ANEMO, Element.ELECTRO): ElementalReactionType.SWIRL,
+            (Element.GEO, Element.PYRO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.HYDRO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.CRYO): ElementalReactionType.CRYSTALLIZE,
+            (Element.GEO, Element.ELECTRO): ElementalReactionType.CRYSTALLIZE,
         }
+        return table.get((atk, target), table.get((target, atk), ElementalReactionType.VAPORIZE))
 
-    def _check_reactions(self, element: str) -> bool:
-        """快速检查是否可能触发反应"""
-        for e in self.aura_list:
-            if ReactionMMap.get((element, e["element"])): return True
-        if self.quicken_elements and ReactionMMap.get((element, "激")): return True
-        if self.burning_elements and ReactionMMap.get((element, "火")): return True
+    def _get_tax(self, attack: Element, target: Element) -> float:
+        if attack in [Element.ANEMO, Element.GEO] and target == Element.QUICKEN: return 0.0
+        table = {
+            (Element.HYDRO, Element.PYRO): 2.0, (Element.PYRO, Element.HYDRO): 0.5,
+            (Element.PYRO, Element.CRYO): 2.0, (Element.CRYO, Element.PYRO): 0.5,
+            (Element.PYRO, Element.FROZEN): 2.0, (Element.PYRO, Element.QUICKEN): 0.5,
+            (Element.HYDRO, Element.DENDRO): 1.0, (Element.HYDRO, Element.QUICKEN): 1.0,
+            (Element.ELECTRO, Element.PYRO): 1.0, (Element.PYRO, Element.ELECTRO): 1.0,
+            (Element.CRYO, Element.ELECTRO): 1.0, (Element.ELECTRO, Element.CRYO): 1.0,
+            (Element.GEO, Element.FROZEN): 0.5, (Element.ANEMO, Element.FROZEN): 0.5,
+        }
+        if (attack, target) in table: return table[(attack, target)]
+        if attack in [Element.ANEMO, Element.GEO]: return 0.5
+        return 0.0
+
+    def _apply_ec_tick(self):
+        h = next((a for a in self.auras if a.element == Element.HYDRO), None)
+        e = next((a for a in self.auras if a.element == Element.ELECTRO), None)
+        if h and e:
+            h.consume(0.4); e.consume(0.4)
+            if h.current_gauge <= 0: self.auras.remove(h)
+            if e.current_gauge <= 0: self.auras.remove(e)
+        self.is_electro_charged = (h is not None and e is not None and h.current_gauge > 0 and e.current_gauge > 0)
+
+    def _apply_burning_tick(self, dt: float):
+        grass = next((a for a in self.auras if a.element == Element.DENDRO), None)
+        if not grass: grass = self.quicken_gauge
+        if grass:
+            grass.consume(0.4 * dt)
+            self._attach(Element.PYRO, 1.0)
+            if grass.current_gauge <= 0: 
+                if grass == self.quicken_gauge: self.quicken_gauge = None
+                else: self.auras.remove(grass)
+                self.is_burning = False
+        else:
+            self.is_burning = False
+
+    def _attach(self, element: Element, u: float):
+        existing = next((a for a in self.auras if a.element == element), None)
+        new_a = Gauge.create(element, u)
+        if existing:
+            existing.current_gauge = max(existing.current_gauge, new_a.current_gauge)
+            existing.decay_rate = max(existing.decay_rate, new_a.decay_rate)
+        else:
+            self.auras.append(new_a)
+
+    def _get_mult(self, a, b):
+        if (a, b) == (Element.HYDRO, Element.PYRO): return 2.0
+        if (a, b) == (Element.PYRO, Element.HYDRO): return 1.5
+        if (a, b) == (Element.PYRO, Element.CRYO): return 2.0
+        if (a, b) == (Element.CRYO, Element.PYRO): return 1.5
+        return 1.0
+
+    def _check_combo(self, atk, el1, el2):
+        if atk == el1: return any(a.element == el2 for a in self.auras)
+        if atk == el2: return any(a.element == el1 for a in self.auras)
         return False
-
-    def update(self) -> None:
-        """推进时间轴：更新元素衰减状态"""
-        removed = []
-        for aura in self.aura_list:
-            aura["current_amount"] -= aura["decay_rate"] / 60
-            if aura["current_amount"] <= 0:
-                removed.append(aura)
-        
-        if self.quicken_elements:
-            self.quicken_elements["current_amount"] -= self.quicken_elements["decay_rate"] / 60
-            if self.quicken_elements["current_amount"] <= 0:
-                self.quicken_elements = {}
-                
-        for aura in removed:
-            self.aura_list.remove(aura)
-
-    def clear(self) -> None:
-        """清理所有附着元素"""
-        self.aura_list.clear()
-        self.burning_elements.clear()
-        self.quicken_elements.clear()

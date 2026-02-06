@@ -1,4 +1,5 @@
-from core.mechanics.aura import ElementalAura
+from core.mechanics.aura import AuraManager, Element
+from core.action.damage import Damage
 
 class Target:
     def __init__(self, data):
@@ -7,7 +8,8 @@ class Target:
 
         self.current_frame = 0
         self.defense = self.level * 5 + 500
-        self.aura = ElementalAura()
+        # 使用重构后的 AuraManager
+        self.aura = AuraManager()
         self.effects = []
 
     def get_data(self, data):
@@ -27,15 +29,23 @@ class Target:
     def get_current_resistance(self):
         return self.current_resistance
     
-    def get_aura_list(self):
-        return self.aura.get_aura_list()
-    
-    def set_aura_list(self, aura_list):
-        self.aura.set_aura_list(aura_list)
+    def apply_elemental_aura(self, damage: Damage):
+        """
+        核心入口：将伤害中的元素应用到目标身上。
+        返回触发的所有反应结果列表。
+        """
+        # 1. 解析元素与量级
+        element_str, u_val = damage.element
+        try:
+            atk_el = Element(element_str)
+        except ValueError:
+            return []
 
-    def apply_elemental_aura(self, damage):
-        # 保持旧的方法名供外部调用，但内部转发给新方法
-        return self.aura.apply_damage_element(damage)
+        # 2. 调用物理引擎结算
+        # 注意：在此重构阶段，damage.element[1] 承载的是 U 值 (1, 2, 4)
+        results = self.aura.apply_element(atk_el, float(u_val))
+        
+        return results
 
     def add_effect(self, effect):
         self.effects.append(effect)
@@ -45,8 +55,8 @@ class Target:
 
     def update(self):
         self.current_frame += 1
-        # 更新元素衰减状态
-        self.aura.update()
+        # 更新元素衰减状态 (每帧 1/60s)
+        self.aura.update(1/60)
         
         # 更新其他效果状态
         removed_effects = []
@@ -58,6 +68,6 @@ class Target:
             self.effects.remove(effect)
 
     def clear(self):
-        self.aura.clear()
+        self.aura = AuraManager()
         self.effects.clear()
         self.current_frame = 0

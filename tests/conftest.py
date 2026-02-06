@@ -21,13 +21,15 @@ def init_config():
             }
         }
 
+from core.mechanics.aura import AuraManager, Element
+
 class MockAttributeEntity:
     """模拟拥有属性面板的实体 (角色/怪物)"""
     def __init__(self, name="TestEntity", level=90, element='火'):
         self.name = name
         self.level = level
         self.element = element
-        self.on_field = True # 是否前台
+        self.on_field = True
         self.attributePanel = {
             '攻击力': 1000.0,
             '固定攻击力': 0.0,
@@ -42,13 +44,15 @@ class MockAttributeEntity:
             '暴击率': 5.0,
             '暴击伤害': 50.0,
             '伤害加成': 0.0,
-            '元素充能效率': 100.0, # 基础 100%
+            '元素充能效率': 100.0,
             '火元素伤害加成': 0.0,
             '水元素伤害加成': 0.0,
             '物理伤害加成': 0.0
         }
         
-        # 能量系统支持
+        # 使用正式的 AuraManager
+        self.aura = AuraManager()
+        
         class EnergyInfo:
             def __init__(self, element, max_energy):
                 self.elemental_energy = (element, max_energy)
@@ -60,8 +64,14 @@ class MockAttributeEntity:
         self.current_resistance = {}
 
     def apply_elemental_aura(self, damage):
-        # Mock 反应接口
-        return None
+        # 模拟 Target.apply_elemental_aura
+        element_str, u_val = damage.element
+        try:
+            from core.mechanics.aura import Element
+            atk_el = Element(element_str)
+            return self.aura.apply_element(atk_el, float(u_val))
+        except Exception:
+            return []
 
 # -----------------------------------------------------------------------------
 # Pytest Fixtures
