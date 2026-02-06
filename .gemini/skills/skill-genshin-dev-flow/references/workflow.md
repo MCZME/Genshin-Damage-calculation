@@ -1,67 +1,58 @@
-# GitHub & 项目开发流程规范
+# GitHub & 开发工作流规范
 
-本文档定义了人类开发者与 AI 代理在本项目中的协作模式和版本控制流程。
+本文档定义了开发者（包括人类与 AI）在项目中的具体操作流程、命令参考及协作标准。
 
-## 1. 分支管理 (Branching Model)
+## 1. 上下文感知 (Context Awareness) [CRITICAL]
 
-项目采用简化的分支策略，以 `main` 为核心：
+任何开发活动的起点必须是获取当前的最新状态，以避免冲突和重复劳动。
 
-*   **`main` 分支**: 唯一的长效分支，生产与开发的总轴。
-*   **功能分支 (feature/*)**:
-    *   **命名**: `feature/描述`（例如 `feature/context-manager`）。
-    *   **职责**: 单一 Issue 的实现。
-*   **修复分支 (fix/*)**:
-    *   **命名**: `fix/描述`（例如 `fix/formula-bug`）。
+*   **操作命令**: `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
+*   **关注重点**: 
+    - 当前 Git 分支与未提交更改。
+    - 关联 Issue 的编号及当前状态标签。
+    - `.gemini/CURRENT_STATE.md` 中的“存档”信息。
 
-### 分支生命周期与清理
-1.  **切出**: 始终从最新的 `main` 切出。
-2.  **合并**: 通过 Pull Request 合并回 `main`。
-3.  **同步与删除 (清理)**: PR 合并后，开发者必须在本地执行：
-    ```bash
-    git checkout main ; git pull ; git fetch --prune ; git branch -d <feature-branch-name>
-    ```
+## 2. Issue 开发 SOP (Standard Operating Procedure)
 
-## 2. 提交与 PR 规范
+开发者在处理 Issue 时必须经历的五个阶段：
 
-### 提交消息 (Commit Messages)
-采用 Conventional Commits 格式，且**正文必须使用中文**:
-*   **格式**: `<type>: <中文描述> #<ID>`
-*   **示例**: `feat: 增加 SimulationContext 的健康检查逻辑 #9`
+### 阶段 0: 启动 (Initiate)
+1.  **认领**: 使用 `gh issue edit <ID> --assignee @me`。
+2.  **打标**: 根据任务性质添加 `type:*` 和 `status:plan-pending`。
+3.  **看板**: 运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Todo`。
 
-### Pull Request (PR)
-*   **语言**: 标题和描述均使用中文。
-*   **基准**: Base 分支设为 `main`。
-*   **自动关闭**: 描述中必须包含 `Closes #ID`。
+### 阶段 1: 方案对齐 (Align)
+1.  **切分支**: `git checkout -b feature/描述`。
+2.  **提交提案**: 输出 Technical Proposal（中文），包含：**Impact** (影响范围), **Logic** (逻辑变动), **Tests** (测试计划)。
+3.  **确认**: 等待方案确认后方可进入下一阶段。
 
-## 3. Issue 开发标准作业程序 (SOP)
+### 阶段 2: 测试先行 (Test-First)
+1.  **编写测试**: 在 `tests/` 下编写脚本或直接修改 `test.py`。
+2.  **验证失败**: 运行 `python test.py` 确保当前状态下测试无法通过。
 
-当开始处理一个 Issue 时，必须遵循以下流程：
+### 阶段 3: 实现与验证 (Implement & Verify)
+1.  **编码**: 遵循 `references/standards.md`。
+2.  **更新看板**: 同步卡片至 `In Progress`，删除 `status:plan-pending`。
+3.  **通过测试**: 确保 `python test.py` 100% 通过。
+4.  **Lint**: 运行 `ruff check .`。
 
-### 第一阶段：启动与方案对齐 (Start & Align)
-1.  **状态流转**: 在 GitHub Projects 中将卡片移动至 `Todo`。
-2.  **分支管理**: 基于 `main` 分支创建新分支 `feature/描述`。
-3.  **技术提案**: 提交一份简短的方案草案（中文），明确 Impact、Logic、Events。
+### 阶段 4: 交付与存档 (Handover)
+1.  **提交代码**: 遵循 Conventional Commits (中文)。格式：`<type>: 描述 #ID`。
+2.  **开启 PR**: 开启指向 `main` 的 PR，添加 `status:implemented`。
+3.  **存档**: **必须**更新 `.gemini/CURRENT_STATE.md`。
 
-### 第二阶段：测试驱动 (Test-First)
-1.  **复现/定义**: 在 `tests/` 目录下编写测试用例。
-2.  **执行**: 运行测试，确认当前状态下测试失败。
+## 3. 分支与提交规范
 
-### 第三阶段：实现与验证 (Implement & Verify)
-1.  **编码**: 严格执行 `references/standards.md` 中的规范。
-2.  **自测**: 运行测试确保通过。
-3.  **合规性检查**: 运行 `ruff check .`。
+### 分支管理
+- 永远从 `main` 切出，通过 PR 合并回 `main`。
+- 合并后及时删除本地分支：`git branch -d <name>`。
 
-### 第四阶段：交接与评审 (Handover)
-1.  **提交**: 遵循中文提交规范。
-2.  **PR**: 开启指向 `main` 的 PR，描述包含 `Closes #ID`。
-3.  **同步**: 更新任务清单。
+### 提交消息
+- **格式**: `<type>: <中文描述> #<ID>`
+- **Type 推荐**: `feat`, `fix`, `refactor`, `perf`, `docs`, `chore`, `test`。
 
-## 4. 关键交接标签 (Key Handover Labels)
-
-1.  **`status:plan-pending`**: 等待方案对齐。
-2.  **`status:implemented`**: 逻辑实现完成，PR 已开启。
-
-## 5. 环境与工具
-*   **Lint**: Ruff。
-*   **Test**: Pytest / 项目自定义仿真。
-*   **AI Context**: 持续维护 `GEMINI.md`。
+## 4. 环境与工具命令
+- **测试入口**: `python test.py`
+- **运行入口**: `python main.py`
+- **上下文获取**: `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
+- **看板同步**: `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> <Column>`

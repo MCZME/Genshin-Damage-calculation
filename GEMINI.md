@@ -35,13 +35,15 @@ The project has evolved into a structured core engine:
 ## Building and Running
 
 ### Prerequisites
-*   Python 3.x
+*   Python 3.13.3
+*   虚拟环境: 使用 `virtualenv` 创建，环境名为 `genshin_damage_calculation`。
 *   Dependencies listed in `requirements.txt`
 
 ### Installation
 1.  Clone the repository.
-2.  Install dependencies:
+2.  激活虚拟环境并安装依赖:
     ```bash
+    .\genshin_damage_calculation\Scripts\activate
     pip install -r requirements.txt
     ```
 
@@ -53,10 +55,11 @@ python main.py
 This initializes the event handlers, configuration, and opens the main window.
 
 ### Running Simulations/Tests
-Batch simulations and tests can be found in the `tests/` directory.
+核心仿真与系统验证测试：
 ```bash
-python tests/batch_sim_test.py
+python test.py
 ```
+该脚本是项目的主要仿真入口，用于验证伤害计算和系统逻辑。
 
 ## Configuration
 The application uses `config.json` for settings, managed by `core.config.Config`.

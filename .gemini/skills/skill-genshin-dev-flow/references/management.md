@@ -7,20 +7,21 @@
 所有开发活动必须关联一个 Issue。
 
 ### 1.1 Issue 模板要求
-*   **Bug**: 必须包含游戏版本、角色配置（等级/命座）、以及预期结果与计算结果的差值。
-*   **Feature**: 必须链接到相关的数据来源。
-*   **Refactor**: 必须说明重构的原因及预期的架构提升。
+所有 Issue 必须通过 `.github/ISSUE_TEMPLATE/` 中定义的模板创建：
+*   **Bug (`bug_report.yml`)**: 必须包含游戏版本、角色配置（等级/命座）、复现步骤以及预期结果。
+*   **Feature (`feature_request.yml`)**: 必须链接到相关的数据来源或计算公式说明。
+*   **Refactor (`refactor.yml`)**: 必须说明重构动机（痛点）、影响范围，并包含标准的执行计划清单。
 
-### 1.2 标签体系 (Labels)
+### 1.2 标签体系与交接状态 (Labels & Status)
 
-标签仅用于标识任务性质 and 关键交接状态：
+标签用于标识任务性质及关键的协作交接节点：
 
 *   **工作类型 (Type)**: `type:bug`, `type:feature`, `type:refactor`, `type:perf`, `type:docs`
 *   **架构层级 (Layer)**: `layer:core-engine`, `layer:systems`, `layer:gui`, `layer:data-factory`
-*   **协作状态 (Status)**:
-    *   `status:plan-pending`: 方案尚未确定，等待 AI 或人类产出 Technical Proposal。
-    *   `status:implemented`: 逻辑代码已编写完成，并已通过初步自测，等待 Review 或 GUI 验证。
-    *   `status:blocked`: 任务由于外部原因（如数据缺失）暂时阻塞。
+*   **核心交接状态 (Status Labels)**:
+    *   `status:plan-pending`: **方案对齐阶段**。Issue 已创建并认领，但尚未产出或确认 Technical Proposal。此时不可开始编码。
+    *   `status:implemented`: **交付评审阶段**。逻辑实现已完成，PR 已开启。此时等待 Review 或集成测试。
+    *   `status:blocked`: **阻塞状态**。由于外部原因（数据缺失、上游依赖）暂时无法继续。
 
 ## 2. 里程碑设计 (Milestones)
 
