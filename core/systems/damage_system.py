@@ -67,10 +67,10 @@ class Calculation:
                           target=self.target, 
                           damage=self.damage)
         self.engine.publish(event)
-        attributePanel = self.source.attributePanel
-        self.damage.panel['伤害加成'] += attributePanel['伤害加成']
-        element_key = (self.damage.element[0] if self.damage.element[0] == '物理' else self.damage.element[0] + '元素') + '伤害加成'
-        self.damage.panel['伤害加成'] += attributePanel.get(element_key, 0)
+        
+        # 使用 AttributeCalculator 获取伤害加成
+        bonus = AttributeCalculator.get_damage_bonus(self.source, self.damage.element[0])
+        self.damage.panel['伤害加成'] += bonus * 100
         
         event = GameEvent(EventType.AFTER_DAMAGE_BONUS, 
                           GetCurrentTime(),
@@ -87,8 +87,10 @@ class Calculation:
                           target=self.target,
                           damage=self.damage)
         self.engine.publish(event)
-        attributePanel = self.source.attributePanel
-        self.damage.panel['暴击率'] += attributePanel['暴击率']
+        
+        # 使用 AttributeCalculator 获取暴击率
+        self.damage.panel['暴击率'] += AttributeCalculator.get_crit_rate(self.source) * 100
+        
         event = GameEvent(EventType.AFTER_CRITICAL, GetCurrentTime(),
                           character=self.source,
                           target=self.target,
@@ -108,8 +110,10 @@ class Calculation:
                           target=self.target, 
                           damage=self.damage)
         self.engine.publish(event)
-        attributePanel = self.source.attributePanel
-        self.damage.panel['暴击伤害'] += attributePanel['暴击伤害']   
+        
+        # 使用 AttributeCalculator 获取暴击伤害
+        self.damage.panel['暴击伤害'] += AttributeCalculator.get_crit_damage(self.source) * 100
+        
         event = GameEvent(EventType.AFTER_CRITICAL_BRACKET, GetCurrentTime(),
                           character=self.source,
                           target=self.target, 
@@ -142,9 +146,10 @@ class Calculation:
     def reaction(self):
         if self.damage.element[0] == '物理':
             return 1
-        attributePanel = self.source.attributePanel
-        e = attributePanel['元素精通']
-        r = attributePanel.get('反应系数提高', {})
+            
+        # 使用 AttributeCalculator 获取精通和反应加成字典
+        e = AttributeCalculator.get_mastery(self.source)
+        r = AttributeCalculator.get_reaction_bonus_dict(self.source)
 
         reaction_multiplier = self.target.apply_elemental_aura(self.damage)
         if reaction_multiplier:
@@ -176,14 +181,16 @@ class Calculation:
             return 1
               
     def calculation_by_reaction(self):
-        attributePanel = self.source.attributePanel
-        r = attributePanel.get('反应系数提高', {})
+        # 使用 AttributeCalculator 获取反应加成字典
+        r = AttributeCalculator.get_reaction_bonus_dict(self.source)
         r1 = r.get(self.damage.reaction_type[1].value, 0) / 100
         
         if r1 != 0:
             self.damage.setDamageData('反应伤害提高', r1)
             
-        inc = self.damage.panel['反应系数'] * (1+16*self.source.attributePanel['元素精通']/(self.source.attributePanel['元素精通']+2000))
+        # 使用 AttributeCalculator 获取精通
+        mastery = AttributeCalculator.get_mastery(self.source)
+        inc = self.damage.panel['反应系数'] * (1+16*mastery/(mastery+2000))
         value = self.damage.panel['等级系数'] * (inc+r1) * self.resistance()
         
         if '暴击伤害' in self.damage.panel:
@@ -231,7 +238,7 @@ class Calculation:
         elif baseValue == '防御力':
             return self.DEF()
         elif baseValue == '元素精通':
-            return self.source.attributePanel['元素精通']
+            return AttributeCalculator.get_mastery(self.source)
 
 # ---------------------------------------------------------
 # Damage System

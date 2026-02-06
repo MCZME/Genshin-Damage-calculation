@@ -51,3 +51,28 @@ class AttributeCalculator:
     def get_healed_bonus(entity: Any) -> float:
         """获取受治疗加成 (百分比/100)"""
         return entity.attributePanel.get('受治疗加成', 0) / 100
+
+    @staticmethod
+    def get_damage_bonus(entity: Any, element_type: str = None) -> float:
+        """获取伤害加成 (百分比/100)"""
+        attr = entity.attributePanel
+        bonus = attr.get('伤害加成', 0)
+        if element_type:
+            key = (element_type if element_type == '物理' else element_type + '元素') + '伤害加成'
+            bonus += attr.get(key, 0)
+        return bonus / 100
+
+    @staticmethod
+    def get_crit_rate(entity: Any) -> float:
+        """获取暴击率 (百分比/100)"""
+        return entity.attributePanel.get('暴击率', 0) / 100
+
+    @staticmethod
+    def get_crit_damage(entity: Any) -> float:
+        """获取暴击伤害 (百分比/100)"""
+        return entity.attributePanel.get('暴击伤害', 0) / 100
+
+    @staticmethod
+    def get_reaction_bonus_dict(entity: Any) -> dict:
+        """获取反应系数提高字典"""
+        return entity.attributePanel.get('反应系数提高', {})

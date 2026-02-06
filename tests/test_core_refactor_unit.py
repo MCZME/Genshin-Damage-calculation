@@ -16,7 +16,12 @@ class MockEntity:
             '防御力%': 15,
             '固定防御力': 50,
             '元素精通': 200,
-            '护盾强效': 35
+            '护盾强效': 35,
+            '伤害加成': 15,
+            '火元素伤害加成': 46.6,
+            '暴击率': 60,
+            '暴击伤害': 120,
+            '反应系数提高': {'蒸发': 15}
         }
 
 def test_attribute_calculator():
@@ -45,6 +50,19 @@ def test_attribute_calculator():
     shield_bonus = AttributeCalculator.get_shield_strength_bonus(entity)
     print(f"Shield Bonus: {shield_bonus}")
     assert shield_bonus == pytest.approx(0.35)
+
+    # 伤害加成
+    # 通用 15% + 火 46.6% = 61.6% -> 0.616
+    dmg_bonus = AttributeCalculator.get_damage_bonus(entity, '火')
+    print(f"Fire Damage Bonus: {dmg_bonus}")
+    assert dmg_bonus == pytest.approx(0.616)
+    
+    # 暴击
+    assert AttributeCalculator.get_crit_rate(entity) == pytest.approx(0.6)
+    assert AttributeCalculator.get_crit_damage(entity) == pytest.approx(1.2)
+
+    # 反应加成
+    assert AttributeCalculator.get_reaction_bonus_dict(entity).get('蒸发') == 15
 
     print("AttributeCalculator Test Passed!")
 
