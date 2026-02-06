@@ -12,12 +12,17 @@ def attributeId(attributeId):
                 9:'元素伤害加成',10:'受治疗加成',11:'生命值%',12:'攻击力%',13:'防御力%'}
     return AttributeId[attributeId]
 
-def GetCurrentTime():
+def GetCurrentTime() -> int:
+    """获取当前模拟帧。"""
     from core.context import get_context
     try:
         return get_context().current_frame
     except RuntimeError:
         return 0
+
+def get_current_time() -> int:
+    """获取当前模拟帧 (snake_case 别名)。"""
+    return GetCurrentTime()
 
 reaction_coefficients = {
     1: 17.17, 2: 18.54, 3: 19.9, 4: 21.27, 5: 22.65, 6: 24.65, 7: 26.64, 8: 28.87, 9: 31.37, 10: 34.14,

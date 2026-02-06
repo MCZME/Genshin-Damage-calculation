@@ -1,17 +1,23 @@
 # Current Development State
 
 **Last Updated:** 2026-02-06
-**Status:** 🚀 Ready for new task
+**Status:** 🛠️ In Progress (圣遗物重构已完成核心架构)
 
 ## 📝 Recent Context
-- **Last Action:** Initialized new development flow tools.
-- **Focus:** Cleaning up technical debt & refactoring core systems.
+- **Last Action:** 完成了圣遗物模块的原子化重构与自动注册机制 (Issue #17)。
+- **Branch:** `refactor/artifact-architecture`
+- **Focus:** 圣遗物套装逻辑解耦与 ArtifactManager 优化。
+- **Improvements:**
+    - **核心架构**: 建立了 `BaseArtifactSet` 基类，规范了生命周期方法 (`apply_2_set_effect`, `apply_4_set_effect`)。
+    - **自动注册**: 实现了 `@register_artifact_set` 装饰器，套装效果现由 `core/registry.py` 动态扫描加载。
+    - **管理器重构**: `ArtifactManager` 已支持动态激活套装效果，并统一了 `snake_case` 属性访问。
+    - **物理拆分**: 将套装逻辑从单一文件拆分至 `artifact/sets/` 目录下的独立模块。
 
 ## 📌 Critical Knowledge
-- **Test Entry:** `python test.py` (Do NOT use batch_sim_test.py)
-- **Build/Run:** `python main.py`
-- **Source of Truth:** GitHub Issues & Milestones
+- **注册机制**: 套装必须继承 `BaseArtifactSet` 并使用装饰器注册，否则无法被 `ArtifactManager` 发现。
+- **当前状态**: 核心链路已跑通（已验证角斗士套装），部分自动生成的套装文件可能存在缩进细节问题，将在后续集成时修复。
 
 ## 🔜 Next Steps
-1.  Run `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py` to check for assigned issues.
-2.  Create/Pick an issue to start working.
+1.  **实体系统重构**: 启动 Issue #18，优化 `BaseEntity` 生命周期与交互架构。
+2.  **角色全量迁移**: 批量修复角色类的导入路径，彻底移除对 `core.BaseObject` 的依赖。
+3.  **最终仿真运行**: 待所有核心模块规范化后，恢复 `test.py` 的全量测试。

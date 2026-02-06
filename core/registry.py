@@ -27,15 +27,27 @@ def register_character(char_id: int):
         return cls
     return decorator
 
-def register_weapon(weapon_name: str):
+def register_weapon(weapon_name: str, weapon_type: str = None):
     """
     武器注册装饰器。
     用法:
-        @register_weapon("祭礼剑")
+        @register_weapon("祭礼剑", "单手剑")
         class SacrificialSword(Weapon): ...
     """
     def decorator(cls: Type[Any]):
         WeaponClassMap[weapon_name] = cls
+        if weapon_type:
+            # 可以在这里存储类型信息，或者直接给类打标签
+            cls.weapon_type = weapon_type
+        return cls
+    return decorator
+
+def register_artifact_set(set_name: str):
+    """
+    圣遗物套装注册装饰器。
+    """
+    def decorator(cls: Type[Any]):
+        ArtifactSetMap[set_name] = cls
         return cls
     return decorator
 
@@ -59,9 +71,7 @@ def discover_modules(package_name: str):
             importlib.import_module(module_name)
         except Exception as e:
             # 记录错误但不崩溃，允许渐进式重构。
-            # 大多数错误可能是因为引用了已删除的 CharacterState 或旧方法名。
-            from core.logger import get_ui_logger
-            get_ui_logger().log_info(f"跳过加载未重构的模块 {module_name}: {e}")
+            print(f"Skipping module {module_name}: {e}")
 
 def initialize_registry():
     """
@@ -69,5 +79,8 @@ def initialize_registry():
     """
     discover_modules("character")
     discover_modules("weapon")
-    # 如果圣遗物也需要动态注册
-    # discover_modules("artifact")
+    discover_modules("artifact.sets")
+    
+    # 同步更新武器分类表 (用于 UI)
+    from weapon import update_weapon_table
+    update_weapon_table()
