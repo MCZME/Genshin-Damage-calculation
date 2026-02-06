@@ -28,25 +28,25 @@ class Calculation:
                           damage=self.damage)
         self.engine.publish(event)
         self.damage = event.data['damage']
-        self.damage.setPanel('固定伤害基础值加成', 0)
+        self.damage.set_panel('固定伤害基础值加成', 0)
 
     def attack(self):
         val = AttributeCalculator.get_attack(self.source)
-        self.damage.setPanel('攻击力', val)
+        self.damage.set_panel('攻击力', val)
         return val
 
     def health(self):
         val = AttributeCalculator.get_hp(self.source)
-        self.damage.setPanel('生命值', val)
+        self.damage.set_panel('生命值', val)
         return val
 
     def DEF(self):
         val = AttributeCalculator.get_defense(self.source)
-        self.damage.setPanel('防御力', val)
+        self.damage.set_panel('防御力', val)
         return val
 
-    def damageMultipiler(self):
-        self.damage.setPanel('伤害倍率', self.damage.damageMultipiler)
+    def damage_multiplier(self):
+        self.damage.set_panel('伤害倍率', self.damage.damage_multiplier)
         event = GameEvent(EventType.BEFORE_DAMAGE_MULTIPLIER, GetCurrentTime(),
                           character=self.source,
                           target=self.target,
@@ -59,8 +59,8 @@ class Calculation:
         self.engine.publish(event)
         return event.data['damage'].panel['伤害倍率']
 
-    def damageBonus(self):
-        self.damage.setPanel('伤害加成', 0)
+    def damage_bonus(self):
+        self.damage.set_panel('伤害加成', 0)
         event = GameEvent(EventType.BEFORE_DAMAGE_BONUS, 
                           GetCurrentTime(),
                           character=self.source,
@@ -81,7 +81,7 @@ class Calculation:
         return self.damage.panel['伤害加成']/100
 
     def critical(self):
-        self.damage.setPanel('暴击率', 0)
+        self.damage.set_panel('暴击率', 0)
         event = GameEvent(EventType.BEFORE_CRITICAL, GetCurrentTime(),
                           character=self.source,
                           target=self.target,
@@ -97,14 +97,14 @@ class Calculation:
                           damage=self.damage)
         self.engine.publish(event)
         if random.randint(1, 100) <= self.damage.panel['暴击率']:
-            self.damage.setDamageData('暴击', True)
+            self.damage.set_damage_data('暴击', True)
             return 1
         else:
-            self.damage.setDamageData('暴击', False)
+            self.damage.set_damage_data('暴击', False)
             return 0
 
-    def criticalBracket(self):
-        self.damage.setPanel('暴击伤害', 0)
+    def critical_bracket(self):
+        self.damage.set_panel('暴击伤害', 0)
         event = GameEvent(EventType.BEFORE_CRITICAL_BRACKET, GetCurrentTime(),
                           character=self.source,
                           target=self.target, 
@@ -129,7 +129,7 @@ class Calculation:
             return self.damage.panel['暴击伤害']/100
 
     def defense(self):
-        self.damage.setPanel('防御力减免', (5*self.source.level+500)/(self.target.defense+5*self.source.level+500))
+        self.damage.set_panel('防御力减免', (5*self.source.level+500)/(self.target.defense+5*self.source.level+500))
         return (5*self.source.level+500)/(self.target.defense+5*self.source.level+500)
 
     def resistance(self):
@@ -140,7 +140,7 @@ class Calculation:
             res = (100-r)/100
         else:
             res = (100-r/2)/100
-        self.damage.setPanel('元素抗性', res)
+        self.damage.set_panel('元素抗性', res)
         return res
         
     def reaction(self):
@@ -155,15 +155,15 @@ class Calculation:
         if reaction_multiplier:
             if self.damage.reaction_type and self.damage.reaction_type[0] != '激化反应':
                 r1 = r.get(self.damage.reaction_type[1].value, 0) / 100
-                self.damage.setPanel('反应系数', reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
+                self.damage.set_panel('反应系数', reaction_multiplier * (1+(2.78*e)/(e+1400)+r1))
                 return reaction_multiplier * (1+(2.78*e)/(e+1400)+r1)
             elif self.damage.reaction_type and self.damage.reaction_type[0] == '激化反应':
                 self.damage.panel['固定伤害基础值加成'] += self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200))
-                self.damage.setDamageData('激化提升', self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200)))
+                self.damage.set_damage_data('激化提升', self.damage.panel['等级系数'] * reaction_multiplier * (1 + 5 * e /(e + 1200)))
         return 1
 
     def independent_damage_multiplier(self):
-        self.damage.setPanel('独立伤害加成', 0)
+        self.damage.set_panel('独立伤害加成', 0)
         event = GameEvent(EventType.BEFORE_INDEPENDENT_DAMAGE, GetCurrentTime(),
                           character=self.source,
                           target=self.target, 
@@ -186,7 +186,7 @@ class Calculation:
         r1 = r.get(self.damage.reaction_type[1].value, 0) / 100
         
         if r1 != 0:
-            self.damage.setDamageData('反应伤害提高', r1)
+            self.damage.set_damage_data('反应伤害提高', r1)
             
         # 使用 AttributeCalculator 获取精通
         mastery = AttributeCalculator.get_mastery(self.source)
@@ -196,12 +196,12 @@ class Calculation:
         if '暴击伤害' in self.damage.panel:
             if not Config.get('emulation.open_critical') or random.randint(1, 100) <= self.damage.panel['暴击率']:
                 value = value * (1 + self.damage.panel['暴击伤害']/100)
-                self.damage.setDamageData('暴击', True)
+                self.damage.set_damage_data('暴击', True)
                 
         self.damage.damage = value
 
     def calculate(self):
-        if self.damage.damageType == DamageType.REACTION:
+        if self.damage.damage_type == DamageType.REACTION:
             self.calculation_by_reaction()
         else:
             event = GameEvent(EventType.BEFORE_FIXED_DAMAGE, GetCurrentTime(),
@@ -210,14 +210,14 @@ class Calculation:
                     damage=self.damage)
             self.engine.publish(event)
             
-            if isinstance(self.damage.baseValue, tuple):
-                val1 = self.get_base_value(self.damage.baseValue[0]) * self.damageMultipiler()[0]/100
-                val2 = self.get_base_value(self.damage.baseValue[1]) * self.damageMultipiler()[1]/100
+            if isinstance(self.damage.base_value, tuple):
+                val1 = self.get_base_value(self.damage.base_value[0]) * self.damage_multiplier()[0]/100
+                val2 = self.get_base_value(self.damage.base_value[1]) * self.damage_multiplier()[1]/100
                 value = val1 + val2
-                self.damage.setPanel(self.damage.baseValue[1], self.get_base_value(self.damage.baseValue[1]))
-                self.damage.panel['伤害倍率'] = f'{self.damageMultipiler()[0]:.2f}% + {self.damageMultipiler()[1]:.2f}% {self.damage.baseValue[1]}'
+                self.damage.set_panel(self.damage.base_value[1], self.get_base_value(self.damage.base_value[1]))
+                self.damage.panel['伤害倍率'] = f'{self.damage_multiplier()[0]:.2f}% + {self.damage_multiplier()[1]:.2f}% {self.damage.base_value[1]}'
             else:
-                value = self.get_base_value(self.damage.baseValue) * self.damageMultipiler()/100
+                value = self.get_base_value(self.damage.base_value) * self.damage_multiplier()/100
             
             value += self.damage.panel.get('固定伤害基础值加成', 0)
             
@@ -227,17 +227,17 @@ class Calculation:
                           damage=self.damage)
             self.engine.publish(event)
             
-            value = value * (1 + self.damageBonus()) * (1 + self.criticalBracket()) * self.defense() * self.resistance() * self.reaction()
+            value = value * (1 + self.damage_bonus()) * (1 + self.critical_bracket()) * self.defense() * self.resistance() * self.reaction()
             self.damage.damage = value * self.independent_damage_multiplier()
 
-    def get_base_value(self, baseValue):
-        if baseValue == '攻击力':
+    def get_base_value(self, base_value):
+        if base_value == '攻击力':
             return self.attack()
-        elif baseValue == '生命值':
+        elif base_value == '生命值':
             return self.health()
-        elif baseValue == '防御力':
+        elif base_value == '防御力':
             return self.DEF()
-        elif baseValue == '元素精通':
+        elif base_value == '元素精通':
             return AttributeCalculator.get_mastery(self.source)
 
 # ---------------------------------------------------------

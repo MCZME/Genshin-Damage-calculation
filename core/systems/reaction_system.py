@@ -74,8 +74,8 @@ class ReactionSystem(GameSystem):
         if not reaction_info:
             return
 
-        r.setReaction(*reaction_info)
-        r.damage.setReaction(r.reaction_type, {
+        r.set_reaction(*reaction_info)
+        r.damage.set_reaction(r.reaction_type, {
                 '等级系数': r.lv_multiplier,
                 '反应系数': r.reaction_multiplier
             })
@@ -162,8 +162,8 @@ class ReactionSystem(GameSystem):
         if damage_args:
             damage = Damage(*damage_args)
             damage.reaction_type = e.damage.reaction_type
-            damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
-            damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            damage.set_panel("等级系数", e.damage.reaction_data['等级系数'])
+            damage.set_panel("反应系数", e.damage.reaction_data['反应系数'])
             self.engine.publish(DamageEvent(e.damage.source, e.damage.target, damage, GetCurrentTime()))
 
         self.engine.publish(GameEvent(after_type, event.frame, elementalReaction=e))
@@ -173,10 +173,10 @@ class ReactionSystem(GameSystem):
         if event.event_type == EventType.BEFORE_QUICKEN:
             self.engine.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame, elementalReaction=event.data['elementalReaction']))
         elif event.event_type == EventType.BEFORE_AGGRAVATE:
-            e.damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
-            e.damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            e.damage.set_panel("等级系数", e.damage.reaction_data['等级系数'])
+            e.damage.set_panel("反应系数", e.damage.reaction_data['反应系数'])
             self.engine.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame, elementalReaction=event.data['elementalReaction']))
         elif event.event_type == EventType.BEFORE_SPREAD:
-            e.damage.setPanel("等级系数", e.damage.reaction_data['等级系数'])
-            e.damage.setPanel("反应系数", e.damage.reaction_data['反应系数'])
+            e.damage.set_panel("等级系数", e.damage.reaction_data['等级系数'])
+            e.damage.set_panel("反应系数", e.damage.reaction_data['反应系数'])
             self.engine.publish(GameEvent(EventType.AFTER_SPREAD, event.frame, elementalReaction=event.data['elementalReaction']))

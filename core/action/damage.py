@@ -11,12 +11,12 @@ class DamageType(Enum):
 
 class Damage:
     def __init__(self, damage_multiplier: Any, element: Tuple[str, Any], damage_type: DamageType, name: str, **kwargs):
-        self.damageMultipiler = damage_multiplier  # 兼容旧代码命名，未来应改为 snake_case
+        self.damage_multiplier = damage_multiplier
         self.element = element
-        self.damageType = damage_type
+        self.damage_type = damage_type
         self.name = name
         self.damage: float = 0.0
-        self.baseValue: Union[str, Tuple[str, str]] = '攻击力'
+        self.base_value: Union[str, Tuple[str, str]] = '攻击力'
         self.reaction_type: Optional[Tuple[str, Enum]] = None
         self.reaction_data: Optional[Any] = None
         self.data: Dict[str, Any] = kwargs
@@ -27,24 +27,24 @@ class Damage:
         self.source = None
         self.target = None
 
-    def setSource(self, source):
+    def set_source(self, source):
         self.source = source
 
-    def setTarget(self, target):
+    def set_target(self, target):
         self.target = target
 
-    def setBaseValue(self, base_value):
-        self.baseValue = base_value
+    def set_base_value(self, base_value):
+        self.base_value = base_value
 
-    def setReaction(self, reaction_type, reaction_data):
+    def set_reaction(self, reaction_type, reaction_data):
         self.reaction_type = reaction_type
         self.reaction_data = reaction_data
 
-    def setDamageData(self, key, value):
+    def set_damage_data(self, key, value):
         self.data[key] = value
 
-    def setPanel(self, key, value):
+    def set_panel(self, key, value):
         self.panel[key] = value
 
-    def setHitType(self, hit_type):
+    def set_hit_type(self, hit_type):
         self.hit_type = hit_type
