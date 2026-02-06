@@ -1,4 +1,4 @@
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.event import EnergyChargeEvent, EventBus
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
