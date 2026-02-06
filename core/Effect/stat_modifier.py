@@ -49,3 +49,9 @@ def ElementalMasteryBoostEffect(source, owner, name, bonus, duration):
 
 def HealthBoostEffect(source, owner, name, bonus, duration):
     return StatModifierEffect(owner, name, {"生命值%": bonus}, duration)
+
+def DefenseBoostEffect(owner, name, bonus, duration):
+    return StatModifierEffect(owner, name, {"防御力%": bonus}, duration)
+
+def EnergyRechargeBoostEffect(owner, name, bonus, duration):
+    return StatModifierEffect(owner, name, {"元素充能效率": bonus}, duration)

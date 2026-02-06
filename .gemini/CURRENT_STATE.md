@@ -1,17 +1,27 @@
 # Current Development State
 
 **Last Updated:** 2026-02-06
-**Status:** 🚀 Ready for new task
+**Status:** ✅ 已完成 (v2.0.0 核心引擎清理阶段)
 
 ## 📝 Recent Context
-- **Last Action:** Initialized new development flow tools.
-- **Focus:** Cleaning up technical debt & refactoring core systems.
+- **Last Action:** 完成了核心引擎的技术债清理与架构规范化 (Issue #14)。
+- **Branch:** `refactor/technical-debt-cleanup`
+- **Focus:** 统一属性计算入口、迁移实体架构、移除所有遗留兼容层。
+- **Final Improvements:**
+    - **属性计算标准化**: 扩展 `AttributeCalculator` 成为全系属性（伤害、防御、生命、能量、治疗、护盾）的唯一提取入口，消除了对 `attributePanel` 的字典硬编码访问。
+    - **架构解耦**: 
+        - 将 `BaseEntity` 迁移至 `core/entities/base_entity.py`。
+        - 彻底删除了 `base_class.py`, `map.py`, `base_entity.py` (旧路径), `base_event_handler.py` 等遗留 shim 文件。
+        - 统一了 `core` 目录下的 `snake_case` 命名规范（除个别外部依赖文件外）。
+    - **系统重构**: 深度重构了 `DamageSystem`, `ShieldSystem`, `HealthSystem`, `EnergySystem`。
+    - **Bug 修复**: 解决了跨平台文件名大小写敏感导致的导入错误（`team.py`, `tool.py`）。
 
 ## 📌 Critical Knowledge
-- **Test Entry:** `python test.py` (Do NOT use batch_sim_test.py)
-- **Build/Run:** `python main.py`
-- **Source of Truth:** GitHub Issues & Milestones
+- **标准导入**: 实体基类现位于 `core.entities.base_entity.BaseEntity`。
+- **注册机制**: 角色与武器注册现在完全依赖 `core/registry.py`。
+- **运行规范**: 开发环境需使用虚拟环境，PowerShell 中命令分隔符为 `;`。
 
 ## 🔜 Next Steps
-1.  Run `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py` to check for assigned issues.
-2.  Create/Pick an issue to start working.
+1.  **角色类全量迁移**: 启动下一阶段 Issue，使用自动化脚本批量更新 `character/` 目录下的导入路径和 `BaseObject` 引用。
+2.  **仿真恢复**: 在修复角色类引用后，恢复 `test.py` 的全量集成测试。
+3.  **DataHandler 优化**: 规划对数据处理层的命名与逻辑清理。

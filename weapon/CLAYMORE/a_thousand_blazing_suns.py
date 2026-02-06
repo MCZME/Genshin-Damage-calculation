@@ -3,27 +3,17 @@ from core.action.damage import DamageType
 from core.event import EventBus, EventHandler, EventType
 from core.logger import get_emulation_logger
 import core.tool as T
-from .weapon import Weapon
+from weapon.weapon import Weapon
+from core.registry import register_weapon
 
-
-class SerpentSpine(Weapon):
-    ID = 1
-    def __init__(self,character,level,lv):
-        super().__init__(character,SerpentSpine.ID,level,lv)
-        self.skill_param = [6,7,8,9,10]
-
-    def skill(self):
-        attributePanel = self.character.attributePanel
-        attributePanel['伤害加成'] += 5*self.skill_param[self.lv-1]
-
-# 焚曜千阳
+@register_weapon("焚曜千阳", "双手剑")
 class AThousandBlazingSuns(Weapon, EventHandler):
     ID = 92
     def __init__(self, character, level, lv):
         super().__init__(character, AThousandBlazingSuns.ID, level, lv)
         self.skill_param = {
-            '暴击伤害': [20, 25, 30, 35, 40],
-            '攻击力%': [28, 35, 42, 49, 56]
+            "暴击伤害": [20, 25, 30, 35, 40],
+            "攻击力%": [28, 35, 42, 49, 56]
         }
         self.fen_guang_active = False
         self.fen_guang_duration = 0      # 剩余持续时间（帧）
@@ -41,7 +31,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
 
     def handle_event(self, event):
         # 仅处理当前角色的相关事件
-        if event.data['character'] != self.character:
+        if event.data["character"] != self.character:
             return
             
         # 触发焚光（技能/爆发前触发）
@@ -51,7 +41,7 @@ class AThousandBlazingSuns(Weapon, EventHandler):
                 
         # 延长持续时间
         elif event.event_type == EventType.BEFORE_DAMAGE:
-            if self.fen_guang_active and self._is_valid_damage(event.data['damage']):
+            if self.fen_guang_active and self._is_valid_damage(event.data["damage"]):
                 if event.frame - self.last_extension_frame >= 60:  # 1秒冷却
                     self._extend_fen_guang(event.frame, 120)  # 延长2秒
                     
@@ -70,16 +60,16 @@ class AThousandBlazingSuns(Weapon, EventHandler):
     def _is_valid_damage(self, damage):
         """检查是否为普攻/重击元素伤害"""
         return (
-            damage.damageType in (DamageType.NORMAL, DamageType.CHARGED) and 
-            damage.element[0] != '物理'  # 通过元组第一个元素判断元素类型
+            damage.damage_type in (DamageType.NORMAL, DamageType.CHARGED) and 
+            damage.element[0] != "物理"  # 通过元组第一个元素判断元素类型
         )
 
     def _activate_fen_guang(self, current_frame):
         """激活焚光效果"""
         lv = self.lv - 1
         get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳激活焚光效果")
-        base_cd = self.skill_param['暴击伤害'][lv]
-        base_atk = self.skill_param['攻击力%'][lv]
+        base_cd = self.skill_param["暴击伤害"][lv]
+        base_atk = self.skill_param["攻击力%"][lv]
         
         # 夜魂加持提升
         if self.nightsoul_active:
@@ -87,8 +77,8 @@ class AThousandBlazingSuns(Weapon, EventHandler):
             base_atk *= 1.75
             
         # 应用属性
-        self.character.attributePanel['暴击伤害'] += base_cd
-        self.character.attributePanel['攻击力%'] += base_atk
+        self.character.attribute_panel["暴击伤害"] += base_cd
+        self.character.attribute_panel["攻击力%"] += base_atk
         
         # 初始化状态
         self.fen_guang_active = True
@@ -125,43 +115,17 @@ class AThousandBlazingSuns(Weapon, EventHandler):
         """移除焚光效果"""
         lv = self.lv - 1
         get_emulation_logger().log_effect(f"{self.character.name}的焚曜千阳焚光效果结束")
-        base_cd = self.skill_param['暴击伤害'][lv]
-        base_atk = self.skill_param['攻击力%'][lv]
+        base_cd = self.skill_param["暴击伤害"][lv]
+        base_atk = self.skill_param["攻击力%"][lv]
         
         if self.nightsoul_active:
             base_cd *= 1.75
             base_atk *= 1.75
             
-        self.character.attributePanel['暴击伤害'] -= base_cd
-        self.character.attributePanel['攻击力%'] -= base_atk
+        self.character.attribute_panel["暴击伤害"] -= base_cd
+        self.character.attribute_panel["攻击力%"] -= base_atk
         
         # 重置状态
         self.fen_guang_active = False
         self.fen_guang_duration = 0
         self.max_extensions = 0
-
-class SacrificialGreatsword(Weapon, EventHandler):
-    ID = 63
-    def __init__(self, character, level=1, lv=1):
-        super().__init__(character, SacrificialGreatsword.ID, level, lv)
-        self.last_tigger_time = -30*60
-        self.interval = 30 * 60
-        self.chance = [0.4,0.5,0.6,0.7,0.8]
-
-    def skill(self):
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
-
-    def handle_event(self, event):
-        if event.event_type == EventType.AFTER_SKILL:
-            if event.data['character'] == self.character:
-                if T.GetCurrentTime() - self.last_tigger_time > self.interval:
-                    if random.random() < self.chance[self.lv - 1]:
-                        self.last_tigger_time = T.GetCurrentTime()
-                        self.character.Skill.last_use_time = -9999
-                        get_emulation_logger().log_skill_use("⌚" + self.character.name + f' 触发{self.name}')
-
-claymore = {
-    '螭骨剑':SerpentSpine,
-    '焚曜千阳':AThousandBlazingSuns,
-    '祭礼大剑':SacrificialGreatsword,
-}
