@@ -1,8 +1,8 @@
-from core.base_entity import BaseEntity, BaseObject
+from core.entities.base_entity import BaseEntity
 from core.event import EventHandler, EventType, GameEvent
 from core.logger import get_emulation_logger
 
-class ShatteredIceObject(BaseObject, EventHandler):
+class ShatteredIceObject(BaseEntity, EventHandler):
     """粉碎之冰效果 (冰共鸣)"""
     def __init__(self):
         super().__init__("粉碎之冰", float('inf'))

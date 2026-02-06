@@ -42,9 +42,3 @@ class BaseEntity:
 
     def on_frame_update(self, target: Any): pass
     def on_finish(self, target: Any): pass
-
-# ---------------------------------------------------------
-# 兼容性别名 (用于旧代码中对 BaseObject/baseObject 的引用)
-# ---------------------------------------------------------
-BaseObject = BaseEntity
-baseObject = BaseEntity

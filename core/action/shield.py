@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from core.base_entity import BaseEntity
+    from core.entities.base_entity import BaseEntity
 
 class Shield:
     def __init__(self, base_multiplier: float):

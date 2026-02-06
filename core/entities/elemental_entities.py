@@ -1,4 +1,4 @@
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, ElementalReactionEvent, EventType, GameEvent, EventHandler
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime, summon_energy

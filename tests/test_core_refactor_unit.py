@@ -1,6 +1,6 @@
 import pytest
 from core.systems.utils import AttributeCalculator
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.context import SimulationContext
 
 class MockEntity:

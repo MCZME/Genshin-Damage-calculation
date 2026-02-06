@@ -2,7 +2,7 @@ from enum import Enum, auto
 from typing import Optional, Union, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.base_entity import BaseEntity
+    from core.entities.base_entity import BaseEntity
 
 class HealingType(Enum):
     NORMAL = auto()      # 普通治疗
