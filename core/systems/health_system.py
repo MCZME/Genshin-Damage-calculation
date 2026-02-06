@@ -36,11 +36,11 @@ class Calculation:
 
     def get_healing_bonus(self):
         """获取治疗加成"""
-        return self.source.attributePanel['治疗加成'] / 100
+        return AttributeCalculator.get_healing_bonus(self.source)
 
     def get_healed_bonus(self):
         """获取受治疗加成"""
-        return self.target.attributePanel['受治疗加成'] / 100
+        return AttributeCalculator.get_healed_bonus(self.target)
 
     def calculate_by_attack(self):
         """基于攻击力的治疗计算"""

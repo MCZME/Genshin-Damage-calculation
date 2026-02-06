@@ -15,7 +15,8 @@ class MockEntity:
             '防御力': 800,
             '防御力%': 15,
             '固定防御力': 50,
-            '元素精通': 200
+            '元素精通': 200,
+            '护盾强效': 35
         }
 
 def test_attribute_calculator():
@@ -38,6 +39,13 @@ def test_attribute_calculator():
     
     # 元素精通
     assert AttributeCalculator.get_mastery(entity) == 200
+
+    # 护盾强效
+    # 35% -> 0.35
+    shield_bonus = AttributeCalculator.get_shield_strength_bonus(entity)
+    print(f"Shield Bonus: {shield_bonus}")
+    assert shield_bonus == pytest.approx(0.35)
+
     print("AttributeCalculator Test Passed!")
 
 def test_base_entity_context():

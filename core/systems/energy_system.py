@@ -1,3 +1,4 @@
+from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import EventType, GameEvent, EnergyChargeEvent
@@ -70,6 +71,6 @@ class EnergySystem(GameSystem):
             element_rate = 1.0
         else:
             element_rate = 0.5
-        emergy_rate = character.attributePanel['元素充能效率']/100
+        emergy_rate = AttributeCalculator.get_energy_recharge(character)
         
         return (team_rate, element_rate, emergy_rate)

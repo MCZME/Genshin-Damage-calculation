@@ -38,6 +38,7 @@ The project has evolved into a structured core engine:
 *   Python 3.13.3
 *   虚拟环境: 使用 `virtualenv` 创建，环境名为 `genshin_damage_calculation`。
 *   Dependencies listed in `requirements.txt`
+*   开发环境的终端是Power Shell，如果需要执行多条命令请使用；而不是&&。
 
 ### Installation
 1.  Clone the repository.
