@@ -31,3 +31,23 @@ class AttributeCalculator:
     @staticmethod
     def get_mastery(entity: Any) -> float:
         return entity.attributePanel.get('元素精通', 0)
+
+    @staticmethod
+    def get_shield_strength_bonus(entity: Any) -> float:
+        """获取护盾强效加成 (百分比/100)"""
+        return entity.attributePanel.get('护盾强效', 0) / 100
+
+    @staticmethod
+    def get_energy_recharge(entity: Any) -> float:
+        """获取元素充能效率 (百分比/100)"""
+        return entity.attributePanel.get('元素充能效率', 100) / 100
+
+    @staticmethod
+    def get_healing_bonus(entity: Any) -> float:
+        """获取治疗加成 (百分比/100)"""
+        return entity.attributePanel.get('治疗加成', 0) / 100
+
+    @staticmethod
+    def get_healed_bonus(entity: Any) -> float:
+        """获取受治疗加成 (百分比/100)"""
+        return entity.attributePanel.get('受治疗加成', 0) / 100

@@ -1,3 +1,4 @@
+from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import EventType, ShieldEvent
@@ -14,9 +15,7 @@ class ShieldCalculation:
 
     def get_shield_strength_bonus(self):
         """获取护盾强效加成"""
-        if hasattr(self.source, 'attributePanel'):
-            return self.source.attributePanel.get('护盾强效', 0) / 100
-        return 0
+        return AttributeCalculator.get_shield_strength_bonus(self.source)
 
     def calculation(self):
         shield_value = self.shield.base_multiplier * (1 + self.get_shield_strength_bonus())

@@ -1,6 +1,12 @@
 from character.character import Character
-from core.effect.ArtfactEffect import CinderCityEffect, FlowerOfParadiseLostEffect, LuminescenceEffect, MarechausseeHunterEffect, ThirstEffect
-from core.effect.BaseEffect import  AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect, ResistanceDebuffEffect
+from core.effect.artifact.cinder_city import CinderCityEffect
+from core.effect.artifact.flower_of_paradise_lost import FlowerOfParadiseLostEffect
+from core.effect.artifact.marechaussee_hunter import MarechausseeHunterEffect
+from core.effect.artifact.songs_of_days_past import ThirstEffect
+from core.effect.artifact.nighttime_whispers import LuminescenceEffect
+
+from core.effect.stat_modifier import AttackBoostEffect, CritRateBoostEffect, ElementalMasteryBoostEffect
+from core.effect.debuff import ResistanceDebuffEffect
 from core.action.damage import DamageType
 from core.event import EventBus, EventHandler, EventType, GameEvent
 from core.team import Team
