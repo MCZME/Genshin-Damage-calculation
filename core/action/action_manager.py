@@ -13,7 +13,6 @@ class ActionInstance:
         self.skill_obj = getattr(data, 'runtime_skill_obj', None)
 
     def advance(self) -> bool:
-        self.elapsed_frames += 1
         if self.elapsed_frames >= self.data.total_frames:
             self.is_finished = True
         return self.is_finished
@@ -52,15 +51,14 @@ class ActionManager:
 
         instance = self.current_action
         
-        # 0. 兼容旧逻辑回调
+        # 0. 驱动技能内部逻辑 (无需参数)
+        instance.elapsed_frames += 1 # 先增加帧计数
         if instance.skill_obj and hasattr(instance.skill_obj, 'on_frame_update'):
-            # 需要 target，从 context 获取
-            target = self.ctx.target if self.ctx else None
-            instance.skill_obj.current_frame = instance.elapsed_frames # 同步帧数
+            instance.skill_obj.current_frame = instance.elapsed_frames
             try:
-                instance.skill_obj.on_frame_update(target)
+                instance.skill_obj.on_frame_update()
             except Exception as e:
-                get_emulation_logger().log_error(f"Legacy skill update failed: {e}")
+                get_emulation_logger().log_error(f"Skill update failed: {e}")
 
         # 1. 检查判定点 (Hitframes)
         # 如果当前帧是伤害帧，则触发伤害逻辑 (具体的伤害逻辑由 Character/Skill 提供回调或发布事件)
