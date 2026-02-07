@@ -12,12 +12,12 @@ from core.event import (
     EventType,
     HealthChangeEvent,
 )
+from core.effect.common import TalentEffect, ConstellationEffect
 
 
 class Character(CombatEntity, ABC):
     """
     角色基类。
-    采用“标准化组件组装”模型。
     """
 
     def __init__(
@@ -37,9 +37,8 @@ class Character(CombatEntity, ABC):
         self.id = id
         self.level = level
         self.skill_params = skill_params or [1, 1, 1]
-        self.constellation = constellation
+        self.constellation_level = constellation
 
-        # 1. 属性累加器
         self.attribute_data = {
             "生命值": 0.0, "固定生命值": 0.0, "生命值%": 0.0,
             "攻击力": 0.0, "固定攻击力": 0.0, "攻击力%": 0.0,
@@ -69,36 +68,55 @@ class Character(CombatEntity, ABC):
         self.attribute_panel = self.attribute_data.copy()
         
         # -----------------------------------------------------
-        # 角色核心组件 (标准化容器)
+        # 标准化组件
         # -----------------------------------------------------
-        self.skills: Dict[str, Any] = {} # 存放 SkillBase 实例 (normal, skill, burst 等)
-        self.elemental_energy: Any = None # 存放 ElementalEnergy 实例
+        self.skills: Dict[str, Any] = {}
+        self.elemental_energy: Any = None
+        
+        # [新] 动态天赋与固定命座
+        self.talents: List[TalentEffect] = [] # 动态列表，支持任意数量天赋
+        self.constellations: List[Optional[ConstellationEffect]] = [None] * 6
         
         self.weapon: Any = None
         self.artifact_manager: Any = None
         self.shield_effects: List[Any] = []
         self.on_field = False
 
-        # ASM 引擎
         ctx = get_context()
         self.event_engine = ctx.event_engine
         self.action_manager = ActionManager(self, ctx)
 
-        # 2. 执行组件组装钩子 (由子类实现)
         self._setup_character_components()
-        self.apply_talents()
+        self._setup_effects()
+        self.apply_effects()
         
         self.current_hp = 0.0
 
     @abstractmethod
     def _setup_character_components(self) -> None:
+        pass
+
+    @abstractmethod
+    def _setup_effects(self) -> None:
         """
-        [子类必填] 实例化角色的技能组与能量系统并注册到组件容器中。
+        [子类必填] 填充 self.talents 列表与 self.constellations 槽位。
         """
         pass
 
+    def apply_effects(self) -> None:
+        """
+        执行天赋与命座的加载逻辑。
+        所有 Effect 对象会依据 character 的等级与命座层级自行判定是否激活。
+        """
+        # 1. 应用固有天赋
+        for t in self.talents:
+            if t: t.apply(self)
+        
+        # 2. 应用命座
+        for c in self.constellations:
+            if c: c.apply(self)
+
     def initialize_gear(self) -> None:
-        """完成装备面板合并"""
         self.attribute_panel = self.attribute_data.copy()
         if self.weapon:
             self.weapon.apply_static_stats()
@@ -110,46 +128,42 @@ class Character(CombatEntity, ABC):
         self.current_hp = AttributeCalculator.get_hp(self)
 
     # -----------------------------------------------------
-    # 动作系统重构：直接访问 skills 容器
+    # 统一驱动接口
+    # -----------------------------------------------------
+
+    def on_frame_update(self) -> None:
+        """
+        角色每帧逻辑驱动。
+        """
+        super().on_frame_update()
+        
+        if self.weapon and hasattr(self.weapon, "on_frame_update"): 
+            self.weapon.on_frame_update()
+            
+        self.action_manager.on_frame_update() # ActionManager 内部也应同步改为此命名
+        
+        # 驱动技能逻辑
+        for skill in self.skills.values():
+            if hasattr(skill, "on_frame_update"): skill.on_frame_update()
+            
+        # 驱动天赋与命座逻辑
+        for t in self.talents:
+            if t: t.on_frame_update()
+        for c in self.constellations:
+            if c: c.on_frame_update()
+
+    # -----------------------------------------------------
+    # 动作与协议 (保持不变，仅重定向内部调用)
     # -----------------------------------------------------
 
     def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
-        """从 skills 容器提取技能元数据"""
-        # 映射内部逻辑名到 skills 字典 key
-        mapping = {
-            "normal_attack": "normal",
-            "elemental_skill": "skill",
-            "elemental_burst": "burst",
-            "charged_attack": "charged",
-            "plunging_attack": "plunging"
-        }
-        skill_key = mapping.get(name)
-        skill_obj = self.skills.get(skill_key) if skill_key else None
-        
+        mapping = {"normal_attack":"normal", "elemental_skill":"skill", "elemental_burst":"burst", "charged_attack":"charged", "plunging_attack":"plunging"}
+        skill_obj = self.skills.get(mapping.get(name))
         total_frames = 60
-        if skill_obj and hasattr(skill_obj, "total_frames"):
-            total_frames = skill_obj.total_frames
-            
+        if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
         data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
         if skill_obj: setattr(data, "runtime_skill_obj", skill_obj)
         return data
-
-    # 业务逻辑 (heal, hurt, on_frame_update, etc.) 保持不变
-    def on_frame_update(self) -> None:
-        super().on_frame_update()
-        if self.weapon and hasattr(self.weapon, "update"): self.weapon.update()
-        self.action_manager.update()
-        # 自动驱动所有技能的内部 CD/状态 (如果技能有 update)
-        for skill in self.skills.values():
-            if hasattr(skill, "update"): skill.update()
-            
-        if self.constellation > 0:
-            for i in range(min(self.constellation, 6)):
-                eff = getattr(self, "constellation_effects", [None]*6)[i]
-                if eff and hasattr(eff, "update"): eff.update()
-
-    def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
-    def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
 
     def elemental_skill(self) -> None:
         if self._request_action("elemental_skill"):
@@ -177,10 +191,11 @@ class Character(CombatEntity, ABC):
 
     def heal(self, amount: float) -> None: pass
     def hurt(self, amount: float) -> None: pass
-    def apply_talents(self) -> None: pass
+    def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
+    def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
     def add_shield(self, shield: Any) -> None: self.shield_effects.append(shield)
     def remove_shield(self, shield: Any) -> None:
         if shield in self.shield_effects: self.shield_effects.remove(shield)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"id": self.id, "name": self.name, "level": self.level, "panel": self.attribute_panel}
+        return {"id": self.id, "name": self.name, "level": self.level, "constellation": self.constellation_level}

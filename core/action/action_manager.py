@@ -45,7 +45,7 @@ class ActionManager:
         self._start_action(action_data)
         return True
 
-    def update(self):
+    def on_frame_update(self):
         """每帧驱动逻辑"""
         if not self.current_action:
             return
