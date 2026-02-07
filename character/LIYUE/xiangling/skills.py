@@ -2,7 +2,7 @@ from typing import Any
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import NormalAttackSkill
 from core.action.damage import Damage, DamageType
-from core.action.action_data import ActionFrameData
+from core.action.action_data import ActionFrameData, AttackConfig
 from core.mechanics.aura import Element
 from character.LIYUE.xiangling.entities import GuobaEntity, PyronadoEntity
 
@@ -21,13 +21,16 @@ class NormalAttack(NormalAttackSkill):
     def on_execute_hit(self, target: Any, hit_index: int):
         segment = hit_index + 1
         multiplier = self.damage_multiplier[segment][self.lv - 1]
+        # 普攻默认共享 ICD 计数
+        config = AttackConfig(icd_tag="NormalAttack", element_u=1.0)
         damage = Damage(
             damage_multiplier=multiplier,
             element=(Element.PHYSICAL, 0),
             damage_type=DamageType.NORMAL,
             name=f"普攻 第{segment}段",
             aoe_shape='CYLINDER',
-            radius=0.5
+            radius=0.5,
+            config=config
         )
         self.caster.ctx.space.broadcast_damage(self.caster, damage)
 
@@ -55,9 +58,13 @@ class ElementalBurst(EnergySkill):
             2: [88, 94.6, 101.2, 110, 116.6, 123.2, 132, 140.8, 149.6, 158.4, 167.2, 176, 187, 198, 209],
             3: [109.6, 117.82, 126.04, 137, 145.22, 153.44, 164.4, 175.36, 186.32, 197.28, 208.24, 219.2, 232.9, 246.6, 260.3]
         }
+        # 大招独立附着规则
+        self.burst_config = AttackConfig(icd_tag="Independent", element_u=2.0)
 
     def to_action_data(self, params: Any = None) -> ActionFrameData:
         data = ActionFrameData(name="Q_CAST", total_frames=80, hit_frames=self.swing_frames)
+        # 将配置透传给动作
+        data.attack_config = self.burst_config
         setattr(data, "runtime_skill_obj", self)
         return data
 
@@ -70,7 +77,8 @@ class ElementalBurst(EnergySkill):
             damage_type=DamageType.BURST,
             name=f"旋火轮 挥舞第{segment}段",
             aoe_shape='CYLINDER',
-            radius=3.0
+            radius=3.0,
+            config=self.burst_config
         )
         self.caster.ctx.space.broadcast_damage(self.caster, damage)
 

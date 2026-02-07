@@ -2,6 +2,7 @@ from enum import Enum, auto
 from typing import Any, Optional, Tuple, List
 from core.context import get_context
 from core.mechanics.aura import AuraManager, Element
+from core.mechanics.icd import ICDManager
 
 class EntityState(Enum):
     """实体的生命周期状态"""
@@ -36,9 +37,6 @@ class BaseEntity:
         return self.state == EntityState.ACTIVE
 
     def update(self) -> None:
-        """
-        每帧驱动。不再强制要求传入 target。
-        """
         if self.state != EntityState.ACTIVE:
             return
         
@@ -65,17 +63,13 @@ class BaseEntity:
 class CombatEntity(BaseEntity):
     """
     战斗实体类。
-    碰撞模型：圆柱体 (Cylinder)
-    - 水平坐标: (pos[0], pos[1]) 即 (X, Z)
-    - 垂直底部: pos[2] 即 Y
-    - 几何尺寸: hitbox (半径, 高度)
     """
     def __init__(self, 
                  name: str, 
                  faction: Faction = Faction.ENEMY,
                  pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
                  facing: float = 0.0,
-                 hitbox: Tuple[float, float] = (0.5, 2.0), # (半径, 高度)
+                 hitbox: Tuple[float, float] = (0.5, 2.0),
                  life_frame: float = float("inf"), 
                  context: Optional[Any] = None):
         super().__init__(name, life_frame, context)
@@ -88,6 +82,9 @@ class CombatEntity(BaseEntity):
         # 物理模拟组件
         self.aura = AuraManager()
         self.active_effects = []
+        
+        # ICD 管理器 (用于追踪该实体受到的附着冷却)
+        self.icd_manager = ICDManager(self)
 
     def set_position(self, x: float, z: float, y: Optional[float] = None):
         self.pos[0] = x
@@ -96,25 +93,29 @@ class CombatEntity(BaseEntity):
             self.pos[2] = y
 
     def handle_damage(self, damage: Any) -> None:
-        """
-        接收伤害的统一入口。子类需实现具体的防御、抗性结算。
-        """
         raise NotImplementedError("CombatEntity 子类必须实现 handle_damage")
 
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
         """
-        接收元素附着的统一入口。
+        接收元素附着的统一入口，增加了 ICD 判定。
         """
-        # 默认调用内部的 AuraManager 处理
+        # 1. 检查 ICD
+        tag = getattr(damage.config, 'icd_tag', 'Default')
+        if not self.icd_manager.check_attachment(tag):
+            # 冷却中，不产生附着与反应
+            return []
+            
+        # 2. 调用 AuraManager 处理实际附着
         return self.aura.apply_element(damage.element[0], float(damage.element[1]))
 
     def on_frame_update(self) -> None:
-        """扩展驱动：每帧更新附着状态"""
-        # 假设 60 FPS
         self.aura.update(1/60)
         
-        # 更新持续性效果 (Effect)
         for eff in self.active_effects[:]:
-            eff.update()
+            if hasattr(eff, "on_frame_update"):
+                eff.on_frame_update()
+            elif hasattr(eff, "update"): # 兼容旧接口
+                eff.update()
+                
             if not getattr(eff, 'is_active', True):
                 self.active_effects.remove(eff)

@@ -29,13 +29,16 @@ class GuobaEntity(CombatEntity):
 
     def _attack(self):
         multiplier = self.multiplier_table[self.lv - 1]
+        # 锅巴喷火是独立附着 (Independent)
+        config = AttackConfig(icd_tag="Independent", element_u=1.0)
         damage = Damage(
             damage_multiplier=multiplier,
             element=(Element.PYRO, 1.0),
             damage_type=DamageType.SKILL,
             name="锅巴喷火",
-            aoe_shape='CYLINDER', # 暂时使用圆柱体代替扇形
-            radius=5.0
+            aoe_shape='CYLINDER', 
+            radius=5.0,
+            config=config
         )
         if self.ctx and self.ctx.space:
             self.ctx.space.broadcast_damage(self, damage)
