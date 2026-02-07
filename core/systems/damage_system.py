@@ -136,8 +136,9 @@ class DamagePipeline:
             
             elif res.reaction_type in [ElementalReactionType.AGGRAVATE, ElementalReactionType.SPREAD]:
                 # 激化处理
+                from core.tool import get_reaction_multiplier
                 mult = 1.15 if res.reaction_type == ElementalReactionType.AGGRAVATE else 1.25
-                level_coeff = ctx.damage.data.get('等级系数', 0)
+                level_coeff = get_reaction_multiplier(ctx.source.level)
                 em = ctx.stats["元素精通"]
                 ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
         
@@ -223,7 +224,8 @@ class DamageSystem(GameSystem):
             self.pipeline.run(ctx)
             
             get_emulation_logger().log_damage(char, target, dmg)
-            self.engine.publish(DamageEvent(char, target, dmg, event.frame, before=False))
+            # 计算完成后发布 AFTER_DAMAGE
+            self.engine.publish(DamageEvent(EventType.AFTER_DAMAGE, event.frame, source=char, target=target, damage=dmg))
             
             # 草原核逻辑暂存
             try:
