@@ -10,10 +10,15 @@ class MockTarget(CombatEntity):
     """用于测试附着的靶子"""
     def __init__(self):
         super().__init__("靶子", Faction.ENEMY)
+        self.attribute_panel = {
+            '防御力': 500,
+            '火元素抗性': 10.0
+        }
     
     def handle_damage(self, damage):
-        # 记录受到的伤害以供断言
-        pass
+        """处理受击，触发附着逻辑"""
+        damage.set_target(self)
+        self.apply_elemental_aura(damage)
 
 class TestXianglingV2Logic:
     """

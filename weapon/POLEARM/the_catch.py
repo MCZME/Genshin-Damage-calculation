@@ -6,8 +6,8 @@ from core.registry import register_weapon
 @register_weapon("「渔获」", "长柄武器")
 class TheCatch(Weapon, EventHandler):
     ID = 151
-    def __init__(self, character, level=1, lv=1):
-        super().__init__(character, TheCatch.ID, level, lv)
+    def __init__(self, character, level=1, lv=1, base_data=None):
+        super().__init__(character, TheCatch.ID, level, lv, base_data)
         self.burst_bonus = [16,20,24,28,32]
         self.critical_bonus = [6,7.5,9,10.5,12]
         

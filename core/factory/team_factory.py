@@ -36,13 +36,14 @@ class TeamFactory:
         
         # 1. 从仓库获取基础属性数据并注入
         base_stats = self.repository.get_character_base_stats(char_id, level)
+        char_name = base_stats.get("name")
         
         # 2. 实例化角色类
-        if char_id not in CharacterClassMap:
-            get_emulation_logger().log_error(f"未找到角色 ID {char_id} 的实现类")
+        if char_name not in CharacterClassMap:
+            get_emulation_logger().log_error(f"未找到角色 {char_name} (ID: {char_id}) 的实现类")
             return None
             
-        character = CharacterClassMap[char_id](
+        character = CharacterClassMap[char_name](
             level=level,
             skill_params=[int(t) for t in talents],
             constellation=char_config.get("constellation", 0),

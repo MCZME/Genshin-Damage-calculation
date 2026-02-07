@@ -4,6 +4,7 @@ from core.skills.common import NormalAttackSkill
 from core.action.damage import Damage, DamageType
 from core.action.action_data import ActionFrameData, AttackConfig
 from core.mechanics.aura import Element
+from core.event import GameEvent, EventType
 from character.LIYUE.xiangling.entities import GuobaEntity, PyronadoEntity
 
 class NormalAttack(NormalAttackSkill):
@@ -80,7 +81,13 @@ class ElementalBurst(EnergySkill):
             radius=3.0,
             config=self.burst_config
         )
-        self.caster.ctx.space.broadcast_damage(self.caster, damage)
+        # V2 规范: 发布事件让 DamageSystem 接管
+        self.caster.event_engine.publish(GameEvent(
+            EventType.BEFORE_DAMAGE, 
+            self.caster.ctx.current_frame, 
+            source=self.caster, 
+            data={"character": self.caster, "damage": damage}
+        ))
 
     def on_frame_update(self):
         if self.current_frame == 56:

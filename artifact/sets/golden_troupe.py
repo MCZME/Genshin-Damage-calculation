@@ -10,22 +10,20 @@ class GoldenTroupe(BaseArtifactSet):
     """黄金剧团"""
     def __init__(self):
         super().__init__("黄金剧团")
+        self.character = None
+        self.four_set = False
+        self.last_on_field_time = -9999
 
-        def apply_2_set_effect(self, character: Any) -> None:
+    def apply_2_set_effect(self, character: Any) -> None:
+        pass
 
-            pass
+    def apply_4_set_effect(self, character: Any) -> None:
+        self.character = character
+        self.four_set = True
+        self.character.event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        self.character.event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
-    
-
-        def apply_4_set_effect(self, character: Any) -> None:
-
-            pass
-
-    
-
-        def handle_event(self, event: GameEvent) -> None:
-
-    
+    def handle_event(self, event: GameEvent) -> None:
         if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
             if event.data["character"] == self.character:
                 damage = event.data["damage"]

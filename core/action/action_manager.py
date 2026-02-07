@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from core.action.action_data import ActionFrameData
 from core.logger import get_emulation_logger
 
@@ -34,8 +34,6 @@ class ActionManager:
         """
         if self.current_action:
             # 检查当前动作是否允许被新动作取消
-            # 这里简单起见，如果已过任何一个取消点就允许取消
-            # 未来可根据 action_data.name 做更细粒度的判断
             if self._can_cancel_current(action_data.name):
                 self._terminate_current("CANCELLED")
             else:
@@ -43,6 +41,27 @@ class ActionManager:
         
         self._start_action(action_data)
         return True
+
+    def request_action_by_name(self, method_name: str, params: Any = None) -> bool:
+        """
+        [Simulator 专用] 通过方法名请求动作。
+        """
+        # 如果是切换动作，Simulator 已经处理了 swap，这里只需调用对应方法
+        if hasattr(self.character, method_name):
+            attr = getattr(self.character, method_name)
+            # 注意：在 V2 架构中，调用 char.elemental_burst() 等方法
+            # 内部应调用 action_manager.request_action(data)
+            # 我们在这里执行该方法以触发这一流程
+            try:
+                if params is not None:
+                    attr(params)
+                else:
+                    attr()
+                return True
+            except Exception as e:
+                get_emulation_logger().log_error(f"Action request failed for {method_name}: {e}")
+                return False
+        return False
 
     def on_frame_update(self):
         """每帧驱动逻辑"""
@@ -79,7 +98,7 @@ class ActionManager:
 
     def _start_action(self, data: ActionFrameData):
         self.current_action = ActionInstance(data)
-        get_emulation_logger().log("ASM", f"{self.character.name} 开始执行动作: {data.name}")
+        get_emulation_logger().log("ASM", f"{self.character.name} 开始执行动作: {data.name} (时长: {data.total_frames} 帧)")
         
         # 建立运行时绑定
         if self.current_action.skill_obj:

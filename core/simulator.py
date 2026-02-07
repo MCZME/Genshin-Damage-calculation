@@ -1,6 +1,6 @@
 from typing import List, Tuple, Any
 from core.context import SimulationContext
-from core.event import FrameEndEvent
+from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
 
 class Simulator:
@@ -30,10 +30,12 @@ class Simulator:
             self._update_frame()
             
             # 3. 发布帧结束事件 (驱动各个 System 更新)
-            self.ctx.event_engine.publish(FrameEndEvent(self.ctx.current_frame))
+            from core.event import GameEvent, EventType
+            self.ctx.event_engine.publish(GameEvent(EventType.FRAME_END, self.ctx.current_frame))
             
             # 4. 检查是否所有动作已完成且角色处于 IDLE
             if self._is_finished():
+                get_emulation_logger().log("Simulator", f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})")
                 self.is_running = False
                 
         get_emulation_logger().log("Simulator", "模拟执行完毕")
@@ -48,7 +50,7 @@ class Simulator:
         if self.ctx.team:
             for char in self.ctx.team.team:
                 if hasattr(char, 'action_manager'):
-                    char.action_manager.update()
+                    char.action_manager.on_frame_update()
             
             # 尝试压入后续动作
             self._try_enqueue_next_action()
