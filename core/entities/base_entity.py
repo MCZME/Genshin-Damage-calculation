@@ -97,16 +97,22 @@ class CombatEntity(BaseEntity):
 
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
         """
-        接收元素附着的统一入口，增加了 ICD 判定。
+        接收元素附着的统一入口，增加了高精度 ICD 判定。
         """
-        # 1. 检查 ICD
+        # 1. 检查 ICD (传入攻击源以实现独立计算)
         tag = getattr(damage.config, 'icd_tag', 'Default')
-        if not self.icd_manager.check_attachment(tag):
-            # 冷却中，不产生附着与反应
+        multiplier = self.icd_manager.check_attachment(damage.source, tag)
+        
+        if multiplier <= 0:
+            # 系数为0，不产生附着与反应
             return []
             
-        # 2. 调用 AuraManager 处理实际附着
-        return self.aura.apply_element(damage.element[0], float(damage.element[1]))
+        # 2. 根据系数调整元素量 (Gauge)
+        # 注意: 这里的 element_u 是攻击配置的初始量
+        final_u = damage.config.element_u * multiplier
+        
+        # 3. 调用 AuraManager 处理实际附着
+        return self.aura.apply_element(damage.element[0], final_u)
 
     def on_frame_update(self) -> None:
         self.aura.update(1/60)

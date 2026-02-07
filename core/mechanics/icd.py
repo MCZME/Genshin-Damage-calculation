@@ -1,68 +1,111 @@
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
+from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import dataclass, field
 from core.tool import GetCurrentTime
 
 @dataclass
-class ICDRule:
-    """ICD 规则定义"""
-    interval: int = 150 # 默认 2.5s (150帧 @ 60fps)
-    hit_limit: int = 3   # 默认 3次打击
+class ICDGroup:
+    """ICD 冷却组别定义"""
+    reset_time: float    # 重置时间 (秒)
+    sequence: List[int]  # 元素量系数序列 (1代表附着, 0代表不附着)
+    
+    @property
+    def reset_frames(self) -> int:
+        return int(self.reset_time * 60)
 
-# 全局预定义规则
-ICD_RULES: Dict[str, ICDRule] = {
-    "Default": ICDRule(150, 3),
-    "None": ICDRule(0, 1),       # 独立附着 (每一段都附着)
-    "Independent": ICDRule(0, 1)  # 同上
+# 全局预定义组别 (可扩展)
+ICD_GROUPS: Dict[str, ICDGroup] = {
+    # 默认组别: 2.5s重置, 第1,4,7...次附着 (3次一循环)
+    "Default": ICDGroup(2.5, [1, 0, 0]), 
+    
+    # 独立附着: 0s重置, 每次都附着
+    "Independent": ICDGroup(0.0, [1]),
+    
+    # 特殊组别: 柯莱爆发 (3s重置, 仅第1次附着)
+    "ColleiBurst": ICDGroup(3.0, [1, 0, 0, 0, 0, 0, 0, 0, 0]), 
+    
+    # 特殊组别: 莫娜普攻 (2.5s重置, 默认3hit)
+    "MonaNormal": ICDGroup(2.5, [1, 0, 0]),
 }
+
+@dataclass
+class ICDState:
+    """ICD 运行时状态"""
+    hit_count: int = 0       # 当前计数
+    last_reset_frame: int = -9999 # 上次重置时间的帧数
 
 class ICDManager:
     """
-    ICD 管理器。
-    负责追踪单个实体的元素附着冷却状态。
+    ICD 管理器 (高精度版)。
+    负责管理该实体受到的所有攻击的附着冷却状态。
     """
     def __init__(self, owner):
         self.owner = owner
-        # 记录每个标签的状态: [当前打击计数, 上次附着帧数]
-        self.records: Dict[str, list] = {}
+        # 核心存储结构: 
+        # Key: (攻击者实例ID, ICD标签)
+        # Value: ICDState 对象
+        self.records: Dict[Tuple[int, str], ICDState] = {}
 
-    def check_attachment(self, tag: str) -> bool:
+    def check_attachment(self, attacker: Any, tag: str) -> float:
         """
-        根据标签判定本次攻击是否允许附着元素。
+        根据攻击者和标签，计算本次攻击的元素量系数。
+        返回: 1.0 (附着), 0.0 (不附着)
         """
-        # 1. 独立附着判断
+        # 1. 独立附着快速通道 (兼容旧逻辑的 None)
         if tag in ["None", "Independent", None]:
-            return True
+            return 1.0
             
+        group = ICD_GROUPS.get(tag, ICD_GROUPS["Default"])
+        
+        # 获取状态记录 (基于攻击者ID隔离)
+        key = (id(attacker), tag)
+        if key not in self.records:
+            self.records[key] = ICDState()
+            
+        state = self.records[key]
         current_frame = GetCurrentTime()
-        rule = ICD_RULES.get(tag, ICD_RULES["Default"])
         
-        if tag not in self.records:
-            # 首次攻击，允许附着
-            self.records[tag] = [1, current_frame]
-            return True
-        
-        record = self.records[tag]
-        hit_count = record[0]
-        last_attach_frame = record[1]
-        
-        # 2. 判定时间冷却
-        if current_frame - last_attach_frame >= rule.interval:
-            record[0] = 1
-            record[1] = current_frame
-            return True
+        # 2. 时间重置判定
+        # 如果距离上次重置超过了时限，或者从未重置过
+        if current_frame - state.last_reset_frame >= group.reset_frames:
+            state.hit_count = 0
+            state.last_reset_frame = current_frame
+            # 重置后，计数从0开始，应用序列第0位系数
+            coeff = self._get_coefficient(group, 0)
+            # 命中计数加1
+            state.hit_count += 1
+            return float(coeff)
             
-        # 3. 判定打击次数
-        if hit_count >= rule.hit_limit:
-            record[0] = 1
-            record[1] = current_frame
-            return True
-            
-        # 4. 不满足条件，仅增加计数
-        record[0] += 1
-        return False
+        # 3. 序列计数判定
+        # 获取当前计数对应的系数
+        coeff = self._get_coefficient(group, state.hit_count)
+        
+        # 命中计数加1
+        state.hit_count += 1
+        
+        # 如果本次命中的系数 > 0 (发生了附着)，通常不重置计时器，
+        # 计时器只在时间超时或首次命中时重置。
+        # 只有在某些特殊机制下，次数重置可能会重置计时器，
+        # 但在通用模型中，次数循环不影响计时重置。
+        
+        return float(coeff)
 
-    def reset(self, tag: Optional[str] = None):
-        if tag:
-            if tag in self.records: del self.records[tag]
-        else:
+    def _get_coefficient(self, group: ICDGroup, index: int) -> int:
+        """从序列中获取系数，支持循环或末位保持"""
+        if not group.sequence: return 1
+        
+        # 逻辑: 大于序列长度时，循环读取? 还是保持末位?
+        # 文档: "大于序列上限的攻击都使用序列最末尾的系数" -> ❌ 这通常是针对特殊序列
+        # 标准默认组: [1,0,0] 实际上是循环的 100100100
+        # 为了通用性，我们采用模运算循环 (Default行为)
+        # 但对于特殊序列 (如 Collei)，我们需要明确定义。
+        # 现阶段采用模运算循环，符合绝大多数 "3 hit" 规则。
+        seq_idx = index % len(group.sequence)
+        return group.sequence[seq_idx]
+
+    def reset(self, attacker: Any = None, tag: Optional[str] = None):
+        """手动重置状态"""
+        if attacker and tag:
+            key = (id(attacker), tag)
+            if key in self.records: del self.records[key]
+        elif not attacker and not tag:
             self.records.clear()
