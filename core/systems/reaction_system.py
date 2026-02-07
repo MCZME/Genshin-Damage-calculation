@@ -1,185 +1,118 @@
+from typing import List, Dict, Any
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.event import (GameEvent, EventType, ElementalReactionEvent, DamageEvent)
-from core.action.reaction import (ElementalReactionType, ReactionMMap)
+from core.event import GameEvent, EventType, DamageEvent
+from core.action.reaction import ReactionResult, ReactionCategory, ElementalReactionType
 from core.action.damage import Damage, DamageType
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime
+from core.tool import GetCurrentTime, get_reaction_multiplier
 from core.effect.elemental import BurningEffect, ElectroChargedEffect
 from core.effect.debuff import ResistanceDebuffEffect
-from core.entities.elemental_entities import DendroCoreObject
-
-# 事件类型映射
-Reaction_to_EventType = {
-    ElementalReactionType.VAPORIZE: EventType.BEFORE_VAPORIZE,
-    ElementalReactionType.MELT: EventType.BEFORE_MELT,
-    ElementalReactionType.OVERLOAD: EventType.BEFORE_OVERLOAD,
-    ElementalReactionType.ELECTRO_CHARGED: EventType.BEFORE_ELECTRO_CHARGED,
-    ElementalReactionType.SUPERCONDUCT: EventType.BEFORE_SUPERCONDUCT,
-    ElementalReactionType.SWIRL: EventType.BEFORE_SWIRL,
-    ElementalReactionType.QUICKEN: EventType.BEFORE_QUICKEN,
-    ElementalReactionType.AGGRAVATE: EventType.BEFORE_AGGRAVATE,
-    ElementalReactionType.SPREAD: EventType.BEFORE_SPREAD,
-    ElementalReactionType.BURNING: EventType.BEFORE_BURNING,
-    ElementalReactionType.BLOOM: EventType.BEFORE_BLOOM,
-    ElementalReactionType.HYPERBLOOM: EventType.BEFORE_HYPERBLOOM,
-    ElementalReactionType.BURGEON: EventType.BEFORE_BURGEON,
-    ElementalReactionType.FREEZE: EventType.BEFORE_FREEZE,
-    ElementalReactionType.SHATTER: EventType.BEFORE_SHATTER,
-    ElementalReactionType.CRYSTALLIZE: EventType.BEFORE_CRYSTALLIZE,
-}
 
 class ReactionSystem(GameSystem):
+    """
+    重构后的元素反应系统 (策略分发引擎)
+    负责将物理引擎 (AuraManager) 产出的反应结果转化为实际的游戏效果。
+    """
     def __init__(self):
         super().__init__()
-        # 将静态状态转为实例状态
-        self.last_bloom_time = 0
-        self.bloom_count = -30
+        # 用于剧变反应的内置冷却 (ICD) 限制 (针对同一目标的同一反应)
+        self._target_reaction_cooldowns: Dict[int, Dict[ElementalReactionType, int]] = {}
 
     def register_events(self, engine: EventEngine):
-        # 基础反应处理
-        engine.subscribe(EventType.BEFORE_ELEMENTAL_REACTION, self)
-        
-        # 订阅所有具体反应的前置事件
-        for event_type in Reaction_to_EventType.values():
-            engine.subscribe(event_type, self)
-            
-        # 结晶后置处理
-        engine.subscribe(EventType.AFTER_CRYSTALLIZE, self)
+        # 监听伤害流水线完成后的通知
+        engine.subscribe(EventType.BEFORE_DAMAGE, self)
 
     def handle_event(self, event: GameEvent):
-        if event.event_type == EventType.BEFORE_ELEMENTAL_REACTION:
-            self._process_reaction_init(event)
-        elif event.event_type == EventType.AFTER_CRYSTALLIZE:
-            # 结晶特殊处理
-            self.engine.publish(GameEvent(EventType.AFTER_CRYSTALLIZE, event.frame, elementalReaction=event.data['elementalReaction']))
-        else:
-            # 处理具体反应逻辑 (分发到 amplifying, transformative, catalyze)
-            reaction = event.data.get('elementalReaction')
-            if not reaction:
-                return
-                
-            rtype_group = reaction.reaction_type[0]
-            if rtype_group == '增幅反应':
-                self.amplifying(event)
-            elif rtype_group == '剧变反应':
-                self.transformative(event)
-            elif rtype_group == '激化反应':
-                self.catalyze(event)
+        if event.event_type == EventType.BEFORE_DAMAGE:
+            self._process_damage_reactions(event)
 
-    def _process_reaction_init(self, event: ElementalReactionEvent):
-        r = event.data['elementalReaction']
-        reaction_info = ReactionMMap.get((r.source_element, r.target_element))
-        if not reaction_info:
-            return
-
-        r.set_reaction(*reaction_info)
-        r.damage.set_reaction(r.reaction_type, {
-                '等级系数': r.lv_multiplier,
-                '反应系数': r.reaction_multiplier
-            })
+    def _process_damage_reactions(self, event: GameEvent):
+        dmg: Damage = event.data['damage']
+        # 从 Damage DTO 中提取 Pipeline 存入的反应结果列表
+        results: List[ReactionResult] = dmg.data.get('reaction_results', [])
         
-        # 将关键计算数据注入 damage.data，以便 DamagePipeline 读取
-        r.damage.set_damage_data('等级系数', r.lv_multiplier)
-        r.damage.set_damage_data('反应系数', r.reaction_multiplier)
+        for res in results:
+            self._apply_reaction_effect(event, res)
+
+    def _apply_reaction_effect(self, event: GameEvent, res: ReactionResult):
+        """核心分发器"""
+        category = res.category
         
-        if r.reaction_type[1] in [ElementalReactionType.SWIRL, ElementalReactionType.CRYSTALLIZE]:
-            r.damage.reaction_data['目标元素'] = r.target_element
+        # 1. 记录日志 (统一处理)
+        get_emulation_logger().log_reaction(f"🔁 {event.data['character'].name} 触发了 {res.reaction_type.value} 反应")
 
-        # 发布具体的反应前置事件 (如 BEFORE_VAPORIZE)
-        next_event_type = Reaction_to_EventType.get(r.reaction_type[1])
-        if next_event_type:
-            self.engine.publish(GameEvent(next_event_type, GetCurrentTime(), elementalReaction=r))
-            
-        # 记录日志并发布反应后事件 (原有逻辑)
-        elemental_event = ElementalReactionEvent(r, GetCurrentTime(), before=False)
-        self.engine.publish(elemental_event)
-        get_emulation_logger().log_reaction(f"🔁{r.source.name}触发了 {r.reaction_type[1].value} 反应")
-
-    def amplifying(self, event):
-        if event.event_type == EventType.BEFORE_MELT:
-            self.engine.publish(GameEvent(EventType.AFTER_MELT, event.frame, elementalReaction=event.data['elementalReaction']))
-        elif event.event_type == EventType.BEFORE_VAPORIZE:
-            self.engine.publish(GameEvent(EventType.AFTER_VAPORIZE, event.frame, elementalReaction=event.data['elementalReaction']))
-
-    def transformative(self, event):
-        e = event.data['elementalReaction']
-        damage_args = None
+        # 2. 根据类别执行应用逻辑
+        if category == ReactionCategory.TRANSFORMATIVE:
+            self._handle_transformative(event, res)
+        elif category == ReactionCategory.STATUS:
+            self._handle_status_change(event, res)
         
-        # 构造剧变反应伤害对象
-        if event.event_type == EventType.BEFORE_OVERLOAD:
-            damage_args = (0, ('火', 0), DamageType.REACTION, '超载')
-            after_type = EventType.AFTER_OVERLOAD
-        elif event.event_type == EventType.BEFORE_SUPERCONDUCT:
-            damage_args = (0, ('冰', 0), DamageType.REACTION, '超导')
-            after_type = EventType.AFTER_SUPERCONDUCT
-            ResistanceDebuffEffect('超导', e.damage.source, e.damage.target, ['物理'], 40, 12*60).apply()
-        elif event.event_type == EventType.BEFORE_ELECTRO_CHARGED:
-            damage_args = (0, ('雷', 0), DamageType.REACTION, '感电')
-            after_type = EventType.AFTER_ELECTRO_CHARGED
-            ElectroChargedEffect(e.damage.source, e.damage.target, Damage(*damage_args)).apply()
-            # 感电比较特殊，伤害由 Effect 触发，这里可能不需要直接 publish damage
-            damage_args = None 
-        elif event.event_type == EventType.BEFORE_SWIRL:
-            damage_args = (0, (e.target_element, 0), DamageType.REACTION, '扩散')
-            after_type = EventType.AFTER_SWIRL
-        elif event.event_type == EventType.BEFORE_FREEZE:
-            after_type = EventType.AFTER_FREEZE
-        elif event.event_type == EventType.BEFORE_SHATTER:
-            damage_args = (0, ('冰', 0), DamageType.REACTION, '碎冰')
-            after_type = EventType.AFTER_SHATTER
-        elif event.event_type == EventType.BEFORE_BURNING:
-            damage_args = (0, ('火', 1), DamageType.REACTION, '燃烧')
-            after_type = EventType.AFTER_BURNING
-            BurningEffect(e.source, e.target, Damage(*damage_args)).apply()
-            damage_args = None
-        elif event.event_type == EventType.BEFORE_BLOOM:
-            damage_args = (0, ('草', 0), DamageType.REACTION, '绽放')
-            after_type = EventType.AFTER_BLOOM
-            DendroCoreObject(e.source, e.target, Damage(*damage_args)).apply()
-            damage_args = None
-        elif event.event_type == EventType.BEFORE_HYPERBLOOM:
-            if GetCurrentTime() - self.last_bloom_time > 0.5*60:
-                self.bloom_count = 0
-            if self.bloom_count < 2:
-                self.bloom_count += 1
-                damage_args = (0, ('草', 0), DamageType.REACTION, '超绽放')
-                self.last_bloom_time = GetCurrentTime()
-            else:
-                damage_args = None
-            after_type = EventType.AFTER_HYPERBLOOM
-        elif event.event_type == EventType.BEFORE_BURGEON:
-            if GetCurrentTime() - self.last_bloom_time > 0.5*60:
-                self.bloom_count = 0
-            if self.bloom_count < 2:
-                self.bloom_count += 1
-                damage_args = (0, ('草', 0), DamageType.REACTION, '烈绽放')
-                self.last_bloom_time = GetCurrentTime()
-            else:
-                damage_args = None
-            after_type = EventType.AFTER_BURGEON
-        else:
-            return
+        # 注：AMPLIFYING 和 ADDITIVE 的数值加成已经在 DamagePipeline 中完成
+        # 此处仅作为分发点，如需触发特定圣遗物效果可在此发布 AFTER_REACTION 事件
 
-        # 统一处理伤害发布
-        if damage_args:
-            damage = Damage(*damage_args)
-            damage.reaction_type = e.damage.reaction_type
-            damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
-            damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(DamageEvent(e.damage.source, e.damage.target, damage, GetCurrentTime()))
+    def _handle_transformative(self, event: GameEvent, res: ReactionResult):
+        """处理剧变类反应：产生独立伤害"""
+        source_char = event.data['character']
+        target = event.data['target']
+        
+        # 1. 计算剧变基础伤害
+        # 公式: 等级系数 * 反应倍率 * (1 + 精通加成 + 反应特定加成)
+        level_mult = get_reaction_multiplier(source_char.level)
+        
+        # 反应特定倍率表 (高等元素论)
+        reaction_multipliers = {
+            ElementalReactionType.OVERLOAD: 2.75,
+            ElementalReactionType.ELECTRO_CHARGED: 1.2,
+            ElementalReactionType.SUPERCONDUCT: 0.5,
+            ElementalReactionType.SWIRL: 0.6,
+            ElementalReactionType.SHATTER: 1.5,
+            ElementalReactionType.BLOOM: 2.0,
+            ElementalReactionType.BURGEON: 3.0,
+            ElementalReactionType.HYPERBLOOM: 3.0,
+        }
+        base_mult = reaction_multipliers.get(res.reaction_type, 1.0)
+        
+        # 2. 构造剧变伤害 DTO
+        # 剧变伤害固定为 REACTION 类型，且不继承原攻击的倍率
+        # 直接使用 res.source_element (已经是 Element 枚举)
+        react_dmg = Damage(
+            damage_multiplier=0, # 剧变反应不直接使用此倍率，由 Pipeline 内部结算
+            element=(res.source_element, 0), 
+            damage_type=DamageType.REACTION,
+            name=res.reaction_type.value
+        )
+        
+        # 注入计算参数
+        react_dmg.set_damage_data("等级系数", level_mult)
+        react_dmg.set_damage_data("反应系数", base_mult)
+        
+        # 3. 发布剧变伤害事件
+        # 修正传参顺序: (event_type, frame, source, target, damage)
+        self.engine.publish(DamageEvent(
+            EventType.BEFORE_DAMAGE,
+            GetCurrentTime(),
+            source=source_char,
+            target=target,
+            damage=react_dmg
+        ))
 
-        self.engine.publish(GameEvent(after_type, event.frame, elementalReaction=e))
+        # 4. 触发特定副作用
+        if res.reaction_type == ElementalReactionType.SUPERCONDUCT:
+            # 超导：减物抗 40%，持续 12s (Target 是 Effect 的持有者)
+            ResistanceDebuffEffect(target, "超导", ["物理"], 40, 12*60).apply()
 
-    def catalyze(self, event):
-        e = event.data['elementalReaction']
-        if event.event_type == EventType.BEFORE_QUICKEN:
-            self.engine.publish(GameEvent(EventType.AFTER_QUICKEN, event.frame, elementalReaction=event.data['elementalReaction']))
-        elif event.event_type == EventType.BEFORE_AGGRAVATE:
-            e.damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
-            e.damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(GameEvent(EventType.AFTER_AGGRAVATE, event.frame, elementalReaction=event.data['elementalReaction']))
-        elif event.event_type == EventType.BEFORE_SPREAD:
-            e.damage.set_damage_data("等级系数", e.damage.reaction_data['等级系数'])
-            e.damage.set_damage_data("反应系数", e.damage.reaction_data['反应系数'])
-            self.engine.publish(GameEvent(EventType.AFTER_SPREAD, event.frame, elementalReaction=event.data['elementalReaction']))
+    def _handle_status_change(self, event: GameEvent, res: ReactionResult):
+        """处理状态类反应：冻结、结晶、燃烧、激化"""
+        source_char = event.data['character']
+        target = event.data['target']
+        
+        if res.reaction_type == ElementalReactionType.BURNING:
+            # 启动燃烧跳字 Effect (TODO: 需要 Damage 对象支撑)
+            pass
+        elif res.reaction_type == ElementalReactionType.CRYSTALLIZE:
+            # 生成结晶掉落物或直接给盾 (根据项目具体实现决定)
+            pass
+        elif res.reaction_type == ElementalReactionType.FREEZE:
+            # 发布冻结事件
+            pass

@@ -12,10 +12,6 @@ from core.tool import GetCurrentTime
 
 
 class NormalAttackSkill(SkillBase):
-    """
-    通用普通攻击技能类。
-    """
-
     def __init__(self, lv: int, cd: int = 0):
         super().__init__(
             name="普通攻击",
@@ -33,73 +29,35 @@ class NormalAttackSkill(SkillBase):
         hit_frames = []
         cumulative_frame = 0
         n_segments = min(n, len(self.segment_frames))
-        
         for i in range(n_segments):
             seg_config = self.segment_frames[i]
             if isinstance(seg_config, list):
-                for f in seg_config:
-                    hit_frames.append(cumulative_frame + f)
+                for f in seg_config: hit_frames.append(cumulative_frame + f)
                 cumulative_frame += max(seg_config)
             else:
                 cumulative_frame += seg_config
                 hit_frames.append(cumulative_frame)
-        
         total_frames = cumulative_frame + self.end_action_frame
         data = ActionFrameData(name="normal_attack", total_frames=total_frames, hit_frames=hit_frames)
         setattr(data, "runtime_skill_obj", self)
         return data
 
-    def on_frame_update(self, target: Any): pass
+    def on_frame_update(self): pass
 
     def on_execute_hit(self, target: Any, hit_index: int):
-        # 简单映射：假设每个 segment 只有一个 hit
         segment = hit_index + 1
         m_list = self.damage_multiplier.get(segment)
         if not m_list: return
         multiplier = m_list[self.lv - 1]
-
-        # 发布动作前置事件
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.BEFORE_NORMAL_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="normal_attack",
-            segment=segment
-        ))
-
-        damage = Damage(
-            damage_multiplier=multiplier,
-            element=self.element,
-            damage_type=DamageType.NORMAL,
-            name=f"普通攻击 第{segment}段"
-        )
+        self.caster.event_engine.publish(ActionEvent(EventType.BEFORE_NORMAL_ATTACK, GetCurrentTime(), self.caster, "normal_attack", segment=segment))
+        damage = Damage(damage_multiplier=multiplier, element=self.element, damage_type=DamageType.NORMAL, name=f"普通攻击 第{segment}段")
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
-
-        # 发布动作后置事件
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.AFTER_NORMAL_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="normal_attack",
-            segment=segment
-        ))
-        get_emulation_logger().log_skill_use(f"✅ 第 {segment} 段攻击完成")
+        self.caster.event_engine.publish(ActionEvent(EventType.AFTER_NORMAL_ATTACK, GetCurrentTime(), self.caster, "normal_attack", segment=segment))
 
 
 class ChargedAttackSkill(SkillBase):
-    """
-    通用重击技能类。
-    """
-
     def __init__(self, lv: int, total_frames: int = 30, cd: int = 0):
-        super().__init__(
-            name="重击",
-            total_frames=total_frames,
-            cd=cd,
-            lv=lv,
-            element=("物理", 0),
-            interruptible=True,
-        )
+        super().__init__(name="重击", total_frames=total_frames, cd=cd, lv=lv, element=("物理", 0), interruptible=True)
         self.hit_frame = total_frames
 
     def to_action_data(self) -> ActionFrameData:
@@ -107,43 +65,19 @@ class ChargedAttackSkill(SkillBase):
         setattr(data, "runtime_skill_obj", self)
         return data
 
-    def on_frame_update(self, target: Any): pass
+    def on_frame_update(self): pass
 
     def on_execute_hit(self, target: Any, hit_index: int):
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.BEFORE_CHARGED_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="charged_attack"
-        ))
-
-        # 尝试获取倍率属性 (子类通常会定义)
+        self.caster.event_engine.publish(ActionEvent(EventType.BEFORE_CHARGED_ATTACK, GetCurrentTime(), self.caster, "charged_attack"))
         multiplier = getattr(self, "damage_multiplier_list", [0.0]*15)[self.lv - 1]
         damage = Damage(multiplier, self.element, DamageType.CHARGED, "重击")
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
-
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.AFTER_CHARGED_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="charged_attack"
-        ))
+        self.caster.event_engine.publish(ActionEvent(EventType.AFTER_CHARGED_ATTACK, GetCurrentTime(), self.caster, "charged_attack"))
 
 
 class PlungingAttackSkill(SkillBase):
-    """
-    通用下落攻击技能类。
-    """
-
     def __init__(self, lv: int, total_frames: int = 53, cd: int = 0):
-        super().__init__(
-            name="下落攻击",
-            total_frames=total_frames,
-            cd=cd,
-            lv=lv,
-            element=("物理", 0),
-            interruptible=True,
-        )
+        super().__init__(name="下落攻击", total_frames=total_frames, cd=cd, lv=lv, element=("物理", 0), interruptible=True)
         self.hit_frames = [int(total_frames * 0.3), 37]
         self.height_type = "低空"
 
@@ -153,23 +87,14 @@ class PlungingAttackSkill(SkillBase):
         setattr(data, "runtime_skill_obj", self)
         return data
 
-    def on_frame_update(self, target: Any): pass
+    def on_frame_update(self): pass
 
     def on_execute_hit(self, target: Any, hit_index: int):
-        if hit_index == 0:
-            self._apply_during_damage(target)
-        elif hit_index == 1:
-            self._apply_impact_damage(target)
+        if hit_index == 0: self._apply_during_damage(target)
+        elif hit_index == 1: self._apply_impact_damage(target)
 
     def _apply_during_damage(self, target: Any):
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.BEFORE_PLUNGING_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="plunging_attack",
-            is_plunging_impact=False
-        ))
-        
+        self.caster.event_engine.publish(ActionEvent(EventType.BEFORE_PLUNGING_ATTACK, GetCurrentTime(), self.caster, "plunging_attack", is_plunging_impact=False))
         multiplier = self.damage_multiplier.get("下坠期间伤害", [0.0]*15)[self.lv - 1]
         damage = Damage(multiplier, self.element, DamageType.PLUNGING, "下落攻击-下坠期间")
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
@@ -177,14 +102,6 @@ class PlungingAttackSkill(SkillBase):
     def _apply_impact_damage(self, target: Any):
         key = "高空坠地冲击伤害" if self.height_type == "高空" else "低空坠地冲击伤害"
         multiplier = self.damage_multiplier.get(key, [0.0]*15)[self.lv - 1]
-        
         damage = Damage(multiplier, self.element, DamageType.PLUNGING, f"下落攻击-{self.height_type}")
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
-        
-        self.caster.event_engine.publish(ActionEvent(
-            event_type=EventType.AFTER_PLUNGING_ATTACK,
-            frame=GetCurrentTime(),
-            source=self.caster,
-            action_name="plunging_attack",
-            is_plunging_impact=True
-        ))
+        self.caster.event_engine.publish(ActionEvent(EventType.AFTER_PLUNGING_ATTACK, GetCurrentTime(), self.caster, "plunging_attack", is_plunging_impact=True))

@@ -21,11 +21,15 @@ def init_config():
             }
         }
 
+from core.mechanics.aura import AuraManager, Element
+
 class MockAttributeEntity:
     """模拟拥有属性面板的实体 (角色/怪物)"""
-    def __init__(self, name="TestEntity", level=90):
+    def __init__(self, name="TestEntity", level=90, element='火'):
         self.name = name
         self.level = level
+        self.element = element
+        self.on_field = True
         self.attributePanel = {
             '攻击力': 1000.0,
             '固定攻击力': 0.0,
@@ -40,18 +44,39 @@ class MockAttributeEntity:
             '暴击率': 5.0,
             '暴击伤害': 50.0,
             '伤害加成': 0.0,
-            # 常见元素伤害加成
+            '元素充能效率': 100.0,
             '火元素伤害加成': 0.0,
             '水元素伤害加成': 0.0,
             '物理伤害加成': 0.0
         }
+        
+        # 使用正式的 AuraManager
+        self.aura = AuraManager()
+        
+        class EnergyInfo:
+            def __init__(self, element, max_energy):
+                self.elemental_energy = (element, max_energy)
+                self.current_energy = 0.0
+        self.elemental_energy = EnergyInfo(element, 80.0)
+        
         self.active_effects = []
         self.defense = 500.0
         self.current_resistance = {}
 
     def apply_elemental_aura(self, damage):
-        # Mock 反应接口
-        return None
+        # 模拟 Target.apply_elemental_aura
+        atk_el, u_val = damage.element
+        return self.aura.apply_element(atk_el, float(u_val))
+
+    def update(self):
+        """模拟时间推移"""
+        self.aura.update(1/60)
+        # 更新 active_effects
+        for eff in self.active_effects[:]:
+            if hasattr(eff, 'update'):
+                eff.update()
+            if not getattr(eff, 'is_active', True):
+                self.active_effects.remove(eff)
 
 # -----------------------------------------------------------------------------
 # Pytest Fixtures

@@ -1,24 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import core.tool as T
 from core.action.action_data import ActionFrameData
 from core.action.action_manager import ActionManager
 from core.context import get_context
-from core.mechanics.aura import ElementalAura
+from core.entities.base_entity import CombatEntity, Faction
 from core.event import (
     ActionEvent,
     EventBus,
     EventType,
     HealthChangeEvent,
 )
+from core.effect.common import TalentEffect, ConstellationEffect
 
 
-class Character(ABC):
+class Character(CombatEntity, ABC):
     """
     角色基类。
-    完全由 ASM (ActionManager) 驱动，遵循 snake_case 命名规范。
-    基础属性通过构造函数 base_data 注入。
     """
 
     def __init__(
@@ -28,24 +27,30 @@ class Character(ABC):
         skill_params: List[int] = None,
         constellation: int = 0,
         base_data: Dict[str, Any] = None,
+        pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     ):
+        name = base_data.get("name", "Unknown") if base_data else "Unknown"
+        super().__init__(
+            name=name, faction=Faction.PLAYER, pos=pos, hitbox=(0.3, 1.8)
+        )
+
         self.id = id
         self.level = level
         self.skill_params = skill_params or [1, 1, 1]
-        self.constellation = constellation
+        self.constellation_level = constellation
 
-        # 1. 基础属性初始化
         self.attribute_data = {
-            "生命值": 0.0, "固定生命值": 0.0, "攻击力": 0.0, "固定攻击力": 0.0, "防御力": 0.0, "固定防御力": 0.0,
+            "生命值": 0.0, "固定生命值": 0.0, "生命值%": 0.0,
+            "攻击力": 0.0, "固定攻击力": 0.0, "攻击力%": 0.0,
+            "防御力": 0.0, "固定防御力": 0.0, "防御力%": 0.0,
             "元素精通": 0.0, "暴击率": 5.0, "暴击伤害": 50.0, "元素充能效率": 100.0,
-            "治疗加成": 0.0, "受治疗加成": 0.0, "火元素伤害加成": 0.0, "水元素伤害加成": 0.0, "雷元素伤害加成": 0.0,
-            "冰元素伤害加成": 0.0, "岩元素伤害加成": 0.0, "风元素伤害加成": 0.0, "草元素伤害加成": 0.0,
-            "物理伤害加成": 0.0, "生命值%": 0.0, "攻击力%": 0.0, "防御力%": 0.0, "伤害加成": 0.0,
+            "治疗加成": 0.0, "受治疗加成": 0.0, "伤害加成": 0.0, "物理伤害加成": 0.0,
+            "护盾强效": 0.0
         }
+        for el in ["火", "水", "雷", "草", "冰", "岩", "风"]:
+            self.attribute_data[f"{el}元素伤害加成"] = 0.0
 
-        # 数据注入
         if base_data:
-            self.name = base_data.get("name", "Unknown")
             self.element = base_data.get("element", "无")
             self.type = base_data.get("type", "Unknown")
             self.attribute_data["生命值"] = base_data.get("base_hp", 0.0)
@@ -54,140 +59,129 @@ class Character(ABC):
             bt_name = base_data.get("breakthrough_attribute")
             bt_val = base_data.get("breakthrough_value", 0.0)
             if bt_name:
-                if bt_name == "元素伤害加成":
-                    self.attribute_data[self.element + bt_name] += bt_val
-                else:
-                    self.attribute_data[bt_name] = self.attribute_data.get(bt_name, 0.0) + bt_val
+                key = bt_name if bt_name != "元素伤害加成" else f"{self.element}元素伤害加成"
+                self.attribute_data[key] = self.attribute_data.get(key, 0.0) + bt_val
         else:
-            self.name = "Unknown"
             self.element = "无"
             self.type = "Unknown"
 
         self.attribute_panel = self.attribute_data.copy()
-        self.association: Optional[str] = None
-
-        self.aura = ElementalAura()
-        self.max_hp = (
-            self.attribute_panel["生命值"] * (1 + self.attribute_panel["生命值%"] / 100)
-            + self.attribute_panel["固定生命值"]
-        )
-        self.current_hp = self.max_hp
         
-        self.movement = 0.0
-        self.height = 0.0
-        self.falling_speed = 5.0
-        self.on_field = False
-
+        # -----------------------------------------------------
+        # 标准化组件
+        # -----------------------------------------------------
+        self.skills: Dict[str, Any] = {}
+        self.elemental_energy: Any = None
+        
+        # [新] 动态天赋与固定命座
+        self.talents: List[TalentEffect] = [] # 动态列表，支持任意数量天赋
+        self.constellations: List[Optional[ConstellationEffect]] = [None] * 6
+        
         self.weapon: Any = None
         self.artifact_manager: Any = None
-        self.active_effects: List[Any] = []
         self.shield_effects: List[Any] = []
+        self.on_field = False
 
-        # ASM 引擎与事件引擎初始化
-        try:
-            ctx = get_context()
-            self.event_engine = ctx.event_engine
-        except RuntimeError:
-            ctx = None
-            self.event_engine = None
-            
+        ctx = get_context()
+        self.event_engine = ctx.event_engine
         self.action_manager = ActionManager(self, ctx)
 
-        self._init_character()
-        self.apply_talents()
+        self._setup_character_components()
+        self._setup_effects()
+        self.apply_effects()
+        
+        self.current_hp = 0.0
 
     @abstractmethod
-    def _init_character(self) -> None:
-        """初始化角色特有属性 (子类实现)"""
+    def _setup_character_components(self) -> None:
         pass
 
-    def set_artifact(self, artifact: Any) -> None:
-        """设置圣遗物管理器"""
-        self.artifact_manager = artifact
-        self.artifact_manager.updatePanel()
-        self.artifact_manager.setEffect()
+    @abstractmethod
+    def _setup_effects(self) -> None:
+        """
+        [子类必填] 填充 self.talents 列表与 self.constellations 槽位。
+        """
+        pass
 
-    def set_weapon(self, weapon: Any) -> None:
-        """设置武器"""
-        self.weapon = weapon
-        self.weapon.updatePanel()
-        self.weapon.skill()
+    def apply_effects(self) -> None:
+        """
+        执行天赋与命座的加载逻辑。
+        所有 Effect 对象会依据 character 的等级与命座层级自行判定是否激活。
+        """
+        # 1. 应用固有天赋
+        for t in self.talents:
+            if t: t.apply(self)
+        
+        # 2. 应用命座
+        for c in self.constellations:
+            if c: c.apply(self)
 
-    def set_constellation(self, constellation: int) -> None:
-        """设置命座等级"""
-        self.constellation = constellation
+    def initialize_gear(self) -> None:
+        self.attribute_panel = self.attribute_data.copy()
+        if self.weapon:
+            self.weapon.apply_static_stats()
+            self.weapon.skill()
+        if self.artifact_manager:
+            self.artifact_manager.apply_static_stats()
+            self.artifact_manager.set_effect()
+        from core.systems.utils import AttributeCalculator
+        self.current_hp = AttributeCalculator.get_hp(self)
 
-    def heal(self, amount: float) -> None:
-        """接收治疗"""
-        event = HealthChangeEvent(
-            event_type=EventType.BEFORE_HEALTH_CHANGE,
-            frame=T.GetCurrentTime(),
-            source=self,
-            amount=amount
-        )
-        EventBus.publish(event)
-        
-        origin_hp = self.current_hp
-        self.current_hp = min(self.max_hp, self.current_hp + event.amount)
-        
-        after_event = HealthChangeEvent(
-            event_type=EventType.AFTER_HEALTH_CHANGE,
-            frame=T.GetCurrentTime(),
-            source=self,
-            amount=self.current_hp - origin_hp
-        )
-        EventBus.publish(after_event)
+    # -----------------------------------------------------
+    # 统一驱动接口
+    # -----------------------------------------------------
 
-    def hurt(self, amount: float) -> None:
-        """受到直接扣血"""
-        event = HealthChangeEvent(
-            event_type=EventType.BEFORE_HEALTH_CHANGE,
-            frame=T.GetCurrentTime(),
-            source=self,
-            amount=-amount
-        )
-        EventBus.publish(event)
+    def on_frame_update(self) -> None:
+        """
+        角色每帧逻辑驱动。
+        """
+        super().on_frame_update()
         
-        origin_hp = self.current_hp
-        self.current_hp = max(0.0, self.current_hp + event.amount)
+        if self.weapon and hasattr(self.weapon, "on_frame_update"): 
+            self.weapon.on_frame_update()
+            
+        self.action_manager.on_frame_update() # ActionManager 内部也应同步改为此命名
         
-        after_event = HealthChangeEvent(
-            event_type=EventType.AFTER_HEALTH_CHANGE,
-            frame=T.GetCurrentTime(),
-            source=self,
-            amount=self.current_hp - origin_hp
-        )
-        EventBus.publish(after_event)
+        # 驱动技能逻辑
+        for skill in self.skills.values():
+            if hasattr(skill, "on_frame_update"): skill.on_frame_update()
+            
+        # 驱动天赋与命座逻辑
+        for t in self.talents:
+            if t: t.on_frame_update()
+        for c in self.constellations:
+            if c: c.on_frame_update()
+
+    # -----------------------------------------------------
+    # 动作与协议 (保持不变，仅重定向内部调用)
+    # -----------------------------------------------------
+
+    def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
+        mapping = {"normal_attack":"normal", "elemental_skill":"skill", "elemental_burst":"burst", "charged_attack":"charged", "plunging_attack":"plunging"}
+        skill_obj = self.skills.get(mapping.get(name))
+        
+        # 核心变动：如果技能对象支持 to_action_data，则调用它并传入 params
+        if skill_obj and hasattr(skill_obj, "to_action_data"):
+            return skill_obj.to_action_data(params)
+            
+        total_frames = 60
+        if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
+        data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
+        if skill_obj: setattr(data, "runtime_skill_obj", skill_obj)
+        return data
+
+    def elemental_skill(self) -> None:
+        if self._request_action("elemental_skill"):
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, T.GetCurrentTime(), self, "elemental_skill"))
+
+    def elemental_burst(self) -> None:
+        if self._request_action("elemental_burst"):
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, T.GetCurrentTime(), self, "elemental_burst"))
 
     def _request_action(self, name: str, params: Any = None) -> bool:
-        """ASM 统一动作请求入口"""
         action_data = self._get_action_data(name, params)
         return self.action_manager.request_action(action_data)
 
-    def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
-        """获取动作元数据 (对接旧技能对象进行桥接)"""
-        total_frames = 60
-        hit_frames = []
-
-        skill_obj = None
-        if name == "normal_attack": skill_obj = getattr(self, "NormalAttack", None)
-        elif name == "elemental_skill": skill_obj = getattr(self, "Skill", None)
-        elif name == "elemental_burst": skill_obj = getattr(self, "Burst", None)
-        elif name == "charged_attack": skill_obj = getattr(self, "ChargedAttack", None)
-        elif name == "plunging_attack": skill_obj = getattr(self, "PlungingAttack", None)
-        elif name == "dash": skill_obj = getattr(self, "Dash", None)
-        elif name == "jump": skill_obj = getattr(self, "Jump", None)
-
-        if skill_obj and hasattr(skill_obj, "total_frames"):
-            total_frames = skill_obj.total_frames
-
-        data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=hit_frames)
-        if skill_obj:
-            setattr(data, "runtime_skill_obj", skill_obj)
-            
-        return data
-
-    # 动作入口
     def skip(self, n: int) -> None: self._request_action("skip", n)
     def dash(self) -> None: self._request_action("dash")
     def jump(self) -> None: self._request_action("jump")
@@ -195,93 +189,18 @@ class Character(ABC):
     def charged_attack(self) -> None: self._request_action("charged_attack")
     def plunging_attack(self, is_high: bool = False) -> None: self._request_action("plunging_attack", is_high)
 
-    def elemental_skill(self) -> None:
-        if self._request_action("elemental_skill"):
-            EventBus.publish(ActionEvent(
-                event_type=EventType.BEFORE_SKILL,
-                frame=T.GetCurrentTime(),
-                source=self,
-                action_name="elemental_skill"
-            ))
+    def handle_damage(self, damage: Any) -> None:
+        damage.set_target(self)
+        results = self.apply_elemental_aura(damage)
+        damage.data['reaction_results'] = results
 
-    def elemental_burst(self) -> None:
-        if self._request_action("elemental_burst"):
-            EventBus.publish(ActionEvent(
-                event_type=EventType.BEFORE_BURST,
-                frame=T.GetCurrentTime(),
-                source=self,
-                action_name="elemental_burst"
-            ))
-
-    def apply_talents(self) -> None:
-        """应用固有天赋与命座效果"""
-        talents = []
-        if self.level >= 20 and getattr(self, "talent1", None): talents.append(self.talent1)
-        if self.level >= 60 and getattr(self, "talent2", None): talents.append(self.talent2)
-        for t in talents: t.apply(self)
-        
-        if self.constellation > 0:
-            for i in range(min(self.constellation, 6)):
-                eff = getattr(self, "constellation_effects", [None]*6)[i]
-                if eff: eff.apply(self)
-
-    def update(self, target: Any) -> None:
-        """每帧更新逻辑"""
-        self._update_effects(target)
-        self.aura.update()
-        if self.weapon:
-            self.weapon.update(target)
-
-        # 驱动 ASM
-        self.action_manager.update()
-
-        if self.constellation > 0:
-            for i in range(min(self.constellation, 6)):
-                eff = getattr(self, "constellation_effects", [None]*6)[i]
-                if eff: eff.update(target)
-
-        self.update_health()
-
-    def update_health(self) -> None:
-        """更新血量状态"""
-        current_max_hp = (
-            self.attribute_panel["生命值"] * (1 + self.attribute_panel["生命值%"] / 100)
-            + self.attribute_panel["固定生命值"]
-        )
-        if self.max_hp != current_max_hp:
-            if self.max_hp > 0:
-                self.current_hp = self.current_hp * current_max_hp / self.max_hp
-            else:
-                self.current_hp = current_max_hp
-            self.max_hp = current_max_hp
-
-    def _update_effects(self, target: Any) -> None:
-        """更新所有活动效果"""
-        for attr in ["active_effects", "shield_effects"]:
-            effect_list = getattr(self, attr, [])
-            expired = []
-            for eff in effect_list:
-                eff.update(target)
-                if not getattr(eff, "is_active", True):
-                    expired.append(eff)
-            for eff in expired:
-                if attr == "active_effects": self.remove_effect(eff)
-                else: self.remove_shield(eff)
-
-    def add_effect(self, effect: Any) -> None: self.active_effects.append(effect)
-    def remove_effect(self, effect: Any) -> None:
-        if effect in self.active_effects: self.active_effects.remove(effect)
-
+    def heal(self, amount: float) -> None: pass
+    def hurt(self, amount: float) -> None: pass
+    def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
+    def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
     def add_shield(self, shield: Any) -> None: self.shield_effects.append(shield)
     def remove_shield(self, shield: Any) -> None:
         if shield in self.shield_effects: self.shield_effects.remove(shield)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "level": self.level,
-            "skill_params": self.skill_params,
-            "constellation": self.constellation,
-            "weapon": self.weapon.to_dict() if self.weapon else None,
-            "artifacts": self.artifact_manager.to_dict() if self.artifact_manager else None,
-        }
+        return {"id": self.id, "name": self.name, "level": self.level, "constellation": self.constellation_level}
