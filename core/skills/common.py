@@ -38,7 +38,7 @@ class NormalAttackSkill(SkillBase):
                 hit_frames.append(cumulative_frame)
         total_frames = cumulative_frame + self.end_action_frame
         data = ActionFrameData(name="normal_attack", total_frames=total_frames, hit_frames=hit_frames)
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self): pass
@@ -61,7 +61,7 @@ class ChargedAttackSkill(SkillBase):
 
     def to_action_data(self) -> ActionFrameData:
         data = ActionFrameData(name="charged_attack", total_frames=self.total_frames, hit_frames=[self.hit_frame])
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self): pass
@@ -83,7 +83,7 @@ class PlungingAttackSkill(SkillBase):
     def to_action_data(self, is_high: bool = False) -> ActionFrameData:
         self.height_type = "高空" if is_high else "低空"
         data = ActionFrameData(name="plunging_attack", total_frames=self.total_frames, hit_frames=self.hit_frames)
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self): pass

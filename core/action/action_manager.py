@@ -9,8 +9,6 @@ class ActionInstance:
         self.elapsed_frames = 0
         self.hit_frames_pending = data.hit_frames.copy()
         self.is_finished = False
-        # 运行时绑定的技能对象 (用于兼容旧逻辑)
-        self.skill_obj = getattr(data, 'runtime_skill_obj', None)
 
     def advance(self) -> bool:
         if self.elapsed_frames >= self.data.total_frames:
@@ -72,10 +70,10 @@ class ActionManager:
         
         # 0. 驱动技能内部逻辑 (无需参数)
         instance.elapsed_frames += 1 # 先增加帧计数
-        if instance.skill_obj and hasattr(instance.skill_obj, 'on_frame_update'):
-            instance.skill_obj.current_frame = instance.elapsed_frames
+        if instance.data.origin_skill and hasattr(instance.data.origin_skill, 'on_frame_update'):
+            instance.data.origin_skill.current_frame = instance.elapsed_frames
             try:
-                instance.skill_obj.on_frame_update()
+                instance.data.origin_skill.on_frame_update()
             except Exception as e:
                 get_emulation_logger().log_error(f"Skill update failed: {e}")
 
@@ -101,18 +99,18 @@ class ActionManager:
         get_emulation_logger().log("ASM", f"{self.character.name} 开始执行动作: {data.name} (时长: {data.total_frames} 帧)")
         
         # 建立运行时绑定
-        if self.current_action.skill_obj:
-            self.current_action.skill_obj.caster = self.character
+        if self.current_action.data.origin_skill:
+            self.current_action.data.origin_skill.caster = self.character
 
     def _trigger_hit(self):
         """
         触发命中点逻辑。
         """
         instance = self.current_action
-        if instance.skill_obj and hasattr(instance.skill_obj, 'on_execute_hit'):
+        if instance.data.origin_skill and hasattr(instance.data.origin_skill, 'on_execute_hit'):
             # 计算当前命中的索引 (total - remaining)
             hit_idx = len(instance.data.hit_frames) - len(instance.hit_frames_pending) - 1
-            instance.skill_obj.on_execute_hit(self.ctx.target, hit_idx)
+            instance.data.origin_skill.on_execute_hit(self.ctx.target, hit_idx)
 
     def _can_cancel_current(self, next_action_name: str) -> bool:
         if not self.current_action:

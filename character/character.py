@@ -165,7 +165,7 @@ class Character(CombatEntity, ABC):
         total_frames = 60
         if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
         data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
-        if skill_obj: setattr(data, "runtime_skill_obj", skill_obj)
+        if skill_obj: data.origin_skill = skill_obj
         return data
 
     def elemental_skill(self) -> None:

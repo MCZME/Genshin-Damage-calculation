@@ -42,7 +42,7 @@ class ElementalSkill(SkillBase):
 
     def to_action_data(self, params: Any = None) -> ActionFrameData:
         data = ActionFrameData(name="E_SUMMON", total_frames=45, hit_frames=[self.summon_frame])
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self):
@@ -66,7 +66,7 @@ class ElementalBurst(EnergySkill):
         data = ActionFrameData(name="Q_CAST", total_frames=80, hit_frames=self.swing_frames)
         # 将配置透传给动作
         data.attack_config = self.burst_config
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_execute_hit(self, target: Any, hit_index: int):

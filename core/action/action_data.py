@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import Any, List, Dict, Optional, Tuple
 
 class ActionState(Enum):
     IDLE = auto()
@@ -63,3 +63,5 @@ class ActionFrameData:
     attack_config: Optional[AttackConfig] = None
     horizontal_dist: float = 0.0
     vertical_dist: float = 0.0
+    # 运行时绑定的技能对象 (用于回调 on_execute_hit 等)
+    origin_skill: Optional[Any] = None

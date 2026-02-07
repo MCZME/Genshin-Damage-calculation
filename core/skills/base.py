@@ -16,9 +16,9 @@ class SkillBase(ABC):
         self.interruptible = interruptible
         self.caster = caster
 
-    def to_action_data(self) -> ActionFrameData:
+    def to_action_data(self, params: Any = None) -> ActionFrameData:
         data = ActionFrameData(name=self.name, total_frames=self.total_frames)
-        setattr(data, 'runtime_skill_obj', self)
+        data.origin_skill = self
         return data
 
     def start(self, caster):

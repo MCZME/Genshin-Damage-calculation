@@ -37,7 +37,7 @@ class GenericSkill(SkillBase):
         # 取消窗口配置 {"jump": 12, "dash": 15}
         self.cancel_windows: Dict[str, int] = config.get("cancel_windows", {})
 
-    def to_action_data(self) -> ActionFrameData:
+    def to_action_data(self, params: Any = None) -> ActionFrameData:
         """生成供 ASM 调用的动作数据"""
         data = ActionFrameData(
             name=self.name,
@@ -46,7 +46,7 @@ class GenericSkill(SkillBase):
             cancel_windows=self.cancel_windows
         )
         # 挂载运行时对象，以便 ActionManager 每一帧回调 on_frame_update
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self, target: Any):
