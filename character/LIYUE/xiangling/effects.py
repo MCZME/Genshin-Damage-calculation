@@ -1,22 +1,30 @@
+from typing import Dict
 from core.effect.BaseEffect import Effect, AttackBoostEffect
 
-class ChiliPepperEffect(AttackBoostEffect):
-    """绝云朝天椒加攻效果"""
-    def __init__(self, character, current_character):
-        super().__init__(character, current_character, "绝云朝天椒🌶️", 10, 10*60)
+class ChiliPepperEffect(Effect):
+    """
+    绝云朝天椒：拾取辣椒后获得的攻击力加成效果。
+    """
+    def __init__(self, owner):
+        # 持续 10 秒
+        super().__init__(owner, 10 * 60)
+        self.name = "绝云朝天椒"
+        self.atk_boost_percent = 10.0 # 10% 攻击力提升
 
-class InternalExplosionEffect(Effect):
-    """命座2：大火宽油的内爆状态"""
-    def __init__(self, owner, damage):
-        super().__init__(owner, 2*60)
-        self.name = "大火宽油"
-        self.damage = damage
+    def get_additional_stats(self) -> Dict[str, float]:
+        """为角色动态提供攻击力百分比加成"""
+        if not self.is_active:
+            return {}
+        return {"攻击力%": self.atk_boost_percent}
 
-    def on_frame_update(self):
-        super().on_frame_update()
-        if self.current_frame >= self.life_frame:
-            self._explode()
+class PyronadoBuffEffect(Effect):
+    """
+    命座6效果：旋火轮持续期间，全队获得 15% 火伤加成。
+    """
+    def __init__(self, owner):
+        super().__init__(owner, float('inf'))
+        self.name = "大龙卷旋火轮"
+        self.pyro_bonus = 15.0
 
-    def _explode(self):
-        # 产生爆炸伤害
-        pass
+    def get_additional_stats(self) -> Dict[str, float]:
+        return {"火元素伤害加成": self.pyro_bonus}
