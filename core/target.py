@@ -34,19 +34,17 @@ class Target:
         核心入口：将伤害中的元素应用到目标身上。
         返回触发的所有反应结果列表。
         """
-        # 1. 解析元素与量级
-        element_str, u_val = damage.element
-        try:
-            atk_el = Element(element_str)
-        except ValueError:
+        # damage.element 现在统一为 (Element枚举, U值)
+        atk_el, u_val = damage.element
+
+        # 物理伤害不参与附着系统
+        if atk_el == Element.PHYSICAL:
             return []
 
-        # 2. 调用物理引擎结算
-        # 注意：在此重构阶段，damage.element[1] 承载的是 U 值 (1, 2, 4)
+        # 调用物理引擎结算
         results = self.aura.apply_element(atk_el, float(u_val))
-        
         return results
-
+    
     def add_effect(self, effect):
         self.effects.append(effect)
 

@@ -11,6 +11,7 @@ from core.logger import get_emulation_logger
 from core.entities.elemental_entities import DendroCoreObject
 from core.effect.elemental import ElementalInfusionEffect
 from core.tool import GetCurrentTime
+from core.mechanics.aura import Element
 
 # ---------------------------------------------------------
 # Damage Context (State Container)
@@ -42,7 +43,7 @@ class DamageContext:
             "独立乘区系数": 1.0,
         }
         
-        # 预载入：从 Damage DTO 提取初始注入的数据 (例如反应系统注入的等级系数)
+        # 预载入：从 Damage DTO 提取初始注入的数据
         self._initialize_from_data()
         
         self.final_result: float = 0.0
@@ -50,11 +51,7 @@ class DamageContext:
 
     def _initialize_from_data(self):
         """从 damage.data 中提取初始参数（如等级系数、反应系数等）"""
-        d = self.damage.data
-        if '等级系数' in d:
-            # 剧变反应的基础值直接存入固定伤害加成（如果是剧变模式）
-            pass 
-        # 这里可以根据需要扩展
+        pass 
 
     def add_modifier(self, stat_name: str, value: float):
         if stat_name in self.stats:
@@ -77,7 +74,7 @@ class DamagePipeline:
         # 3. 反应机制预处理 (附着消减与基础倍率)
         self._preprocess_reaction(ctx)
         
-        # 4. 发布统一的计算前事件，允许外部系统通过修改 ctx.stats 来注入加成
+        # 4. 发布统一的计算前事件
         self._notify_modifiers(ctx)
         
         # 5. 核心计算
@@ -118,15 +115,17 @@ class DamagePipeline:
         s["元素精通"] = AttributeCalculator.get_mastery(src)
         s["暴击率"] = AttributeCalculator.get_crit_rate(src) * 100
         s["暴击伤害"] = AttributeCalculator.get_crit_damage(src) * 100
-        s["伤害加成"] = AttributeCalculator.get_damage_bonus(src, ctx.damage.element[0]) * 100
+        
+        # 提取元素枚举值进行属性查找
+        el_val = ctx.damage.element[0].value
+        s["伤害加成"] = AttributeCalculator.get_damage_bonus(src, el_val) * 100
 
     def _preprocess_reaction(self, ctx: DamageContext):
-        if ctx.damage.element[0] == '物理': return
+        if ctx.damage.element[0] == Element.PHYSICAL: return
         
-        # apply_elemental_aura 现在返回 List[ReactionResult]
+        # apply_elemental_aura 返回 List[ReactionResult]
         reaction_results = ctx.target.apply_elemental_aura(ctx.damage)
         
-        # 暂时只处理增幅类反应对当前伤害的影响 (逻辑与旧系统对齐)
         from core.action.reaction import ReactionCategory, ElementalReactionType
         for res in reaction_results:
             if res.category == ReactionCategory.AMPLIFYING:
@@ -135,22 +134,17 @@ class DamagePipeline:
                 ctx.stats["反应加成系数"] += (2.78 * em) / (em + 1400)
             
             elif res.reaction_type in [ElementalReactionType.AGGRAVATE, ElementalReactionType.SPREAD]:
-                # 激化处理
                 from core.tool import get_reaction_multiplier
                 mult = 1.15 if res.reaction_type == ElementalReactionType.AGGRAVATE else 1.25
                 level_coeff = get_reaction_multiplier(ctx.source.level)
                 em = ctx.stats["元素精通"]
                 ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
         
-        # 将反应结果存入 damage.data，供 ReactionSystem (后续) 使用
         ctx.damage.data['reaction_results'] = reaction_results
 
     def _notify_modifiers(self, ctx: DamageContext):
-        """发布计算前通知，供其他系统修改 context.stats"""
         event = GameEvent(EventType.BEFORE_CALCULATE, GetCurrentTime(), source=ctx.source, data={"damage_context": ctx})
         self.engine.publish(event)
-        
-        # 计算防御与抗性（在此处计算，以便事件可以修改防御或抗性相关参数，尽管目前是直接计算系数）
         self._calculate_def_res(ctx)
 
     def _calculate_def_res(self, ctx: DamageContext):
@@ -160,7 +154,8 @@ class DamagePipeline:
         ctx.stats["防御区系数"] = (5 * attacker_lv + 500) / (target_def + 5 * attacker_lv + 500)
         
         # 抗性区
-        res = ctx.target.current_resistance.get(ctx.damage.element[0], 10.0)
+        el_val = ctx.damage.element[0].value
+        res = ctx.target.current_resistance.get(el_val, 10.0)
         if res > 75: ctx.stats["抗性区系数"] = 1 / (1 + 4 * res / 100)
         elif res < 0: ctx.stats["抗性区系数"] = 1 - res / 2 / 100
         else: ctx.stats["抗性区系数"] = 1 - res / 100
@@ -170,7 +165,6 @@ class DamagePipeline:
         # 1. 剧变反应分支
         if ctx.damage.damage_type == DamageType.REACTION:
             em_inc = (16 * s["元素精通"]) / (s["元素精通"] + 2000)
-            # 从 data 获取等级系数和反应基础系数
             level_coeff = ctx.damage.data.get('等级系数', 0)
             react_base = ctx.damage.data.get('反应系数', 1.0)
             bonus = ctx.damage.data.get('反应伤害提高', 0) 
@@ -178,10 +172,7 @@ class DamagePipeline:
             return
 
         # 2. 标准伤害乘区
-        # 基础伤害 = (属性 * 倍率) + 固定伤害加成
         base = self._get_base_value(ctx) + s["固定伤害值加成"]
-        
-        # 乘区合成
         bonus_mult = 1 + s["伤害加成"] / 100
         crit_mult = self._get_crit_mult(ctx)
         
@@ -224,10 +215,8 @@ class DamageSystem(GameSystem):
             self.pipeline.run(ctx)
             
             get_emulation_logger().log_damage(char, target, dmg)
-            # 计算完成后发布 AFTER_DAMAGE
             self.engine.publish(DamageEvent(EventType.AFTER_DAMAGE, event.frame, source=char, target=target, damage=dmg))
             
-            # 草原核逻辑暂存
             try:
                 if self.context.team:
                     for d in [o for o in self.context.team.active_objects if isinstance(o, DendroCoreObject)]:

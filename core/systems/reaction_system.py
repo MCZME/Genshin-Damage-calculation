@@ -75,10 +75,10 @@ class ReactionSystem(GameSystem):
         
         # 2. 构造剧变伤害 DTO
         # 剧变伤害固定为 REACTION 类型，且不继承原攻击的倍率
-        src_el_val = res.source_element.value if hasattr(res.source_element, 'value') else str(res.source_element)
+        # 直接使用 res.source_element (已经是 Element 枚举)
         react_dmg = Damage(
             damage_multiplier=0, # 剧变反应不直接使用此倍率，由 Pipeline 内部结算
-            element=(src_el_val, 0), 
+            element=(res.source_element, 0), 
             damage_type=DamageType.REACTION,
             name=res.reaction_type.value
         )

@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union
+from core.mechanics.aura import Element
 
 class DamageType(Enum):
     NORMAL = "普通攻击"
@@ -10,11 +11,21 @@ class DamageType(Enum):
     REACTION = "剧变反应"
 
 class Damage:
-    def __init__(self, damage_multiplier: Any, element: Tuple[str, Any], damage_type: DamageType, name: str, **kwargs):
+    """
+    伤害 DTO。
+    注意：element 字段现在统一为 (Element 枚举, U值)
+    """
+    def __init__(self, 
+                 damage_multiplier: Any, 
+                 element: Tuple[Element, float], 
+                 damage_type: DamageType, 
+                 name: str, 
+                 **kwargs):
         self.damage_multiplier = damage_multiplier
-        self.element = element
+        self.element = element  # 统一使用 (Element, float)
         self.damage_type = damage_type
         self.name = name
+        
         self.damage: float = 0.0
         self.base_value: Union[str, Tuple[str, str]] = '攻击力'
         self.reaction_type: Optional[Tuple[str, Enum]] = None
@@ -23,7 +34,6 @@ class Damage:
         self.panel: Dict[str, Any] = {}
         self.hit_type: Optional[Any] = None
         
-        # Source/Target 将在事件处理时注入
         self.source = None
         self.target = None
 
