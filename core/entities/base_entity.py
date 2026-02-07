@@ -72,13 +72,15 @@ class CombatEntity(BaseEntity):
                  faction: Faction = Faction.ENEMY,
                  pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
                  facing: float = 0.0,
+                 hitbox_radius: float = 0.5, # 默认碰撞半径
                  life_frame: float = float("inf"), 
                  context: Optional[Any] = None):
         super().__init__(name, life_frame, context)
         
         self.faction = faction
-        self.pos = list(pos)  # [X, Z, Y] 
-        self.facing = facing  # 朝向角度 (0-360)
+        self.pos = list(pos)
+        self.facing = facing
+        self.hitbox_radius = hitbox_radius
         
         # 物理模拟组件
         self.aura = AuraManager()
