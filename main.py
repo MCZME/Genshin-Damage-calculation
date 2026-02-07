@@ -1,11 +1,13 @@
-from nicegui import ui
 from core.config import Config
+# 必须在导入任何业务模块（如 ui.pages）之前初始化配置
+Config()
+
+from nicegui import ui
 from core.logger import logger_init
 import os
 
 # --- 初始化 ---
 def init_all():
-    Config()
     logger_init()
 
 @ui.page('/')
@@ -20,7 +22,7 @@ def index_page():
 
 # 导入页面 (触发路由注册)
 from ui.pages import config as _config_page
-# import ui.pages.analysis as _analysis_page # 后续实现
+from ui.pages import analysis as _analysis_page
 
 if __name__ in {"__main__", "__mp_main__"}:
     init_all()
