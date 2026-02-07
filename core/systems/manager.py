@@ -1,4 +1,4 @@
-from typing import List, Type
+from typing import List, Type, Any, Optional
 from core.context import SimulationContext
 from core.systems.base_system import GameSystem
 
@@ -16,6 +16,17 @@ class SystemManager:
         system.initialize(self.context)
         self.systems.append(system)
         return system
+
+    def get_system(self, cls_or_name: Any) -> Optional[GameSystem]:
+        """根据类或名称获取系统实例"""
+        for system in self.systems:
+            if isinstance(cls_or_name, str):
+                if system.__class__.__name__ == cls_or_name:
+                    return system
+            else:
+                if isinstance(system, cls_or_name):
+                    return system
+        return None
 
     def shutdown(self):
         """清理所有系统（如果需要）"""

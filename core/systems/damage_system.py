@@ -77,12 +77,15 @@ class DamagePipeline:
         if hb.shape == AOEShape.SINGLE:
             sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
         else:
+            # 区域攻击：传递形状与参数
             sim_ctx.space.broadcast_damage(
                 ctx.source, 
                 ctx.damage, 
                 shape=hb.shape.name, 
                 radius=hb.radius, 
-                angle=hb.angle, 
+                height=hb.height,
+                width=hb.width,
+                length=hb.length,
                 offset=hb.offset
             )
 
@@ -130,7 +133,10 @@ class DamagePipeline:
         """处理广播后由实体产生的反应结果"""
         results = ctx.damage.reaction_results
         from core.action.reaction import ReactionCategory, ElementalReactionType
+        from core.entities.elemental_entities import DendroCoreEntity
+        
         for res in results:
+            # 处理增幅反应与激化加成
             if res.category == ReactionCategory.AMPLIFYING:
                 ctx.stats["反应基础倍率"] = res.multiplier
                 em = ctx.stats["元素精通"]
@@ -141,6 +147,18 @@ class DamagePipeline:
                 level_coeff = get_reaction_multiplier(ctx.source.level)
                 em = ctx.stats["元素精通"]
                 ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
+            
+            # 处理草原核生成 (绽放)
+            elif res.reaction_type == ElementalReactionType.BLOOM:
+                # 检查攻击契约是否允许部署 (或根据游戏规则自动部署)
+                if ctx.config.is_deployable and ctx.target:
+                    # 在目标位置生成草原核
+                    core = DendroCoreEntity(ctx.source, ctx.target.pos)
+                    # 注册到场景
+                    from core.context import get_context
+                    sim_ctx = get_context()
+                    if sim_ctx and sim_ctx.space:
+                        sim_ctx.space.register(core)
 
     def _calculate_def_res(self, ctx: DamageContext):
         target_def = ctx.target.attribute_panel.get("防御力", 0)

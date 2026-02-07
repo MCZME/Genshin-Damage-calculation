@@ -37,6 +37,10 @@ class BaseEntity:
         return self.state == EntityState.ACTIVE
 
     def update(self) -> None:
+        if self.state == EntityState.FINISHING:
+            self.finish()
+            return
+            
         if self.state != EntityState.ACTIVE:
             return
         
@@ -48,7 +52,7 @@ class BaseEntity:
         self.on_frame_update()
 
     def finish(self) -> None:
-        if self.state != EntityState.ACTIVE:
+        if self.state not in [EntityState.ACTIVE, EntityState.FINISHING]:
             return
         self.state = EntityState.FINISHING
         self.on_finish()
@@ -112,7 +116,13 @@ class CombatEntity(BaseEntity):
         final_u = damage.config.element_u * multiplier
         
         # 3. 调用 AuraManager 处理实际附着
-        return self.aura.apply_element(damage.element[0], final_u)
+        results = self.aura.apply_element(damage.element[0], final_u)
+        
+        # 4. 同步反应结果到伤害对象 (供后续流水线消费)
+        if hasattr(damage, "reaction_results"):
+            damage.reaction_results.extend(results)
+            
+        return results
 
     def on_frame_update(self) -> None:
         self.aura.update(1/60)

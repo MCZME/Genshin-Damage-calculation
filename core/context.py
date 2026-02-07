@@ -63,6 +63,11 @@ class SimulationContext:
         if self.space:
             self.space.update()
 
+    def get_system(self, cls_or_name: Any) -> Optional[Any]:
+        if self.system_manager:
+            return self.system_manager.get_system(cls_or_name)
+        return None
+
     def reset(self) -> None:
         self.current_frame = 0
         self.global_move_dist = 0.0
