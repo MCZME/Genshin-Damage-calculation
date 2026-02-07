@@ -55,11 +55,17 @@ def export_state(self) -> dict:
 ```
 *注：严禁在导出字典中包含 Python 对象引用，确保数据可序列化。*
 
-## 5. 工作流规划
-1.  **第一步**: 实现核心实体的 `export_state` 协议。
-2.  **第二步**: 编写 SQLite 存储驱动（Result Persistence Layer）。
-3.  **第三步**: 使用 NiceGUI 搭建基础配置面板。
-4.  **第四步**: 实现带滑块的时间轴分析器。
+## 5. 工作流规划 (Status: In Progress)
+1.  **第一步**: 实现核心实体的 `export_state` 协议。 (✅ Done)
+2.  **第二步**: 编写 SQLite 存储驱动（Result Persistence Layer）。 (✅ Done)
+3.  **第三步**: 使用 NiceGUI 搭建基础配置面板。 (✅ Done)
+4.  **第四步**: 实现带滑块的时间轴分析器。 (✅ Done)
+
+## 6. 异步仿真设计详解
+为了支持 UI 的非阻塞响应，`Simulator` 进行了如下改造：
+- **Async 循环**: `Simulator.run` 变更为 `async def run`，使得它能在 NiceGUI 的事件循环中被 `await` 调用。
+- **快照流**: 在主循环的每一帧末尾，调用 `db.record_snapshot()` 将当前帧数据压入异步队列。
+- **后台写入**: `ResultDatabase` 启动一个后台 Worker 协程，负责从队列取出数据并批量写入 SQLite，彻底解耦计算与 IO。
 
 ---
 *版本: v1.0.0*
