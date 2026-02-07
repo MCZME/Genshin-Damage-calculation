@@ -159,6 +159,11 @@ class Character(CombatEntity, ABC):
     def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
         mapping = {"normal_attack":"normal", "elemental_skill":"skill", "elemental_burst":"burst", "charged_attack":"charged", "plunging_attack":"plunging"}
         skill_obj = self.skills.get(mapping.get(name))
+        
+        # 核心变动：如果技能对象支持 to_action_data，则调用它并传入 params
+        if skill_obj and hasattr(skill_obj, "to_action_data"):
+            return skill_obj.to_action_data(params)
+            
         total_frames = 60
         if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
         data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
