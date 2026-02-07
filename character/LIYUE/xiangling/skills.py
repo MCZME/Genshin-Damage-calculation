@@ -9,7 +9,6 @@ from character.LIYUE.xiangling.entities import GuobaEntity, PyronadoEntity
 class NormalAttack(NormalAttackSkill):
     def __init__(self, lv: int):
         super().__init__(lv=lv)
-        # 完整的 5 段普攻倍率
         self.damage_multiplier = {
             1: [42.05, 45.48, 48.9, 53.79, 57.21, 61.12, 66.5, 71.88, 77.26, 83.13, 89.85, 97.76, 105.67, 113.58, 122.2],
             2: [42.14, 45.57, 49, 53.9, 57.33, 61.25, 66.64, 72.03, 77.42, 83.3, 90.04, 97.96, 105.88, 113.81, 122.45],
@@ -22,16 +21,14 @@ class NormalAttack(NormalAttackSkill):
     def on_execute_hit(self, target: Any, hit_index: int):
         segment = hit_index + 1
         multiplier = self.damage_multiplier[segment][self.lv - 1]
-        
         damage = Damage(
             damage_multiplier=multiplier,
             element=(Element.PHYSICAL, 0),
             damage_type=DamageType.NORMAL,
             name=f"普攻 第{segment}段",
-            aoe_shape='CIRCLE',
+            aoe_shape='CYLINDER',
             radius=0.5
         )
-        # 通过施法者的上下文向场景广播
         self.caster.ctx.space.broadcast_damage(self.caster, damage)
 
 class ElementalSkill(SkillBase):
@@ -40,7 +37,6 @@ class ElementalSkill(SkillBase):
         self.summon_frame = 40
 
     def to_action_data(self, params: Any = None) -> ActionFrameData:
-        """支持参数化导出，虽然香菱暂无长按逻辑"""
         data = ActionFrameData(name="E_SUMMON", total_frames=45, hit_frames=[self.summon_frame])
         setattr(data, "runtime_skill_obj", self)
         return data
@@ -53,7 +49,7 @@ class ElementalSkill(SkillBase):
 class ElementalBurst(EnergySkill):
     def __init__(self, lv: int, caster: Any):
         super().__init__("旋火轮", 80, 20 * 60, lv, (Element.PYRO, 1), caster=caster)
-        self.swing_frames = [18, 33, 56] # 三段挥舞伤害帧
+        self.swing_frames = [18, 33, 56]
         self.swing_multipliers = {
             1: [72, 77.4, 82.8, 90, 95.4, 100.8, 108, 115.2, 122.4, 129.6, 136.8, 144, 153, 162, 171],
             2: [88, 94.6, 101.2, 110, 116.6, 123.2, 132, 140.8, 149.6, 158.4, 167.2, 176, 187, 198, 209],
@@ -66,16 +62,14 @@ class ElementalBurst(EnergySkill):
         return data
 
     def on_execute_hit(self, target: Any, hit_index: int):
-        # 处理挥舞伤害 (1-3段)
         segment = hit_index + 1
         multiplier = self.swing_multipliers[segment][self.lv - 1]
-        
         damage = Damage(
             damage_multiplier=multiplier,
-            element=(Element.PYRO, 2.0), # 大招挥舞是强火
+            element=(Element.PYRO, 2.0),
             damage_type=DamageType.BURST,
             name=f"旋火轮 挥舞第{segment}段",
-            aoe_shape='CIRCLE',
+            aoe_shape='CYLINDER',
             radius=3.0
         )
         self.caster.ctx.space.broadcast_damage(self.caster, damage)
