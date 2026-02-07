@@ -65,14 +65,17 @@ class BaseEntity:
 class CombatEntity(BaseEntity):
     """
     战斗实体类。
-    所有可参与伤害计算与元素反应的物体均继承此类。
+    碰撞模型：圆柱体 (Cylinder)
+    - 水平坐标: (pos[0], pos[1]) 即 (X, Z)
+    - 垂直底部: pos[2] 即 Y
+    - 几何尺寸: hitbox (半径, 高度)
     """
     def __init__(self, 
                  name: str, 
                  faction: Faction = Faction.ENEMY,
                  pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
                  facing: float = 0.0,
-                 hitbox_radius: float = 0.5, # 默认碰撞半径
+                 hitbox: Tuple[float, float] = (0.5, 2.0), # (半径, 高度)
                  life_frame: float = float("inf"), 
                  context: Optional[Any] = None):
         super().__init__(name, life_frame, context)
@@ -80,7 +83,7 @@ class CombatEntity(BaseEntity):
         self.faction = faction
         self.pos = list(pos)
         self.facing = facing
-        self.hitbox_radius = hitbox_radius
+        self.hitbox = hitbox
         
         # 物理模拟组件
         self.aura = AuraManager()

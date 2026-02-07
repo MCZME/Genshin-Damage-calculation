@@ -34,7 +34,7 @@ class Character(CombatEntity, ABC):
             name=name,
             faction=Faction.PLAYER,
             pos=pos,
-            hitbox_radius=0.3
+            hitbox=(0.3, 1.8) # 角色默认半径 0.3m，高度 1.8m
         )
 
         self.id = id

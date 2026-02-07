@@ -5,7 +5,7 @@ from core.entities.base_entity import CombatEntity, Faction, EntityState
 class CombatSpace:
     """
     战场空间管理器。
-    负责实体的注册、空间检索、伤害广播以及生命周期驱动。
+    支持圆柱体 (Cylinder) 碰撞箱模型。
     """
     def __init__(self):
         self._entities: Dict[Faction, List[CombatEntity]] = {
@@ -30,7 +30,6 @@ class CombatSpace:
                     entity.update()
                 else:
                     self.unregister(entity)
-        
         if self._remove_queue:
             for entity in self._remove_queue:
                 if entity in self._entities[entity.faction]:
@@ -38,26 +37,21 @@ class CombatSpace:
             self._remove_queue.clear()
 
     # ---------------------------------------------------------
-    # 高级空间检索逻辑 (计入 hitbox_radius)
+    # 空间检索逻辑 (计入 hitbox 元组: (半径, 高度))
     # ---------------------------------------------------------
 
     def get_entities_in_range(self, 
                              origin: Tuple[float, float], 
                              radius: float, 
                              faction: Faction) -> List[CombatEntity]:
-        """
-        圆形 AOE vs 实体圆
-        判定：距离 <= 攻击半径 + 实体半径
-        """
+        """圆形 AOE vs 实体圆"""
         ox, oz = origin
         results = []
-        
         for e in self._entities[faction]:
             ex, ez = e.pos[0], e.pos[1]
             dist_sq = (ex - ox)**2 + (ez - oz)**2
-            
-            # 攻击的总有效半径
-            total_r = radius + e.hitbox_radius
+            # e.hitbox[0] 是半径
+            total_r = radius + e.hitbox[0]
             if dist_sq <= total_r * total_r:
                 results.append(e)
         return results
@@ -68,40 +62,22 @@ class CombatSpace:
                               facing: float,
                               fan_angle: float,
                               faction: Faction) -> List[CombatEntity]:
-        """
-        扇形 AOE vs 实体圆
-        判定：
-        1. 距离在 (攻击半径 + 实体半径) 内
-        2. 目标圆心角度在 (攻击角度区间 + 实体半径贡献的角度偏移) 内
-        """
+        """扇形 AOE vs 实体圆"""
         ox, oz = origin
         half_angle = fan_angle / 2
         results = []
-        
         for e in self._entities[faction]:
             ex, ez = e.pos[0], e.pos[1]
             dx, dz = ex - ox, ez - oz
             dist_sq = dx*dx + dz*dz
-            
-            # 1. 距离初筛
-            total_r = radius + e.hitbox_radius
-            if dist_sq > total_r * total_r:
-                continue
-                
-            # 距离过近直接命中
+            total_r = radius + e.hitbox[0]
+            if dist_sq > total_r * total_r: continue
             if dist_sq < 0.0001:
-                results.append(e)
-                continue
-            
-            # 2. 角度判定
+                results.append(e); continue
             dist = math.sqrt(dist_sq)
             target_angle = math.degrees(math.atan2(dz, dx))
             angle_diff = abs((target_angle - facing + 180) % 360 - 180)
-            
-            # 计算由于实体体积产生的角度增量 (近似值)
-            # theta = arcsin(r / d)
-            angle_offset = math.degrees(math.asin(min(1.0, e.hitbox_radius / dist))) if dist > e.hitbox_radius else 90
-            
+            angle_offset = math.degrees(math.asin(min(1.0, e.hitbox[0] / dist))) if dist > e.hitbox[0] else 90
             if angle_diff <= half_angle + angle_offset:
                 results.append(e)
         return results
@@ -112,38 +88,22 @@ class CombatSpace:
                            width: float,
                            facing: float,
                            faction: Faction) -> List[CombatEntity]:
-        """
-        矩形 AOE vs 实体圆
-        判定：
-        将目标点转换到矩形本地坐标系，判定点(圆心)到矩形的距离是否小于等于实体的碰撞半径。
-        """
+        """矩形 AOE vs 实体圆"""
         ox, oz = origin
         rad = math.radians(-facing)
-        cos_f = math.cos(rad)
-        sin_f = math.sin(rad)
+        cos_f, sin_f = math.cos(rad), math.sin(rad)
         results = []
-        
         for e in self._entities[faction]:
             ex, ez = e.pos[0], e.pos[1]
             dx, dz = ex - ox, ez - oz
-            
-            # 转换到本地坐标系 (rx 为长度方向, rz 为宽度方向)
-            # 假设 origin 是矩形底部中心
             rx = dx * cos_f - dz * sin_f
             rz = dx * sin_f + dz * cos_f
-            
-            # 寻找点到矩形的最短距离 (Clamp 算法)
             closest_x = max(0, min(rx, length))
             closest_z = max(-width/2, min(rz, width/2))
-            
             dist_sq = (rx - closest_x)**2 + (rz - closest_z)**2
-            if dist_sq <= e.hitbox_radius * e.hitbox_radius:
+            if dist_sq <= e.hitbox[0] * e.hitbox[0]:
                 results.append(e)
         return results
-
-    # ---------------------------------------------------------
-    # 伤害广播与派发 (更新：处理偏移)
-    # ---------------------------------------------------------
 
     def broadcast_damage(self, attacker: CombatEntity, damage: Any):
         config = damage.data
@@ -151,8 +111,6 @@ class CombatSpace:
         radius = config.get('radius', 0.5)
         faction = config.get('target_faction', Faction.ENEMY)
         
-        # 处理位置偏移 (Position Offset)
-        # 假设 config['offset'] = (前进方向偏移, 侧向偏移)
         offset = config.get('offset', (0.0, 0.0))
         rad = math.radians(attacker.facing)
         ox = attacker.pos[0] + offset[0] * math.cos(rad) - offset[1] * math.sin(rad)
