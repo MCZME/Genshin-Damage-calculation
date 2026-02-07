@@ -202,3 +202,17 @@ class Character(CombatEntity, ABC):
 
     def to_dict(self) -> Dict[str, Any]:
         return {"id": self.id, "name": self.name, "level": self.level, "constellation": self.constellation_level}
+
+    def export_state(self) -> dict:
+        """导出角色特有状态"""
+
+        base = super().export_state()
+        base.update({
+            "level": self.level,
+            "constellation": self.constellation_level,
+            "on_field": self.on_field,
+            "energy": self.elemental_energy.current_energy if self.elemental_energy else 0,
+            "hp": round(self.current_hp, 1)
+        })
+
+        return base

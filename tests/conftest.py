@@ -64,6 +64,17 @@ class MockAttributeEntity:
             damage.reaction_results.extend(results)
         return results
 
+    def export_state(self) -> dict:
+        """Mock 协议导出"""
+        return {
+            "name": self.name,
+            "level": self.level,
+            "faction": self.faction.name,
+            "pos": self.pos,
+            "attributes": self.attribute_panel.copy(),
+            "auras": self.aura.export_state()
+        }
+
 @pytest.fixture
 def source_entity():
     return MockAttributeEntity()
