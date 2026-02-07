@@ -37,7 +37,7 @@ class Damage:
 
         # 3. 运行状态
         self.damage: float = 0.0
-        self.base_value: Union[str, Tuple[str, str]] = '攻击力'
+        self.scaling_stat: Union[str, Tuple[str, str]] = '攻击力'
         self.panel: Dict[str, Any] = {}
         self.data: Dict[str, Any] = kwargs
         
@@ -53,8 +53,8 @@ class Damage:
     def set_target(self, target):
         self.target = target
 
-    def set_base_value(self, base_value):
-        self.base_value = base_value
+    def set_scaling_stat(self, scaling_stat):
+        self.scaling_stat = scaling_stat
 
     def add_data(self, key: str, value: Any):
         self.data[key] = value

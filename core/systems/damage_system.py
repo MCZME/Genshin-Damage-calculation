@@ -204,8 +204,8 @@ class DamagePipeline:
     def _get_base_value(self, ctx: DamageContext) -> float:
         d = ctx.damage
         if isinstance(d.damage_multiplier, list):
-            return sum(ctx.stats.get(d.base_value, 0) * (m/100) for m in d.damage_multiplier)
-        return ctx.stats.get(d.base_value, 0) * (d.damage_multiplier / 100)
+            return sum(ctx.stats.get(d.scaling_stat, 0) * (m/100) for m in d.damage_multiplier)
+        return ctx.stats.get(d.scaling_stat, 0) * (d.damage_multiplier / 100)
 
     def _get_crit_mult(self, ctx: DamageContext) -> float:
         if Config.get('emulation.open_critical'):

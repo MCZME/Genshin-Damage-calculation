@@ -16,7 +16,7 @@ class Healing:
         self.base_multiplier = base_multiplier   # 基础倍率
         self.healing_type = healing_type         # 治疗类型
         self.final_value: float = 0              # 最终治疗量
-        self.base_value: str = '攻击力'
+        self.scaling_stat: str = '攻击力'
         self.name = name
         self.multiplier_provider = multiplier_provider # '来源' 或 '目标'
 
@@ -28,3 +28,6 @@ class Healing:
 
     def set_target(self, target: 'BaseEntity'):
         self.target = target
+
+    def set_scaling_stat(self, scaling_stat: str):
+        self.scaling_stat = scaling_stat

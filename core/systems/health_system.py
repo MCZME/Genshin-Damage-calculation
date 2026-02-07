@@ -96,7 +96,7 @@ class HealthSystem(GameSystem):
             healing=event.data['healing']
         )
         
-        base_value = event.data['healing'].base_value
+        scaling_stat = event.data['healing'].scaling_stat
         if base_value == '攻击力':
             calculation.calculate_by_attack()
         elif base_value == '生命值':
