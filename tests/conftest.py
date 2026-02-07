@@ -1,122 +1,77 @@
 import pytest
+from typing import Any
 from core.context import EventEngine
-from core.config import Config
-from core.action.damage import Damage, DamageType
-from core.systems.damage_system import DamageSystem, DamageContext
-
-# -----------------------------------------------------------------------------
-# 基础 Mock 对象
-# -----------------------------------------------------------------------------
-
-@pytest.fixture(scope="session", autouse=True)
-def init_config():
-    """初始化全局配置单例 (自动运行)"""
-    # 尝试加载真实配置，如果不存在则注入 Mock 基础结构
-    try:
-        Config()
-    except Exception:
-        Config.config = {
-            'emulation': {
-                'open_critical': True
-            }
-        }
-
-from core.mechanics.aura import AuraManager, Element
+from core.mechanics.aura import AuraManager
+from core.mechanics.icd import ICDManager
+from core.entities.base_entity import Faction
 
 class MockAttributeEntity:
-    """模拟拥有属性面板的实体 (角色/怪物)"""
-    def __init__(self, name="TestEntity", level=90, element='火'):
-        self.name = name
-        self.level = level
-        self.element = element
-        self.on_field = True
-        self.attributePanel = {
+    """标准属性 Mock 对象，对齐 V2 架构变量名"""
+    def __init__(self):
+        self.name = "MockEntity"
+        self.faction = Faction.PLAYER
+        self.level = 90
+        self.facing = 0.0
+        self.attribute_panel = {
             '攻击力': 1000.0,
             '固定攻击力': 0.0,
             '攻击力%': 0.0,
             '生命值': 10000.0,
             '固定生命值': 0.0,
             '生命值%': 0.0,
-            '防御力': 500.0,
+            '防御力': 800.0,
             '固定防御力': 0.0,
             '防御力%': 0.0,
-            '元素精通': 0.0,
-            '暴击率': 5.0,
-            '暴击伤害': 50.0,
-            '伤害加成': 0.0,
-            '元素充能效率': 100.0,
+            '元素精通': 100.0,
+            '暴击率': 50.0,
+            '暴击伤害': 100.0,
             '火元素伤害加成': 0.0,
             '水元素伤害加成': 0.0,
-            '物理伤害加成': 0.0
+            '草元素伤害加成': 0.0,
+            '雷元素伤害加成': 0.0,
+            '冰元素伤害加成': 0.0,
+            '伤害加成': 0.0,
+            '元素充能效率': 100.0
         }
-        
-        # 使用正式的 AuraManager
+        self.current_resistance = {k: 10.0 for k in ['火', '水', '雷', '草', '冰', '岩', '风', '物理']}
         self.aura = AuraManager()
-        
-        class EnergyInfo:
-            def __init__(self, element, max_energy):
-                self.elemental_energy = (element, max_energy)
-                self.current_energy = 0.0
-        self.elemental_energy = EnergyInfo(element, 80.0)
-        
+        self.icd_manager = ICDManager(self)
         self.active_effects = []
-        self.defense = 500.0
-        self.current_resistance = {}
+        self.on_field = True
+        self.pos = [0.0, 0.0, 0.0]
+        self.hitbox = (0.5, 2.0)
 
-    def apply_elemental_aura(self, damage):
-        # 模拟 Target.apply_elemental_aura
-        atk_el, u_val = damage.element
-        return self.aura.apply_element(atk_el, float(u_val))
+    @property
+    def defense(self):
+        return self.attribute_panel['防御力']
 
-    def update(self):
-        """模拟时间推移"""
-        self.aura.update(1/60)
-        # 更新 active_effects
-        for eff in self.active_effects[:]:
-            if hasattr(eff, 'update'):
-                eff.update()
-            if not getattr(eff, 'is_active', True):
-                self.active_effects.remove(eff)
+    def handle_damage(self, damage: Any) -> None:
+        """Mock 伤害处理，建立引用并触发附着逻辑"""
+        damage.set_target(self)
+        self.apply_elemental_aura(damage)
 
-# -----------------------------------------------------------------------------
-# Pytest Fixtures
-# -----------------------------------------------------------------------------
-
-@pytest.fixture
-def event_engine():
-    """提供一个干净的事件引擎"""
-    return EventEngine()
-
-@pytest.fixture
-def damage_system(event_engine):
-    """提供已初始化的伤害系统"""
-    sys = DamageSystem()
-    # 模拟 Context 初始化
-    class MockContext:
-        pass
-    ctx = MockContext()
-    ctx.event_engine = event_engine
-    ctx.team = None
-    
-    sys.initialize(ctx)
-    return sys
+    def apply_elemental_aura(self, damage: Any) -> list:
+        # 1. 检查 ICD
+        tag = getattr(damage.config, 'icd_tag', 'Default')
+        multiplier = self.icd_manager.check_attachment(damage.source, tag)
+        if multiplier <= 0: return []
+        
+        # 2. 调用 AuraManager
+        results = self.aura.apply_element(damage.element[0], damage.element[1] * multiplier)
+        
+        # 3. 同步结果 (重要：确保结果回到 damage 对象)
+        if hasattr(damage, "reaction_results"):
+            damage.reaction_results.extend(results)
+        return results
 
 @pytest.fixture
 def source_entity():
-    """标准测试攻击者 (Lv90, 1000 ATK)"""
-    return MockAttributeEntity("Attacker", level=90)
+    return MockAttributeEntity()
 
 @pytest.fixture
 def target_entity():
-    """标准测试受击者 (Lv90, 500 DEF, 10% Res)"""
-    t = MockAttributeEntity("Target", level=90)
-    t.current_resistance = {'通用': 10.0, '火': 10.0, '物理': 10.0}
-    return t
+    return MockAttributeEntity()
 
 @pytest.fixture
-def create_damage_context(event_engine):
-    """工厂 fixture: 快速创建 DamageContext"""
-    def _create(source, target, element='火', value=100.0, damage_type=DamageType.NORMAL):
-        dmg = Damage(value, (element, 1), damage_type, "TestDamage")
-        return DamageContext(dmg, source, target)
-    return _create
+def event_engine():
+    return EventEngine()

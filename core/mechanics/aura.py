@@ -1,7 +1,6 @@
 from enum import Enum
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Tuple, Any
-import math
+from dataclasses import dataclass
+from typing import List, Optional
 
 from core.action.reaction import (
     ElementalReactionType, 
@@ -237,9 +236,12 @@ class AuraManager:
         h = next((a for a in self.auras if a.element == Element.HYDRO), None)
         e = next((a for a in self.auras if a.element == Element.ELECTRO), None)
         if h and e:
-            h.consume(0.4); e.consume(0.4)
-            if h.current_gauge <= 0: self.auras.remove(h)
-            if e.current_gauge <= 0: self.auras.remove(e)
+            h.consume(0.4)
+            e.consume(0.4)
+            if h.current_gauge <= 0:
+                self.auras.remove(h)
+            if e.current_gauge <= 0:
+                self.auras.remove(e)
         self.is_electro_charged = (h is not None and e is not None and h.current_gauge > 0 and e.current_gauge > 0)
 
     def _apply_burning_tick(self, dt: float):

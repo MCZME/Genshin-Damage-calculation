@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from typing import Any, Optional, Tuple, List
 from core.context import get_context
-from core.mechanics.aura import AuraManager, Element
+from core.mechanics.aura import AuraManager
 from core.mechanics.icd import ICDManager
 
 class EntityState(Enum):

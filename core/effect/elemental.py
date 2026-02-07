@@ -1,6 +1,5 @@
 from typing import Any
 from core.effect.base import BaseEffect
-from core.event import DamageEvent, EventType
 from core.tool import GetCurrentTime
 from core.action.damage import Damage, DamageType
 from core.mechanics.aura import Element

@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from core.tool import GetCurrentTime
 
 @dataclass
@@ -91,7 +91,8 @@ class ICDManager:
 
     def _get_coefficient(self, group: ICDGroup, index: int) -> int:
         """从序列中获取系数，支持循环或末位保持"""
-        if not group.sequence: return 1
+        if not group.sequence:
+            return 1
         
         # 逻辑: 大于序列长度时，循环读取? 还是保持末位?
         # 文档: "大于序列上限的攻击都使用序列最末尾的系数" -> ❌ 这通常是针对特殊序列

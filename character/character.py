@@ -8,9 +8,7 @@ from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
 from core.event import (
     ActionEvent,
-    EventBus,
     EventType,
-    HealthChangeEvent,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
 

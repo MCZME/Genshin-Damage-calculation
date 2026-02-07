@@ -1,18 +1,19 @@
 import pytest
 from core.context import create_context
-from core.team import Team
 from core.entities.base_entity import Faction, CombatEntity
 from core.action.damage import Damage, DamageType
 from core.action.action_data import AttackConfig, HitboxConfig, AOEShape
 from core.mechanics.aura import Element
 from core.entities.elemental_entities import DendroCoreEntity
 from core.systems.damage_system import DamageContext
+from core.mechanics.icd import ICDManager
 
 class MockCharacter(CombatEntity):
     def __init__(self, name, element):
         super().__init__(name, Faction.PLAYER)
         self.element = element
         self.level = 90
+        self.icd_manager = ICDManager(self)
         # 初始化基础属性
         self.attribute_panel = {
             "攻击力": 2000,
@@ -20,7 +21,8 @@ class MockCharacter(CombatEntity):
             "火元素伤害加成": 0,
             "草元素伤害加成": 0,
             "暴击率": 50,
-            "暴击伤害": 100
+            "暴击伤害": 100,
+            "防御力": 800
         }
 
     def handle_damage(self, damage): pass
@@ -29,20 +31,28 @@ class MockEnemy(CombatEntity):
     def __init__(self, name):
         super().__init__(name, Faction.ENEMY)
         self.level = 90
+        self.icd_manager = ICDManager(self)
         self.attribute_panel = {
             "防御力": 500,
             "火元素抗性": 10,
             "草元素抗性": 10,
-            "水元素抗性": 10
+            "水元素抗性": 10,
+            "草元素伤害加成": 0 # 辅助计算
         }
 
     def handle_damage(self, damage):
         damage.set_target(self)
         self.apply_elemental_aura(damage)
 
+    def apply_elemental_aura(self, damage: Damage) -> list:
+        # 模拟真实的附着与结果同步逻辑
+        results = self.aura.apply_element(damage.element[0], damage.element[1])
+        damage.reaction_results.extend(results)
+        return results
+
 class TestDendroCoreLogic:
     """
-    草原核实体逻辑验证测试。
+    草原核实体 logic 验证测试。
     """
 
     @pytest.fixture
@@ -66,6 +76,7 @@ class TestDendroCoreLogic:
         
         # 1. 先给敌人挂水 (1.0U)
         hydro_dmg = Damage(0, (Element.HYDRO, 1.0), DamageType.SKILL, "挂水")
+        hydro_dmg.set_source(player)
         enemy.handle_damage(hydro_dmg)
         assert any(a.element == Element.HYDRO for a in enemy.aura.auras)
         

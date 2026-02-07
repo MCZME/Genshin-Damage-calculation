@@ -1,4 +1,3 @@
-from typing import Any
 from core.effect.common import TalentEffect, ConstellationEffect
 
 class Talent_1(TalentEffect):

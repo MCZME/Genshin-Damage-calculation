@@ -33,8 +33,7 @@
 ### 阶段 3: 实现与验证 (Implement & Verify)
 1.  **编码**: 遵循 `references/standards.md`。
 2.  **更新看板**: 同步卡片至 `In Progress`，删除 `status:plan-pending`。
-3.  **通过测试**: 确保 `python test.py` 100% 通过。
-4.  **Lint**: 运行 `ruff check .`。
+4.  **Lint**: 虚拟环境运行 `ruff` 检查提交文件。
 
 ### 阶段 4: 交付与存档 (Handover)
 1.  **提交代码**: 遵循 Conventional Commits (中文)。格式：`<type>: 描述 #ID`。

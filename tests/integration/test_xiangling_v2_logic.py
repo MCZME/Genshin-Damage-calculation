@@ -4,7 +4,6 @@ from core.team import Team
 from character.LIYUE.xiangling import XIANG_LING
 from core.entities.base_entity import Faction, CombatEntity
 from core.action.damage import Damage, DamageType
-from core.event import GameEvent, EventType
 from core.mechanics.aura import Element
 
 class MockTarget(CombatEntity):
@@ -78,7 +77,6 @@ class TestXianglingV2Logic:
         # 模拟 4 次普攻命中 (使用相同的 icd_tag="NormalAttack")
         # 我们直接构造 Damage 对象调用 apply_elemental_aura，跳过动作系统以简化测试
         from core.action.action_data import AttackConfig
-        from core.mechanics.icd import ICD_GROUPS
         
         # 确保使用 Default 组别
         config = AttackConfig(icd_tag="Default", element_u=1.0)

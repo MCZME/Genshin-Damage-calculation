@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
 class ReactionCategory(Enum):
     """反应类别，决定了系统如何应用该反应"""

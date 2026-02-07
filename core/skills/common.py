@@ -7,7 +7,6 @@ from core.event import (
     DamageEvent,
     EventType,
 )
-from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
 
 
