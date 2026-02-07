@@ -39,7 +39,6 @@
 ### 阶段 4: 交付与存档 (Handover)
 1.  **提交代码**: 遵循 Conventional Commits (中文)。格式：`<type>: 描述 #ID`。
 2.  **开启 PR**: 开启指向 `main` 的 PR，添加 `status:implemented`。
-3.  **存档**: **必须**更新 `.gemini/CURRENT_STATE.md`。
 
 ## 3. 分支与提交规范
 
@@ -52,7 +51,6 @@
 - **Type 推荐**: `feat`, `fix`, `refactor`, `perf`, `docs`, `chore`, `test`。
 
 ## 4. 环境与工具命令
-- **测试入口**: `python test.py`
 - **运行入口**: `python main.py`
 - **上下文获取**: `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
 - **看板同步**: `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> <Column>`
