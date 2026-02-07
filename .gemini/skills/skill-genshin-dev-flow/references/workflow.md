@@ -10,7 +10,6 @@
 *   **关注重点**: 
     - 当前 Git 分支与未提交更改。
     - 关联 Issue 的编号及当前状态标签。
-    - `.gemini/CURRENT_STATE.md` 中的“存档”信息。
 
 ## 2. Issue 开发 SOP (Standard Operating Procedure)
 
