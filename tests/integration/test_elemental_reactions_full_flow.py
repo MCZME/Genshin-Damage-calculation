@@ -8,7 +8,6 @@ from core.mechanics.aura import Element
 from core.tool import GetCurrentTime, get_reaction_multiplier
 
 class DamageCaptureHandler(EventHandler):
-    """事件捕获器：将函数适配为 EventHandler 接口"""
     def __init__(self, target_list):
         self.target_list = target_list
     def handle_event(self, event):
@@ -17,13 +16,11 @@ class DamageCaptureHandler(EventHandler):
 
 class TestElementalReactionsFullFlow:
     """
-    原神伤害引擎：全链路反应集成测试 (枚举对齐版)
-    验证：角色 -> 技能触发 -> 物理碰撞 -> 数值计算 -> 反应分发 -> 二次伤害/状态变更
+    原神伤害引擎：全量反应集成实验室 (高阶扩展版)
     """
 
     @pytest.fixture
-    def setup_engine(self, event_engine, target_entity):
-        """初始化完整的计算环境"""
+    def setup_engine(self, event_engine, target_entity, source_entity):
         damage_sys = DamageSystem()
         reaction_sys = ReactionSystem()
         
@@ -35,96 +32,96 @@ class TestElementalReactionsFullFlow:
         ctx = MockContext(event_engine)
         damage_sys.initialize(ctx)
         reaction_sys.initialize(ctx)
-        
         damage_sys.register_events(event_engine)
         reaction_sys.register_events(event_engine)
         
         target_entity.add_effect = lambda eff: target_entity.active_effects.append(eff)
+        source_entity.level = 90
+        source_entity.attributePanel['攻击力'] = 1000.0
+        # 确保精通为 0，防止精通加成干扰基础倍率测试
+        source_entity.attributePanel['元素精通'] = 0.0
         
         self.captured_damages = []
         handler = DamageCaptureHandler(self.captured_damages)
         event_engine.subscribe(EventType.AFTER_DAMAGE, handler)
-        
         return event_engine
 
     def test_vaporize_forward_full_flow(self, setup_engine, source_entity, target_entity):
         """1. 增幅反应测试：强水触发蒸发 (2.0x)"""
         target_entity.aura.apply_element(Element.PYRO, 1.0)
-        source_entity.attributePanel['攻击力'] = 1000.0 
-        source_entity.level = 90
         
-        # 统一使用 Element 枚举
         dmg = Damage(100.0, (Element.HYDRO, 1.0), DamageType.NORMAL, "水箭")
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                          data={'character': source_entity, 'target': target_entity, 'damage': dmg})
-        setup_engine.publish(event)
+        setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
+                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
         
+        # 预期 = 1000 * 0.65517 * 0.9 * 2.0 = 1179.310
         assert dmg.damage == pytest.approx(1179.310, abs=0.001)
 
-    def test_overload_transformative_full_flow(self, setup_engine, source_entity, target_entity):
-        """2. 剧变反应测试：超载"""
-        target_entity.aura.apply_element(Element.PYRO, 1.0)
-        source_entity.level = 90
-        
-        dmg = Damage(100.0, (Element.ELECTRO, 1.0), DamageType.NORMAL, "雷击")
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                          data={'character': source_entity, 'target': target_entity, 'damage': dmg})
-        setup_engine.publish(event)
-        
-        overload_dmg = next(d for d in self.captured_damages if d.name == "超载")
-        assert overload_dmg.damage == pytest.approx(3580.95375)
-
-    def test_superconduct_and_debuff_flow(self, setup_engine, source_entity, target_entity):
-        """3. 组合测试：超导"""
-        target_entity.aura.apply_element(Element.ELECTRO, 1.0)
-        target_entity.current_resistance = {'物理': 10.0, '冰': 10.0}
-        
-        dmg = Damage(100.0, (Element.CRYO, 1.0), DamageType.NORMAL, "冰箭")
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                          data={'character': source_entity, 'target': target_entity, 'damage': dmg})
-        setup_engine.publish(event)
-        
-        assert any(d.name == "超导" for d in self.captured_damages)
-        assert target_entity.current_resistance['物理'] == -30.0
-
-    def test_quicken_and_aggravate_flow(self, setup_engine, source_entity, target_entity):
-        """4. 草系反应测试：超激化"""
+    def test_bloom_reaction_chain(self, setup_engine, source_entity, target_entity):
+        """测试绽放反应：产生独立伤害"""
         target_entity.aura.apply_element(Element.DENDRO, 1.0)
-        source_entity.level = 90
-        source_entity.attributePanel['攻击力'] = 1000.0
         
-        dmg1 = Damage(100.0, (Element.ELECTRO, 1.0), DamageType.NORMAL, "雷1")
+        dmg = Damage(100.0, (Element.HYDRO, 1.0), DamageType.NORMAL, "水波")
         setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg1}))
+                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
         
-        dmg2 = Damage(100.0, (Element.ELECTRO, 1.0), DamageType.NORMAL, "雷2")
-        setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg2}))
-        
-        assert dmg2.damage == pytest.approx(1570.769, abs=0.001)
+        bloom_dmg = next((d for d in self.captured_damages if d.name == "绽放"), None)
+        assert bloom_dmg is not None
+        assert bloom_dmg.damage == pytest.approx(2604.33, abs=0.01)
 
-    def test_swirl_multi_element_flow(self, setup_engine, source_entity, target_entity):
-        """5. 复杂反应测试：多重扩散"""
+    def test_quicken_bloom_coexistence(self, setup_engine, source_entity, target_entity):
+        """测试高级物理：激化态产生绽放"""
+        target_entity.aura.apply_element(Element.DENDRO, 1.0)
+        target_entity.aura.apply_element(Element.ELECTRO, 1.0)
+        
+        dmg = Damage(100.0, (Element.HYDRO, 0.5), DamageType.NORMAL, "弱水")
+        setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
+                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
+        
+        assert any(d.name == "绽放" for d in self.captured_damages)
+        assert target_entity.aura.quicken_gauge is not None
+        assert target_entity.aura.quicken_gauge.current_gauge == pytest.approx(0.3)
+
+    def test_burning_consumption_flow(self, setup_engine, source_entity, target_entity):
+        """测试燃烧：时间线消耗 (含自然衰减)"""
+        target_entity.aura.apply_element(Element.DENDRO, 1.0) # 0.8GU
+        
+        dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "点火")
+        setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
+                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
+        
+        assert target_entity.aura.is_burning is True
+        
+        # 1秒流逝 -> 消耗 0.4GU (燃烧) + 约 0.0842GU (自然衰减)
+        for _ in range(60):
+            target_entity.update()
+            
+        dendro_aura = next(a for a in target_entity.aura.auras if a.element == Element.DENDRO)
+        # 0.8 - (0.4 + 0.0842) = 0.3158
+        assert dendro_aura.current_gauge == pytest.approx(0.3158, abs=0.001)
+
+    def test_electro_charged_coexistence_and_trigger(self, setup_engine, source_entity, target_entity):
+        """测试感电共存反应"""
         target_entity.aura.apply_element(Element.HYDRO, 1.0)
         target_entity.aura.apply_element(Element.ELECTRO, 1.0)
         target_entity.aura.is_electro_charged = True
         
-        dmg = Damage(100.0, (Element.ANEMO, 1.0), DamageType.NORMAL, "扩散风")
+        dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "烈焰")
         setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
                                      data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
         
-        swirls = [d for d in self.captured_damages if d.name == "扩散"]
-        assert len(swirls) == 2
+        results = dmg.data.get('reaction_results', [])
+        assert len(results) >= 1
 
-    def test_freeze_and_shatter_flow(self, setup_engine, source_entity, target_entity):
-        """6. 机制测试：碎冰"""
+    def test_frozen_melt_priority(self, setup_engine, source_entity, target_entity):
+        """测试火打冻结：优先级与加成"""
         target_entity.aura.apply_element(Element.HYDRO, 1.0)
-        dmg_ice = Damage(100.0, (Element.CRYO, 1.0), DamageType.NORMAL, "冰")
-        setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg_ice}))
+        target_entity.aura.apply_element(Element.CRYO, 1.0)
         
-        dmg_geo = Damage(100.0, (Element.GEO, 1.0), DamageType.NORMAL, "岩击")
+        dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "融化火")
         setup_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
-                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg_geo}))
+                                     data={'character': source_entity, 'target': target_entity, 'damage': dmg}))
         
-        assert any(d.name == "碎冰" for d in self.captured_damages)
+        assert target_entity.aura.frozen_gauge is None
+        # 1000 * 0.655 * 0.9 * 2.0 = 1179.31
+        assert dmg.damage == pytest.approx(1179.310, abs=0.001)

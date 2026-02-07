@@ -69,25 +69,3 @@ REACTION_CLASSIFICATION: Dict[ElementalReactionType, ReactionCategory] = {
     ElementalReactionType.CRYSTALLIZE: ReactionCategory.STATUS,
 }
 
-# ---------------------------------------------------------
-# 兼容层 (Legacy - 逐步移除)
-# ---------------------------------------------------------
-class ElementalReaction:
-    """
-    [已废弃] 仅保留作为旧代码的 DTO 映射。
-    建议后续完全切换至 ReactionResult。
-    """
-    def __init__(self, damage, source_element=None, target_element=None):
-        self.source = damage.source
-        self.damage = damage
-        self.target = damage.target
-        self.reaction_type = None
-        self.reaction_multiplier = None
-        self.lv_multiplier = None
-        self.source_element = source_element
-        self.target_element = target_element
-
-    def set_reaction(self, r_type, r_mult):
-        # 保持旧接口，内部映射到新的命名
-        self.reaction_type = r_type
-        self.reaction_multiplier = r_mult

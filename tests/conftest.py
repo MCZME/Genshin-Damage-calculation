@@ -65,13 +65,18 @@ class MockAttributeEntity:
 
     def apply_elemental_aura(self, damage):
         # 模拟 Target.apply_elemental_aura
-        element_str, u_val = damage.element
-        try:
-            from core.mechanics.aura import Element
-            atk_el = Element(element_str)
-            return self.aura.apply_element(atk_el, float(u_val))
-        except Exception:
-            return []
+        atk_el, u_val = damage.element
+        return self.aura.apply_element(atk_el, float(u_val))
+
+    def update(self):
+        """模拟时间推移"""
+        self.aura.update(1/60)
+        # 更新 active_effects
+        for eff in self.active_effects[:]:
+            if hasattr(eff, 'update'):
+                eff.update()
+            if not getattr(eff, 'is_active', True):
+                self.active_effects.remove(eff)
 
 # -----------------------------------------------------------------------------
 # Pytest Fixtures

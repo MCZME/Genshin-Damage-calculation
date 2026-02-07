@@ -211,7 +211,11 @@ class AuraManager:
             (Element.GEO, Element.CRYO): ElementalReactionType.CRYSTALLIZE,
             (Element.GEO, Element.ELECTRO): ElementalReactionType.CRYSTALLIZE,
         }
-        return table.get((atk, target), table.get((target, atk), ElementalReactionType.VAPORIZE))
+        # 显式查找
+        if (atk, target) in table: return table[(atk, target)]
+        # 尝试反向查找 (部分共存反应对称)
+        if (target, atk) in table: return table[(target, atk)]
+        return ElementalReactionType.VAPORIZE
 
     def _get_tax(self, attack: Element, target: Element) -> float:
         if attack in [Element.ANEMO, Element.GEO] and target == Element.QUICKEN: return 0.0
@@ -260,10 +264,13 @@ class AuraManager:
             self.auras.append(new_a)
 
     def _get_mult(self, a, b):
-        if (a, b) == (Element.HYDRO, Element.PYRO): return 2.0
-        if (a, b) == (Element.PYRO, Element.HYDRO): return 1.5
-        if (a, b) == (Element.PYRO, Element.CRYO): return 2.0
-        if (a, b) == (Element.CRYO, Element.PYRO): return 1.5
+        # 支持特殊状态 (FROZEN 视同 CRYO)
+        target = Element.CRYO if b == Element.FROZEN else b
+        
+        if (a, target) == (Element.HYDRO, Element.PYRO): return 2.0
+        if (a, target) == (Element.PYRO, Element.HYDRO): return 1.5
+        if (a, target) == (Element.PYRO, Element.CRYO): return 2.0
+        if (a, target) == (Element.CRYO, Element.PYRO): return 1.5
         return 1.0
 
     def _check_combo(self, atk, el1, el2):
