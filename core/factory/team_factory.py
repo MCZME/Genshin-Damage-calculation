@@ -29,42 +29,55 @@ class TeamFactory:
         return Team(characters)
 
     def _build_character(self, data: Dict[str, Any]) -> Any:
-        char_config = data["character"]
-        talents = char_config["talents"].split("/")
-        char_id = char_config["id"]
-        level = char_config["level"]
+        # 1. 支持 UI 嵌套结构: { "character": {...}, "weapon": {...}, "artifacts": {...} }
+        # 若无嵌套则回退到 data 本身
+        char_config = data.get("character", data)
         
-        # 1. 从仓库获取基础属性数据并注入
+        # 2. 解析天赋 (支持 "10/10/10" 或 [10, 10, 10])
+        raw_talents = char_config.get("talents", [1, 1, 1])
+        if isinstance(raw_talents, str):
+            skill_params = [int(t) for t in raw_talents.split("/")]
+        else:
+            skill_params = [int(t) for t in raw_talents]
+            
+        char_id = char_config.get("id")
+        level = char_config.get("level", 90)
+        
+        # 3. 从仓库获取基础属性数据并注入
         base_stats = self.repository.get_character_base_stats(char_id, level)
         char_name = base_stats.get("name")
         
-        # 2. 实例化角色类
+        # 4. 实例化角色类
         if char_name not in CharacterClassMap:
             get_emulation_logger().log_error(f"未找到角色 {char_name} (ID: {char_id}) 的实现类")
             return None
             
         character = CharacterClassMap[char_name](
             level=level,
-            skill_params=[int(t) for t in talents],
+            skill_params=skill_params,
             constellation=char_config.get("constellation", 0),
             base_data=base_stats
         )
 
-        # 3. 组装武器
-        if data.get("weapon"):
-            self._apply_weapon(character, data["weapon"])
+        # 5. 组装武器 (支持从外层或嵌套层获取)
+        weapon_data = data.get("weapon")
+        if weapon_data:
+            self._apply_weapon(character, weapon_data)
 
-        # 4. 组装圣遗物
-        if data.get("artifacts"):
-            self._apply_artifacts(character, data["artifacts"])
+        # 6. 组装圣遗物 (支持从外层或嵌套层获取)
+        artifacts_data = data.get("artifacts")
+        if artifacts_data:
+            self._apply_artifacts(character, artifacts_data)
 
         return character
 
     def _apply_weapon(self, character: Any, weapon_data: Dict[str, Any]):
-        weapon_name = weapon_data["name"]
+        weapon_name = weapon_data.get("name")
+        if not weapon_name:
+            return
+
         if weapon_name in WeaponClassMap:
-            # 同样获取武器的基础属性数据
-            level = weapon_data["level"]
+            level = weapon_data.get("level", 90)
             weapon_base_stats = self.repository.get_weapon_base_stats(weapon_name, level)
             
             weapon_class = WeaponClassMap[weapon_name]
@@ -78,17 +91,23 @@ class TeamFactory:
         else:
             get_emulation_logger().log_error(f"未找到武器 {weapon_name} 的实现类")
 
-    def _apply_artifacts(self, character: Any, artifacts_data: List[Dict[str, Any]]):
+    def _apply_artifacts(self, character: Any, artifacts_data: Any):
+        # 支持字典 (槽位名:数据) 或 列表 格式
+        if isinstance(artifacts_data, dict):
+            artifacts_list = list(artifacts_data.values())
+        else:
+            artifacts_list = artifacts_data
+
         artifacts = []
-        for arti_data in artifacts_data:
-            if not arti_data.get("main_stat"):
+        for arti_data in artifacts_list:
+            if not arti_data or not arti_data.get("main_stat"):
                 continue
                 
             artifacts.append(Artifact(
-                name=arti_data["set_name"],
-                piece=self._map_piece(arti_data["slot"]),
-                main=arti_data["main_stat"],
-                sub=arti_data["sub_stats"]
+                name=arti_data.get("set_name", "None"),
+                piece=self._map_piece(arti_data.get("slot", "")),
+                main=arti_data.get("main_stat"),
+                sub=arti_data.get("sub_stats", [])
             ))
         
         if artifacts:
