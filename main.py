@@ -23,6 +23,7 @@ def index_page():
 # 导入页面 (触发路由注册)
 from ui.pages import config as _config_page
 from ui.pages import analysis as _analysis_page
+from ui.pages import prototype as _prototype_page
 
 if __name__ in {"__main__", "__mp_main__"}:
     init_all()
