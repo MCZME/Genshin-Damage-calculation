@@ -11,15 +11,16 @@ class GenshinTheme:
     ON_SURFACE = "#ECE5D8"
     SURFACE_VARIANT = "rgba(30, 41, 59, 0.7)"
     
-    # 动态元素色池
+    # 动态元素色池 (直接使用中文 Key)
     ELEMENTS = {
-        'Pyro':   {'primary': '#FF5C5C', 'container': '#4A1B1B'},
-        'Hydro':  {'primary': '#4FB7FF', 'container': '#1B324A'},
-        'Dendro': {'primary': '#A5C83B', 'container': '#2D3815'},
-        'Electro':{'primary': '#B283FF', 'container': '#321B4A'},
-        'Anemo':  {'primary': '#72E2C3', 'container': '#1B4A3E'},
-        'Cryo':   {'primary': '#A0E9FF', 'container': '#1B3E4A'},
-        'Geo':    {'primary': '#FFE070', 'container': '#4A3E1B'},
+        '火':   {'primary': '#FF5C5C', 'container': '#4A1B1B'},
+        '水':   {'primary': '#4FB7FF', 'container': '#1B324A'},
+        '草':   {'primary': '#A5C83B', 'container': '#2D3815'},
+        '雷':   {'primary': '#B283FF', 'container': '#321B4A'},
+        '风':   {'primary': '#72E2C3', 'container': '#1B4A3E'},
+        '冰':   {'primary': '#A0E9FF', 'container': '#1B3E4A'},
+        '岩':   {'primary': '#FFE070', 'container': '#4A3E1B'},
+        '物理': {'primary': '#94A3B8', 'container': '#1E293B'},
         'Neutral':{'primary': '#94A3B8', 'container': '#1E293B'}
     }
 

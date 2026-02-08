@@ -18,6 +18,21 @@ class DataRepository(ABC):
         pass
 
     @abstractmethod
+    def get_all_characters(self) -> List[Dict[str, Any]]:
+        """获取所有可用角色的简要信息 (ID, Name, Element, Type)"""
+        pass
+
+    @abstractmethod
+    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
+        """获取特定类型的所有武器名称"""
+        pass
+
+    @abstractmethod
+    def get_all_artifact_sets(self) -> List[str]:
+        """获取所有圣遗物套装名称"""
+        pass
+
+    @abstractmethod
     def query(self, sql: str, params: Optional[tuple] = None) -> List[Any]:
         """执行通用查询"""
         pass
@@ -30,22 +45,41 @@ class MySQLDataRepository(DataRepository):
         self.db = db_manager
         self.level_cols = ['1', '20', '40', '50', '60', '70', '80', '90']
 
+    def get_all_characters(self) -> List[Dict[str, Any]]:
+        """获取所有角色的 ID, Name, Element, Type"""
+        rows = self.db.execute_query("SELECT ID, Name, Element, Type FROM `character`")
+        return [
+            {"id": row[0], "name": row[1], "element": row[2], "type": row[3]}
+            for row in rows
+        ]
+
+    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
+        """获取特定类型的所有武器名称"""
+        rows = self.db.execute_query(f"SELECT Name FROM `weapon` WHERE Type = '{weapon_type}'")
+        return [row[0] for row in rows]
+
+    def get_all_artifact_sets(self) -> List[str]:
+        """从数据库获取所有圣遗物套装名称"""
+        try:
+            rows = self.db.execute_query("SELECT Name FROM `artifact` ORDER BY Name ASC")
+            return [row[0] for row in rows]
+        except Exception:
+            # 如果表不存在，返回空列表或 Mock 数据
+            return ["炽烈的炎之魔女", "沉沦之心", "翠绿之影", "深林的记忆", "绝缘之旗印", "角斗士的终幕礼"]
+
     def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
         idx = level_to_idx(level)
         col = self.level_cols[idx]
         
-        # 1. 获取基础信息
         char_info = self.db.execute_query(f"SELECT Name, Element, type FROM `character` WHERE ID = {character_id}")
         if not char_info:
             raise ValueError(f"Character ID {character_id} not found.")
         name, element, ctype = char_info[0]
 
-        # 2. 获取三围属性
         hp = self.db.execute_query(f"SELECT `{col}` FROM `basehp` WHERE ID = {character_id}")[0][0]
         atk = self.db.execute_query(f"SELECT `{col}` FROM `baseatk` WHERE ID = {character_id}")[0][0]
         df = self.db.execute_query(f"SELECT `{col}` FROM `basedef` WHERE ID = {character_id}")[0][0]
 
-        # 3. 获取突破属性
         breakthrough = self.db.execute_query(f"SELECT `{col}`, AttributeId FROM `breakthrough_attribute` WHERE ID = {character_id}")
         bt_val, bt_id = breakthrough[0]
         bt_name = attr_id_to_name(bt_id)
@@ -103,6 +137,15 @@ class MockDataRepository(DataRepository):
 
     def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
         return self.weapon_data.get(weapon_name, {})
+
+    def get_all_characters(self) -> List[Dict[str, Any]]:
+        return []
+
+    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
+        return []
+
+    def get_all_artifact_sets(self) -> List[str]:
+        return []
 
     def query(self, sql: str) -> List[Any]:
         return []

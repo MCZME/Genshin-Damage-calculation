@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from core.context import create_context, SimulationContext
 from core.factory.team_factory import TeamFactory
 from core.target import Target
@@ -30,14 +30,28 @@ class SimulationAssembler:
         
         # 2. 组装队伍 (TeamFactory 内部会自动将角色注册到 ctx.space)
         context_cfg = config.get("context_config", {})
-        team_cfg = context_cfg.get("team", [])
-        team = self.team_factory.create_team(team_cfg)
+        team_list_cfg = context_cfg.get("team", [])
+        
+        # 2.1 创建角色对象
+        team = self.team_factory.create_team(team_list_cfg)
         ctx.team = team
+
+        # 2.2 [NEW] 设置角色初始坐标
+        # 注意：TeamFactory 返回的是 Character 实例列表，需要与 config 对应
+        for idx, char_inst in enumerate(team):
+            if idx < len(team_list_cfg):
+                char_cfg = team_list_cfg[idx]
+                pos = char_cfg.get("position", {"x": 0, "y": 0, "z": 0})
+                char_inst.set_position(pos.get("x", 0), pos.get("z", 0))
 
         # 3. 组装受击目标 (Enemy)
         target_cfg_list = context_cfg.get("targets", [])
         for t_cfg in target_cfg_list:
             target = Target(t_cfg)
+            # [NEW] 设置目标初始坐标
+            pos = t_cfg.get("position", {"x": 0, "y": 0, "z": 0})
+            target.set_position(pos.get("x", 0), pos.get("z", 0))
+            
             # 手动注入到空间 (Target 默认是 Faction.ENEMY)
             ctx.space.register(target)
             ctx.target = target # 保持旧引用兼容性
