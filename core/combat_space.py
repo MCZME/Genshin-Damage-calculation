@@ -75,25 +75,29 @@ class CombatSpace:
     def broadcast_damage(self, attacker: CombatEntity, damage: Any, **kwargs):
         """
         根据 Damage 对象的 AttackConfig 发起广播。
-        kwargs 用于覆盖或在没有 config 时传递参数 (保持一定的兼容性)。
         """
         config = damage.config if hasattr(damage, "config") else None
         hb = config.hitbox if config else None
         
-        # 1. 提取参数 (优先从 AttackConfig 获取)
-        shape = kwargs.get('shape', hb.shape if hb else AOEShape.CIRCLE)
-        if isinstance(shape, str): shape = AOEShape[shape] if shape in AOEShape.__members__ else AOEShape.CYLINDER
+        # 1. 提取参数 (兼容直接从 data 字典获取)
+        data = damage.data
+        shape_name = kwargs.get('shape', data.get('aoe_shape', hb.shape.name if hb else 'CYLINDER'))
+        if isinstance(shape_name, str):
+            shape = AOEShape[shape_name] if shape_name in AOEShape.__members__ else AOEShape.CYLINDER
+        else:
+            shape = shape_name
+            
+        radius = kwargs.get('radius', data.get('radius', hb.radius if hb else 0.5))
+        offset = kwargs.get('offset', data.get('offset', hb.offset if hb else (0.0, 0.0, 0.0)))
         
-        radius = kwargs.get('radius', hb.radius if hb else 0.5)
-        offset = kwargs.get('offset', hb.offset if hb else (0.0, 0.0, 0.0))
-        
-        # 2. 计算阵营 (默认攻击敌人 + 中立实体)
+        # 2. 计算阵营
         target_factions = [Faction.ENEMY, Faction.NEUTRAL]
         if attacker.faction == Faction.ENEMY:
             target_factions = [Faction.PLAYER, Faction.NEUTRAL]
             
-        # 3. 计算坐标原点 (考虑偏移)
-        rad = math.radians(attacker.facing)
+        # 3. 计算坐标原点
+        facing = getattr(attacker, 'facing', 0.0)
+        rad = math.radians(facing)
         ox = attacker.pos[0] + offset[0] * math.cos(rad) - offset[1] * math.sin(rad)
         oz = attacker.pos[1] + offset[0] * math.sin(rad) + offset[1] * math.cos(rad)
         origin = (ox, oz)
@@ -104,20 +108,27 @@ class CombatSpace:
             if shape in [AOEShape.SPHERE, AOEShape.CYLINDER]:
                 targets.extend(self.get_entities_in_range(origin, radius, faction))
             elif shape == AOEShape.BOX:
-                length = kwargs.get('length', hb.length if hb else 2.0)
-                width = kwargs.get('width', hb.width if hb else 1.0)
-                targets.extend(self.get_entities_in_box(origin, length, width, attacker.facing, faction))
+                length = kwargs.get('length', data.get('length', hb.length if hb else 2.0))
+                width = kwargs.get('width', data.get('width', hb.width if hb else 1.0))
+                targets.extend(self.get_entities_in_box(origin, length, width, facing, faction))
             elif shape == AOEShape.SINGLE:
-                # 单体攻击逻辑：如果 damage 已经有 target，则直接使用；否则寻找最近目标
-                if damage.target:
+                # 兼容旧逻辑：如果 data 里有 radius，SINGLE 也可能走范围判定
+                if radius > 0:
+                    targets.extend(self.get_entities_in_range(origin, radius, faction))
+                elif damage.target:
                     targets.append(damage.target)
                 else:
                     closest = self._find_closest(origin, faction)
-                    if closest: targets.append(closest)
+                    if closest:
+                        targets.append(closest)
 
         # 5. 执行伤害结算
-        final_targets = self._apply_selection_strategy(targets, damage.data, origin)
+        final_targets = self._apply_selection_strategy(targets, data, origin)
         for t in final_targets:
+            # 关键：在这里建立 Damage 对象对 target 的引用
+            # 虽然可能有多目标，但在目前 Pipeline 中，我们通常只处理第一个命中的实体的反应
+            if not damage.target:
+                damage.set_target(t)
             t.handle_damage(damage)
 
     def _find_closest(self, origin: Tuple[float, float], faction: Faction) -> Optional[CombatEntity]:
@@ -132,8 +143,8 @@ class CombatSpace:
         return best_e
 
     def _apply_selection_strategy(self, targets: List[CombatEntity], data: Dict, origin: Tuple[float, float]) -> List[CombatEntity]:
-        if not targets: return []
-        # 简单的去重
+        if not targets:
+            return []
         targets = list(set(targets))
         select_way = data.get('selection_way', 'ALL')
         max_targets = data.get('max_targets', 999)

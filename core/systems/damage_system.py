@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 import random
 
 from core.systems.utils import AttributeCalculator
@@ -46,9 +46,14 @@ class DamagePipeline:
                                       source=ctx.source, data={"damage_context": ctx}))
         
         # 4. 空间广播与碰撞判定
-        self._dispatch_broadcast(ctx)
+        if not ctx.target:
+            self._dispatch_broadcast(ctx)
+        else:
+            # 如果已有 target，必须手动触发其伤害处理接口以执行 ICD 和元素反应
+            ctx.damage.set_target(ctx.target)
+            ctx.target.handle_damage(ctx.damage)
         
-        # 如果未命中任何目标，终止计算
+        # 如果最终未命中任何目标，终止计算
         if not ctx.damage.target:
             return
 
@@ -168,9 +173,12 @@ class DamagePipeline:
         el_name = ctx.damage.element[0].name
         res = ctx.target.attribute_panel.get(f"{el_name}元素抗性", 10.0)
         
-        if res > 75: ctx.stats["抗性区系数"] = 1 / (1 + 4 * res / 100)
-        elif res < 0: ctx.stats["抗性区系数"] = 1 - res / 2 / 100
-        else: ctx.stats["抗性区系数"] = 1 - res / 100
+        if res > 75:
+            ctx.stats["抗性区系数"] = 1 / (1 + 4 * res / 100)
+        elif res < 0:
+            ctx.stats["抗性区系数"] = 1 - res / 2 / 100
+        else:
+            ctx.stats["抗性区系数"] = 1 - res / 100
 
     def _calculate(self, ctx: DamageContext):
         s = ctx.stats
@@ -196,8 +204,8 @@ class DamagePipeline:
     def _get_base_value(self, ctx: DamageContext) -> float:
         d = ctx.damage
         if isinstance(d.damage_multiplier, list):
-            return sum(ctx.stats.get(d.base_value, 0) * (m/100) for m in d.damage_multiplier)
-        return ctx.stats.get(d.base_value, 0) * (d.damage_multiplier / 100)
+            return sum(ctx.stats.get(d.scaling_stat, 0) * (m/100) for m in d.damage_multiplier)
+        return ctx.stats.get(d.scaling_stat, 0) * (d.damage_multiplier / 100)
 
     def _get_crit_mult(self, ctx: DamageContext) -> float:
         if Config.get('emulation.open_critical'):

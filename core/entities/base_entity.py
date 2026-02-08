@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from typing import Any, Optional, Tuple, List
 from core.context import get_context
-from core.mechanics.aura import AuraManager, Element
+from core.mechanics.aura import AuraManager
 from core.mechanics.icd import ICDManager
 
 class EntityState(Enum):
@@ -64,6 +64,14 @@ class BaseEntity:
     def on_finish(self) -> None:
         pass
 
+    def export_state(self) -> dict:
+        """[协议] 导出基础状态"""
+        return {
+            "name": self.name,
+            "frame": self.current_frame,
+            "state": self.state.name
+        }
+
 class CombatEntity(BaseEntity):
     """
     战斗实体类。
@@ -89,6 +97,20 @@ class CombatEntity(BaseEntity):
         
         # ICD 管理器 (用于追踪该实体受到的附着冷却)
         self.icd_manager = ICDManager(self)
+
+    def export_state(self) -> dict:
+        """[协议] 导出战斗状态快照"""
+        base = super().export_state()
+        base.update({
+            "pos": [round(c, 2) for x in self.pos for c in (x,) if isinstance(x, (int, float))] if isinstance(self.pos, (list, tuple)) else list(self.pos),
+            "facing": round(self.facing, 2),
+            "faction": self.faction.name,
+            "attributes": self.attribute_panel.copy() if hasattr(self, 'attribute_panel') else {},
+            "auras": self.aura.export_state()
+        })
+        # 修正 pos 逻辑 (由于 self.pos 是 list[float])
+        base["pos"] = [round(x, 3) for x in self.pos]
+        return base
 
     def set_position(self, x: float, z: float, y: Optional[float] = None):
         self.pos[0] = x

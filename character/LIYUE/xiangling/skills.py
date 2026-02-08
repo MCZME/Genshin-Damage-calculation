@@ -4,6 +4,7 @@ from core.skills.common import NormalAttackSkill
 from core.action.damage import Damage, DamageType
 from core.action.action_data import ActionFrameData, AttackConfig
 from core.mechanics.aura import Element
+from core.event import GameEvent, EventType
 from character.LIYUE.xiangling.entities import GuobaEntity, PyronadoEntity
 
 class NormalAttack(NormalAttackSkill):
@@ -41,7 +42,7 @@ class ElementalSkill(SkillBase):
 
     def to_action_data(self, params: Any = None) -> ActionFrameData:
         data = ActionFrameData(name="E_SUMMON", total_frames=45, hit_frames=[self.summon_frame])
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_frame_update(self):
@@ -65,7 +66,7 @@ class ElementalBurst(EnergySkill):
         data = ActionFrameData(name="Q_CAST", total_frames=80, hit_frames=self.swing_frames)
         # 将配置透传给动作
         data.attack_config = self.burst_config
-        setattr(data, "runtime_skill_obj", self)
+        data.origin_skill = self
         return data
 
     def on_execute_hit(self, target: Any, hit_index: int):
@@ -80,7 +81,13 @@ class ElementalBurst(EnergySkill):
             radius=3.0,
             config=self.burst_config
         )
-        self.caster.ctx.space.broadcast_damage(self.caster, damage)
+        # V2 规范: 发布事件让 DamageSystem 接管
+        self.caster.event_engine.publish(GameEvent(
+            EventType.BEFORE_DAMAGE, 
+            self.caster.ctx.current_frame, 
+            source=self.caster, 
+            data={"character": self.caster, "damage": damage}
+        ))
 
     def on_frame_update(self):
         if self.current_frame == 56:

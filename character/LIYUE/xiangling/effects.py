@@ -1,5 +1,5 @@
 from typing import Dict
-from core.effect.BaseEffect import Effect, AttackBoostEffect
+from core.effect.BaseEffect import Effect
 
 class ChiliPepperEffect(Effect):
     """

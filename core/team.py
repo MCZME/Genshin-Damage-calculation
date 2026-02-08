@@ -1,6 +1,5 @@
 from typing import List, Optional, Dict, Any, Type
 from character.character import Character
-from core.logger import get_emulation_logger
 from core.effect.stat_modifier import AttackBoostEffect, HealthBoostEffect
 from core.effect.resonance import CreepingGrassEffect, SteadfastStoneEffect, SwiftWindEffect
 from core.event import CharacterSwitchEvent, EventBus

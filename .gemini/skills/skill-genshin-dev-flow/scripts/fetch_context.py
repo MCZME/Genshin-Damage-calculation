@@ -1,4 +1,3 @@
-import os
 import subprocess
 import json
 
@@ -53,13 +52,6 @@ def get_milestones():
         return formatted
     except: return "Error parsing milestones."
 
-def read_current_state():
-    state_file = ".gemini/CURRENT_STATE.md"
-    if os.path.exists(state_file):
-        with open(state_file, "r", encoding="utf-8") as f:
-            return f.read()
-    return "No .gemini/CURRENT_STATE.md found."
-
 def main():
     print("--- 🛡️ Genshin Dev Flow Context Report 🛡️ ---\n")
     
@@ -80,9 +72,6 @@ def main():
     prs = get_github_prs()
     print(prs if prs else "* No active PRs.\n")
 
-    print("## 5. 💾 Saved State (.gemini/CURRENT_STATE.md)")
-    print(read_current_state())
-    print("\n---------------------------------------------------")
     print("✅ Context loaded. Ready to execute.")
 
 if __name__ == "__main__":

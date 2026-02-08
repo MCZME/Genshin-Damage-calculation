@@ -10,14 +10,13 @@
 *   **关注重点**: 
     - 当前 Git 分支与未提交更改。
     - 关联 Issue 的编号及当前状态标签。
-    - `.gemini/CURRENT_STATE.md` 中的“存档”信息。
 
 ## 2. Issue 开发 SOP (Standard Operating Procedure)
 
 开发者在处理 Issue 时必须经历的五个阶段：
 
 ### 阶段 0: 启动 (Initiate)
-1.  **认领**: 使用 `gh issue edit <ID> --assignee @me`。
+1.  **认领**: 使用 `gh issue edit <ID> --add-assignee @me`。
 2.  **打标**: 根据任务性质添加 `type:*` 和 `status:plan-pending`。
 3.  **看板**: 运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Todo`。
 
@@ -33,13 +32,11 @@
 ### 阶段 3: 实现与验证 (Implement & Verify)
 1.  **编码**: 遵循 `references/standards.md`。
 2.  **更新看板**: 同步卡片至 `In Progress`，删除 `status:plan-pending`。
-3.  **通过测试**: 确保 `python test.py` 100% 通过。
-4.  **Lint**: 运行 `ruff check .`。
+4.  **Lint**: 虚拟环境运行 `ruff` 检查提交文件。
 
 ### 阶段 4: 交付与存档 (Handover)
 1.  **提交代码**: 遵循 Conventional Commits (中文)。格式：`<type>: 描述 #ID`。
 2.  **开启 PR**: 开启指向 `main` 的 PR，添加 `status:implemented`。
-3.  **存档**: **必须**更新 `.gemini/CURRENT_STATE.md`。
 
 ## 3. 分支与提交规范
 
@@ -52,7 +49,6 @@
 - **Type 推荐**: `feat`, `fix`, `refactor`, `perf`, `docs`, `chore`, `test`。
 
 ## 4. 环境与工具命令
-- **测试入口**: `python test.py`
 - **运行入口**: `python main.py`
 - **上下文获取**: `python .gemini/skills/skill-genshin-dev-flow/scripts/fetch_context.py`
 - **看板同步**: `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> <Column>`

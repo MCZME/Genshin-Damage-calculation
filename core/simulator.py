@@ -1,6 +1,6 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Optional
 from core.context import SimulationContext
-from core.event import FrameEndEvent
+from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
 
 class Simulator:
@@ -8,14 +8,16 @@ class Simulator:
     新一代战斗模拟引擎。
     仅负责驱动时间轴，协调动作队列，并不直接处理业务逻辑。
     """
-    def __init__(self, context: SimulationContext, action_sequence: List[Tuple[str, str, Any]]):
+    def __init__(self, context: SimulationContext, action_sequence: List[Tuple[str, str, Any]], 
+                 persistence_db: Optional[Any] = None):
         self.ctx = context
         self.actions = action_sequence
         self.action_ptr = 0
         self.is_running = False
+        self.db = persistence_db
 
-    def run(self):
-        """开始模拟循环"""
+    async def run(self):
+        """开始异步模拟循环"""
         self.is_running = True
         get_emulation_logger().log("Simulator", "模拟开始执行")
         
@@ -30,10 +32,15 @@ class Simulator:
             self._update_frame()
             
             # 3. 发布帧结束事件 (驱动各个 System 更新)
-            self.ctx.event_engine.publish(FrameEndEvent(self.ctx.current_frame))
+            self.ctx.event_engine.publish(GameEvent(EventType.FRAME_END, self.ctx.current_frame))
             
-            # 4. 检查是否所有动作已完成且角色处于 IDLE
+            # 4. [NEW] 持久化快照
+            if self.db:
+                self.db.record_snapshot(self.ctx.take_snapshot())
+            
+            # 5. 检查是否所有动作已完成且角色处于 IDLE
             if self._is_finished():
+                get_emulation_logger().log("Simulator", f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})")
                 self.is_running = False
                 
         get_emulation_logger().log("Simulator", "模拟执行完毕")
@@ -48,7 +55,7 @@ class Simulator:
         if self.ctx.team:
             for char in self.ctx.team.team:
                 if hasattr(char, 'action_manager'):
-                    char.action_manager.update()
+                    char.action_manager.on_frame_update()
             
             # 尝试压入后续动作
             self._try_enqueue_next_action()

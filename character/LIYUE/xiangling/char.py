@@ -5,13 +5,14 @@ from core.mechanics.energy import ElementalEnergy
 from character.LIYUE.xiangling.skills import NormalAttack, ElementalSkill, ElementalBurst
 from character.LIYUE.xiangling.talents import Talent_1, Talent_2, C1, C3, C5
 
-@register_character(11)
+@register_character("香菱")
 class XIANG_LING(Liyue):
     """
     香菱 - 标准模块化实现 (V2)
     """
+    ID = 11
     def __init__(self, level: int = 1, skill_params: List[int] = None, constellation: int = 0, base_data: Dict[str, Any] = None):
-        super().__init__(id=11, level=level, skill_params=skill_params, constellation=constellation, base_data=base_data)
+        super().__init__(id=XIANG_LING.ID, level=level, skill_params=skill_params, constellation=constellation, base_data=base_data)
         self.association = '璃月'
 
     def _setup_character_components(self) -> None:

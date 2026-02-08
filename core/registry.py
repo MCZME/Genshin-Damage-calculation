@@ -5,24 +5,24 @@ from typing import Dict, Type, Any
 # ---------------------------------------------------------
 # 全局注册表
 # ---------------------------------------------------------
-CharacterClassMap: Dict[int, Type[Any]] = {}
+CharacterClassMap: Dict[str, Type[Any]] = {}
 WeaponClassMap: Dict[str, Type[Any]] = {}
 ArtifactSetMap: Dict[str, Type[Any]] = {}
 
 # ---------------------------------------------------------
 # 注册装饰器
 # ---------------------------------------------------------
-def register_character(char_id: int):
+def register_character(char_name: str):
     """
     角色注册装饰器。
     用法:
-        @register_character(10000001)
-        class MyCharacter(Character): ...
+        @register_character("香菱")
+        class XIANG_LING(Character): ...
     """
     def decorator(cls: Type[Any]):
-        CharacterClassMap[char_id] = cls
-        # 顺便设置类的 ID 属性以保持兼容
-        cls.ID = char_id 
+        CharacterClassMap[char_name] = cls
+        # 设置名字，ID 应由类内部定义
+        cls.NAME = char_name
         return cls
     return decorator
 

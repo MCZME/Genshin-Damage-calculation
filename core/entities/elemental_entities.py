@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Optional, List
+from typing import Any, Tuple, List
 from core.entities.base_entity import CombatEntity, Faction
 from core.action.damage import Damage, DamageType
 from core.action.action_data import AttackConfig, HitboxConfig, AOEShape

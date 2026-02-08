@@ -1,9 +1,7 @@
-from typing import Any
 from core.entities.base_entity import CombatEntity, Faction
 from core.action.damage import Damage, DamageType
 from core.mechanics.aura import Element
-from core.event import DamageEvent, EventBus
-from core.tool import GetCurrentTime, summon_energy
+from core.tool import summon_energy
 
 class GuobaEntity(CombatEntity):
     """锅巴：战场物理实体"""

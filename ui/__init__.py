@@ -1,4 +1,1 @@
-"""UI模块初始化文件"""
-from .main_window import MainWindow
-
-__all__ = ['MainWindow']
+# Genshin Damage Calculation V2 - UI Package

@@ -8,9 +8,7 @@ from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
 from core.event import (
     ActionEvent,
-    EventBus,
     EventType,
-    HealthChangeEvent,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
 
@@ -167,7 +165,7 @@ class Character(CombatEntity, ABC):
         total_frames = 60
         if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
         data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
-        if skill_obj: setattr(data, "runtime_skill_obj", skill_obj)
+        if skill_obj: data.origin_skill = skill_obj
         return data
 
     def elemental_skill(self) -> None:
@@ -204,3 +202,17 @@ class Character(CombatEntity, ABC):
 
     def to_dict(self) -> Dict[str, Any]:
         return {"id": self.id, "name": self.name, "level": self.level, "constellation": self.constellation_level}
+
+    def export_state(self) -> dict:
+        """导出角色特有状态"""
+
+        base = super().export_state()
+        base.update({
+            "level": self.level,
+            "constellation": self.constellation_level,
+            "on_field": self.on_field,
+            "energy": self.elemental_energy.current_energy if self.elemental_energy else 0,
+            "hp": round(self.current_hp, 1)
+        })
+
+        return base

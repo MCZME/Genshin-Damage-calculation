@@ -9,3 +9,4 @@ config.json
 .clineignore
 /memory-bank
 /.clinerules
+simulation_results.db

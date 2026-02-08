@@ -82,6 +82,26 @@ class SimulationContext:
         if self.logger:
             self.logger.log_info("Context Reset")
 
+    def take_snapshot(self) -> dict:
+        """[核心] 抓取当前帧全场景状态快照"""
+        snapshot = {
+            "frame": self.current_frame,
+            "global": {
+                "move_dist": round(self.global_move_dist, 3),
+                "vertical_dist": round(self.global_vertical_dist, 3)
+            },
+            "entities": []
+        }
+        
+        if self.space:
+            # 遍历所有阵营的实体
+            from core.entities.base_entity import Faction
+            for faction in Faction:
+                for entity in self.space._entities.get(faction, []):
+                    snapshot["entities"].append(entity.export_state())
+                    
+        return snapshot
+
 # ---------------------------------------------------------
 # Event Engine (Instance-based)
 # ---------------------------------------------------------

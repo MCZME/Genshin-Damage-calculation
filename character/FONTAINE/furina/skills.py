@@ -25,7 +25,7 @@ class SalonSolitaire(SkillBase):
         # 1. 造成瞬间伤害
         multiplier = self.damage_multipliers[self.lv - 1]
         damage = Damage(multiplier, ('水', 1), DamageType.SKILL, self.name)
-        damage.setBaseValue('生命值')
+        damage.set_scaling_stat('生命值')
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
 
         # 2. 召唤实体 (根据当前荒芒性)
@@ -58,7 +58,7 @@ class UniversalRevelry(EnergySkill, EventHandler):
         # 1. 初始爆发伤害
         mult = self.damage_multipliers[self.lv - 1]
         damage = Damage(mult, ('水', 1), DamageType.BURST, self.name)
-        damage.setBaseValue('生命值')
+        damage.set_scaling_stat('生命值')
         self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
 
         # 2. 开启气氛值收集

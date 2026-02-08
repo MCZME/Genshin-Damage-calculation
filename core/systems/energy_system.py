@@ -1,12 +1,13 @@
-from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
-from core.context import EventEngine
-from core.event import EventType, GameEvent, EnergyChargeEvent
+from core.event import GameEvent, EventType
+from core.systems.utils import AttributeCalculator
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime
 
 class EnergySystem(GameSystem):
-    def register_events(self, engine: EventEngine):
+    """
+    能量系统：处理微粒/球获取及固定数值恢复。
+    """
+    def register_events(self, engine):
         engine.subscribe(EventType.BEFORE_ENERGY_CHANGE, self)
 
     def handle_event(self, event: GameEvent):
@@ -14,63 +15,48 @@ class EnergySystem(GameSystem):
             self._handle_energy_change(event)
 
     def _handle_energy_change(self, event: GameEvent):
-        amount = event.data['amount']
+        data = event.data
+        character = data['character']
+        amount = data['amount']
+        is_fixed = data.get('is_fixed', False)
+        is_alone = data.get('is_alone', False)
         
-        # 获取 team (通过 context)
-        team_obj = self.context.team if self.context else None
-        if not team_obj:
-            return
+        team_obj = getattr(self.context, 'team', None)
+        source_character = data.get('source_character', character)
 
-        source_character = event.data.get('character')
-        if event.data.get('is_alone', False):
-            character = event.data['character']
-            self._apply_energy(character, amount, event.data['is_fixed'], event.data['is_alone'], team_obj, source_character)
-        else:
-            for character in team_obj.team:
-                self._apply_energy(character, amount, event.data['is_fixed'], event.data['is_alone'], team_obj, source_character)
+        self._apply_energy(character, amount, is_fixed, is_alone, team_obj, source_character)
 
     def _apply_energy(self, character, amount, is_fixed, is_alone, team_obj, source_character):
         if is_fixed:
-            energy_value = min(amount[1], 
-                                   character.elemental_energy.elemental_energy[1] -
-                                   character.elemental_energy.current_energy)
+            # amount 可能是 tuple ('火', 5.0) 或直接是 float 5.0
+            val = amount[1] if isinstance(amount, tuple) else amount
+            energy_value = min(val, 
+                               character.elemental_energy.elemental_energy[1] - 
+                               character.elemental_energy.current_energy)
             character.elemental_energy.current_energy += energy_value
+            get_emulation_logger().log_energy(f"{character.name} 获得了固定值能量", energy_value)
         else:
+            # 这里的 amount 必须是 tuple (element, count)
             rate = self.get_rate(character, amount[0], team_obj)
-            energy_value = amount[1] * rate[0] * rate[1] * rate[2]
-            energy_value = min(energy_value, 
-                                   character.elemental_energy.elemental_energy[1] -
-                                   character.elemental_energy.current_energy)
+            energy_value = amount[1] * rate
             character.elemental_energy.current_energy += energy_value
-            
-        if is_alone or (not is_alone and character == source_character): 
-             get_emulation_logger().log_energy(character, energy_value)
+            get_emulation_logger().log_energy(f"{character.name} 获得了微粒", energy_value)
 
-        # 修复：指明 EventType 并移除不支持的 before 关键字
-        e_event = EnergyChargeEvent(EventType.AFTER_ENERGY_CHANGE, GetCurrentTime(),
-                                    source=character,
-                                    amount=(amount[0], energy_value),
-                                    is_fixed=is_fixed,
-                                    is_alone=is_alone)
-        self.engine.publish(e_event)
+    def get_rate(self, character, particle_element, team_obj):
+        """计算微粒获取系数"""
+        # 基础系数表 (同元素/异元素/无元素 x 站场/后台)
+        is_same = (particle_element == character.elemental_energy.elemental_energy[0])
+        is_neutral = (particle_element == '无')
+        on_field = getattr(character, 'on_field', True)
 
-    def get_rate(self, character, element, team_obj):
-        l = len(team_obj.team)
-        if character.on_field:
-            team_rate = 1.0
-        elif l == 2:
-            team_rate = 0.8
-        elif l == 3:
-            team_rate = 0.7
+        # 简化版系数
+        if is_neutral:
+            base = 2.0 if on_field else 1.2
+        elif is_same:
+            base = 3.0 if on_field else 1.8
         else:
-            team_rate = 0.6
+            base = 1.0 if on_field else 0.6
 
-        if character.elemental_energy.elemental_energy[0] == element:
-            element_rate = 1.5
-        elif element == '无':
-            element_rate = 1.0
-        else:
-            element_rate = 0.5
+        # 充能效率加成
         energy_rate = AttributeCalculator.get_energy_recharge(character)
-        
-        return (team_rate, element_rate, energy_rate)
+        return base * energy_rate

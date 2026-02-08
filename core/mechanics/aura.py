@@ -1,7 +1,6 @@
 from enum import Enum
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Tuple, Any
-import math
+from dataclasses import dataclass
+from typing import List, Optional
 
 from core.action.reaction import (
     ElementalReactionType, 
@@ -47,6 +46,13 @@ class Gauge:
         self.current_gauge -= amount
         if self.current_gauge < 0: self.current_gauge = 0
 
+    def to_dict(self) -> dict:
+        return {
+            "element": self.element.value,
+            "value": round(self.current_gauge, 3),
+            "max": round(self.max_gauge, 3)
+        }
+
 class AuraManager:
     def __init__(self):
         self.auras: List[Gauge] = []
@@ -55,6 +61,18 @@ class AuraManager:
         self.is_electro_charged: bool = False
         self.ec_timer: float = 0.0
         self.is_burning: bool = False
+
+    def export_state(self) -> dict:
+        """导出附着状态快照"""
+        res = {
+            "regular": [a.to_dict() for a in self.auras],
+            "frozen": self.frozen_gauge.to_dict() if self.frozen_gauge else None,
+            "quicken": self.quicken_gauge.to_dict() if self.quicken_gauge else None,
+            "states": []
+        }
+        if self.is_electro_charged: res["states"].append("感电")
+        if self.is_burning: res["states"].append("燃烧")
+        return res
 
     def update(self, dt: float = 1/60):
         for a in self.auras[:]:
@@ -237,9 +255,12 @@ class AuraManager:
         h = next((a for a in self.auras if a.element == Element.HYDRO), None)
         e = next((a for a in self.auras if a.element == Element.ELECTRO), None)
         if h and e:
-            h.consume(0.4); e.consume(0.4)
-            if h.current_gauge <= 0: self.auras.remove(h)
-            if e.current_gauge <= 0: self.auras.remove(e)
+            h.consume(0.4)
+            e.consume(0.4)
+            if h.current_gauge <= 0:
+                self.auras.remove(h)
+            if e.current_gauge <= 0:
+                self.auras.remove(e)
         self.is_electro_charged = (h is not None and e is not None and h.current_gauge > 0 and e.current_gauge > 0)
 
     def _apply_burning_tick(self, dt: float):
