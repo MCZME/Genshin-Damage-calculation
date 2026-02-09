@@ -47,15 +47,12 @@ class ActionManager:
         # 如果是切换动作，Simulator 已经处理了 swap，这里只需调用对应方法
         if hasattr(self.character, method_name):
             attr = getattr(self.character, method_name)
-            # 注意：在 V2 架构中，调用 char.elemental_burst() 等方法
-            # 内部应调用 action_manager.request_action(data)
-            # 我们在这里执行该方法以触发这一流程
             try:
+                # 执行方法并返回其布尔结果 (受理状态)
                 if params is not None:
-                    attr(params)
+                    return attr(params)
                 else:
-                    attr()
-                return True
+                    return attr()
             except Exception as e:
                 get_emulation_logger().log_error(f"Action request failed for {method_name}: {e}")
                 return False

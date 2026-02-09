@@ -168,13 +168,17 @@ class Character(CombatEntity, ABC):
         if skill_obj: data.origin_skill = skill_obj
         return data
 
-    def elemental_skill(self) -> None:
-        if self._request_action("elemental_skill"):
+    def elemental_skill(self, params: Any = None) -> bool:
+        if self._request_action("elemental_skill", params):
             self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, T.GetCurrentTime(), self, "elemental_skill"))
+            return True
+        return False
 
-    def elemental_burst(self) -> None:
-        if self._request_action("elemental_burst"):
+    def elemental_burst(self, params: Any = None) -> bool:
+        if self._request_action("elemental_burst", params):
             self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, T.GetCurrentTime(), self, "elemental_burst"))
+            return True
+        return False
 
     def _request_action(self, name: str, params: Any = None) -> bool:
         action_data = self._get_action_data(name, params)
