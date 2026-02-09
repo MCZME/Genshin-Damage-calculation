@@ -1,5 +1,5 @@
 from typing import Any
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, HealEvent, HurtEvent, EventType, EventHandler
 from core.tool import GetCurrentTime, summon_energy
 from core.action.damage import Damage, DamageType

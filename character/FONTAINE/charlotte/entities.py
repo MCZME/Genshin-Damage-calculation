@@ -1,5 +1,5 @@
 from typing import Any
-from core.base_entity import BaseEntity
+from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, HealEvent
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime

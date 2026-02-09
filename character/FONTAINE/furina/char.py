@@ -27,7 +27,7 @@ class ArkheAttackHandler(EventHandler):
                 damage = Damage(self.multipliers[self.character.skill_params[0]-1], ('水', 0), DamageType.NORMAL, name)
                 ArkheObject(name, self.character, self.character.arkhe, damage, 18).apply()
 
-@register_character(75)
+@register_character("芙宁娜")
 class FURINA(Fontaine):
     """芙宁娜 - 完整复刻版"""
     def __init__(self, level: int = 1, skill_params: List[int] = None, constellation: int = 0, base_data: Dict[str, Any] = None):
