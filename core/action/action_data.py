@@ -54,6 +54,19 @@ class AttackConfig:
     hitbox: HitboxConfig = field(default_factory=HitboxConfig)
 
 @dataclass
+class ActionCommand:
+    """
+    动作意图指令。
+    贯穿 UI -> Parser -> Simulator -> Character 的统一载体。
+    """
+    character_name: str
+    action_type: str  # e.g., "skill", "burst", "dash"
+    params: Dict[str, Any] = field(default_factory=dict)
+    
+    # 可选：追踪ID，用于日志或伤害统计
+    uuid: str = field(default_factory=lambda: str(id(object()))) 
+
+@dataclass
 class ActionFrameData:
     """动作帧数据元数据"""
     name: str

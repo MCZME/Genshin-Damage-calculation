@@ -2,13 +2,14 @@ from typing import List, Tuple, Any, Optional
 from core.context import SimulationContext
 from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
+from core.action.action_data import ActionCommand
 
 class Simulator:
     """
     新一代战斗模拟引擎。
     仅负责驱动时间轴，协调动作队列，并不直接处理业务逻辑。
     """
-    def __init__(self, context: SimulationContext, action_sequence: List[Tuple[str, str, Any]], 
+    def __init__(self, context: SimulationContext, action_sequence: List[ActionCommand], 
                  persistence_db: Optional[Any] = None):
         self.ctx = context
         self.actions = action_sequence
@@ -64,19 +65,19 @@ class Simulator:
         if self.action_ptr >= len(self.actions):
             return
 
-        # 检查当前场上角色是否准备好接受下一个动作
-        # 这里涉及复杂的换人逻辑和 ASM 取消逻辑
-        # 简化版：如果当前动作 ptr 指向的角色是场上角色，且他可以接受新动作，则执行
-        target_char_name, method_name, params = self.actions[self.action_ptr]
+        command: ActionCommand = self.actions[self.action_ptr]
         
-        # 查找到对应角色对象 (这里假设 Team 能通过名字查找)
-        char = self.ctx.team.get_character_by_name(target_char_name)
+        # 查找到对应角色对象
+        char = self.ctx.team.get_character_by_name(command.character_name)
         if not char:
+            get_emulation_logger().log_error(f"无法找到角色: {command.character_name}, 跳过指令")
             self.action_ptr += 1
             return
 
-        # 如果角色处于 IDLE 或已进入取消窗口
-        if char.action_manager.request_action_by_name(method_name, params):
+        # 尝试通过 ActionManager 执行指令
+        # 注意：这里我们使用 request_action_by_name 并传递 params 字典 (即 Intent)
+        # Character.elemental_skill(intent) 内部会调用 to_action_data(intent)
+        if char.action_manager.request_action_by_name(command.action_type, command.params):
             self.action_ptr += 1
 
     def _is_finished(self) -> bool:

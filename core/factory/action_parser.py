@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Tuple
+from core.action.action_data import ActionCommand
 
 class ActionParser:
     """
@@ -16,42 +17,27 @@ class ActionParser:
         '跳跃': 'jump',
     }
 
-    def parse_sequence(self, sequence_config: List[Dict[str, Any]]) -> List[Tuple[str, str, Any]]:
+    def parse_sequence(self, sequence_config: List[Dict[str, Any]]) -> List[ActionCommand]:
         """
         解析动作序列配置。
-        返回格式: [(角色名, 方法名, 解析后的参数), ...]
+        返回格式: List[ActionCommand]
         """
         parsed_actions = []
         for action_entry in sequence_config:
-            char_name = action_entry['character']
-            raw_action = action_entry['action']
+            char_name = action_entry['character_name'] # V2 UI 导出的 key
+            raw_action = action_entry['action_key']    # V2 UI 导出的 key (已经是英文 key，或者需要映射)
             
-            method_name = self.ACTION_NAME_MAP.get(raw_action)
-            if not method_name:
-                continue
-                
+            # 兼容旧逻辑：如果传的是中文，尝试映射；如果是英文，直接使用
+            method_name = self.ACTION_NAME_MAP.get(raw_action, raw_action)
+            
+            # 获取原始参数字典，不做任何降维处理
             params = action_entry.get('params', {})
-            method_params = self._parse_params(params) if params else None
             
-            parsed_actions.append((char_name, method_name, method_params))
+            cmd = ActionCommand(
+                character_name=char_name,
+                action_type=method_name,
+                params=params
+            )
+            parsed_actions.append(cmd)
             
         return parsed_actions
-
-    def _parse_params(self, params: Dict[str, Any]) -> Any:
-        """
-        处理动作参数映射逻辑。
-        """
-        # 兼容旧逻辑的特殊参数处理
-        for k, v in params.items():
-            if k == '攻击次数':
-                return int(v)
-            elif k == '攻击距离':
-                return True if v == '高空' else False
-            elif k == '释放时间':
-                return True if v == '长按' else False
-            elif k == '时间':
-                return int(v)
-            elif k == '释放时长':
-                mapping = {'点按': 0, '一段蓄力': 1, '二段蓄力': 2}
-                return mapping.get(v, 0)
-        return None
