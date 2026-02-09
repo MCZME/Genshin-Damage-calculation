@@ -37,8 +37,8 @@ class SimulationAssembler:
         ctx.team = team
 
         # 2.2 [NEW] 设置角色初始坐标
-        # 注意：TeamFactory 返回的是 Character 实例列表，需要与 config 对应
-        for idx, char_inst in enumerate(team):
+        # 注意：TeamFactory 返回的是 Team 实例，其实际角色列表在 .team 属性中
+        for idx, char_inst in enumerate(team.team):
             if idx < len(team_list_cfg):
                 char_cfg = team_list_cfg[idx]
                 pos = char_cfg.get("position", {"x": 0, "y": 0, "z": 0})
