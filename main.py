@@ -19,12 +19,9 @@ def index_page():
         ui.markdown('基于 **NiceGUI** 与 **V2 场景引擎** 的现代化重构版。').classes('text-lg text-gray-600')
         
         with ui.row().classes('mt-8 gap-4'):
-            ui.button('模拟配置', on_click=lambda: ui.navigate.to('/config'), icon='settings').props('elevated')
-            ui.button('结果分析', on_click=lambda: ui.navigate.to('/analysis'), icon='analytics', color='secondary').props('elevated')
+            ui.button('进入仿真工作台', on_click=lambda: ui.navigate.to('/prototype'), icon='rocket').props('elevated size=lg')
 
 # 导入页面 (触发路由注册)
-from ui.pages import config as _config_page
-from ui.pages import analysis as _analysis_page
 from ui.pages import prototype as _prototype_page
 
 if __name__ in {"__main__", "__mp_main__"}:
