@@ -75,17 +75,17 @@ def prototype_page():
         """[V2.3] 添加动作，集成元数据感知逻辑"""
         from core.registry import CharacterClassMap
         
-        # 1. 尝试获取默认意图参数
+        # 1. 尝试获取默认意图参数 (通过类方法获取，无需实例化)
         intent_params = {}
         char_cls = CharacterClassMap.get(char_name)
         if char_cls:
             try:
-                # 实例化临时对象以查阅 metadata
-                temp_char = char_cls(level=90, skill_params=[1,1,1])
-                metadata = temp_char.get_action_metadata().get(action_key, {})
+                # 直接通过类名调用 get_action_metadata
+                metadata = char_cls.get_action_metadata().get(action_key, {})
                 for p_def in metadata.get("params", []):
                     intent_params[p_def["key"]] = p_def.get("default")
-            except Exception: pass
+            except Exception as e:
+                print(f"UI Error: Failed to fetch default metadata for {char_name}: {e}")
 
         # 2. 追加动作块
         state.actions.append({
@@ -283,9 +283,10 @@ def prototype_page():
                         metadata = {}
                         if char_cls:
                             try:
-                                temp_char = char_cls(level=90, skill_params=[1,1,1])
-                                metadata = temp_char.get_action_metadata().get(action["action_key"], {})
-                            except Exception: pass
+                                # 通过类方法获取，无需实例化
+                                metadata = char_cls.get_action_metadata().get(action["action_key"], {})
+                            except Exception as e:
+                                print(f"UI Error: Failed to fetch metadata for {action['char_name']}: {e}")
 
                         # 2. 动态生成参数控件
                         params_list = metadata.get("params", [])
@@ -337,7 +338,7 @@ def prototype_page():
         with shell.middle_column():
             middle_container = ui.column().classes('w-full p-12 max-w-7xl mx-auto')
         with shell.right_column():
-            right_container = ui.column().classes('w-full h-full')
+            right_container = ui.column().classes('h-full w-full')
 
     with ui.footer().classes('bg-transparent px-4 pb-4 pt-0 h-24'):
         with ui.row().classes('w-full genshin-glass genshin-pane px-10 h-full items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.4)]'):

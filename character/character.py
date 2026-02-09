@@ -217,18 +217,26 @@ class Character(CombatEntity, ABC):
 
         return base
 
-    def get_action_metadata(self) -> Dict[str, Any]:
+    @classmethod
+    def get_action_metadata(cls) -> Dict[str, Any]:
         """
-        [V2.3 新增] 获取动作参数元数据，用于 UI 动态生成参数编辑器。
-        返回格式:
+        [V2.3] 获取动作参数元数据（类方法）。
+        UI 可以在不实例化角色的情况下获取参数 Schema。
+        
+        示例返回格式:
         {
             "elemental_skill": {
                 "label": "元素战技",
                 "params": [
-                    {"key": "type", "label": "施放方式", "type": "select", "options": ["Press", "Hold"], "default": "Press"}
+                    {
+                        "key": "type", 
+                        "label": "施放方式", 
+                        "type": "select", 
+                        "options": {"Press": "点按", "Hold": "长按"}, # {内部值: 显示标签}
+                        "default": "Press"
+                    }
                 ]
             }
         }
         """
-        # 默认实现：无特殊参数
         return {}

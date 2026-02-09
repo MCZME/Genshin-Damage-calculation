@@ -48,7 +48,8 @@ class CHARLOTTE(Fontaine):
             ConstellationEffect_6()
         ]
 
-    def get_action_metadata(self) -> Dict[str, Any]:
+    @classmethod
+    def get_action_metadata(cls) -> Dict[str, Any]:
         """
         定义夏洛蒂 E 技能的参数 Schema。
         """
@@ -60,10 +61,8 @@ class CHARLOTTE(Fontaine):
                         "key": "type", 
                         "label": "施放方式", 
                         "type": "select", 
-                        "options": [
-                            {"label": "点按", "value": "Press"}, 
-                            {"label": "长按", "value": "Hold"}
-                        ], 
+                        # 使用 dict 格式: {value: label}
+                        "options": {"Press": "点按", "Hold": "长按"}, 
                         "default": "Press"
                     }
                 ]
