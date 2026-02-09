@@ -34,6 +34,12 @@ class PrototypeState:
              "resists": {"火": 10, "水": 10, "雷": 10, "草": 10, "冰": 10, "岩": 10, "风": 10, "物理": 10}}
         ]
         self.environment = {"location": "深境螺旋 12-3", "weather": "Clear", "buffs": []}
+        
+        # 批处理配置
+        self.batch_mode = False
+        self.batch_variables = [] # 格式: {"path": [...], "values": [...], "label": "名称"}
+        self.batch_completed = 0
+        self.batch_total = 0
 
     def _refresh_char_db(self):
         try:
@@ -77,7 +83,7 @@ class PrototypeState:
             },
             "sequence_config": [
                 {
-                    "character_name": a["char_name"],
+                    "character_name": a["character_name"],
                     "action_key": a["action_key"],
                     "params": a["params"]
                 }
@@ -87,16 +93,68 @@ class PrototypeState:
 
     async def run_simulation(self):
         if self.is_simulating: return
+        
         try:
             self.is_simulating = True
-            ui.notify("启动仿真中...", type='info', spinner=True)
-            simulator = create_simulator_from_config(self.export_config(), self.repo)
-            await simulator.run()
-            ui.notify(f"仿真完成 (Frame: {simulator.ctx.current_frame})", type='positive')
+            
+            if not self.batch_mode:
+                # --- 模式 A: 单次模拟 (详细快照) ---
+                await self._run_single_simulation()
+            else:
+                # --- 模式 B: 批量模拟 (并行/无快照) ---
+                await self._run_batch_simulation()
+                
         except Exception as e:
-            ui.notify(f"故障: {e}", type='negative')
+            import traceback
+            traceback.print_exc()
+            ui.notify(f"仿真异常中断: {e}", type='negative')
         finally:
             self.is_simulating = False
+            self.current_sim_frame = 0
+            self.batch_completed = 0
+
+    async def _run_single_simulation(self):
+        from core.persistence.database import ResultDatabase
+        db = ResultDatabase("data/last_simulation.db")
+        
+        self.current_sim_frame = 0
+        ui.notify("初始化单次仿真...", type='info')
+        await db.initialize()
+        await db.start_session()
+        
+        try:
+            async def progress_callback(frame):
+                self.current_sim_frame = frame
+            
+            simulator = create_simulator_from_config(self.export_config(), self.repo)
+            simulator.db = db
+            simulator.on_progress = progress_callback
+            await simulator.run()
+            ui.notify(f"单次仿真完成! 总帧数: {simulator.ctx.current_frame}", type='positive')
+        finally:
+            await db.stop_session()
+
+    async def _run_batch_simulation(self):
+        from core.batch.runner import BatchRunner
+        
+        total = self.batch_total or 10
+        ui.notify(f"正在准备 {total} 次并行仿真...", type='info')
+        
+        # 1. 准备配置 (目前使用简单的蒙特卡洛：同一份配置重复 N 次)
+        base_config = self.export_config()
+        configs = [base_config for _ in range(total)]
+        
+        # 2. 初始化运行器
+        runner = BatchRunner()
+        self.batch_completed = 0
+        
+        async def batch_progress(completed, total):
+            self.batch_completed = completed
+            # 此处不发通知，由 UI Timer 自动感知并刷新
+            
+        # 3. 执行
+        summary = await runner.run_batch(configs, on_progress=batch_progress)
+        ui.notify(f"批量处理完成! 平均 DPS: {summary.avg_dps:.2f}", type='positive')
 
     def save_to_file(self, filename: str = "simulation_draft.json"):
         try:

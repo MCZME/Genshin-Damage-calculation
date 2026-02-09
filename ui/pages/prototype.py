@@ -89,7 +89,7 @@ def prototype_page():
 
         # 2. 追加动作块
         state.actions.append({
-            'char_name': char_name,
+            'character_name': char_name,
             'element': element,
             'action_key': action_key,
             'params': {**intent_params, 'comment': ''}
@@ -200,6 +200,20 @@ def prototype_page():
                         ui.number('X', value=pos['x'], step=0.5, on_change=lambda e: (pos.update({'x': e.value}), refresh_ui())).props('dark dense outlined').classes('flex-grow')
                         ui.number('Z', value=pos['z'], step=0.5, on_change=lambda e: (pos.update({'z': e.value}), refresh_ui())).props('dark dense outlined').classes('flex-grow')
 
+                # --- 批量仿真配置面板 ---
+                ui.separator().classes('my-6 opacity-10')
+                with ui.column().classes('w-full gap-4'):
+                    with ui.row().classes('items-center justify-between w-full'):
+                        ui.label('BATCH SIMULATION').classes('text-[10px] font-black opacity-30 tracking-[0.2em]')
+                        ui.switch(value=state.batch_mode, on_change=lambda e: (setattr(state, 'batch_mode', e.value), refresh_ui())).props('dense dark')
+                    
+                    if state.batch_mode:
+                        with ui.element('div').classes('genshin-card genshin-glass p-4 border border-primary/20'):
+                            ui.label('多次仿真模式已开启').classes('text-[10px] text-primary font-bold mb-2')
+                            ui.number('运行次数 (Monte Carlo)', value=10, min=1, max=1000, 
+                                      on_change=lambda e: setattr(state, 'batch_total', int(e.value))).props('dark dense outlined')
+                            ui.label('当前模式下将使用随机种子重复运行').classes('text-[9px] opacity-40 italic mt-2')
+
     def render_tactical_layout():
         render_tactical_left()
         render_tactical_middle()
@@ -248,7 +262,7 @@ def prototype_page():
                         .on('click', lambda idx=i: (setattr(state, 'selected_action_idx', idx), refresh_ui())):
                         ui.element('div').classes('w-1 h-6 rounded-full').style(f'background-color: {color}')
                         with ui.column().classes('gap-0'):
-                            ui.label(action['char_name']).classes('text-[9px] font-bold opacity-40 uppercase')
+                            ui.label(action['character_name']).classes('text-[9px] font-bold opacity-40 uppercase')
                             ui.label(display_name).classes('text-xs font-black')
                         
                         # 改进删除逻辑
@@ -272,14 +286,14 @@ def prototype_page():
                 action = state.actions[state.selected_action_idx]
                 display_name = ACTION_DISPLAY_MAP.get(action['action_key'], action['action_key'])
                 
-                ui.label(f'INSPECTOR / {action["char_name"]} - {display_name}').classes('text-[10px] font-black opacity-30 tracking-[0.3em] mb-8')
+                ui.label(f'INSPECTOR / {action["character_name"]} - {display_name}').classes('text-[10px] font-black opacity-30 tracking-[0.3em] mb-8')
                 
                 with ui.column().classes('w-full gap-6'):
                     with ui.element('div').classes('genshin-card genshin-glass p-6 border border-white/10'):
                         ui.label('INTENT PARAMETERS (意图参数)').classes('text-[9px] font-black opacity-40 mb-4')
                         
                         # 1. 尝试获取元数据
-                        char_cls = CharacterClassMap.get(action["char_name"])
+                        char_cls = CharacterClassMap.get(action["character_name"])
                         metadata = {}
                         if char_cls:
                             try:
@@ -351,8 +365,16 @@ def prototype_page():
                     ui.label('SYSTEM STATUS').classes('text-[9px] font-black tracking-[0.2em] text-primary opacity-80')
                     @ui.refreshable
                     def status_label():
-                        ui.label('READY TO EXECUTE' if not state.is_simulating else 'SIMULATING...').classes('text-[11px] font-bold tracking-[0.1em] text-white/40')
+                        if state.is_simulating:
+                            if not state.batch_mode:
+                                ui.label(f'RUNNING: {getattr(state, "current_sim_frame", 0)} Frames').classes('text-[11px] font-bold tracking-[0.1em] text-primary animate-pulse')
+                            else:
+                                ui.label(f'BATCH: {state.batch_completed} / {state.batch_total} Runs').classes('text-[11px] font-bold tracking-[0.1em] text-primary animate-pulse')
+                        else:
+                            ui.label('READY TO EXECUTE').classes('text-[11px] font-bold tracking-[0.1em] text-white/40')
                     status_label()
+                    # 仿真运行时自动刷新状态栏
+                    ui.timer(0.2, status_label.refresh)
             
             with ui.row().classes('items-center gap-4'):
                 ui.button('保存配置', icon='save', on_click=state.save_to_file).props('flat color=white').classes('opacity-60 text-[11px] font-bold tracking-widest')
