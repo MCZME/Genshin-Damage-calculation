@@ -10,40 +10,65 @@ class Simulator:
     仅负责驱动时间轴，协调动作队列，并不直接处理业务逻辑。
     """
     def __init__(self, context: SimulationContext, action_sequence: List[ActionCommand], 
-                 persistence_db: Optional[Any] = None):
+                 persistence_db: Optional[Any] = None,
+                 on_progress: Optional[callable] = None):
         self.ctx = context
         self.actions = action_sequence
         self.action_ptr = 0
         self.is_running = False
         self.db = persistence_db
+        self.on_progress = on_progress
+        self.max_frames = 18000 # 5分钟硬限制 (60fps * 300s)
 
     async def run(self):
         """开始异步模拟循环"""
         self.is_running = True
         get_emulation_logger().log("Simulator", "模拟开始执行")
         
-        # 初始帧前准备
-        self._prepare_simulation()
+        try:
+            # 初始帧前准备
+            self._prepare_simulation()
 
-        while self.is_running:
-            # 1. 推进全局帧
-            self.ctx.advance_frame()
-            
-            # 2. 执行本帧逻辑
-            self._update_frame()
-            
-            # 3. 发布帧结束事件 (驱动各个 System 更新)
-            self.ctx.event_engine.publish(GameEvent(EventType.FRAME_END, self.ctx.current_frame))
-            
-            # 4. [NEW] 持久化快照
-            if self.db:
-                self.db.record_snapshot(self.ctx.take_snapshot())
-            
-            # 5. 检查是否所有动作已完成且角色处于 IDLE
-            if self._is_finished():
-                get_emulation_logger().log("Simulator", f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})")
-                self.is_running = False
+            while self.is_running:
+                # 1. 推进全局帧
+                self.ctx.advance_frame()
                 
+                # 安全限制
+                if self.ctx.current_frame > self.max_frames:
+                    get_emulation_logger().log_error("仿真超时，强制终止")
+                    break
+                
+                # 2. 执行本帧逻辑
+                self._update_frame()
+                
+                # 3. 发布帧结束事件 (驱动各个 System 更新)
+                self.ctx.event_engine.publish(GameEvent(EventType.FRAME_END, self.ctx.current_frame))
+                
+                # 4. 持久化快照
+                if self.db:
+                    self.db.record_snapshot(self.ctx.take_snapshot())
+                
+                # 5. UI 进度通知 (每 10 帧同步一次)
+                if self.on_progress and self.ctx.current_frame % 10 == 0:
+                    await self.on_progress(self.ctx.current_frame)
+                
+                # 6. 检查是否所有动作已完成且角色处于 IDLE
+                if self._is_finished():
+                    get_emulation_logger().log("Simulator", f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})")
+                    self.is_running = False
+        except Exception as e:
+            import traceback
+            error_msg = f"仿真运行异常中断: {str(e)}\n{traceback.format_exc()}"
+            get_emulation_logger().log_error(error_msg)
+            # 重新抛出异常，以便外层任务管理器 (如 BatchRunner) 也能感知到
+            raise
+        finally:
+            self.is_running = False
+                
+        # 仿真结束后确保最后一次进度也同步
+        if self.on_progress:
+            await self.on_progress(self.ctx.current_frame)
+            
         get_emulation_logger().log("Simulator", "模拟执行完毕")
 
     def _prepare_simulation(self):
