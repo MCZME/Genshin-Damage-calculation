@@ -18,6 +18,16 @@ def prototype_page():
     middle_container = None
     right_container = None
 
+    # --- 映射表：用于 UI 显示 ---
+    ACTION_DISPLAY_MAP = {
+        'normal_attack': '普攻',
+        'elemental_skill': '战技',
+        'elemental_burst': '爆发',
+        'switch': '切人',
+        'dash': '冲刺',
+        'jump': '跳跃'
+    }
+
     # --- 1. 辅助方法定义 ---
     def refresh_ui():
         """全局视图刷新逻辑"""
@@ -60,6 +70,32 @@ def prototype_page():
         state.team.remove(char)
         if state.selected_entity == char: select_entity(None, 'dashboard')
         else: refresh_ui()
+
+    def add_action(char_name, element, action_key):
+        """[V2.3] 添加动作，集成元数据感知逻辑"""
+        from core.registry import CharacterClassMap
+        
+        # 1. 尝试获取默认意图参数
+        intent_params = {}
+        char_cls = CharacterClassMap.get(char_name)
+        if char_cls:
+            try:
+                # 实例化临时对象以查阅 metadata
+                temp_char = char_cls(level=90, skill_params=[1,1,1])
+                metadata = temp_char.get_action_metadata().get(action_key, {})
+                for p_def in metadata.get("params", []):
+                    intent_params[p_def["key"]] = p_def.get("default")
+            except Exception: pass
+
+        # 2. 追加动作块
+        state.actions.append({
+            'char_name': char_name,
+            'element': element,
+            'action_key': action_key,
+            'params': {**intent_params, 'comment': ''}
+        })
+        state.selected_action_idx = len(state.actions) - 1
+        refresh_ui()
 
     # --- 2. 模式渲染引擎 ---
     def render_strategic_layout():
@@ -184,20 +220,15 @@ def prototype_page():
                         ui.label(c['name']).classes('text-[10px] font-black uppercase tracking-widest opacity-60')
                     
                     with ui.grid(columns=2).classes('w-full gap-2'):
-                        actions = [('A', 'Normal'), ('E', 'Skill'), ('Q', 'Burst'), ('S', 'Switch')]
+                        actions = [
+                            ('normal_attack', '普攻'), 
+                            ('elemental_skill', '战技'), 
+                            ('elemental_burst', '爆发'), 
+                            ('switch', '切人')
+                        ]
                         for key, label in actions:
                             ui.button(label, on_click=lambda k=key, name=c['name'], el=c['element']: add_action(name, el, k)) \
                                 .props('flat dense color=white').classes('text-[9px] border border-white/5 rounded-lg py-1 hover:bg-white/10')
-
-    def add_action(char_name, element, action_key):
-        state.actions.append({
-            'char_name': char_name,
-            'element': element,
-            'action_key': action_key,
-            'params': {'offset_x': 0, 'offset_z': 0, 'comment': ''}
-        })
-        state.selected_action_idx = len(state.actions) - 1
-        refresh_ui()
 
     def render_tactical_middle():
         if not middle_container: return
@@ -211,12 +242,14 @@ def prototype_page():
                 for i, action in enumerate(state.actions):
                     is_sel = (state.selected_action_idx == i)
                     color = GenshinTheme.ELEMENTS.get(action['element'], {}).get('primary', '#fff')
+                    display_name = ACTION_DISPLAY_MAP.get(action['action_key'], action['action_key'])
+                    
                     with ui.element('div').classes(f'p-3 pr-4 rounded-xl border flex items-center gap-3 cursor-pointer transition-all hover:scale-105 {"border-[var(--md-primary)] bg-white/10 shadow-[0_0_20px_rgba(255,255,255,0.05)]" if is_sel else "border-white/5 bg-white/5"}') \
                         .on('click', lambda idx=i: (setattr(state, 'selected_action_idx', idx), refresh_ui())):
                         ui.element('div').classes('w-1 h-6 rounded-full').style(f'background-color: {color}')
                         with ui.column().classes('gap-0'):
                             ui.label(action['char_name']).classes('text-[9px] font-bold opacity-40 uppercase')
-                            ui.label(action['action_key']).classes('text-xs font-black')
+                            ui.label(display_name).classes('text-xs font-black')
                         
                         # 改进删除逻辑
                         def remove_at(idx):
@@ -230,27 +263,65 @@ def prototype_page():
                         ui.button(icon='close', on_click=lambda idx=i: remove_at(idx)).props('flat round size=xs color=red').classes('ml-2 opacity-0 hover:opacity-100')
 
     def render_tactical_right():
+        """[V2.3] 动态参数检查器 - 根据 Backend 元数据生成 UI"""
         if not right_container: return
         right_container.clear()
         with right_container:
             if state.selected_action_idx is not None:
+                from core.registry import CharacterClassMap
                 action = state.actions[state.selected_action_idx]
-                ui.label(f'INSPECTOR / {action["char_name"]} - {action["action_key"]}').classes('text-[10px] font-black opacity-30 tracking-[0.3em] mb-8')
+                display_name = ACTION_DISPLAY_MAP.get(action['action_key'], action['action_key'])
+                
+                ui.label(f'INSPECTOR / {action["char_name"]} - {display_name}').classes('text-[10px] font-black opacity-30 tracking-[0.3em] mb-8')
                 
                 with ui.column().classes('w-full gap-6'):
                     with ui.element('div').classes('genshin-card genshin-glass p-6 border border-white/10'):
-                        ui.label('EXECUTION PARAMETERS').classes('text-[9px] font-black opacity-40 mb-4')
-                        ui.input('备注/意图', value=action['params']['comment'], on_change=lambda e: action['params'].update({'comment': e.value})).props('dark outlined dense')
+                        ui.label('INTENT PARAMETERS (意图参数)').classes('text-[9px] font-black opacity-40 mb-4')
                         
-                        ui.label('POSITIONAL OFFSET (M)').classes('text-[9px] font-black opacity-40 mt-6 mb-2')
-                        with ui.row().classes('w-full gap-2'):
-                            ui.number('ΔX', value=action['params']['offset_x'], step=0.1, on_change=lambda e: action['params'].update({'offset_x': e.value})).props('dark dense outlined').classes('flex-grow')
-                            ui.number('ΔZ', value=action['params']['offset_z'], step=0.1, on_change=lambda e: action['params'].update({'offset_z': e.value})).props('dark dense outlined').classes('flex-grow')
+                        # 1. 尝试获取元数据
+                        char_cls = CharacterClassMap.get(action["char_name"])
+                        metadata = {}
+                        if char_cls:
+                            try:
+                                temp_char = char_cls(level=90, skill_params=[1,1,1])
+                                metadata = temp_char.get_action_metadata().get(action["action_key"], {})
+                            except Exception: pass
+
+                        # 2. 动态生成参数控件
+                        params_list = metadata.get("params", [])
+                        if not params_list:
+                            ui.label('此动作无逻辑参数').classes('text-[10px] opacity-20 italic')
+                        else:
+                            for p_def in params_list:
+                                key, label, p_type = p_def["key"], p_def["label"], p_def.get("type", "text")
+                                if p_type == "select":
+                                    ui.select(options=p_def.get("options", []), label=label, value=action['params'].get(key), 
+                                              on_change=lambda e, k=key: (action['params'].update({k: e.value}), refresh_ui())) \
+                                        .props('dark outlined dense').classes('w-full mb-2')
+                                elif p_type in ["int", "float"]:
+                                    ui.number(label=label, value=action['params'].get(key), 
+                                              on_change=lambda e, k=key: (action['params'].update({k: e.value}), refresh_ui())) \
+                                        .props('dark dense outlined').classes('w-full mb-2')
+                                else:
+                                    ui.input(label=label, value=action['params'].get(key), 
+                                             on_change=lambda e, k=key: (action['params'].update({k: e.value}), refresh_ui())) \
+                                        .props('dark outlined dense').classes('w-full mb-2')
+
+                        # 3. 通用备注
+                        ui.label('NOTES').classes('text-[9px] font-black opacity-40 mt-6 mb-2')
+                        ui.input('动作意图备注', value=action['params'].get('comment', ''), 
+                                 on_change=lambda e: action['params'].update({'comment': e.value})).props('dark outlined dense').classes('w-full')
                     
-                    ui.button('删除此动作', icon='delete', on_click=lambda: (state.actions.pop(state.selected_action_idx), setattr(state, 'selected_action_idx', None), refresh_ui())) \
+                    ui.button('删除此动作', icon='delete', on_click=lambda: remove_selected_action()) \
                         .props('flat color=red').classes('w-full opacity-40 hover:opacity-100 text-[10px] font-black tracking-widest')
             else:
                 ui.label('未选中动作').classes('text-xs opacity-20 italic text-center w-full mt-24')
+
+    def remove_selected_action():
+        if state.selected_action_idx is not None:
+            state.actions.pop(state.selected_action_idx)
+            state.selected_action_idx = None
+            refresh_ui()
 
     # --- 3. UI 布局与组件实例化 ---
     # --- 顶层布局定义 (必须直接作为页面子元素) ---
@@ -266,7 +337,7 @@ def prototype_page():
         with shell.middle_column():
             middle_container = ui.column().classes('w-full p-12 max-w-7xl mx-auto')
         with shell.right_column():
-            right_container = ui.column().classes('h-full w-full')
+            right_container = ui.column().classes('w-full h-full')
 
     with ui.footer().classes('bg-transparent px-4 pb-4 pt-0 h-24'):
         with ui.row().classes('w-full genshin-glass genshin-pane px-10 h-full items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.4)]'):

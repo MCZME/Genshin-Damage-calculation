@@ -44,16 +44,20 @@ def render_character_editor(state, char_data, on_refresh, on_select):
                         and (not state.char_search_query or state.char_search_query.lower() in n.lower())}
             
             with ui.grid(columns=4).classes('w-full gap-6 mt-8'):
+                from core.registry import CharacterClassMap
                 for name, info in filtered.items():
+                    is_implemented = name in CharacterClassMap
                     color = GenshinTheme.ELEMENTS.get(info['element'], {}).get('primary', '#fff')
-                    with ui.element('div').classes('genshin-card genshin-glass p-6 border border-white/10 cursor-pointer hover:scale-105 transition-all flex flex-col items-center gap-2') .on('click', lambda n=name, i=info: (
-                            char_data.update({'is_placeholder': False, 'character': {**char_data['character'], 'id': i['id'], 'name': n, 'element': i['element'], 'type': i['type']}}),
-                            char_data['weapon'].update({'name': state.repo.get_weapons_by_type(i['type'])[0] if state.repo.get_weapons_by_type(i['type']) else "无锋剑"}),
-                            on_select(char_data, 'character')
+                    
+                    with ui.element('div').classes(f'genshin-card genshin-glass p-6 border border-white/10 cursor-pointer hover:scale-105 transition-all flex flex-col items-center gap-2 {"" if is_implemented else "opacity-40 grayscale"}') \
+                        .on('click', lambda n=name, i=info, impl=is_implemented: (
+                            (char_data.update({'is_placeholder': False, 'character': {**char_data['character'], 'id': i['id'], 'name': n, 'element': i['element'], 'type': i['type']}}),
+                             char_data['weapon'].update({'name': state.repo.get_weapons_by_type(i['type'])[0] if state.repo.get_weapons_by_type(i['type']) else "无锋剑"}),
+                             on_select(char_data, 'character')) if impl else ui.notify(f"角色 {n} 尚未在 V2 引擎中实现", type='warning')
                         )):
                         ui.element('div').classes('w-2 h-2 rounded-full').style(f'background-color: {color}; box-shadow: 0 0 10px {color}')
                         ui.label(name).classes('text-sm font-bold')
-                        ui.label(info['type']).classes('text-[8px] opacity-20 uppercase font-black')
+                        ui.label(info['type'] + ("" if is_implemented else " [未实现]")).classes('text-[8px] opacity-20 uppercase font-black')
         return
 
     c, w = char_data['character'], char_data['weapon']

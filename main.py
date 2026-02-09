@@ -4,11 +4,13 @@ Config()
 
 from nicegui import ui
 from core.logger import logger_init
+from core.registry import initialize_registry
 import os
 
 # --- 初始化 ---
 def init_all():
     logger_init()
+    initialize_registry()
 
 @ui.page('/')
 def index_page():

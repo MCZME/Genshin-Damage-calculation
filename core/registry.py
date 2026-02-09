@@ -53,6 +53,8 @@ def register_artifact_set(set_name: str):
 # ---------------------------------------------------------
 # 动态发现逻辑
 # ---------------------------------------------------------
+_initialized = False
+
 def discover_modules(package_name: str):
     """
     递归扫描并导入指定包下的所有子模块，从而触发装饰器注册。
@@ -74,8 +76,12 @@ def discover_modules(package_name: str):
 
 def initialize_registry():
     """
-    一键初始化所有注册表。
+    一键初始化所有注册表。具备防重入保护。
     """
+    global _initialized
+    if _initialized:
+        return
+
     discover_modules("character")
     discover_modules("weapon")
     discover_modules("artifact.sets")
@@ -83,3 +89,5 @@ def initialize_registry():
     # 同步更新武器分类表 (用于 UI)
     from weapon import update_weapon_table
     update_weapon_table()
+    
+    _initialized = True
