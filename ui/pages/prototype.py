@@ -354,27 +354,29 @@ def prototype_page():
         with shell.right_column():
             right_container = ui.column().classes('h-full w-full')
 
-    with ui.footer().classes('bg-transparent px-4 pb-4 pt-0 h-24'):
-        with ui.row().classes('w-full genshin-glass genshin-pane px-10 h-full items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.4)]'):
-            with ui.row().classes('items-center gap-8'):
+    with ui.footer().classes('bg-[#0a0a0a]/80 backdrop-blur-xl border-t border-white/5 px-10 py-4 h-28'):
+        with ui.row().classes('w-full h-full items-center justify-between'):
+            with ui.row().classes('items-center gap-10'):
+                # 强化版仿真按钮
                 ui.button('开始仿真', icon='bolt', on_click=state.run_simulation, color='primary') \
-                    .classes('px-12 py-2 rounded-full font-black shadow-2xl shadow-primary/40 text-sm') \
+                    .classes('px-14 py-3 rounded-2xl font-black shadow-2xl shadow-primary/30 text-base') \
                     .props('no-caps elevated')
                 
-                with ui.column().classes('gap-0'):
-                    ui.label('SYSTEM STATUS').classes('text-[9px] font-black tracking-[0.2em] text-primary opacity-80')
+                # 状态与进度信息
+                with ui.column().classes('gap-1'):
+                    ui.label('SYSTEM STATUS').classes('text-[10px] font-black tracking-[0.2em] text-primary opacity-60')
                     @ui.refreshable
                     def status_label():
                         if state.is_simulating:
                             if not state.batch_mode:
-                                ui.label(f'RUNNING: {getattr(state, "current_sim_frame", 0)} Frames').classes('text-[11px] font-bold tracking-[0.1em] text-primary animate-pulse')
+                                val = getattr(state, "current_sim_frame", 0)
+                                ui.label(f'仿真运行中: {val} Frames').classes('text-sm font-black tracking-widest text-white animate-pulse')
                             else:
-                                ui.label(f'BATCH: {state.batch_completed} / {state.batch_total} Runs').classes('text-[11px] font-bold tracking-[0.1em] text-primary animate-pulse')
+                                ui.label(f'批量处理: {state.batch_completed} / {state.batch_total}').classes('text-sm font-black tracking-widest text-primary animate-pulse')
                         else:
-                            ui.label('READY TO EXECUTE').classes('text-[11px] font-bold tracking-[0.1em] text-white/40')
+                            ui.label('就绪: 等待指令执行').classes('text-sm font-bold tracking-widest text-white/30')
                     status_label()
-                    # 仿真运行时自动刷新状态栏
-                    ui.timer(0.2, status_label.refresh)
+                    ui.timer(0.1, status_label.refresh) # 提高刷新频率到 10Hz
             
             with ui.row().classes('items-center gap-4'):
                 ui.button('保存配置', icon='save', on_click=state.save_to_file).props('flat color=white').classes('opacity-60 text-[11px] font-bold tracking-widest')
