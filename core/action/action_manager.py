@@ -93,7 +93,7 @@ class ActionManager:
 
     def _start_action(self, data: ActionFrameData):
         self.current_action = ActionInstance(data)
-        get_emulation_logger().log("ASM", f"{self.character.name} 开始执行动作: {data.name} (时长: {data.total_frames} 帧)")
+        get_emulation_logger().log_info(f"{self.character.name} 开始执行动作: {data.name} (时长: {data.total_frames} 帧)", sender="ASM")
         
         # 建立运行时绑定
         if self.current_action.data.origin_skill:
@@ -128,5 +128,5 @@ class ActionManager:
 
     def _terminate_current(self, reason: str):
         if self.current_action:
-            # get_emulation_logger().log("ASM", f"{self.character.name} 动作结束 ({reason})")
+            get_emulation_logger().log_info(f"{self.character.name} 动作结束 ({reason}: {self.current_action.data.name})", sender="ASM")
             self.current_action = None

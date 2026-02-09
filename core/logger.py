@@ -44,8 +44,8 @@ class SimulationLogger:
         show_console = Config.get("logging.Emulation.console")
         
         # 2. 格式化器
-        # 注意：这里我们手动把 GetCurrentTime() 塞进格式
-        formatter = logging.Formatter("[%(frame)s][%(name)s][%(levelname)s] %(message)s")
+        # 增加 [%(sender)s] 字段
+        formatter = logging.Formatter("[%(frame)s][%(name)s][%(levelname)s][%(sender)s] %(message)s")
 
         # 3. 文件处理器
         if save_to_file:
@@ -66,52 +66,117 @@ class SimulationLogger:
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-    def _log(self, level: int, msg: str):
+    def _log(self, level: int, msg: str, payload: dict = None, sender: str = "System"):
         # 动态获取当前帧
         frame = GetCurrentTime()
-        self.logger.log(level, msg, extra={"frame": frame})
+        
+        # 自动提取 [Sender] 标签 (如果 msg 以其开头)
+        if msg.startswith("[") and "]" in msg:
+            end_idx = msg.find("]")
+            extracted_sender = msg[1:end_idx]
+            # 只有当传入的 sender 是默认的 System 时才覆盖，或者强制覆盖
+            if sender == "System":
+                sender = extracted_sender
+                msg = msg[end_idx+1:].strip()
+
+        # 将 payload 和 sender 放入 extra 供 Handler 提取
+        self.logger.log(level, msg, extra={"frame": frame, "payload": payload or {}, "sender": sender})
 
     def log_damage(self, source: Any, target: Any, damage: Any):
         if not Config.get("logging.Emulation.damage"): return
+        
+        element_name = damage.element[0]
         icons = {"物理": "⚔️", "水": "🌊", "火": "🔥", "冰": "❄️", "风": "🌪️", "雷": "⚡", "岩": "⛰️", "草": "🌿"}
-        e_icon = icons.get(damage.element[0], "❓")
+        e_icon = icons.get(element_name, "❓")
+        
         msg = (f"{e_icon} {source.name}使用 {damage.name} 对{target.name} "
-               f"造成 {damage.damage:.2f} 点 {damage.element[0]} 伤害")
-        self._log(DAMAGE_LEVEL, msg)
+               f"造成 {damage.damage:.2f} 点 {element_name} 伤害")
+        
+        payload = {
+            "type": "damage",
+            "source": source.name,
+            "target": target.name,
+            "damage_name": damage.name,
+            "value": damage.damage,
+            "element": element_name,
+            "is_crit": getattr(damage, "is_crit", False)
+        }
+        self._log(DAMAGE_LEVEL, msg, payload, sender="Damage")
 
     def log_heal(self, source: Any, target: Any, heal: Any):
         if not Config.get("logging.Emulation.heal"): return
         msg = f"💚 {source.name} 使用 {heal.name} 治疗 {target.name} {heal.final_value:.2f} 生命值"
-        self._log(HEAL_LEVEL, msg)
+        
+        payload = {
+            "type": "heal",
+            "source": source.name,
+            "target": target.name,
+            "heal_name": heal.name,
+            "value": heal.final_value
+        }
+        self._log(HEAL_LEVEL, msg, payload, sender="Heal")
 
-    def log_energy(self, character: Any, energy_value: float):
+    def log_energy(self, character: Any, energy_value: float, source_type: str = "微粒"):
         if not Config.get("logging.Emulation.energy"): return
-        msg = f"🔋 {character.name} 恢复 {energy_value:.2f} 点元素能量"
-        self._log(ENERGY_LEVEL, msg)
+        msg = f"🔋 {character.name} 获得了 {energy_value:.2f} 点元素能量 ({source_type})"
+        
+        payload = {
+            "type": "energy",
+            "character": character.name,
+            "value": energy_value,
+            "source_type": source_type
+        }
+        self._log(ENERGY_LEVEL, msg, payload, sender="Energy")
 
-    def log_reaction(self, msg: str):
-        if Config.get("logging.Emulation.reaction"): self._log(REACTION_LEVEL, msg)
+    def log_reaction(self, source_char: Any, reaction_type: str, target: Any):
+        if not Config.get("logging.Emulation.reaction"): return
+        msg = f"🔁 {source_char.name} 触发了 {reaction_type} 反应"
+        
+        payload = {
+            "type": "reaction",
+            "source": source_char.name,
+            "reaction": reaction_type,
+            "target": target.name
+        }
+        self._log(REACTION_LEVEL, msg, payload, sender="Reaction")
 
-    def log_effect(self, msg: str):
-        if Config.get("logging.Emulation.effect"): self._log(EFFECT_LEVEL, msg)
+    def log_effect(self, owner: Any, effect_name: str, action: str = "获得"):
+        if not Config.get("logging.Emulation.effect"): return
+        msg = f"✨ {owner.name} {action}了 {effect_name} 效果"
+        
+        payload = {
+            "type": "effect",
+            "owner": owner.name,
+            "effect": effect_name,
+            "action": action
+        }
+        self._log(EFFECT_LEVEL, msg, payload, sender="Effect")
 
-    def log_object(self, msg: str):
-        if Config.get("logging.Emulation.object"): self._log(OBJECT_LEVEL, msg)
+    def log_shield(self, character: Any, shield_name: str, value: float, action: str = "获得"):
+        msg = f"🛡️ {character.name} {action}了 {shield_name} 护盾 (量级: {value:.2f})"
+        payload = {
+            "type": "shield", 
+            "character": character.name, 
+            "shield": shield_name, 
+            "value": value,
+            "action": action
+        }
+        self._log(EFFECT_LEVEL, msg, payload, sender="Shield")
 
-    def log_info(self, msg: str): self._log(logging.INFO, msg)
-    def log_error(self, msg: str): self._log(logging.ERROR, msg)
-    def log_debug(self, msg: str): 
-        if Config.get("logging.Emulation.debug"): self._log(logging.DEBUG, msg)
-    
-    # 兼容旧代码调用
-    def log(self, level_name: str, msg: str):
-        self._log(logging.INFO, f"[{level_name}] {msg}")
-    
-    def new_log_file(self, file_path: Optional[str] = None):
-        """重新绑定日志文件 (兼容旧 Emulation 逻辑)"""
-        # 这个方法在实例模式下其实应该由 __init__ 处理
-        # 这里为了兼容，简单重定向
-        self.__init__(log_file=file_path)
+    def log_skill_use(self, character: Any, skill_name: str):
+        msg = f"🎯 {character.name} 释放了 {skill_name}"
+        payload = {"type": "skill", "character": character.name, "skill": skill_name}
+        self._log(logging.INFO, msg, payload, sender="Skill")
+
+    def log_info(self, msg: str, sender: str = "System"): 
+        self._log(logging.INFO, msg, sender=sender)
+        
+    def log_error(self, msg: str, sender: str = "Error"): 
+        self._log(logging.ERROR, msg, sender=sender)
+        
+    def log_debug(self, msg: str, sender: str = "Debug"): 
+        if Config.get("logging.Emulation.debug"): 
+            self._log(logging.DEBUG, msg, sender=sender)
 
 # ---------------------------------------------------------
 # UI Logger (独立实例)
@@ -174,7 +239,6 @@ def get_emulation_logger() -> SimulationLogger:
     return _fallback_emulation_logger
 
 def logger_init():
-    """兼容旧代码初始化"""
     get_ui_logger()
     get_emulation_logger()
 

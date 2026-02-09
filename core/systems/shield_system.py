@@ -39,6 +39,13 @@ class ShieldSystem(GameSystem):
 
         calculation.calculation()
         
+        from core.logger import get_emulation_logger
+        get_emulation_logger().log_shield(
+            event.data['character'],
+            event.data['shield'].name,
+            event.data['shield'].shield_value
+        )
+        
         # 发布护盾生成后事件
         after_event = ShieldEvent(
             source=event.data['character'],

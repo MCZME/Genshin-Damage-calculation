@@ -36,7 +36,11 @@ class ReactionSystem(GameSystem):
     def _apply_reaction_effect(self, event: GameEvent, res: ReactionResult):
         """核心分发器"""
         category = res.category
-        get_emulation_logger().log_reaction(f"🔁 {event.data['character'].name} 触发了 {res.reaction_type.value} 反应")
+        get_emulation_logger().log_reaction(
+            source_char=event.data['character'],
+            reaction_type=res.reaction_type.value,
+            target=event.data['target']
+        )
 
         if category == ReactionCategory.TRANSFORMATIVE:
             self._handle_transformative(event, res)

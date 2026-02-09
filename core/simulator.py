@@ -23,7 +23,7 @@ class Simulator:
     async def run(self):
         """开始异步模拟循环"""
         self.is_running = True
-        get_emulation_logger().log("Simulator", "模拟开始执行")
+        get_emulation_logger().log_info("模拟开始执行", sender="Simulator")
         
         try:
             # 初始帧前准备
@@ -54,7 +54,7 @@ class Simulator:
                 
                 # 6. 检查是否所有动作已完成且角色处于 IDLE
                 if self._is_finished():
-                    get_emulation_logger().log("Simulator", f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})")
+                    get_emulation_logger().log_info(f"检测到终止条件满足 (Frame: {self.ctx.current_frame}, Ptr: {self.action_ptr})", sender="Simulator")
                     self.is_running = False
         except Exception as e:
             import traceback
@@ -69,7 +69,7 @@ class Simulator:
         if self.on_progress:
             await self.on_progress(self.ctx.current_frame)
             
-        get_emulation_logger().log("Simulator", "模拟执行完毕")
+        get_emulation_logger().log_info("模拟执行完毕", sender="Simulator")
 
     def _prepare_simulation(self):
         # 初始化第一个动作

@@ -19,10 +19,14 @@ class CombatSpace:
     def register(self, entity: CombatEntity):
         if entity not in self._entities[entity.faction]:
             self._entities[entity.faction].append(entity)
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_info(f"实体已注册: {entity.name} (Faction: {entity.faction.name})", sender="Physics")
 
     def unregister(self, entity: CombatEntity):
         if entity not in self._remove_queue:
             self._remove_queue.append(entity)
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_info(f"实体已注销: {entity.name}", sender="Physics")
 
     def update(self):
         for faction_list in self._entities.values():
@@ -124,6 +128,10 @@ class CombatSpace:
 
         # 5. 执行伤害结算
         final_targets = self._apply_selection_strategy(targets, data, origin)
+        if final_targets:
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_info(f"伤害广播命中 {len(final_targets)} 个目标 (AOE: {shape.name})", sender="Physics")
+            
         for t in final_targets:
             # 关键：在这里建立 Damage 对象对 target 的引用
             # 虽然可能有多目标，但在目前 Pipeline 中，我们通常只处理第一个命中的实体的反应

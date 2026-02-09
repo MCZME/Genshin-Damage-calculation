@@ -21,7 +21,7 @@ class TeamFactory:
             character = self._build_character(char_data)
             if character:
                 characters.append(character)
-                get_emulation_logger().log("Team", f"角色 {character.name} 组装成功")
+                get_emulation_logger().log_info(f"角色 {character.name} 组装成功", sender="Team")
         
         if not characters:
             raise ValueError("没有有效的角色配置，无法创建队伍。")

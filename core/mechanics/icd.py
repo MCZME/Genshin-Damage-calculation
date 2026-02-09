@@ -67,12 +67,16 @@ class ICDManager:
         # 2. 时间重置判定
         # 如果距离上次重置超过了时限，或者从未重置过
         if current_frame - state.last_reset_frame >= group.reset_frames:
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_debug(f"组别 {tag} 时间重置 (上次: {state.last_reset_frame})", sender="ICD")
+            
             state.hit_count = 0
             state.last_reset_frame = current_frame
             # 重置后，计数从0开始，应用序列第0位系数
             coeff = self._get_coefficient(group, 0)
             # 命中计数加1
             state.hit_count += 1
+            self._log_attachment(tag, coeff, state.hit_count)
             return float(coeff)
             
         # 3. 序列计数判定
@@ -81,13 +85,16 @@ class ICDManager:
         
         # 命中计数加1
         state.hit_count += 1
-        
-        # 如果本次命中的系数 > 0 (发生了附着)，通常不重置计时器，
-        # 计时器只在时间超时或首次命中时重置。
-        # 只有在某些特殊机制下，次数重置可能会重置计时器，
-        # 但在通用模型中，次数循环不影响计时重置。
+        self._log_attachment(tag, coeff, state.hit_count)
         
         return float(coeff)
+
+    def _log_attachment(self, tag: str, coeff: int, count: int):
+        """内部辅助：记录附着判定日志"""
+        if coeff > 0:
+            # 仅在调试级别记录，避免淹没普通日志
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_debug(f"[ICD] {tag} 附着成功 (计数: {count})", sender="ICD")
 
     def _get_coefficient(self, group: ICDGroup, index: int) -> int:
         """从序列中获取系数，支持循环或末位保持"""

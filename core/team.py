@@ -99,6 +99,10 @@ class Team:
         return False
 
     def _perform_switch(self, new_char: Character) -> None:
+        from core.logger import get_emulation_logger
+        old_name = self.current_character.name if self.current_character else "None"
+        get_emulation_logger().log_info(f"切换角色: {old_name} -> {new_char.name}", sender="Team")
+        
         EventBus.publish(CharacterSwitchEvent(self.current_character, new_char, frame=GetCurrentTime()))
         if self.current_character: self.current_character.on_field = False
         new_char.on_field = True

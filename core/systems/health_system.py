@@ -1,3 +1,4 @@
+import logging
 from typing import Union, Tuple
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
@@ -87,21 +88,20 @@ class HealthSystem(GameSystem):
             self._handle_hurt(event)
 
     def _handle_heal(self, event: HealEvent):
-        if not hasattr(event.data['character'], 'attributePanel'):
-            return
-            
+        # 修正：获取 scaling_stat
+        scaling_stat = event.data['healing'].scaling_stat
+        
         calculation = Calculation(
             source=event.data['character'],
             target=event.data['target'],
             healing=event.data['healing']
         )
         
-        scaling_stat = event.data['healing'].scaling_stat
-        if base_value == '攻击力':
+        if scaling_stat == '攻击力':
             calculation.calculate_by_attack()
-        elif base_value == '生命值':
+        elif scaling_stat == '生命值':
             calculation.calculate_by_hp()
-        elif base_value == '防御力':
+        elif scaling_stat == '防御力':
             calculation.calculate_by_defense()
         
         # 执行治疗
@@ -126,7 +126,15 @@ class HealthSystem(GameSystem):
     def _handle_hurt(self, event: GameEvent):
         # 执行扣血
         event.data['target'].hurt(event.data['amount'])
-        get_emulation_logger().log('HURT', f"💔 {event.data['target'].name} 受到 {event.data['amount']:.2f} 点伤害")
+        
+        # 使用结构化日志
+        msg = f"💔 {event.data['target'].name} 受到 {event.data['amount']:.2f} 点伤害"
+        payload = {
+            "type": "hurt", 
+            "target": event.data['target'].name, 
+            "amount": event.data['amount']
+        }
+        get_emulation_logger()._log(logging.INFO, msg, payload)
 
         after_event = HurtEvent(
             event.data['character'], 
