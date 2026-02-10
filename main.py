@@ -1,34 +1,28 @@
 from core.config import Config
-# 必须在导入任何业务模块（如 ui.pages）之前初始化配置
+# 1. 核心配置初始化 (必须最先执行)
 Config()
 
-from nicegui import ui
+import flet as ft
 from core.logger import logger_init
 from core.registry import initialize_registry
-import os
+from ui.app import main as flet_main
 
-# --- 初始化 ---
 def init_all():
+    """初始化后端引擎"""
     logger_init()
     initialize_registry()
 
-@ui.page('/')
-def index_page():
-    with ui.column().classes('w-full items-center p-8'):
-        ui.label('原神伤害计算器 (V2)').classes('text-4xl font-bold text-primary mb-4')
-        ui.markdown('基于 **NiceGUI** 与 **V2 场景引擎** 的现代化重构版。').classes('text-lg text-gray-600')
-        
-        with ui.row().classes('mt-8 gap-4'):
-            ui.button('进入仿真工作台', on_click=lambda: ui.navigate.to('/prototype'), icon='rocket').props('elevated size=lg')
-
-# 导入页面 (触发路由注册)
-from ui.pages import prototype as _prototype_page
-
-if __name__ in {"__main__", "__mp_main__"}:
+if __name__ == "__main__":
+    # --- 仅在主进程中执行 ---
+    
+    # 2. 后端引擎初始化
     init_all()
-    ui.run(
-        title='Genshin Damage Calc V2',
-        port=8080,
-        dark=False,
-        favicon='🚀'
-    )
+    
+    # 3. 启动 Flet UI (Workbench V3.0)
+    print("🚀 Starting Genshin Simulation Workbench V3.0 (Main Process)...")
+    ft.run(flet_main)
+
+elif __name__ == "__mp_main__":
+    # --- 在子进程中执行 ---
+    # 子进程不需要启动 UI，其初始化逻辑已在 core/batch/runner.py 的 simulation_worker 中独立处理
+    pass

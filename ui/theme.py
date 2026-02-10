@@ -1,93 +1,62 @@
-from nicegui import ui
+import flet as ft
 
 class GenshinTheme:
     """
-    MD3 + Genshin 融合主题引擎
-    负责管理动态色彩令牌、磨砂玻璃材质和全局样式注入
+    原神主题管理器 - 增强兼容性版
     """
     
-    # 基础色彩令牌 (Global Tokens)
-    SURFACE = "#0B0E18"
-    ON_SURFACE = "#ECE5D8"
-    SURFACE_VARIANT = "rgba(30, 41, 59, 0.7)"
+    # --- 核心调色板 ---
+    BACKGROUND = "#1A1625"        
+    PRIMARY = "#D1A2FF"           
+    ON_PRIMARY = "#2A0B3D"
     
-    # 动态元素色池 (直接使用中文 Key)
-    ELEMENTS = {
-        '火':   {'primary': '#FF5C5C', 'container': '#4A1B1B'},
-        '水':   {'primary': '#4FB7FF', 'container': '#1B324A'},
-        '草':   {'primary': '#A5C83B', 'container': '#2D3815'},
-        '雷':   {'primary': '#B283FF', 'container': '#321B4A'},
-        '风':   {'primary': '#72E2C3', 'container': '#1B4A3E'},
-        '冰':   {'primary': '#A0E9FF', 'container': '#1B3E4A'},
-        '岩':   {'primary': '#FFE070', 'container': '#4A3E1B'},
-        '物理': {'primary': '#94A3B8', 'container': '#1E293B'},
-        'Neutral':{'primary': '#94A3B8', 'container': '#1E293B'}
+    SURFACE = "#252131"           
+    SURFACE_VARIANT = "#322D41"   
+    ON_SURFACE = "#E5E1E6"        
+    TEXT_SECONDARY = "#ABA6B5"    
+    
+    # --- 玻璃拟态参数 ---
+    GLASS_BG = "rgba(60, 55, 80, 0.4)"      
+    GLASS_BORDER = "rgba(200, 180, 255, 0.15)" 
+    HEADER_BG = "rgba(35, 30, 50, 0.6)"     
+    FOOTER_BG = "rgba(40, 35, 60, 0.9)"     
+
+    # --- 元素色映射 (中英文兼容) ---
+    ELEMENT_COLORS = {
+        # 英文
+        "Pyro": "#FF7E7E", "Hydro": "#4CC2F1", "Anemo": "#72E2C7",
+        "Electro": "#D1A2FF", "Dendro": "#A6E3A1", "Cryo": "#A0E9FF",
+        "Geo": "#FFE699", "Physical": "#E5E1E6", "Neutral": "#ABA6B5",
+        # 中文
+        "火": "#FF7E7E", "水": "#4CC2F1", "风": "#72E2C7",
+        "雷": "#D1A2FF", "草": "#A6E3A1", "冰": "#A0E9FF",
+        "岩": "#FFE699", "物理": "#E5E1E6"
     }
 
     @staticmethod
-    def apply():
-        """注入全局 CSS 变量与材质样式"""
-        ui.add_head_html(f'''
-            <style>
-                :root {{
-                    --md-surface: {GenshinTheme.SURFACE};
-                    --md-on-surface: {GenshinTheme.ON_SURFACE};
-                    --md-primary: {GenshinTheme.ELEMENTS['Neutral']['primary']};
-                    --md-primary-container: {GenshinTheme.ELEMENTS['Neutral']['container']};
-                }}
-                
-                body {{
-                    background-color: var(--md-surface) !important;
-                    color: var(--md-on-surface) !important;
-                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-                    -webkit-font-smoothing: antialiased;
-                    margin: 0;
-                }}
-
-                /* MD3 + Genshin 材质系统 - 面板化 (Panes) */
-                .genshin-glass {{
-                    background: rgba(15, 23, 42, 0.6);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-                }}
-                
-                .genshin-pane {{
-                    border-radius: 28px;
-                    transition: all 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
-                }}
-                
-                .genshin-card:hover {{
-                    border-color: var(--md-primary);
-                    background: rgba(255, 255, 255, 0.05);
-                }}
-
-                /* MD3 状态反馈 (Ripple 模拟) */
-                .q-ripple {{
-                    color: var(--md-primary) !important;
-                }}
-
-                /* 隐藏 NiceGUI 默认内间距 */
-                .nicegui-content {{
-                    padding: 0 !important;
-                }}
-                
-                /* 自定义输入框样式 (MD3 Outlined) */
-                .q-field--outlined .q-field__control:before {{
-                    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-                }}
-                .q-field--focused .q-field__control:after {{
-                    border-color: var(--md-primary) !important;
-                }}
-            </style>
-        ''')
+    def get_theme():
+        return ft.Theme(
+            color_scheme=ft.ColorScheme(
+                primary=GenshinTheme.PRIMARY,
+                on_primary=GenshinTheme.ON_PRIMARY,
+                surface=GenshinTheme.SURFACE,
+                on_surface=GenshinTheme.ON_SURFACE,
+                secondary=GenshinTheme.PRIMARY,
+            ),
+            use_material3=True,
+            visual_density=ft.VisualDensity.COMFORTABLE,
+        )
+    
+    @staticmethod
+    def apply_page_settings(page: ft.Page):
+        page.theme = GenshinTheme.get_theme()
+        page.theme_mode = ft.ThemeMode.DARK
+        page.bgcolor = GenshinTheme.BACKGROUND
+        page.padding = 0
+        page.spacing = 0
 
     @staticmethod
-    def set_element(element: str):
-        """动态更新当前 UI 的元素主题色"""
-        theme = GenshinTheme.ELEMENTS.get(element, GenshinTheme.ELEMENTS['Neutral'])
-        ui.run_javascript(f'''
-            document.documentElement.style.setProperty('--md-primary', '{theme['primary']}');
-            document.documentElement.style.setProperty('--md-primary-container', '{theme['container']}');
-        ''')
+    def get_element_color(element: str):
+        """根据元素名称获取对应颜色 (支持中英文)"""
+        if not element: return GenshinTheme.ELEMENT_COLORS["Neutral"]
+        return GenshinTheme.ELEMENT_COLORS.get(element, GenshinTheme.ELEMENT_COLORS["Neutral"])
