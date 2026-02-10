@@ -1,72 +1,61 @@
-# UI 与数据分析系统架构设计 (V2)
+# UI 与数据分析系统架构设计 (V3)
 
 ## 1. 设计背景
-原有的 UI 方案（PySide6）存在内存占用过高（O(N) 帧对象存储）、界面美观度不足以及开发维护成本高等问题。为了支持 V2 架构的高性能仿真及“任意帧状态回溯”的核心需求，UI 系统将进行全面重构。
+V3 架构旨在解决大规模参数扫描时的“维度爆炸”问题。通过引入图形化的分支管理与意图驱动的指令编排，UI 系统从简单的配置工具进化为专业的仿真工作台。
 
 ## 2. 技术选型
-*   **UI 框架**: **NiceGUI** (基于 Python 的现代 Web 响应式框架)
-    *   *优点*: 纯 Python 开发、原生支持 Tailwind CSS 与 Material Design、异步性能优异、内置丰富的图表组件。
-*   **存储引擎**: **SQLite** (本地嵌入式数据库)
-    *   *优点*: 零配置、读写极快、支持索引（实现任意帧随机访问的关键）、便于持久化分享。
-*   **通讯协议**: **Asyncio + WebSocket** (NiceGUI 默认)
+*   **UI 框架**: **Flet** (基于 Flutter 引擎的现代桌面应用框架)
+    *   *优点*: 渲染速度极快（Flutter 原生绘制）、跨平台一致性、支持高性能 Canvas 与交互手势、零延迟的 Python 异步绑定。
+*   **存储引擎**: **SQLite + aiosqlite**
+    *   *优点*: 异步非阻塞 IO，支持在仿真运行期间流式记录帧快照，实现“边跑边存”。
+*   **核心模式**: **State-Driven UI (AppState)**
+    *   应用状态集中管理，组件通过 `refresh()` 机制实现响应式更新。
 
-## 3. 核心架构逻辑 (Config -> Simulate -> Analyze)
+## 3. 核心交互阶段 (Strategic -> Tactical -> Review)
 
-### 3.1 阶段一：可视化配置编辑器 (Config Editor)
-用户通过 UI 界面定义模拟环境：
-*   **角色配置**: 通过下拉列表和滑块设置角色等级、天赋、武器及圣遗物。
-*   **敌人配置**: 定义目标等级、抗性等。
-*   **动作编排**: 交互式序列编辑器，支持拖拽、参数设置。
-*   **数据导出**: 配置将生成标准 JSON 契约，传递给 `Simulator`。
+### 3.1 战略筹备：分支宇宙 (Branching Universe)
+用户通过可视化画布定义实验方案：
+*   **变异节点 (Mutation Node)**: 每个节点代表一个规则改变（如“全员增加 100 精通”、“换用绝缘套”）。
+*   **层级继承**: 子节点自动继承父路径上的所有修改规则，形成路径叠加。
+*   **属性编辑器 (Property Editor)**: 针对选中的角色/目标，提供基于 Metadata 的配置表单。
 
-### 3.2 阶段二：静默仿真与流式持久化 (Headless Simulation)
-点击“开始模拟”后：
-1.  **无头运行**: `Simulator` 在独立线程/进程中全速运行，不进行实时 UI 渲染以确保性能。
-2.  **状态抓取 (Snapshotting)**: 每帧调用实体的 `export_state()` 方法，将 `attribute_panel`、`aura`、`pos` 等关键数值提取为**扁平字典**。
-3.  **持久化写入**: 抓取到的数据与该帧触发的事件（`DamageEvent` 等）被批量写入 SQLite 数据库。
-    *   *表结构示例*: `frames` (存储实体状态), `events` (存储伤害/反应事件)。
+### 3.2 战术编排：意图指令 (Intent Commands)
+编排战斗逻辑：
+*   **动作库 (Action Library)**: 自动发现队伍中角色的可用技能。
+*   **时间轴序列**: 线性排列执行指令。
+*   **动态检视器 (Action Inspector)**: 
+    *   UI 调用后端的 `get_action_metadata()`。
+    *   根据返回的参数类型（select, number, bool），动态生成对应的 Flet 控件。
+    *   修改参数即时同步至 `AppState.action_sequence`。
 
-### 3.3 阶段三：交互式结果分析器 (Analysis Dashboard)
-模拟完成后，用户进入分析界面：
-*   **时间轴控制器 (Timeline Slider)**: 一个贯穿底部的长滑块。
-*   **任意帧回溯 (Random Access)**: 
-    *   当用户拖动滑块至第 X 帧时，UI 触发查询：`SELECT * FROM frames WHERE frame_id = X`。
-    *   由于 SQLite 索引的支持，查询耗时在毫秒级，实现瞬间查看任意时刻的战场状态。
-*   **可视化图表**: 使用 ECharts 展示 DPS 曲线、属性动态变化。
-*   **事件追溯**: 点击某个伤害数字，自动跳转并高亮该帧的所有计算细节（乘区快照）。
+### 3.3 批量仿真与进度反馈 (Batch Simulation)
+点击“开始运行”：
+1.  **任务生成**: `ConfigGenerator` 对宇宙树执行 DFS，将每个叶子节点转化为独立的仿真 Bundle。
+2.  **并行执行**: `BatchRunner` 启动多进程池，每个 Worker 独立加载环境运行仿真。
+3.  **实时进度**: Footer 状态栏通过劫持 `AppState.refresh`，实现毫秒级的进度更新（Completed/Total）。
+
+### 3.4 战果复盘 (Analysis & Review)
+*   **全局 DPS 标注**: 画布节点在运行结束后自动标注计算结果（Max/Avg DPS）。
+*   **任意帧回溯**: 点击节点加载对应的 SQLite 数据库，通过 `Analysis Dashboard` 进行帧级复盘。
 
 ## 4. 关键技术改进
 
-### 4.1 内存优化：从“内存列表”到“磁盘索引”
-*   **V1 问题**: `total_frame_data = [frame1_dict, frame2_dict, ...]` 导致模拟步长增加时内存溢出。
-*   **V2 方案**: 模拟时**流式写入**磁盘，分析时**按需读取**。内存中仅保留当前显示的帧数据和精简的汇总数据（如秒级 DPS）。
+### 4.1 高性能画布 (Universe Canvas)
+*   **实现**: 使用 Flet `ft.Stack` + `cv.Canvas` 组合。
+*   **绘图**: 采用三次贝塞尔曲线绘制节点连接，通过手势处理器（Panning）实现平滑拖拽。
 
-### 4.2 状态导出协议 (`export_state`)
-所有参与仿真的实体（`Character`, `Target`, `DendroCore`）必须实现该协议：
+### 4.2 意图驱动协议 (Intent Protocol)
+UI 严禁直接修改实体的内部状态，必须通过 **Intent Dict** 进行通信：
 ```python
-def export_state(self) -> dict:
-    return {
-        "name": self.name,
-        "hp_pct": self.current_hp / self.max_hp,
-        "pos": self.pos.copy(),
-        "attributes": self.attribute_panel.copy(),
-        "auras": self.aura.to_list()
-    }
+# UI 发送的指令格式
+{
+    "char_name": "夏洛蒂",
+    "action_id": "elemental_skill",
+    "params": {"type": "Hold"} 
+}
 ```
-*注：严禁在导出字典中包含 Python 对象引用，确保数据可序列化。*
-
-## 5. 工作流规划 (Status: In Progress)
-1.  **第一步**: 实现核心实体的 `export_state` 协议。 (✅ Done)
-2.  **第二步**: 编写 SQLite 存储驱动（Result Persistence Layer）。 (✅ Done)
-3.  **第三步**: 使用 NiceGUI 搭建基础配置面板。 (✅ Done)
-4.  **第四步**: 实现带滑块的时间轴分析器。 (✅ Done)
-
-## 6. 异步仿真设计详解
-为了支持 UI 的非阻塞响应，`Simulator` 进行了如下改造：
-- **Async 循环**: `Simulator.run` 变更为 `async def run`，使得它能在 NiceGUI 的事件循环中被 `await` 调用。
-- **快照流**: 在主循环的每一帧末尾，调用 `db.record_snapshot()` 将当前帧数据压入异步队列。
-- **后台写入**: `ResultDatabase` 启动一个后台 Worker 协程，负责从队列取出数据并批量写入 SQLite，彻底解耦计算与 IO。
+后端负责将 `params` 转换为具体的物理帧数据，确保了 UI 与物理逻辑的完美隔离。
 
 ---
-*版本: v1.0.0*
-*日期: 2026-02-07*
+*版本: v3.0.0*
+*日期: 2026-02-09*
