@@ -56,7 +56,9 @@ class ArtifactEditor(ft.Column):
             ("circlet", "冠", "理之冠", ft.Icons.ACCOUNT_BALANCE),
         ]
         for key, initial, label, icon in slots:
-            grid.controls.append(self._build_slot_block(key, initial, label, arts[key]))
+            # 防御性：如果由于某种原因缺失该部位，显示一个默认值而不是报错
+            slot_data = arts.get(key, {"set": "未装备", "main": "生命值", "value": 0, "subs": []})
+            grid.controls.append(self._build_slot_block(key, initial, label, slot_data))
         
         self.controls.append(grid)
 
