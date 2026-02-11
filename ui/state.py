@@ -4,7 +4,7 @@ import asyncio
 import flet as ft
 from typing import List, Dict, Any, Optional
 from core.data.repository import MySQLDataRepository
-from core.logger import get_emulation_logger
+from core.logger import get_emulation_logger, get_ui_logger
 from core.batch.models import SimulationNode, SimulationMetrics, ModifierRule
 from core.factory.assembler import create_simulator_from_config
 from core.batch.generator import ConfigGenerator
@@ -62,7 +62,7 @@ class AppState:
                 "古岩龙蜥": {"level": 90, "resists": {k: 10 for k in ["火", "水", "雷", "草", "冰", "岩", "风", "物理"]}},
             }
         except Exception as e:
-            print(f"AppState: Metadata load failed: {e}")
+            get_ui_logger().log_error(f"AppState: Metadata load failed: {e}")
 
     def refresh(self):
         if self.page:
@@ -109,7 +109,7 @@ class AppState:
                 )
                 target_node.children.append(child_node)
         except Exception as e:
-            print(f"Range Generation Error: {e}")
+            get_ui_logger().log_error(f"Range Generation Error: {e}")
             
         self.selected_node = target_node
         self.refresh()
@@ -187,6 +187,7 @@ class AppState:
         self.action_sequence = config.get("action_sequence_raw", [])
         self.selection = None
         self.refresh()
+        get_ui_logger().log_info("External configuration applied to Workbench.")
 
     # --- 运行逻辑 ---
 
@@ -219,6 +220,7 @@ class AppState:
             self.sim_status = f"FINISHED | DPS: {int(dps)}"; self.sim_progress = 1.0
         except Exception as e:
             self.sim_status = f"FAILED: {str(e)[:25]}"
+            get_ui_logger().log_error(f"Single Simulation Error: {e}")
         finally:
             self.is_simulating = False; self.refresh()
 
@@ -239,6 +241,7 @@ class AppState:
             return summary
         except Exception as e:
             self.sim_status = f"BATCH FAILED: {str(e)[:20]}"
+            get_ui_logger().log_error(f"Batch Simulation Error: {e}")
         finally:
             self.is_simulating = False; self.refresh()
 
@@ -247,14 +250,16 @@ class AppState:
         os.makedirs("data/configs", exist_ok=True)
         config_data = self.export_config(); config_data["action_sequence_raw"] = self.action_sequence
         with open(os.path.join("data/configs", filename), "w", encoding="utf-8") as f: json.dump(config_data, f, ensure_ascii=False, indent=4)
+        get_ui_logger().log_info(f"Config saved to {filename}")
 
     async def load_config(self, filename: str):
         path = os.path.join("data/configs", filename)
         if not os.path.exists(path): return
         with open(path, "r", encoding="utf-8") as f: data = json.load(f)
         await self.apply_external_config(data)
+        get_ui_logger().log_info(f"Config loaded from {filename}")
 
-    # --- 批处理树持久化 ---
+    # --- 批处理 tree 持久化 ---
 
     def save_universe(self, filename: str):
         if not filename.endswith(".json"): filename += ".json"
@@ -281,7 +286,7 @@ class AppState:
         
         with open(os.path.join("data/universes", filename), "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"Universe tree saved to {filename}")
+        get_ui_logger().log_info(f"Universe tree saved to {filename}")
 
     def load_universe(self, filename: str):
         path = os.path.join("data/universes", filename)
@@ -307,6 +312,7 @@ class AppState:
         self.universe_root = dict_to_node(data["tree"])
         self.selected_node = self.universe_root
         self.refresh()
+        get_ui_logger().log_info(f"Universe tree loaded from {filename}")
 
     def list_universes(self) -> List[str]:
         os.makedirs("data/universes", exist_ok=True)

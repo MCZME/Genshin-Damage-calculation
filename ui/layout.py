@@ -2,6 +2,7 @@ import flet as ft
 from typing import Optional
 from ui.state import AppState
 from ui.theme import GenshinTheme
+from core.logger import get_ui_logger
 from ui.components.entity_pool import EntityPool
 from ui.components.property_editor import PropertyEditor
 from ui.components.visual_pane import VisualPane
@@ -194,9 +195,9 @@ class AppLayout:
                 self.state.launch_commander()
             
             self.page.run_task(sync_task)
-            print(f"Commander launched. PID: {p.pid}")
+            get_ui_logger().log_info(f"Commander launched. PID: {p.pid}")
         except Exception as ex:
-            print(f"Failed to launch native window: {ex}")
+            get_ui_logger().log_error(f"Failed to launch native window: {ex}")
 
     def build(self):
         content_row = ft.Row([self.left_pane_container, self.middle_pane, self.right_pane_container], spacing=10, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH)

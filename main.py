@@ -11,7 +11,7 @@ config_path = os.path.join(os.path.dirname(__file__), "config.json")
 Config(config_path)
 
 # --- 现在可以安全导入其他模块 ---
-from core.logger import logger_init
+from core.logger import logger_init, get_ui_logger
 from core.registry import initialize_registry
 from ui.app import main as flet_main
 
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     main_to_branch = multiprocessing.Queue()
     branch_to_main = multiprocessing.Queue()
     
-    print("🚀 Starting Genshin Simulation Workbench V3.0...")
+    get_ui_logger().log_info("🚀 Starting Genshin Simulation Workbench V3.0...")
     
     # 启动主 UI，注入两个队列
     ft.run(

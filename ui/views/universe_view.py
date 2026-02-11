@@ -1,5 +1,6 @@
 import flet as ft
 from ui.theme import GenshinTheme
+from core.logger import get_ui_logger
 from ui.components.universe_canvas import UniverseCanvas
 from ui.components.mutation_inspector import MutationInspector
 
@@ -120,4 +121,4 @@ class UniverseView(ft.Container):
                 "action_sequence_raw": config.get("action_sequence_raw", [])
             }
             self.state.branch_to_main.put(msg)
-            print(f"Sent derived config of node {self.state.selected_node.id} to Workbench.")
+            get_ui_logger().log_info(f"Sent derived config of node {self.state.selected_node.id} to Workbench.")

@@ -1,5 +1,6 @@
 import flet as ft
 from ui.state import AppState
+from core.logger import get_ui_logger
 from core.batch.models import SimulationNode, ModifierRule
 from ui.theme import GenshinTheme
 
@@ -173,7 +174,8 @@ class MutationInspector(ft.Container):
                         property_drop.value
                     )
                     self.page.pop_dialog()
-                except Exception as ex: print(f"Range Error: {ex}")
+                except Exception as ex: 
+                    get_ui_logger().log_error(f"Range Error: {ex}")
             else:
                 # 普通模式：更新当前节点 rule
                 val = value_input.value

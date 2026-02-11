@@ -1,5 +1,6 @@
 import flet as ft
 from ui.theme import GenshinTheme
+from core.logger import get_ui_logger
 
 class TimelineSequence(ft.Column):
     """
@@ -146,7 +147,7 @@ class TimelineSequence(ft.Column):
                 
             self.state.refresh()
         except Exception as ex:
-            print(f"Sort Error: {ex}")
+            get_ui_logger().log_error(f"Sort Error: {ex}")
 
     def _select_action(self, index):
         self.state.selected_action_index = index
