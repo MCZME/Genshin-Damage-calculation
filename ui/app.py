@@ -1,30 +1,42 @@
 import flet as ft
+import threading
+import time
 from ui.state import AppState
 from ui.layout import AppLayout
 
-def main(page: ft.Page):
+def main(page: ft.Page, main_to_branch, branch_to_main):
     # 1. 初始化应用状态
-    state = AppState(page)
+    state = AppState()
+    state.register_page(page)
+    state.main_to_branch = main_to_branch
+    state.branch_to_main = branch_to_main
     
-    # 2. 窗口初始配置 (部分将由 AppLayout.setup_page 覆盖)
+    # 2. 监听来自分支宇宙的“回传”指令
+    def result_listener():
+        while True:
+            try:
+                if not branch_to_main.empty():
+                    msg = branch_to_main.get()
+                    if msg.get("type") == "APPLY_CONFIG":
+                        # 分支宇宙要求将某个节点的配置应用到主工作台
+                        config = msg.get("config")
+                        # 这里调用 state 的加载逻辑
+                        page.run_task(state.apply_external_config, config)
+            except:
+                pass
+            time.sleep(0.5)
+            
+    threading.Thread(target=result_listener, daemon=True).start()
+
+    # 3. 窗口初始配置
     page.window_width = 1500
     page.window_height = 950
     page.window_min_width = 1200
     page.window_min_height = 800
     
-    # 3. 实例化 MD3 Panes 布局
-    # 将 state 传入布局，以便子组件可以访问数据
+    # 4. 实例化布局
     layout = AppLayout(page, state)
-    
-    # 4. 挂载布局
+    page.app_layout = layout
     page.add(layout.build())
     
-    # 5. 初始数据刷新
-    # 确保左侧实体池等组件显示 state 中的初始数据
-    # layout.entity_pool.update_team(state.team)
-    
     page.update()
-
-if __name__ == "__main__":
-    # 调试模式启动
-    ft.app(target=main)

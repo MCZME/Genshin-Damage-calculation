@@ -127,7 +127,9 @@ class AppLayout:
 
     def _handle_load_dialog(self, e):
         configs = self.state.list_configs(); lv = ft.ListView(expand=True, spacing=5, height=300)
-        def confirm(fname): self.state.load_config(fname); self.page.pop_dialog()
+        def confirm(fname): 
+            self.page.run_task(self.state.load_config, fname)
+            self.page.pop_dialog()
         for cfg in configs: lv.controls.append(ft.ListTile(title=ft.Text(cfg), on_click=lambda _, n=cfg: confirm(n)))
         self.page.show_dialog(ft.AlertDialog(title=ft.Text("读取配置"), content=ft.Container(lv, width=300)))
 
@@ -150,12 +152,19 @@ class AppLayout:
                             self.progress_bar
                         ], spacing=2, alignment=ft.MainAxisAlignment.CENTER)
                     ], spacing=10),
-                    ft.ElevatedButton(
-                        "开始仿真", 
-                        bgcolor=ft.Colors.PRIMARY, color=GenshinTheme.ON_PRIMARY,
-                        height=40, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=12)),
-                        on_click=lambda _: self.page.run_task(self.state.run_simulation)
-                    )
+                    ft.Row([
+                        ft.ElevatedButton(
+                            "批处理", 
+                            icon=ft.Icons.ACCOUNT_TREE,
+                            on_click=self._launch_universe
+                        ),
+                        ft.ElevatedButton(
+                            "开始仿真", 
+                            bgcolor=ft.Colors.PRIMARY, color=GenshinTheme.ON_PRIMARY,
+                            height=40, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=12)),
+                            on_click=lambda _: self.page.run_task(self.state.run_simulation)
+                        )
+                    ], spacing=10)
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN
             ),
@@ -163,6 +172,31 @@ class AppLayout:
             bgcolor=GenshinTheme.FOOTER_BG, blur=ft.Blur(20, 20), border=ft.border.only(top=ft.BorderSide(1, GenshinTheme.GLASS_BORDER)),
             height=64,
         )
+
+    def _launch_universe(self, e):
+        """核心：启动指挥部并同步当前基准配置"""
+        try:
+            from ui.universe_launcher import start_universe_process
+            import multiprocessing
+            import asyncio
+            
+            # 1. 启动子进程 (传入双向队列)
+            p = multiprocessing.Process(
+                target=start_universe_process, 
+                args=(self.state.main_to_branch, self.state.branch_to_main),
+                daemon=True
+            )
+            p.start()
+            
+            # 2. 延迟一下确保子进程已启动监听，然后发送当前配置
+            async def sync_task():
+                await asyncio.sleep(1.0)
+                self.state.launch_commander()
+            
+            self.page.run_task(sync_task)
+            print(f"Commander launched. PID: {p.pid}")
+        except Exception as ex:
+            print(f"Failed to launch native window: {ex}")
 
     def build(self):
         content_row = ft.Row([self.left_pane_container, self.middle_pane, self.right_pane_container], spacing=10, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH)

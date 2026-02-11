@@ -21,14 +21,19 @@
 *   **移除**: `background` 和 `surface_variant` 属性已从 `ft.ColorScheme` 中移除。
 *   **替代**: 请使用 `surface` 或其变体（如 `surface_container`）来定义底色。
 
-### 4. 常量规范 (Top Priority)
+### 4. 交互事件 (Events) - **新发现**
+*   **DragUpdateEvent**: 移除了 `delta_x` 和 `delta_y`
+*   **替代**: 请使用 **`e.local_delta.x`** 和 **`e.local_delta.y`**。
+
+### 5. 常量规范 (Top Priority)
 所有常量访问必须大写。
 *   **Icons**: `ft.Icons.NAME` (大写 I)。
 *   **Colors**: `ft.Colors.NAME` (大写 C)。带有数字后缀需加下划线，如 `ft.Colors.WHITE_54`。
 *   **Alignment**: `ft.Alignment.NAME` (大写 A)。
 
-### 5. 组件属性变更 (Critical)
-*   **Text**: 移除了 `letter_spacing`、`padding`、`margin`。
+### 6. 组件属性变更 (Critical)
+*   **Text**: 移除了 `letter_spacing`、`padding`、`margin`。使用 **`rotate`** 进行旋转。
+*   **TextField**: `placeholder` 已重命名为 **`hint_text`**。
 *   **Tab**: 必须使用 `label` 属性。
 *   **Chip**: 不支持 `border_color`，必须使用 **`border_side=ft.BorderSide(1, color)`**。
 *   **Container**: 强制使用 `ft.padding.all()` 或 `ft.Padding()` 命名对象。**不支持 `on_resize`**。
@@ -52,7 +57,8 @@
 - **Badge**: 使用 `label` 代替 `text`。
 - **Padding, Margin**: 强制使用命名参数。例如：`ft.Padding(vertical=0, horizontal=10)`。
 - **SegmentedButton**: `selected` 类型从 `Set` 变为 `List[str]`。
-- **ft.app(target=main)**: 变更为 `ft.run(main)`。
+- **ft.run(target=main)**: Flet 0.80.x 推荐使用 **`ft.run`** 替代 `ft.app`。
+- **page.push_route()**: 推荐替代 `page.go()`。
 - **FilePicker**: 现在是 Service，需通过 `page.open(file_picker)` 开启。
 - **DragTarget**: `on_will_accept` 使用 `e.accept`；`on_leave` 使用 `e.src_id`。
 - **Page.on_resized**: 重命名为 `Page.on_resize`。
@@ -63,7 +69,6 @@
 - **Markdown**: `img_error_content` -> `image_error_content`。
 - **Switch**: `label_style` -> `label_text_style`。
 - **Tabs.is_secondary**: -> `Tabs.secondary`。
-- **Text**: 使用 **`rotate`** 属性进行旋转，不持 `rotation`。
 - **BoxDecoration**: `shadow` -> `shadows` (复数)。
 - **canvas.Text**: `text` -> `value`。
 - **方法命名**: 移除所有方法的 `_async` 后缀。
