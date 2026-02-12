@@ -79,62 +79,56 @@ class CombatSpace:
     def broadcast_damage(self, attacker: CombatEntity, damage: Any, **kwargs):
         """
         根据 Damage 对象的 AttackConfig 发起广播。
+        V2.3: 物理参数必须由 AttackConfig 提供，UI 与 Logic 层不再通过 data 字典传递。
         """
-        config = damage.config if hasattr(damage, "config") else None
-        hb = config.hitbox if config else None
+        config = getattr(damage, "config", None)
+        if not config:
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_info(f"警告: 伤害对象缺失 AttackConfig，无法执行广播", sender="Physics")
+            return
+
+        hb = config.hitbox
+        shape = hb.shape
+        radius = hb.radius
+        offset = hb.offset
         
-        # 1. 提取参数 (兼容直接从 data 字典获取)
-        data = damage.data
-        shape_name = kwargs.get('shape', data.get('aoe_shape', hb.shape.name if hb else 'CYLINDER'))
-        if isinstance(shape_name, str):
-            shape = AOEShape[shape_name] if shape_name in AOEShape.__members__ else AOEShape.CYLINDER
-        else:
-            shape = shape_name
-            
-        radius = kwargs.get('radius', data.get('radius', hb.radius if hb else 0.5))
-        offset = kwargs.get('offset', data.get('offset', hb.offset if hb else (0.0, 0.0, 0.0)))
-        
-        # 2. 计算阵营
+        # 1. 计算目标阵营
         target_factions = [Faction.ENEMY, Faction.NEUTRAL]
         if attacker.faction == Faction.ENEMY:
             target_factions = [Faction.PLAYER, Faction.NEUTRAL]
             
-        # 3. 计算坐标原点
+        # 2. 计算坐标原点 (基于攻击者当前朝向)
         facing = getattr(attacker, 'facing', 0.0)
         rad = math.radians(facing)
         ox = attacker.pos[0] + offset[0] * math.cos(rad) - offset[1] * math.sin(rad)
         oz = attacker.pos[1] + offset[0] * math.sin(rad) + offset[1] * math.cos(rad)
         origin = (ox, oz)
         
-        # 4. 执行检索
+        # 3. 执行检索
         targets = []
         for faction in target_factions:
             if shape in [AOEShape.SPHERE, AOEShape.CYLINDER]:
                 targets.extend(self.get_entities_in_range(origin, radius, faction))
             elif shape == AOEShape.BOX:
-                length = kwargs.get('length', data.get('length', hb.length if hb else 2.0))
-                width = kwargs.get('width', data.get('width', hb.width if hb else 1.0))
-                targets.extend(self.get_entities_in_box(origin, length, width, facing, faction))
+                targets.extend(self.get_entities_in_box(origin, hb.length, hb.width, facing, faction))
             elif shape == AOEShape.SINGLE:
-                # 兼容旧逻辑：如果 data 里有 radius，SINGLE 也可能走范围判定
-                if radius > 0:
-                    targets.extend(self.get_entities_in_range(origin, radius, faction))
-                elif damage.target:
+                # SINGLE 模式下，如果已有确定的 target 则直接添加，否则寻找最近目标
+                if damage.target:
                     targets.append(damage.target)
                 else:
                     closest = self._find_closest(origin, faction)
                     if closest:
                         targets.append(closest)
 
-        # 5. 执行伤害结算
-        final_targets = self._apply_selection_strategy(targets, data, origin)
+        # 4. 执行伤害结算
+        # Selection Strategy (如: 仅选最近的一个目标)
+        final_targets = self._apply_selection_strategy(targets, damage.data, origin)
         if final_targets:
             from core.logger import get_emulation_logger
             get_emulation_logger().log_info(f"伤害广播命中 {len(final_targets)} 个目标 (AOE: {shape.name})", sender="Physics")
             
         for t in final_targets:
-            # 关键：在这里建立 Damage 对象对 target 的引用
-            # 虽然可能有多目标，但在目前 Pipeline 中，我们通常只处理第一个命中的实体的反应
+            # 在广播阶段建立对 target 的引用，并执行实体的伤害处理接口
             if not damage.target:
                 damage.set_target(t)
             t.handle_damage(damage)
@@ -159,3 +153,10 @@ class CombatSpace:
         if select_way == 'CLOSEST':
             targets.sort(key=lambda e: (e.pos[0]-origin[0])**2 + (e.pos[1]-origin[1])**2)
         return targets[:min(len(targets), max_targets)]
+
+    def get_all_entities(self) -> List[CombatEntity]:
+        """获取场景中所有活跃实体。"""
+        results = []
+        for faction_list in self._entities.values():
+            results.extend(faction_list)
+        return results

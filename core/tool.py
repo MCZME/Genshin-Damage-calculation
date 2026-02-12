@@ -1,5 +1,4 @@
 from core.context import get_context
-from core.event import EnergyChargeEvent
 
 def get_ascension_index(level: int) -> int:
     """根据等级获取突破阶段索引。"""
@@ -39,32 +38,3 @@ reaction_coefficients = {
 
 def get_reaction_multiplier(level):
     return reaction_coefficients[level]
-
-def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False, time=40):
-    from core.entities.factory import EntityFactory
-    if time != 0:
-        for _ in range(num):
-            EntityFactory.spawn_energy(character, element_energy, time)
-    else:
-        energy_event = EnergyChargeEvent(character, element_energy, get_current_time(),
-                                        is_fixed=is_fixed, is_alone=is_alone)
-        get_context().event_engine.publish(energy_event)
-
-def get_shield(name: str = None):
-    """从当前场景中获取护盾对象。"""
-    from core.context import get_context
-    from core.entities.combat_entities import ShieldObject
-    try:
-        ctx = get_context()
-        if not ctx.space:
-            return None
-        # 从 CombatSpace 获取所有实体
-        active_objects = ctx.space.get_all_entities()
-    except RuntimeError:
-        return None
-
-    if name:
-        shield = next((e for e in active_objects if isinstance(e, ShieldObject) and e.name == name), None)
-    else:
-        shield = next((e for e in active_objects if isinstance(e, ShieldObject)), None)
-    return shield
