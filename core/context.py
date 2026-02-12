@@ -25,10 +25,6 @@ class SimulationContext:
     # -----------------------------------------------------
     space: Optional[Any] = None  # CombatSpace 实例
     
-    # 遗留组件 (将逐步废弃)
-    team: Optional[Any] = None
-    target: Optional[Any] = None # 保持引用以兼容旧代码
-    
     # 系统管理器与日志
     system_manager: Optional[Any] = None
     logger: Optional[Any] = None
@@ -74,8 +70,6 @@ class SimulationContext:
         self.global_vertical_dist = 0.0
         if self.event_engine:
             self.event_engine.clear()
-        self.team = None
-        self.target = None
         if self.space:
             # 此处应有 Space 的重置逻辑
             pass

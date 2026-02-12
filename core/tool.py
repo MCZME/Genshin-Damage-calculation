@@ -50,13 +50,16 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
                                         is_fixed=is_fixed, is_alone=is_alone)
         get_context().event_engine.publish(energy_event)
 
-def get_shield(name = None):
+def get_shield(name: str = None):
+    """从当前场景中获取护盾对象。"""
     from core.context import get_context
     from core.entities.combat_entities import ShieldObject
     try:
         ctx = get_context()
-        if not ctx.team: return None
-        active_objects = ctx.team.active_objects
+        if not ctx.space:
+            return None
+        # 从 CombatSpace 获取所有实体
+        active_objects = ctx.space.get_all_entities()
     except RuntimeError:
         return None
 

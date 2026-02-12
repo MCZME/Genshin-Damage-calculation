@@ -34,7 +34,6 @@ class SimulationAssembler:
         
         # 2.1 创建角色对象
         team = self.team_factory.create_team(team_list_cfg)
-        ctx.team = team
 
         # 2.2 [NEW] 设置角色初始坐标
         # 注意：TeamFactory 返回的是 Team 实例，其实际角色列表在 .team 属性中
@@ -54,7 +53,6 @@ class SimulationAssembler:
             
             # 手动注入到空间 (Target 默认是 Faction.ENEMY)
             ctx.space.register(target)
-            ctx.target = target # 保持旧引用兼容性
             
         # 4. 解析动作序列
         sequence_cfg = config.get("sequence_config", [])
