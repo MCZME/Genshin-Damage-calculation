@@ -55,6 +55,10 @@ class ShieldSystem(GameSystem):
 
     def _absorb_damage(self, event: GameEvent) -> None:
         """核心吸收逻辑：多盾同时扣除。"""
+        # 1. 卫语句：检查是否无视护盾 (如侵蚀/流血效果)
+        if event.data.get("ignore_shield", False):
+            return
+
         target = event.data.get("target")
         if not target or not hasattr(target, "shield_effects") or not target.shield_effects:
             return

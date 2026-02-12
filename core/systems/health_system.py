@@ -107,20 +107,19 @@ class HealthSystem(GameSystem):
         target = data.get("target")
         source = data.get("character")
         amount = data.get("amount", 0.0)
+        is_ignore_shield = data.get("ignore_shield", False)
 
         if not target or amount <= 0:
             return
 
-        # 注意：此处假设 ShieldSystem 已通过 BEFORE_HURT 拦截并修正了 data["amount"]
-        
         # 1. 调用实体接口执行扣血
         if hasattr(target, "hurt"):
             target.hurt(amount)
         
-        # 2. 记录日志
-        from core.logger import get_emulation_logger
+        # 2. 记录日志 (根据是否无视护盾调整描述)
+        msg_prefix = "🩸 [侵蚀]" if is_ignore_shield else "💔"
         get_emulation_logger().log_info(
-            f"💔 {target.name} 受到 {round(amount, 1)} 点实际伤害", 
+            f"{msg_prefix} {target.name} 受到 {round(amount, 1)} 点实际伤害", 
             sender="Health"
         )
 
@@ -132,4 +131,6 @@ class HealthSystem(GameSystem):
             target=target,
             amount=amount
         )
+        # 透传无视护盾标记
+        after_event.data["ignore_shield"] = is_ignore_shield
         self.engine.publish(after_event)
