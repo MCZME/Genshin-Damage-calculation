@@ -225,10 +225,18 @@ class ReactionSystem(GameSystem):
         if res.reaction_type == ElementalReactionType.SWIRL:
             self._handle_swirl_propagation(event, res)
 
-        # 3. 超导特有逻辑：减抗
+        # 3. 超导特有逻辑：减物理抗性 (40%, 12秒)
         if res.reaction_type == ElementalReactionType.SUPERCONDUCT:
-            # TODO: 待通用减抗 Effect 重建后补充
-            pass
+            from core.effect.common import ResistanceDebuffEffect
+            # 作用于受击目标
+            debuff = ResistanceDebuffEffect(
+                owner=target,
+                name="超导减抗",
+                elements=["物理"],
+                amount=40.0,
+                duration=12 * 60
+            )
+            debuff.apply()
 
     def _spawn_dendro_core(self, event: GameEvent, res: ReactionResult) -> None:
         """产生草原核实体。"""

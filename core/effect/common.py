@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 from core.effect.base import BaseEffect
 from core.mechanics.aura import Element
 
@@ -15,7 +15,6 @@ class ShieldEffect(BaseEffect):
         self.current_hp = max_hp
 
     def on_apply(self):
-        # 将自己挂载到角色的护盾列表
         if hasattr(self.owner, "shield_effects"):
             self.owner.shield_effects.append(self)
 
@@ -24,7 +23,40 @@ class ShieldEffect(BaseEffect):
             if self in self.owner.shield_effects:
                 self.owner.shield_effects.remove(self)
 
-# 效果基类
+
+class StatModifierEffect(BaseEffect):
+    """
+    通用属性修改效果。
+    在生效期间直接修改 owner 的 attribute_panel。
+    """
+    def __init__(self, owner: Any, name: str, stats: Dict[str, float], duration: float):
+        super().__init__(owner, name, duration)
+        self.stats = stats
+
+    def on_apply(self):
+        if not hasattr(self.owner, "attribute_panel"):
+            return
+        for key, value in self.stats.items():
+            self.owner.attribute_panel[key] = self.owner.attribute_panel.get(key, 0.0) + value
+
+    def on_remove(self):
+        if not hasattr(self.owner, "attribute_panel"):
+            return
+        for key, value in self.stats.items():
+            self.owner.attribute_panel[key] = self.owner.attribute_panel.get(key, 0.0) - value
+
+
+class ResistanceDebuffEffect(StatModifierEffect):
+    """
+    抗性削减效果 (如超导、钟离减抗)。
+    """
+    def __init__(self, owner: Any, name: str, elements: List[str], amount: float, duration: float):
+        # 构造属性字典：{"物理元素抗性": -40.0, ...}
+        stats = {f"{el}元素抗性": -amount for el in elements}
+        super().__init__(owner, name, stats, duration)
+
+
+# 固有天赋与命座基类
 class TalentEffect:
     """
     固有天赋效果基类。

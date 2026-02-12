@@ -11,7 +11,6 @@ from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
 from core.mechanics.aura import Element
-from core.effect.elemental import ElementalInfusionEffect
 
 class DamageContext:
     """伤害计算上下文"""
@@ -35,17 +34,14 @@ class DamagePipeline:
         self.engine = engine
 
     def run(self, ctx: DamageContext):
-        # 1. 附魔处理 (仅影响普攻/重击/下落)
-        self._handle_infusion(ctx)
-        
-        # 2. 属性快照 (计算攻击力、精通等)
+        # 1. 属性快照 (计算攻击力、精通等)
         self._snapshot(ctx)
         
-        # 3. 计算前修正 (供 Buff 监听)
+        # 2. 计算前修正 (供 Buff 监听)
         self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, get_current_time(), 
                                       source=ctx.source, data={"damage_context": ctx}))
         
-        # 4. 空间广播与碰撞判定
+        # 3. 空间广播与碰撞判定
         if not ctx.target:
             self._dispatch_broadcast(ctx)
         else:
@@ -59,14 +55,14 @@ class DamagePipeline:
 
         ctx.target = ctx.damage.target
         
-        # 5. 元素反应处理 (基于广播阶段反馈的 reaction_results)
+        # 4. 元素反应处理 (基于广播阶段反馈的 reaction_results)
         self._preprocess_reaction_stats(ctx)
         
-        # 6. 乘区结算
+        # 5. 乘区结算
         self._calculate_def_res(ctx)
         self._calculate(ctx)
         
-        # 7. 更新最终伤害值
+        # 6. 更新最终伤害值
         ctx.damage.damage = ctx.final_result
 
     def _dispatch_broadcast(self, ctx: DamageContext):
@@ -94,33 +90,6 @@ class DamagePipeline:
                 offset=hb.offset
             )
 
-    def _handle_infusion(self, ctx: DamageContext):
-        """处理元素附魔 (基于新架构 Effect 体系)"""
-        dmg = ctx.damage
-        # 仅对普攻系列生效
-        if dmg.damage_type not in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
-            return
-            
-        infusions = [e for e in ctx.source.active_effects if isinstance(e, ElementalInfusionEffect)]
-        if not infusions or dmg.data.get('不可覆盖', False):
-            return
-        
-        # 优先级逻辑：不可覆盖附魔优先
-        unoverridable = next((e for e in infusions if e.is_unoverridable), None)
-        if unoverridable:
-            dmg.element = (unoverridable.element_type, unoverridable.should_apply_infusion(dmg.damage_type))
-            return
-        
-        # 元素反应优先级 (火 > 冰 > 水) 或 时间先后
-        elements = [e.element_type for e in infusions]
-        dominant = self._get_dominant_element(elements, infusions)
-        dmg.element = (dominant, max(e.should_apply_infusion(dmg.damage_type) for e in infusions))
-
-    def _get_dominant_element(self, elements, infusions):
-        for e_type in [Element.HYDRO, Element.PYRO, Element.CRYO]:
-            if e_type in elements: return e_type
-        return min(elements, key=lambda x: next(e.apply_time for e in infusions if e.element_type == x))
-
     def _snapshot(self, ctx: DamageContext):
         src = ctx.source
         s = ctx.stats
@@ -138,7 +107,6 @@ class DamagePipeline:
         """处理广播后由实体产生的反应结果"""
         results = ctx.damage.reaction_results
         from core.action.reaction import ReactionCategory, ElementalReactionType
-        from core.entities.elemental_entities import DendroCoreEntity
         
         for res in results:
             # 处理增幅反应与激化加成
@@ -153,17 +121,7 @@ class DamagePipeline:
                 em = ctx.stats["元素精通"]
                 ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
             
-            # 处理草原核生成 (绽放)
-            elif res.reaction_type == ElementalReactionType.BLOOM:
-                # 检查攻击契约是否允许部署 (或根据游戏规则自动部署)
-                if ctx.config.is_deployable and ctx.target:
-                    # 在目标位置生成草原核
-                    core = DendroCoreEntity(ctx.source, ctx.target.pos)
-                    # 注册到场景
-                    from core.context import get_context
-                    sim_ctx = get_context()
-                    if sim_ctx and sim_ctx.space:
-                        sim_ctx.space.register(core)
+            # TODO: 后续基于新架构重新实现草原核 (绽放) 逻辑
 
     def _calculate_def_res(self, ctx: DamageContext):
         target_def = ctx.target.attribute_panel.get("防御力", 0)
