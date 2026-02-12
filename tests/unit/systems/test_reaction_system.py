@@ -4,7 +4,7 @@ from core.action.damage import Damage, DamageType
 from core.action.reaction import ReactionResult, ElementalReactionType, ReactionCategory
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType, EventHandler
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 class TestReactionSystemUnit:
     @pytest.fixture
@@ -38,7 +38,7 @@ class TestReactionSystemUnit:
         sim_ctx.event_engine.subscribe(EventType.BEFORE_DAMAGE, handler)
 
         # 触发反应处理
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=source_entity,
+        event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=source_entity,
                           data={'character': source_entity, 'target': target_entity, 'damage': dmg})
         reaction_sys.handle_event(event)
 

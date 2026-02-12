@@ -36,7 +36,7 @@ class TestEnergySystemUnit:
             'is_fixed': True,
             'is_alone': True
         }
-        event = GameEvent(EventType.BEFORE_ENERGY_CHANGE, GetCurrentTime(), data=event_data)
+        event = GameEvent(EventType.BEFORE_ENERGY_CHANGE, get_current_time(), data=event_data)
         energy_sys.handle_event(event)
 
         assert source_entity.elemental_energy.current_energy == 15.0
@@ -53,7 +53,7 @@ class TestEnergySystemUnit:
             'is_fixed': False,
             'is_alone': True
         }
-        event = GameEvent(EventType.BEFORE_ENERGY_CHANGE, GetCurrentTime(), data=event_data)
+        event = GameEvent(EventType.BEFORE_ENERGY_CHANGE, get_current_time(), data=event_data)
         energy_sys.handle_event(event)
 
         # 3.0微粒 * 3.0(同元素站场) * 200%(效率) = 18.0

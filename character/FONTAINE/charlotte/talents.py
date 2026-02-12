@@ -20,7 +20,7 @@ class PassiveSkillEffect_2(TalentEffect):
 
     def update(self, target: Any):
         # 仅在模拟开始的第一帧执行一次
-        if GetCurrentTime() == 1:
+        if get_current_time() == 1:
             a, b = 0, 0
             for char in Team.team:
                 if getattr(char, 'association', '') == '枫丹':
@@ -121,8 +121,8 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
         from core.event import DamageEvent, HealEvent
         
         co_dmg = Damage(180, ('冰', 1), DamageType.BURST, '命座6协同伤害')
-        self.character.event_engine.publish(DamageEvent(self.character, target, co_dmg, GetCurrentTime()))
+        self.character.event_engine.publish(DamageEvent(self.character, target, co_dmg, get_current_time()))
         
         heal = Healing(42, HealingType.BURST, '命座6治疗')
         heal.base_value = '攻击力'
-        self.character.event_engine.publish(HealEvent(self.character, Team.current_character, heal, GetCurrentTime()))
+        self.character.event_engine.publish(HealEvent(self.character, Team.current_character, heal, get_current_time()))

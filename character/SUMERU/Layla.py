@@ -41,7 +41,7 @@ class ChargedAttack(ChargedAttackSkill):
             self._apply_attack(target)
 
     def _apply_attack(self, target):
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
 
         damage = Damage(
@@ -50,10 +50,10 @@ class ChargedAttack(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name='重击-'+str(self.hit_frames.index(self.current_frame)+1),
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
@@ -63,7 +63,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
     """安眠帷幕护盾"""
     def __init__(self, character, shield_value):
         shield = Shield(shield_value)
-        event = ShieldEvent(character, shield, GetCurrentTime())
+        event = ShieldEvent(character, shield, get_current_time())
         EventBus.publish(event)
         super().__init__(character, "安眠帷幕", "冰", event.data['shield'].shield_value, 750)
         Infusion.__init__(self, [1,0,0,0,0,0,0,1,0,0,0,0], 3*60)
@@ -122,13 +122,13 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
             self.active_frame = self.current_frame
 
             # 产球判断
-            if self.mode == 1 and GetCurrentTime() - self.last_mode_1 >= 3.5*60:
+            if self.mode == 1 and get_current_time() - self.last_mode_1 >= 3.5*60:
                 self.mode = 2
-                self.last_mode_1 = GetCurrentTime()
+                self.last_mode_1 = get_current_time()
                 self.create_energy()
-            elif self.mode == 2 and GetCurrentTime() - self.last_mode_2 >= 3.5*60:
+            elif self.mode == 2 and get_current_time() - self.last_mode_2 >= 3.5*60:
                 self.mode = 1
-                self.last_mode_2 = GetCurrentTime()
+                self.last_mode_2 = get_current_time()
                 self.create_energy()
 
 
@@ -145,7 +145,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
                 DamageType.SKILL,
                 '晚星'
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
             if self.night_stars == 0:
                 self.active_night_stars = False
 
@@ -182,7 +182,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 '垂裳端凝之夜'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             shield_value = self.caster.maxHP * self.shield_values[self.lv-1][0] / 100 + self.shield_values[self.lv-1][1]
             VeilOfSlumberShield(self.caster, shield_value).apply()
@@ -215,7 +215,7 @@ class DreamingAegisObject(baseObject, Infusion):
             "星流摇床之梦"
         )
         damage.setBaseValue('生命值')
-        EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
 
         # 为护盾生成晚星
         shield = next((s for s in self.character.shield_effects 

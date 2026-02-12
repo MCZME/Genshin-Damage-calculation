@@ -1,6 +1,6 @@
 from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, EventBus
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 class ArkheObject(BaseEntity):
     def __init__(self, name, character, arkhe_type, damage, life_frame=0):
@@ -12,7 +12,7 @@ class ArkheObject(BaseEntity):
     def on_finish(self, target):
         super().on_finish(target)
         self.damage.setDamageData('始基力', self.arkhe_type)
-        event = DamageEvent(self.character, target, self.damage, GetCurrentTime())
+        event = DamageEvent(self.character, target, self.damage, get_current_time())
         EventBus.publish(event)
 
     def on_frame_update(self, target):

@@ -1,6 +1,6 @@
 from typing import Any
 from core.effect.base import BaseEffect
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 from core.action.damage import Damage, DamageType
 from core.mechanics.aura import Element
 
@@ -18,7 +18,7 @@ class ElementalInfusionEffect(BaseEffect):
         super().__init__(owner, name, duration)
         self.element_type = element_type # 现在是 Element 枚举
         self.is_unoverridable = is_unoverridable
-        self.apply_time = GetCurrentTime() # 用于判定附魔优先级
+        self.apply_time = get_current_time() # 用于判定附魔优先级
 
     def should_apply_infusion(self, damage_type: DamageType) -> float:
         """

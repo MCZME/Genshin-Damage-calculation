@@ -64,7 +64,7 @@ class PlungingAttack(PlungingAttackSkill):
                 DamageType.PLUNGING,
                 f'下落攻击·乱岚拨止-{self.height_type}元素附加'
             )
-            EventBus.publish(DamageEvent(self.caster, target, extra_damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, extra_damage, get_current_time()))
 
         # 基础下落攻击伤害
         damage = Damage(
@@ -73,7 +73,7 @@ class PlungingAttack(PlungingAttackSkill):
             DamageType.PLUNGING,
             f'下落攻击·乱岚拨止-{self.height_type}' if luanlan_effect else f'下落攻击-{self.height_type}'
         )
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
     
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -151,7 +151,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 f'千早振-{name}'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             summon_energy(self.energy_num, self.caster,('风',2))
             
         self.caster.height += self.v
@@ -251,7 +251,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=self.name + ' 斩击伤害'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
 class KazuhaSlashField(baseObject, EventHandler):
     """流风秋野领域"""
@@ -283,7 +283,7 @@ class KazuhaSlashField(baseObject, EventHandler):
                 damageType=DamageType.BURST,
                 name="流风秋野-持续伤害"
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
             if self.swirled_element:
                 # 附加元素转化伤害
                 swirl_damage = Damage(
@@ -292,7 +292,7 @@ class KazuhaSlashField(baseObject, EventHandler):
                     damageType=DamageType.BURST,
                     name=f"流风秋野-{self.swirled_element}附加伤害"
                 )
-                EventBus.publish(DamageEvent(self.character, target, swirl_damage, GetCurrentTime()))
+                EventBus.publish(DamageEvent(self.character, target, swirl_damage, get_current_time()))
     
     def handle_event(self, event):
         """处理元素转化"""
@@ -470,7 +470,7 @@ class KaedeharaKazuha(Inazuma):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self, hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
+            skillEvent = ElementalSkillEvent(self,get_current_time())
             EventBus.publish(skillEvent)
 
 Kaedehara_Kazuha_table = {

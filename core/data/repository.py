@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from core.tool import level as level_to_idx, attributeId as attr_id_to_name
+from core.tool import get_ascension_index, get_attribute_name
 from core.data.database import db_manager
 
 class DataRepository(ABC):
@@ -68,7 +68,7 @@ class MySQLDataRepository(DataRepository):
             return ["炽烈的炎之魔女", "沉沦之心", "翠绿之影", "深林的记忆", "绝缘之旗印", "角斗士的终幕礼"]
 
     def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
-        idx = level_to_idx(level)
+        idx = get_ascension_index(level)
         col = self.level_cols[idx]
         
         char_info = self.db.execute_query(f"SELECT Name, Element, type FROM `character` WHERE ID = {character_id}")
@@ -82,7 +82,7 @@ class MySQLDataRepository(DataRepository):
 
         breakthrough = self.db.execute_query(f"SELECT `{col}`, AttributeId FROM `breakthrough_attribute` WHERE ID = {character_id}")
         bt_val, bt_id = breakthrough[0]
-        bt_name = attr_id_to_name(bt_id)
+        bt_name = get_attribute_name(bt_id)
 
         return {
             "name": name,

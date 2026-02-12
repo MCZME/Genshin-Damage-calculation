@@ -9,7 +9,7 @@ from core.action.damage import Damage, DamageType
 from core.action.action_data import AOEShape
 from core.config import Config
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 from core.mechanics.aura import Element
 from core.effect.elemental import ElementalInfusionEffect
 
@@ -42,7 +42,7 @@ class DamagePipeline:
         self._snapshot(ctx)
         
         # 3. 计算前修正 (供 Buff 监听)
-        self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, GetCurrentTime(), 
+        self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, get_current_time(), 
                                       source=ctx.source, data={"damage_context": ctx}))
         
         # 4. 空间广播与碰撞判定

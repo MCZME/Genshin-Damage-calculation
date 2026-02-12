@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 @dataclass
 class ICDGroup:
@@ -62,7 +62,7 @@ class ICDManager:
             self.records[key] = ICDState()
             
         state = self.records[key]
-        current_frame = GetCurrentTime()
+        current_frame = get_current_time()
         
         # 2. 时间重置判定
         # 如果距离上次重置超过了时限，或者从未重置过

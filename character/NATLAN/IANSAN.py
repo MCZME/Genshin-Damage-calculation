@@ -101,7 +101,7 @@ class IansanChargedAttack(ChargedAttackSkill):
         return True
 
     def _apply_attack(self, target):
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
         
         clamped_lv = min(max(self.lv, 1), 15) - 1
@@ -118,10 +118,10 @@ class IansanChargedAttack(ChargedAttackSkill):
             StandardActionEffect(self.caster).apply()
         
         # 发布伤害事件
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
             
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
 
     def on_frame_update(self, target):
@@ -150,7 +150,7 @@ class ElementalSkill(SkillBase):
                 '电掣雷驰',
             )
             damage.setDamageData('夜魂伤害',True)
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             # 恢复夜魂值
             self.caster.gain_night_soul(54)
@@ -236,7 +236,7 @@ class KineticMarkObject(baseObject):
             if standard_action:
                 # 应用额外夜魂值恢复
                 extra_gain = standard_action.extra_night_soul
-                current_time = GetCurrentTime()
+                current_time = get_current_time()
                 
                 # 检查是否触发强化恢复
                 if standard_action.is_enhanced and \
@@ -323,7 +323,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name='力的三原理'
             )
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
 
             # 获得15点夜魂值并进入夜魂加持状态
@@ -370,7 +370,7 @@ class WarmUpEffect(Effect, EventHandler):
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             if event.data['amount'] > 0:
-                current_time = GetCurrentTime()
+                current_time = get_current_time()
                 if current_time - self.last_heal_time >= self.heal_interval:
                     self._heal()
                     self.last_heal_time = current_time
@@ -378,7 +378,7 @@ class WarmUpEffect(Effect, EventHandler):
     def _heal(self):
         active_character = Team.current_character
         heal = Healing(60,HealingType.PASSIVE, name='热身效应')
-        event = HealEvent(self.character, active_character, heal, GetCurrentTime())
+        event = HealEvent(self.character, active_character, heal, get_current_time())
         EventBus.publish(event)
 
 class StandardActionEffect(Effect, EventHandler):
@@ -471,7 +471,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         if not self.character.Nightsoul_Blessing:
             return
             
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_trigger_time < self.trigger_interval:
             return
             

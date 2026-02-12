@@ -24,7 +24,7 @@ class NormalAttack(NormalAttackSkill):
         self.last_attach_time = 0  # 上次元素附着时间(帧数)
 
     def _apply_segment_effect(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         # 计算是否应该附着元素
         should_attach = False
         
@@ -103,7 +103,7 @@ class ChargedAttack(ChargedAttackSkill):
         if self.current_frame == 11:
             heal = Healing(self.heal_per_droplet*self.source_water_droplet,HealingType.PASSIVE,name='源水之滴')
             heal.base_value = '生命值'
-            EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
+            EventBus.publish(HealEvent(self.caster,self.caster,heal,get_current_time()))
             
         if self.current_frame in [i + self.hit_frame for i in self.interval]:
             damage = Damage(
@@ -113,12 +113,12 @@ class ChargedAttack(ChargedAttackSkill):
                 name='衡平推裁'
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
         if self.current_frame in [i + self.hit_frame for i in self.hp_cost_interval] and self.caster.currentHP/self.caster.maxHP > 0.5:
             EventBus.publish(HurtEvent(self.caster,self.caster, 
                                        self.hp_cost_per_half_second * self.caster.maxHP/100, 
-                                       GetCurrentTime()))
+                                       get_current_time()))
         
         if self.current_frame % 60 == 0 and self.current_frame > self.hit_frame:
             self.update_c6()
@@ -127,7 +127,7 @@ class ChargedAttack(ChargedAttackSkill):
             self.apply_c6_damage(target)
 
     def set_element_attach(self):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         # 重击伤害元素附着判断
         should_attach = False
         if self.sequence_pos < len(self.attach_sequence):
@@ -160,7 +160,7 @@ class ChargedAttack(ChargedAttackSkill):
                         self.hp_cost_interval.append(self.hp_cost_interval[-1]+0.5*60)
                     heal = Healing(self.heal_per_droplet,HealingType.PASSIVE,name='源水之滴')
                     heal.base_value = '生命值'
-                    EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
+                    EventBus.publish(HealEvent(self.caster,self.caster,heal,get_current_time()))
                     break                   
 
     def apply_c6_damage(self, target):
@@ -172,7 +172,7 @@ class ChargedAttack(ChargedAttackSkill):
                 name='衡平推裁_洪流'
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
     def on_finish(self):
         return super().on_finish()
@@ -198,7 +198,7 @@ class ElementalSkill(SkillBase):
         return True
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         logger = get_emulation_logger()
         
         if self.current_frame == 23:
@@ -265,7 +265,7 @@ class ElementalBurst(EnergySkill):
         }
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         logger = get_emulation_logger()
         
         # 初始爆发伤害 (95帧)
@@ -470,10 +470,10 @@ class ConstellationEffect_4(ConstellationEffect):
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_HEAL:
             if event.data['healing'].target == self.character and self.character.on_field:
-                if GetCurrentTime() - self.last_heal_time > self.cd:
+                if get_current_time() - self.last_heal_time > self.cd:
                     SourceWaterDroplet(self.character).apply()
                     get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 悲悯的冠冕触发")
-                    self.last_heal_time = GetCurrentTime()
+                    self.last_heal_time = get_current_time()
 
 class ConstellationEffect_5(ConstellationEffect):
     """公理的决裁"""

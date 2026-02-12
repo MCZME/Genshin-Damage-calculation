@@ -3,7 +3,7 @@ from core.skills.base import SkillBase
 from core.action.action_data import ActionFrameData
 from core.action.damage import Damage, DamageType
 from core.event import DamageEvent
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 class GenericSkill(SkillBase):
     """
@@ -85,5 +85,5 @@ class GenericSkill(SkillBase):
         
         # 通过实体的局部引擎发布伤害事件 (自动冒泡至全局计算系统)
         self.caster.event_engine.publish(
-            DamageEvent(self.caster, target, damage, GetCurrentTime())
+            DamageEvent(self.caster, target, damage, get_current_time())
         )

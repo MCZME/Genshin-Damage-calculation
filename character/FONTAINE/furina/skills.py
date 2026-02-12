@@ -26,7 +26,7 @@ class SalonSolitaire(SkillBase):
         multiplier = self.damage_multipliers[self.lv - 1]
         damage = Damage(multiplier, ('水', 1), DamageType.SKILL, self.name)
         damage.set_scaling_stat('生命值')
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         # 2. 召唤实体 (根据当前荒芒性)
         if self.caster.arkhe == '芒性':
@@ -59,7 +59,7 @@ class UniversalRevelry(EnergySkill, EventHandler):
         mult = self.damage_multipliers[self.lv - 1]
         damage = Damage(mult, ('水', 1), DamageType.BURST, self.name)
         damage.set_scaling_stat('生命值')
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         # 2. 开启气氛值收集
         self.fanfare_points = self.fanfare_initial
@@ -91,7 +91,7 @@ class FurinaChargedAttack(ChargedAttackSkill):
         # 1. 物理伤害
         mult = self.damage_multiplier_list[self.lv - 1]
         damage = Damage(mult, ('物理', 0), DamageType.CHARGED, "重击")
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         # 2. 切换始基力
         old_arkhe = self.caster.arkhe

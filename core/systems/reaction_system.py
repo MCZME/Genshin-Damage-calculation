@@ -5,7 +5,7 @@ from core.event import GameEvent, EventType, DamageEvent
 from core.action.reaction import ReactionResult, ReactionCategory, ElementalReactionType
 from core.action.damage import Damage, DamageType
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime, get_reaction_multiplier
+from core.tool import get_current_time, get_reaction_multiplier
 from core.effect.debuff import ResistanceDebuffEffect
 
 class ReactionSystem(GameSystem):
@@ -80,7 +80,7 @@ class ReactionSystem(GameSystem):
         # 修正点：使用 DamageEvent 工厂方法发布
         self.engine.publish(DamageEvent(
             EventType.BEFORE_DAMAGE,
-            GetCurrentTime(),
+            get_current_time(),
             source=source_char,
             target=target,
             damage=react_dmg

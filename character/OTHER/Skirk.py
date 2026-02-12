@@ -98,11 +98,11 @@ class NormalAttack(NormalAttackSkill,EventHandler):
         damage = Damage(multiplier, element, DamageType.NORMAL, name)
         if self.caster.mode == "七相一闪":
             damage.setDamageData('不可覆盖',True)
-        damage_event = DamageEvent(self.caster,target,damage, frame=GetCurrentTime())
+        damage_event = DamageEvent(self.caster,target,damage, frame=get_current_time())
         EventBus.publish(damage_event)
 
         # 发布普通攻击事件（后段）
-        normal_attack_event = NormalAttackEvent(self.caster, frame=GetCurrentTime(),before=False,
+        normal_attack_event = NormalAttackEvent(self.caster, frame=get_current_time(),before=False,
                                                 damage=damage,segment=self.current_segment+1)
         EventBus.publish(normal_attack_event)
 
@@ -167,7 +167,7 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         """应用重击伤害"""
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
 
         damage = Damage(
@@ -178,13 +178,13 @@ class ChargedAttack(ChargedAttackSkill):
         )
         if self.caster.mode == "七相一闪":
             damage.setDamageData('不可覆盖',True)
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         if self.caster.level >= 20 and self.current_frame == self.hit_frame[0] and self.current_mode == '七相一闪':
             self.caster.get_rift_count()
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
@@ -304,7 +304,7 @@ class ElementalBurst(EnergySkill):
                 f'极恶技·灭-斩击{self.hit_frames.index(self.current_frame)+1}'
             )
             damage.setDamageData('蛇之狡谋_加成', self.bonus_multiplier)
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 触发最终伤害
         if self.current_frame == self.final_hit_frame:
@@ -315,7 +315,7 @@ class ElementalBurst(EnergySkill):
                 '极恶技·灭-终结'
             )
             damage.setDamageData('蛇之狡谋_加成', self.bonus_multiplier)
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
     def on_finish(self):
         super().on_finish()
@@ -548,7 +548,7 @@ class PassiveSkillEffect_3(TalentEffect):
         super().__init__('诸武相授')
     
     def update(self, target):
-        if GetCurrentTime() == 1:
+        if get_current_time() == 1:
             s = set()
             for char in Team.team:
                 if char.element in ['水', '冰']:
@@ -579,7 +579,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
                 self.attck_stack[i] -= 1
                 if self.attck_stack[i] == 0:
                     damage = Damage(500, ('冰', self.infusion.apply_infusion()), DamageType.CHARGED, '湮远-晶刃攻击')
-                    EventBus.publish(DamageEvent(self.character, target, damage,GetCurrentTime()))
+                    EventBus.publish(DamageEvent(self.character, target, damage,get_current_time()))
                 
         self.attck_stack = [i for i in self.attck_stack if i > 0]
 
@@ -663,16 +663,16 @@ class HavocSeverStackEffect(Effect, EventHandler):
         if not self.stacks:
             self.remove()
 
-        if self.coordinated_attack_burst + 10 == GetCurrentTime():
+        if self.coordinated_attack_burst + 10 == get_current_time():
             for _ in range(len(self.stacks)):
                 damage = Damage(750, ('冰', self.character.elemental_burst_infusion.apply_infusion()), DamageType.BURST, '极恶技·斩-协同攻击')
-                EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+                EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.stacks.clear()
 
-        if self.coordinated_attack_normal + 5 == GetCurrentTime():
+        if self.coordinated_attack_normal + 5 == get_current_time():
             for _ in range(3):
                 damage = Damage(180, ('冰', self.character.normal_attack_infusion.apply_infusion()), DamageType.NORMAL, '极恶技·斩-协同攻击')
-                EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+                EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.stacks.remove(min(self.stacks))
         
         self.msg = self.msg1 + f"""<p><span style="color: #c0e4e6; font-size: 12pt;">极恶技·斩:{len(self.stacks)}层</span></p>"""
@@ -729,7 +729,7 @@ class Skirk(Character):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
+            skillEvent = ElementalSkillEvent(self,get_current_time())
             EventBus.publish(skillEvent)
 
     def update(self, target):
@@ -770,7 +770,7 @@ class Skirk(Character):
     def exit_mode(self):
         self.mode = "正常模式"
         self.current_serpent_subtlety = 0
-        self.Skill.last_use_time = GetCurrentTime()
+        self.Skill.last_use_time = get_current_time()
         self.mode_timer = 0
 
 skirk_table = {

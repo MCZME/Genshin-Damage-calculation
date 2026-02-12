@@ -67,7 +67,7 @@ class EndlessWaltzEffect(BaseEffect):
             for member in Team.team:
                 h = Healing(2, HealingType.PASSIVE, "停不了的圆舞")
                 h.base_value = '生命值'
-                self.owner.event_engine.publish(HealEvent(self.owner, member, h, GetCurrentTime()))
+                self.owner.event_engine.publish(HealEvent(self.owner, member, h, get_current_time()))
 
 class PassiveSkillEffect_2(TalentEffect, EventHandler):
     """天赋2：无人听的自白"""
@@ -116,8 +116,8 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
         self.character.event_engine.subscribe(EventType.AFTER_HEAL, self)
 
     def handle_event(self, event: GameEvent):
-        if GetCurrentTime() - self.last_trigger >= 5*60:
-            self.last_trigger = GetCurrentTime()
+        if get_current_time() - self.last_trigger >= 5*60:
+            self.last_trigger = get_current_time()
             summon_energy(4, self.character, ('无', 0))
 
 class ConstellationEffect_5(ConstellationEffect):
@@ -222,7 +222,7 @@ class CenterOfAttentionEffect(BaseEffect, EventHandler):
 
         elif event.event_type == EventType.AFTER_ATTACK:
 
-            now = GetCurrentTime()
+            now = get_current_time()
 
             if now - self.last_proc_time >= 0.1*60:
 
@@ -268,4 +268,4 @@ class CenterOfAttentionHealEffect(BaseEffect):
 
                 h.base_value = '生命值'
 
-                self.owner.event_engine.publish(HealEvent(self.owner, member, h, GetCurrentTime()))
+                self.owner.event_engine.publish(HealEvent(self.owner, member, h, get_current_time()))

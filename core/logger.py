@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Any
 
 from core.config import Config
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 # ---------------------------------------------------------
 # 日志级别定义 (扩展标准库)
@@ -68,7 +68,7 @@ class SimulationLogger:
 
     def _log(self, level: int, msg: str, payload: dict = None, sender: str = "System"):
         # 动态获取当前帧
-        frame = GetCurrentTime()
+        frame = get_current_time()
         
         # 自动提取 [Sender] 标签 (如果 msg 以其开头)
         if msg.startswith("[") and "]" in msg:

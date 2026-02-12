@@ -69,7 +69,7 @@ class PhantomObject(baseObject, Infusion):
                 self.character, 
                 target, 
                 duration_damage, 
-                GetCurrentTime()
+                get_current_time()
             )
             EventBus.publish(damage_event)
 
@@ -85,7 +85,7 @@ class PhantomObject(baseObject, Infusion):
             self.character,
             target,
             explosion_damage,
-            GetCurrentTime()
+            get_current_time()
         )
         EventBus.publish(damage_event)
 
@@ -136,7 +136,7 @@ class BubbleObject(baseObject, EventHandler):
                 self.character,
                 event.data['target'],
                 self.burst_damage,
-                GetCurrentTime()
+                get_current_time()
             )
             EventBus.publish(damage_event)
             get_emulation_logger().log_effect("✨ 泡影破裂，触发星异效果")
@@ -151,7 +151,7 @@ class BubbleObject(baseObject, EventHandler):
                 self.character,
                 target,
                 self.burst_damage,
-                GetCurrentTime()
+                get_current_time()
             )
             EventBus.publish(damage_event)
             get_emulation_logger().log_effect(f"✨ {target.name} 的泡影自然破裂")

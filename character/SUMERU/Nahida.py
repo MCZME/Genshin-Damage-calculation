@@ -30,12 +30,12 @@ class NormalAttack(NormalAttackSkill, Infusion):
             name=f'普通攻击 第{self.current_segment+1}段'
         )
         
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
@@ -109,7 +109,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
                 self.last_trigger_time = current_time
 
     def _trigger_tri_karma(self):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         lv = self.character.Skill.lv - 1
         
         damage = Damage(
@@ -124,7 +124,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
             self.character,
             self.target,
             damage,
-            GetCurrentTime()
+            get_current_time()
         )
         EventBus.publish(damage_event)
         get_emulation_logger().log_effect(f"🌿 {self.target.name} 触发灭净三业")
@@ -134,7 +134,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
 
     def update(self):
         super().update(None)
-        if GetCurrentTime() == self.last_trigger_time + 4:
+        if get_current_time() == self.last_trigger_time + 4:
             self._trigger_tri_karma()
 
 class ElementalSkill(SkillBase):
@@ -180,7 +180,7 @@ class ElementalSkill(SkillBase):
                 damageType=DamageType.SKILL,
                 name='所闻遍计·' + mode
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             self.effect = SeedOfSkandhaEffect(self.caster, target, 25*60)
             self.effect.apply()
 
@@ -424,7 +424,7 @@ class KarmicOblivionEffect(Effect,EventHandler):
                     self.hit_count = 0
                 damage = Damage((200,400),('草', 1),DamageType.SKILL,'灭净三业·业障')
                 damage.setBaseValue(('攻击力', '元素精通'))
-                EventBus.publish(DamageEvent(self.character, event.data['target'], damage, GetCurrentTime()))
+                EventBus.publish(DamageEvent(self.character, event.data['target'], damage, get_current_time()))
                 self.last_attack_time = event.frame
                 self.hit_count += 1    
 

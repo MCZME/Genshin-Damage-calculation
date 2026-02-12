@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-import core.tool as T
 from core.action.action_data import ActionFrameData
 from core.action.action_manager import ActionManager
 from core.context import get_context
@@ -11,6 +10,7 @@ from core.event import (
     EventType,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
+from core.tool import get_current_time
 
 
 class Character(CombatEntity, ABC):
@@ -170,13 +170,13 @@ class Character(CombatEntity, ABC):
 
     def elemental_skill(self, params: Any = None) -> bool:
         if self._request_action("elemental_skill", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, T.GetCurrentTime(), self, "elemental_skill"))
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, get_current_time(), self, "elemental_skill"))
             return True
         return False
 
     def elemental_burst(self, params: Any = None) -> bool:
         if self._request_action("elemental_burst", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, T.GetCurrentTime(), self, "elemental_burst"))
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, get_current_time(), self, "elemental_burst"))
             return True
         return False
 

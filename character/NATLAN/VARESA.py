@@ -63,13 +63,13 @@ class VaresaNormalAttack(NormalAttackSkill,Infusion):
                 damageType=DamageType.NORMAL,
                 name=f'{self.name} 第{self.current_segment+1}段'
             )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         # 发布普通攻击事件（后段）
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
@@ -114,7 +114,7 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             self.damageMultipiler = self.damageMultipiler
             
         self.height_type = '高空' if is_high else '低空'
-        event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
+        event = PlungingAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
         return True
 
@@ -146,10 +146,10 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             f'夜魂·{damage_type_key}' if not passion_effect else f'炽热激情·夜魂·{damage_type_key}'
         )
         damage.setDamageData('夜魂伤害',True)
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
-        EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
+        EventBus.publish(PlungingAttackEvent(self.caster, frame=get_current_time(), before=False))
         
         # 炽热激情状态下消耗全部夜魂值
         if passion_effect:
@@ -195,7 +195,7 @@ class VaresaChargedAttack(ChargedAttackSkill):
         return True
 
     def _apply_attack(self, target):
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
         
         clamped_lv = min(max(self.lv, 1), 15) - 1
@@ -217,10 +217,10 @@ class VaresaChargedAttack(ChargedAttackSkill):
 
         damage.setDamageData('夜魂伤害',True)
         # 发布伤害事件
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
 
     def on_frame_update(self, target):
@@ -319,7 +319,7 @@ class ElementalSkill(SkillBase):
         
     def update_charges(self):
         """更新当前充能次数，基于各充能槽位的冷却状态"""
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         available = 0
         for i in range(self.max_charges):
             if current_time >= self.last_use_time[i] + self.cd:
@@ -333,7 +333,7 @@ class ElementalSkill(SkillBase):
             return False
 
         # 找到第一个可用的充能槽位
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         used_index = -1
         for i in range(self.max_charges):
             if current_time >= self.last_use_time[i] + self.cd:
@@ -390,7 +390,7 @@ class ElementalSkill(SkillBase):
                 damageType=DamageType.SKILL,
                 name=skill_name
             )
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(damage_event)
 
             if self.caster.level >= 20:
@@ -412,7 +412,7 @@ class PassionEffect(Effect, EventHandler):
         super().__init__(character, duration)
         self.name = '炽热激情'
         self.character = character
-        self.start_time = GetCurrentTime()
+        self.start_time = get_current_time()
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">在炽热激情状态下，
@@ -430,8 +430,8 @@ class PassionEffect(Effect, EventHandler):
         if self.character.Skill.current_charges < self.character.Skill.max_charges:
             t = self.character.Skill.last_use_time
             for i in range(len(t)):
-                if GetCurrentTime() < t[i] + self.character.Skill.cd:
-                    t[i] = GetCurrentTime() - self.character.Skill.cd
+                if get_current_time() < t[i] + self.character.Skill.cd:
+                    t[i] = get_current_time() - self.character.Skill.cd
                     break
 
         self.character.add_effect(self)
@@ -534,7 +534,7 @@ class SpecialElementalBurst(EnergySkill):
                 name=self.name,
             )
             damage.setDamageData('夜魂伤害',True)
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(damage_event)
         self.caster.movement += 1.627
 
@@ -570,7 +570,7 @@ class ElementalBurst(EnergySkill):
                 name=f'{self.name} {damage_key}',
             )
             damage.setDamageData('夜魂伤害',True)
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(damage_event)
                 
             get_emulation_logger().log_effect("⚡ 正义英雄的飞踢！")
@@ -696,13 +696,13 @@ class Varesa(Natlan):
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
         ))
         self.current_night_soul += actual_amount
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             before=False
         ))
         existing = next((e for e in self.active_effects 

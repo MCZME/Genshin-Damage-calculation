@@ -24,7 +24,7 @@ class GuobaObject(baseObject):
             self.last_attack_time = self.current_frame
 
     def _attack(self, target):
-        event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
+        event = DamageEvent(self.caster, target, self.damage, get_current_time())
         EventBus.publish(event)
 
         summon_energy(1, self.caster, ('火', 2))
@@ -113,7 +113,7 @@ class PyronadoObject(baseObject):
             damageType=DamageType.BURST,
             name='旋火轮 旋转伤害'
         )
-        event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(event)
 
     def on_finish(self, target):
@@ -152,7 +152,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=f'{self.name} {damage_type}'
             )
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
 
         # 在最后一帧召唤旋火轮
@@ -203,7 +203,7 @@ class ExplosionEffect(Effect):
                     self.character,
                     target,
                     self.damage,
-                    GetCurrentTime()
+                    get_current_time()
                 )
                 EventBus.publish(event)
                 self.remove()

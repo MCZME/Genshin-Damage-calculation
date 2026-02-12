@@ -1,4 +1,7 @@
-from core.tool import GetCurrentTime
+
+
+from core.tool import get_current_time
+
 
 class Infusion:
     def __init__(self, attach_sequence=[1, 0, 0], interval=2.5*60, max_attach=8):
@@ -10,7 +13,7 @@ class Infusion:
         self.infusion_count = 0
 
     def apply_infusion(self):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         should_attach = False
         
         if self.sequence_pos < len(self.attach_sequence):

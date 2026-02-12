@@ -23,7 +23,7 @@ class Natlan(Character):
         event =NightSoulChangeEvent(
             character=self,
             amount=-actual_amount,
-            frame=GetCurrentTime()
+            frame=get_current_time()
         )
         EventBus.publish(event)
         if event.cancelled:
@@ -33,7 +33,7 @@ class Natlan(Character):
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=-actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             before=False
         ))
     
@@ -43,7 +43,7 @@ class Natlan(Character):
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             before=False
         ))
 
@@ -52,7 +52,7 @@ class Natlan(Character):
         EventBus.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             before=False
         ))
 
@@ -63,13 +63,13 @@ class Natlan(Character):
             self.gain_NightSoulBlessing()
 
     def gain_NightSoulBlessing(self):
-        self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
+        self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=get_current_time())
         EventBus.publish(self.before_nightsoulBlessingevent)
         self.Nightsoul_Blessing = True
         get_emulation_logger().log_effect("🌙 夜魂加持")
 
     def romve_NightSoulBlessing(self):
-        self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
+        self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=get_current_time(), before=False)
         EventBus.publish(self.after_nightsoulBlessingevent)
         self.Nightsoul_Blessing = False
         get_emulation_logger().log_effect(f"🌙 {self.name}夜魂加持结束")

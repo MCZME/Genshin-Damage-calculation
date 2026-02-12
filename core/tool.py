@@ -1,28 +1,28 @@
 from core.event import EnergyChargeEvent, EventBus
 
-def level(level):
-    Level = [1,20,40,50,60,70,80,90]
-    for i in Level:
-        if level <= i:
-            return Level.index(i)
+def get_ascension_index(level: int) -> int:
+    """根据等级获取突破阶段索引。"""
+    ascension_levels = [1, 20, 40, 50, 60, 70, 80, 90]
+    for i, val in enumerate(ascension_levels):
+        if level <= val:
+            return i
     return 0
 
-def attributeId(attributeId):
-    AttributeId = {1:'暴击率',2:'暴击伤害',3:'生命值',4:'防御力',5:'攻击力',6:'元素精通',7:'元素充能效率',8:'治疗加成',
-                9:'元素伤害加成',10:'受治疗加成',11:'生命值%',12:'攻击力%',13:'防御力%'}
-    return AttributeId[attributeId]
+def get_attribute_name(attr_id: int) -> str:
+    """根据 ID 获取属性名称。"""
+    attribute_map = {
+        1: '暴击率', 2: '暴击伤害', 3: '生命值', 4: '防御力', 5: '攻击力', 6: '元素精通', 7: '元素充能效率', 8: '治疗加成',
+        9: '元素伤害加成', 10: '受治疗加成', 11: '生命值%', 12: '攻击力%', 13: '防御力%'
+    }
+    return attribute_map.get(attr_id, "未知属性")
 
-def GetCurrentTime() -> int:
+def get_current_time() -> int:
     """获取当前模拟帧。"""
     from core.context import get_context
     try:
         return get_context().current_frame
     except RuntimeError:
         return 0
-
-def get_current_time() -> int:
-    """获取当前模拟帧 (snake_case 别名)。"""
-    return GetCurrentTime()
 
 reaction_coefficients = {
     1: 17.17, 2: 18.54, 3: 19.9, 4: 21.27, 5: 22.65, 6: 24.65, 7: 26.64, 8: 28.87, 9: 31.37, 10: 34.14,
@@ -45,7 +45,7 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
         for _ in range(num):
             EntityFactory.spawn_energy(character, element_energy, time)
     else:
-        energy_event = EnergyChargeEvent(character, element_energy, GetCurrentTime(),
+        energy_event = EnergyChargeEvent(character, element_energy, get_current_time(),
                                         is_fixed=is_fixed, is_alone=is_alone)
         EventBus.publish(energy_event)
 

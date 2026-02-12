@@ -27,7 +27,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
         
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.BEFORE_NORMAL_ATTACK,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="normal_attack",
             segment=segment
@@ -39,11 +39,11 @@ class NormalAttack(NormalAttackSkill, Infusion):
             damage_type=DamageType.NORMAL,
             name=f'普通攻击 第{segment}段'
         )
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.AFTER_NORMAL_ATTACK,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="normal_attack",
             segment=segment
@@ -63,7 +63,7 @@ class ChargedAttack(ChargedAttackSkill):
     def on_execute_hit(self, target: Any, hit_index: int):
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.BEFORE_CHARGED_ATTACK,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="charged_attack"
         ))
@@ -71,17 +71,17 @@ class ChargedAttack(ChargedAttackSkill):
         # 基础重击伤害
         multiplier = self.damage_multiplier_list[self.lv - 1]
         damage = Damage(multiplier, ('冰', 1), DamageType.CHARGED, '重击')
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         # 灵息之刺 (芒性)
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_arkhe_time >= 360:
             self.last_arkhe_time = current_time
             self._trigger_arkhe(target)
 
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.AFTER_CHARGED_ATTACK,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="charged_attack"
         ))
@@ -125,7 +125,7 @@ class ElementalSkill(SkillBase):
     def on_execute_hit(self, target: Any, hit_index: int):
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.BEFORE_SKILL,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="elemental_skill"
         ))
@@ -133,7 +133,7 @@ class ElementalSkill(SkillBase):
         key = '长按' if self.hold_mode else '点按'
         multiplier = self.damage_table[key][self.lv-1]
         damage = Damage(multiplier, ('冰', 1), DamageType.SKILL, f"{self.name} {key}")
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 应用印记与产球
         if self.hold_mode:
@@ -145,7 +145,7 @@ class ElementalSkill(SkillBase):
 
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.AFTER_SKILL,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="elemental_skill"
         ))
@@ -170,26 +170,26 @@ class ElementalBurst(EnergySkill):
     def on_execute_hit(self, target: Any, hit_index: int):
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.BEFORE_BURST,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="elemental_burst"
         ))
 
         # 初始爆发伤害
         damage = Damage(self.multipliers['damage'][self.lv-1], ('冰', 2), DamageType.BURST, f"{self.name} 初始伤害")
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 初始爆发治疗
         healing = Healing(self.multipliers['heal_init'][self.lv-1], HealingType.BURST, f"{self.name}·施放治疗")
         healing.base_value = '攻击力'
-        self.caster.event_engine.publish(HealEvent(self.caster, Team.current_character, healing, GetCurrentTime()))
+        self.caster.event_engine.publish(HealEvent(self.caster, Team.current_character, healing, get_current_time()))
         
         # 创建临事场域
         FieldObject(self.caster, self.multipliers['camera'][self.lv-1], self.multipliers['field_heal'][self.lv-1]).apply()
 
         self.caster.event_engine.publish(ActionEvent(
             event_type=EventType.AFTER_BURST,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             source=self.caster,
             action_name="elemental_burst"
         ))

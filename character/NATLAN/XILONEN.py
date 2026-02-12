@@ -119,7 +119,7 @@ class XilonenNormalAttack(NormalAttackSkill):
 
     def _apply_segment_effect(self, target):
         if self.caster.Nightsoul_Blessing:
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             # 计算是否应该附着元素
             should_attach = False
             
@@ -159,13 +159,13 @@ class XilonenNormalAttack(NormalAttackSkill):
                 name=f'{self.name} 第{self.current_segment+1}段'
             )
             
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         # 发布普通攻击事件
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
@@ -217,7 +217,7 @@ class ElementalSkill(SkillBase):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
             
             summon_energy(4, self.caster,('岩',2))
@@ -272,7 +272,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
 
     def update(self, target):
         super().update(target)
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_trigger_time >= self.interval:
             self.last_trigger_time = current_time
             lv = self.character.skill_params[2] - 1
@@ -329,7 +329,7 @@ class FierceRhythmEffect(Effect):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.character, target, damage, GetCurrentTime())
+            event = DamageEvent(self.character, target, damage, get_current_time())
             EventBus.publish(event)
             print(f"🥁 燥烈律动第{self.beat_count}次节拍伤害")
             if self.beat_count == self.max_beats:
@@ -365,7 +365,7 @@ class ElementalBurst(EnergySkill):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
             
             # 根据源音采样类型触发不同效果
@@ -403,7 +403,7 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
             
         # 检查是否为普攻或下落攻击伤害
         if event.event_type in [EventType.AFTER_NORMAL_ATTACK, EventType.BEFORE_PLUNGING_ATTACK]:
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if current_time - self.last_trigger_time < self.trigger_interval:
                 return
 
@@ -436,7 +436,7 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
         elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             if (event.data['character'] == self.character and
                 event.data['amount'] == -90 and 
-                GetCurrentTime() - self.last_trigger_time > self.colddown):
+                get_current_time() - self.last_trigger_time > self.colddown):
                 get_emulation_logger().log_effect('希诺宁 便携铠装护层 触发夜魂迸发')
                 NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
                 EventBus.publish(NightsoulBurstEvent)

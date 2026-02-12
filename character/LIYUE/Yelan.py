@@ -79,7 +79,7 @@ class ChargedAttack(ChargedAttackSkill):
         )
         damage.setBaseValue(base_value)
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
 class PlungingAttack(PlungingAttackSkill):
     ...
@@ -96,7 +96,7 @@ class ElementalSkill(SkillBase):
         self.stack_count = 1
 
     def start(self, caster):
-        count = int(GetCurrentTime() - self.last_use_time / self.cd)
+        count = int(get_current_time() - self.last_use_time / self.cd)
         if caster.constellation >= 1:
             self.stack_count = min(self.stack_count + count, 2)
         else:
@@ -108,7 +108,7 @@ class ElementalSkill(SkillBase):
         self.stack_count -= 1
         self.caster = caster
         self.current_frame = 0
-        self.last_use_time = GetCurrentTime()
+        self.last_use_time = get_current_time()
         get_emulation_logger().log_skill_use(f"🌀 {caster.name} 开始释放萦络纵命索")
         return True
 
@@ -127,7 +127,7 @@ class ElementalSkill(SkillBase):
 
         summon_energy(4,self.caster, ('水', 2),time=80)
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 34%概率触发破局矢
         if random.random() < self.breakthrough_chance:
@@ -157,7 +157,7 @@ class ElementalBurst(EnergySkill):
         )
         damage.setBaseValue('生命值')
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         linglong_dice = LinglongDiceObject(self.caster, self.lv)
         linglong_dice.apply()
@@ -217,7 +217,7 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
             )
             damage.setBaseValue('生命值')
             
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
 
         if self.character.constellation >= 2 and self.current_frame - self.c2_time >= 1.8 * 60:
             damage = Damage(
@@ -229,7 +229,7 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
             damage.setBaseValue('生命值')
             self.c2_time = self.current_frame
             
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
         
 class PassiveSkillEffect_1(TalentEffect):
     def __init__(self):
@@ -239,7 +239,7 @@ class PassiveSkillEffect_1(TalentEffect):
         super().apply(character)
 
     def update(self, target):
-        if GetCurrentTime() == 1:
+        if get_current_time() == 1:
             s = set()
             for char in Team.team:
                 s.add(char.element)

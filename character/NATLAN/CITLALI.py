@@ -31,13 +31,13 @@ class NormalAttack(NormalAttackSkill,Infusion):
         )
         
         # 发布伤害事件
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         # 发布普通攻击事件
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
@@ -95,7 +95,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
             get_emulation_logger().log_skill_use("❄️ 伊兹帕帕进入白燧状态")
             
         # 白燧状态下每秒造成伤害并消耗夜魂值
-        current_frame = GetCurrentTime()
+        current_frame = get_current_time()
         if self.in_white_flint:
             if current_frame - self.last_damage_frame >= self.damage_interval:
                 # 造成霜陨风暴伤害(包含元素精通加成)
@@ -176,7 +176,7 @@ class ElementalSkill(SkillBase):
                 '霜昼黑星'
             )
             damage.setDamageData('夜魂伤害', True)
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
             # 获得24点夜魂值并进入加持状态
             self.caster.gain_night_soul(24)
@@ -187,7 +187,7 @@ class ElementalSkill(SkillBase):
             shield_value = (self.shield_em[self.lv-1] * self.caster.attributePanel['元素精通'] / 100
                           + self.shield_base[self.lv-1]) 
             shield = Shield(shield_value)
-            event = ShieldEvent(self.caster, shield, GetCurrentTime())
+            event = ShieldEvent(self.caster, shield, get_current_time())
             EventBus.publish(event)
             shield = ShieldObject(
                 character=self.caster,
@@ -231,7 +231,7 @@ class SkeletonSpiritObject(baseObject):
             '宿灵之髑爆炸'
         )
         damage.setDamageData('夜魂伤害', True)
-        event = DamageEvent(self.character, target, damage, GetCurrentTime())
+        event = DamageEvent(self.character, target, damage, get_current_time())
         EventBus.publish(event)
         
         # 恢复3点夜魂值
@@ -271,7 +271,7 @@ class ElementalBurst(EnergySkill):
                 '诸曜饬令·冰风暴'
             )
             damage.setDamageData('夜魂伤害', True)
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(event)
             
             # 恢复24点夜魂值
@@ -450,7 +450,7 @@ class SkeletonSpiritObsidianObject(SkeletonSpiritObject):
     def _attack(self, target):
         damage = Damage(0,('冰',1),DamageType.SKILL,self.name)
         damage.setDamageData('夜魂伤害',True)
-        EventBus.publish(DamageEvent(self.character, target, damage,GetCurrentTime()))
+        EventBus.publish(DamageEvent(self.character, target, damage,get_current_time()))
 
         self.character.gain_night_soul(16)
         summon_energy(1, self.character, ('无', 8), True, True, 0)

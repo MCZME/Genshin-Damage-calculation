@@ -35,7 +35,7 @@ class DamageEffect:
             self.is_active = False
             return
 
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_trigger_time >= self.interval:
             self.last_trigger_time = current_time
             damage = Damage(
@@ -72,7 +72,7 @@ class VerificationEffect:
             self.is_active = False
             return
 
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= self.heal_interval:
             self.last_heal_time = current_time
             healing = Healing(
@@ -106,7 +106,7 @@ class FieldObject(BaseEntity):
         get_emulation_logger().log_object(f'{self.character.name}创建了{self.name}')
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         
         # 周期性相机攻击
         if current_time - self.last_attack_time >= self.attack_interval:
@@ -125,7 +125,7 @@ class FieldObject(BaseEntity):
             damage_type=DamageType.BURST,
             name=f'{self.name}·温亨廷先生攻击'
         )
-        self.event_engine.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+        self.event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
 
     def _apply_heal(self, target):
         healing = Healing(
@@ -139,5 +139,5 @@ class FieldObject(BaseEntity):
             source=self.character,
             target=Team.current_character,
             healing=healing,
-            frame=GetCurrentTime()
+            frame=get_current_time()
         ))

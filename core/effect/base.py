@@ -2,7 +2,7 @@ from abc import ABC
 from enum import Enum, auto
 from typing import Any, Optional
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 
 class StackingRule(Enum):
     REFRESH = auto()    # 刷新持续时间 (默认)
@@ -38,7 +38,7 @@ class BaseEffect(ABC):
             # INDEPENDENT 模式下继续执行新增
 
         self.is_active = True
-        self.start_frame = GetCurrentTime()
+        self.start_frame = get_current_time()
         self.owner.add_effect(self)
         self.on_apply()
         get_emulation_logger().log_effect(f"{self.owner.name} 获得了 {self.name} 效果")

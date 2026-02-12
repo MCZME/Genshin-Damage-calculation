@@ -43,7 +43,7 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target, hit_index):
         """应用重击伤害"""
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
 
         # 计算当前段伤害
@@ -54,10 +54,10 @@ class ChargedAttack(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name=f'重击第{hit_index+1}段'
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
         get_emulation_logger().log_skill_use(f"⚔️ 重击第{hit_index+1}段命中")
 
@@ -132,7 +132,7 @@ class ElementalSkill(SkillBase):
 
     def _apply_attack(self, target, hit_index):
         """应用元素战技伤害"""
-        event = ElementalSkillEvent(self.caster, GetCurrentTime())
+        event = ElementalSkillEvent(self.caster, get_current_time())
         EventBus.publish(event)
         
         if self.hold_mode == 0:  # 点按
@@ -168,10 +168,10 @@ class ElementalSkill(SkillBase):
                 )
                 get_emulation_logger().log_skill_use("💥 热情过载爆炸效果触发")
                 
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
         
-        event = ElementalSkillEvent(self.caster, GetCurrentTime(), before=False)
+        event = ElementalSkillEvent(self.caster, get_current_time(), before=False)
         EventBus.publish(event)
 
     def on_finish(self):
@@ -228,14 +228,14 @@ class InspirationFieldObject(baseObject, EventHandler):
         
     def _apply(self):
         # 持续治疗逻辑（每秒触发）
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if (self.current_char.currentHP / self.current_char.maxHP <= 0.7 and 
             current_time - self.last_heal_time >= 60):
             lv_index = self.character.Burst.lv - 1
             self.last_heal_time = current_time
             heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
             heal.base_value = '生命值'
-            heal_event = HealEvent(self.character, self.current_char,heal, GetCurrentTime())
+            heal_event = HealEvent(self.character, self.current_char,heal, get_current_time())
             EventBus.publish(heal_event)
         else:
             # 基础攻击加成逻辑
@@ -245,14 +245,14 @@ class InspirationFieldObject(baseObject, EventHandler):
             effect.apply()
 
     def _apply_c(self):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= 60:
             if self.current_char.currentHP / self.current_char.maxHP <= 0.7:
                 lv_index = self.character.Burst.lv - 1
                 self.last_heal_time = current_time
                 heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
                 heal.base_value = '生命值'
-                heal_event = HealEvent(self.character, self.current_char,heal, GetCurrentTime())
+                heal_event = HealEvent(self.character, self.current_char,heal, get_current_time())
                 EventBus.publish(heal_event)
 
             lv_index = self.character.Burst.lv - 1
@@ -302,7 +302,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=self.name,
             )
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(damage_event)
             return True
         return False
@@ -440,7 +440,7 @@ class BENNETT(Character):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
+            skillEvent = ElementalSkillEvent(self,get_current_time())
             EventBus.publish(skillEvent)
 
 bennett_table = {

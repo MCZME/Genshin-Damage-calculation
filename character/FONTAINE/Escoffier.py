@@ -61,7 +61,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 '低温烹饪'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             # 召唤厨艺机关
             kitchen_appliance = KitchenApplianceObject(
@@ -74,7 +74,7 @@ class ElementalSkill(SkillBase):
             summon_energy(4, self.caster, ('冰',2))
 
             # 始基力：荒性效果
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if current_time - self.last_arkhe_time >= self.arkhe_cooldown:
                 arkhe_damage = Damage(
                     self.arkhe_damage[self.lv-1],
@@ -115,7 +115,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
             return
         Team.add_object(self)
         self.is_active = True
-        EventBus.publish(ObjectEvent(self, GetCurrentTime()))
+        EventBus.publish(ObjectEvent(self, get_current_time()))
         EventBus.subscribe(EventType.AFTER_DAMAGE, self)
         
     def on_finish(self, target):
@@ -127,7 +127,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
             event.data['character'] == Team.current_character and
             event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]):
             
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if (current_time - self.last_c6_time >= 30 and  # 0.5秒冷却
                 self.c6_triggers < 6):  # 最多6次
                 
@@ -152,7 +152,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
                 DamageType.SKILL,
                 '冻霜芭菲'
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.last_attack_time = current_time
 
 class ElementalBurst(EnergySkill):
@@ -182,7 +182,7 @@ class ElementalBurst(EnergySkill):
                 DamageType.BURST,
                 '花刀技法'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
             # 全队治疗
             healing = Healing(
@@ -197,7 +197,7 @@ class ElementalBurst(EnergySkill):
                     self.caster,
                     char,
                     healing,
-                    GetCurrentTime()
+                    get_current_time()
                 )
                 EventBus.publish(heal_event)
 
@@ -228,7 +228,7 @@ class RecoveryDietEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}失去康复食疗效果")
         
     def update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= 60:  # 每秒治疗一次
             healing = Healing(
                 self.healing_rate,

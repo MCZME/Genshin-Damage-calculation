@@ -38,7 +38,7 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         i = self.hit_frame.index(self.current_frame)
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
         EventBus.publish(event)
 
         damage = Damage(
@@ -47,10 +47,10 @@ class ChargedAttack(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name='重击'
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
         EventBus.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
@@ -95,7 +95,7 @@ class SanctifyingRingObject(baseObject):
         if self.character.level >= 60:
             damage.setPanel('固定伤害基础值加成',self.character.attributePanel['元素精通'] * 0.25)
             damage.setDamageData('安心之所_基础值加成', self.character.attributePanel['元素精通'] * 0.25)
-        damage_event = DamageEvent(self.character, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.character, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
         # 治疗当前角色
@@ -113,14 +113,14 @@ class SanctifyingRingObject(baseObject):
             source=self.character,
             target=Team.current_character,
             healing=healing,
-            frame=GetCurrentTime()
+            frame=get_current_time()
         )
         EventBus.publish(heal_event)
 
-        if GetCurrentTime() - self.last_energy_time >= 0.2 * 60:
+        if get_current_time() - self.last_energy_time >= 0.2 * 60:
             if random.random() < 0.45:
                 summon_energy(1, self.character,('雷',2),time=10)
-                self.last_energy_time = GetCurrentTime()
+                self.last_energy_time = get_current_time()
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -145,10 +145,10 @@ class ElementalSkill(SkillBase):
                 damageType=DamageType.SKILL,
                 name='越祓雷草之轮'
             )
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
             EventBus.publish(damage_event)
             if self.caster.currentHP / self.caster.maxHP > 0.2:
-                EventBus.publish(HurtEvent(self.caster, self.caster, 0.3 * self.caster.currentHP, GetCurrentTime()))
+                EventBus.publish(HurtEvent(self.caster, self.caster, 0.3 * self.caster.currentHP, get_current_time()))
         elif self.current_frame == 23:
             SanctifyingRingObject(self.caster, self.lv).apply()
 
@@ -195,7 +195,7 @@ class PurificationFieldObject(baseObject):
             name='御咏鸣神刈山祭'
         )
         damage.setBaseValue('生命值')
-        damage_event = DamageEvent(self.character, target, damage, GetCurrentTime())
+        damage_event = DamageEvent(self.character, target, damage, get_current_time())
         EventBus.publish(damage_event)
 
 class ElementalBurst(EnergySkill):
@@ -275,7 +275,7 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
                 if event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
                     damage = Damage( 9.7, ('雷', 1), DamageType.SKILL, '割舍封闭之心')
                     damage.setBaseValue('生命值')
-                    damage_event = DamageEvent(self.character, event.data['target'], damage, GetCurrentTime())
+                    damage_event = DamageEvent(self.character, event.data['target'], damage, get_current_time())
                     EventBus.publish(damage_event)
                     self.last_trigger_time = event.frame
                     summon_energy(1, self.character,('雷',2),time=10)

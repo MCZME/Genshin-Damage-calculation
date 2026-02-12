@@ -44,13 +44,13 @@ class SalonMember(BaseEntity, EventHandler):
         damage.setBaseValue('生命值') # 基于生命值上限
         
         # 2. 发布伤害 (触发 BEFORE_INDEPENDENT_DAMAGE 钩子)
-        self.event_engine.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+        self.event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
         
         # 3. 尝试产球
         self._summon_energy()
 
     def _summon_energy(self):
-        now = GetCurrentTime()
+        now = get_current_time()
         if now - SalonMember.last_energy_time >= 2.5 * 60:
             summon_energy(1, self.character, ('水', 2))
             SalonMember.last_energy_time = now
@@ -64,7 +64,7 @@ class SalonMember(BaseEntity, EventHandler):
                 if c.current_hp / c.max_hp > 0.5:
                     # 发布 HurtEvent (扣除全队血量)
                     consumption = self.hp_consumption * c.max_hp / 100
-                    self.event_engine.publish(HurtEvent(self.character, c, consumption, GetCurrentTime()))
+                    self.event_engine.publish(HurtEvent(self.character, c, consumption, get_current_time()))
                     count += 1
             
             # 独立增伤比例：100/110/120/130/140%
@@ -125,4 +125,4 @@ class Singer(BaseEntity):
                 name=self.name
             )
             heal.base_value = '生命值'
-            self.event_engine.publish(HealEvent(self.character, Team.current_character, heal, GetCurrentTime()))
+            self.event_engine.publish(HealEvent(self.character, Team.current_character, heal, get_current_time()))

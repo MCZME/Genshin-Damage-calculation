@@ -62,7 +62,7 @@ class HealingFieldEffect(Effect, EventHandler):
         if not target:
             return
             
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= 120:  # 每秒触发
             lv_index = self.character.Skill.lv - 1
             self.last_heal_time = current_time
@@ -189,7 +189,7 @@ class ElementalSkill(SkillBase, EventHandler):
         if hasattr(self, 'scheduled_damage'):
             damage, trigger_frame = self.scheduled_damage
             if self.current_frame == trigger_frame:
-                event =  DamageEvent(self.caster, target, damage, GetCurrentTime())
+                event =  DamageEvent(self.caster, target, damage, get_current_time())
                 EventBus.publish(event)
                 del self.scheduled_damage
                 
@@ -228,7 +228,7 @@ class DoubleDamageBullet(baseObject):
 
     def on_finish(self,target):
         # 在二重毁伤弹结束时触发伤害
-        event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
+        event = DamageEvent(self.caster, target, self.damage, get_current_time())
         EventBus.publish(event)
         super().on_finish(target)
 
@@ -257,7 +257,7 @@ class ElementalBurst(EnergySkill):
         return True
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         
         if self.current_frame == self.skill_frames[0]:
             main_damage = Damage(
@@ -425,7 +425,7 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                     self.character,
                     event.data['target'],
                     explosion_damage,
-                    GetCurrentTime()
+                    get_current_time()
                 )
                 EventBus.publish(explosion_event)
    
@@ -548,7 +548,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                 for c in Team.team:
                     heal = Healing(10, HealingType.SKILL,name='终结罪恶的追缉')
                     heal.base_value = '生命值'
-                    heal_event = HealEvent(self.character, c, heal, GetCurrentTime())
+                    heal_event = HealEvent(self.character, c, heal, get_current_time())
                     EventBus.publish(heal_event)
         HealingFieldEffect.remove = new_remove
             
@@ -589,7 +589,7 @@ class CHEVREUSE(Fontaine):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self, hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
+            skillEvent = ElementalSkillEvent(self,get_current_time())
             EventBus.publish(skillEvent)
 
 
