@@ -6,8 +6,7 @@ from core.tool import get_current_time
 
 @dataclass
 class ICDGroup:
-    """ICD (Internal Cooldown) 组别定义。
-    
+    """ICD 规则组定义。
     定义了附着重置的时间阈值以及攻击命中时的附着序列。
     """
     reset_time: float    # 重置时间 (秒)
@@ -15,23 +14,19 @@ class ICDGroup:
     
     @property
     def reset_frames(self) -> int:
-        """重置时间转换为仿真帧数。"""
         return int(self.reset_time * 60)
 
 
-# --- 全局预定义 ICD 组别 ---
-ICD_GROUPS: Dict[str, ICDGroup] = {
+# --- 全局附着规则映射 ---
+ICD_RULES: Dict[str, ICDGroup] = {
     # 默认组别: 2.5s 重置, 每 3 次命中触发一次附着 (1, 4, 7...)
     "Default": ICDGroup(2.5, [1, 0, 0]), 
     
     # 独立附着: 每次命中均触发附着
     "Independent": ICDGroup(0.0, [1]),
     
-    # 特殊组别: 每 1 秒重置一次 (用于部分持续性伤害)
-    "Interval1s": ICDGroup(1.0, [1]),
-    
-    # 柯莱爆发组别: 3s 重置，长序列
-    "ColleiBurst": ICDGroup(3.0, [1, 0, 0, 0, 0, 0, 0, 0, 0]), 
+    # 芙宁娜战技规则: 30s 重置, 每 2 次命中附着 1 次, 上限 12 次 (共 24 次命中判定)
+    "FurinaElementalSkill": ICDGroup(30.0, [1, 0] * 12),
 }
 
 
@@ -43,86 +38,73 @@ class ICDState:
 
 
 class ICDManager:
-    """ICD 管理器。
+    """ICD 管理器 (V2.4 共享组版)。
     
-    负责追踪并判定单个实体受到的各类攻击是否符合附着冷却规则。
-    每个 CombatEntity 实例持有一个 ICDManager。
+    支持多动作、多实体共享同一个附着冷却计数器。
     """
 
     def __init__(self, owner: Any) -> None:
-        """初始化管理器。
-
-        Args:
-            owner: 所属的战斗实体。
-        """
         self.owner = owner
-        # 核心存储: (攻击者 ID, ICD 标签) -> 运行时状态
+        # 核心存储: (来源 ID, 共享组别名) -> 运行时状态
         self.records: Dict[Tuple[int, str], ICDState] = {}
 
-    def check_attachment(self, attacker: Any, tag: str) -> float:
+    def check_attachment(self, attacker: Any, icd_tag: str, icd_group: str) -> float:
         """判定本次攻击是否能够施加元素附着。
 
-        根据攻击者实例和 ICD 标签计算元素量系数。
-
         Args:
-            attacker: 发起攻击的实体。
-            tag: 攻击携带的 ICD 标签 (对应 ICD_GROUPS 的键)。
+            attacker: 发起攻击的实体 (可能是召唤物)。
+            icd_tag: 附着规则标签 (用于查找 ICD_RULES)。
+            icd_group: 共享冷却组 ID (决定谁和谁共用计数器)。
 
         Returns:
-            float: 元素量系数。1.0 代表附着，0.0 代表受冷却限制不附着。
+            float: 元素量系数 (1.0 或 0.0)。
         """
-        # 1. 快速通道：独立附着或无标签
-        if tag in ["None", "Independent", None]:
+        # 1. 快速通道
+        if icd_tag in ["None", "Independent", None]:
             return 1.0
             
-        group = ICD_GROUPS.get(tag, ICD_GROUPS["Default"])
+        rule = ICD_RULES.get(icd_tag, ICD_RULES["Default"])
         
-        # 2. 获取或创建状态记录 (实现攻击者间的 ICD 隔离)
-        key = (id(attacker), tag)
+        # 2. 确定真实的来源 ID (Root Source)
+        # 如果攻击者是召唤物，其 ICD 通常基于主人
+        source_id = id(attacker)
+        if hasattr(attacker, "owner") and attacker.owner:
+            source_id = id(attacker.owner)
+            
+        # 3. 获取或创建共享状态
+        # Key 不再包含具体动作名，而是使用传入的 icd_group
+        key = (source_id, icd_group)
         if key not in self.records:
             self.records[key] = ICDState()
             
         state = self.records[key]
         current_frame = get_current_time()
         
-        # 3. 时间重置判定
-        if current_frame - state.last_reset_frame >= group.reset_frames:
+        # 4. 时间重置判定
+        if current_frame - state.last_reset_frame >= rule.reset_frames:
             state.hit_count = 0
             state.last_reset_frame = current_frame
             
-            coeff = self._get_coefficient(group, 0)
-            state.hit_count = 1  # 记录本次命中
-            self._log_debug(tag, coeff, state.hit_count)
+            coeff = self._get_coefficient(rule, 0)
+            state.hit_count = 1
             return float(coeff)
             
-        # 4. 序列计数判定
-        coeff = self._get_coefficient(group, state.hit_count)
-        
-        # 推进计数
+        # 5. 序列计数判定
+        coeff = self._get_coefficient(rule, state.hit_count)
         state.hit_count += 1
-        self._log_debug(tag, coeff, state.hit_count)
         
         return float(coeff)
 
-    def _get_coefficient(self, group: ICDGroup, index: int) -> int:
-        """根据当前索引从序列中提取系数 (支持模运算循环)。"""
-        if not group.sequence:
+    def _get_coefficient(self, rule: ICDGroup, index: int) -> int:
+        """根据当前索引从序列中提取系数。
+        
+        如果索引超过了序列定义的长度，则不再提供附着 (返回 0)。
+        这用于实现类似芙宁娜战技这种有总附着次数上限的规则。
+        """
+        if not rule.sequence:
             return 1
-        return group.sequence[index % len(group.sequence)]
-
-    def _log_debug(self, tag: str, coeff: int, count: int) -> None:
-        """记录附着判定的调试日志。"""
-        if coeff > 0:
-            from core.logger import get_emulation_logger
-            get_emulation_logger().log_debug(
-                f"[ICD] 标签 {tag} 附着成功 (当前计数: {count})", 
-                sender="ICD"
-            )
-
-    def reset(self, attacker: Optional[Any] = None, tag: Optional[str] = None) -> None:
-        """手动重置特定或全部 ICD 记录。"""
-        if attacker and tag:
-            key = (id(attacker), tag)
-            self.records.pop(key, None)
-        elif not attacker and not tag:
-            self.records.clear()
+            
+        if index < len(rule.sequence):
+            return rule.sequence[index]
+            
+        return 0

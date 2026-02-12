@@ -47,8 +47,8 @@ class AttackConfig:
     定义了一次攻击的物理与元素本质。
     """
     element_u: float = 1.0
-    icd_tag: str = "Default"
-    icd_sequence: Optional[int] = None
+    icd_tag: str = "Default"      # 附着规则标签 (决定重置时间与序列)
+    icd_group: str = "Default"    # 共享冷却组 ID (决定谁和谁共用计数器)
     
     strike_type: StrikeType = StrikeType.DEFAULT
     is_deployable: bool = False  # 是否能触发生成部署物 (如草原核)
