@@ -1,18 +1,14 @@
-from typing import TYPE_CHECKING, Optional
+from dataclasses import dataclass
+from typing import Optional, Any
+from core.mechanics.aura import Element
 
-if TYPE_CHECKING:
-    from core.entities.base_entity import BaseEntity
-
-class Shield:
-    def __init__(self, base_multiplier: float):
-        self.base_multiplier = base_multiplier
-        self.shield_value: float = 0
-        self.scaling_stat: Optional[str] = None # '生命值', '防御力' 等
-        
-        self.source: Optional['BaseEntity'] = None
-
-    def set_source(self, source: 'BaseEntity'):
-        self.source = source
-
-    def set_scaling_stat(self, scaling_stat: str):
-        self.scaling_stat = scaling_stat
+@dataclass
+class ShieldConfig:
+    """
+    护盾配置契约。
+    """
+    base_hp: float              # 基础护盾量
+    element: Element            # 护盾元素类型 (影响吸收效率)
+    duration: int               # 持续帧数
+    name: str = "通用护盾"
+    creator: Optional[Any] = None # 产生护盾的实体 (用于计算护盾强效)

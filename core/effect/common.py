@@ -1,4 +1,28 @@
-from typing import Any
+from typing import Any, Optional
+from core.effect.base import BaseEffect
+from core.mechanics.aura import Element
+
+class ShieldEffect(BaseEffect):
+    """
+    护盾效果载体。
+    本身不具备逻辑，由 ShieldSystem 统一驱动吸收判定。
+    """
+    def __init__(self, owner: Any, name: str, element: Element, max_hp: float, duration: int):
+        # 护盾通常是刷新模式 (REFRESH)
+        super().__init__(owner, name, duration)
+        self.element = element
+        self.max_hp = max_hp
+        self.current_hp = max_hp
+
+    def on_apply(self):
+        # 将自己挂载到角色的护盾列表
+        if hasattr(self.owner, "shield_effects"):
+            self.owner.shield_effects.append(self)
+
+    def on_remove(self):
+        if self.owner and hasattr(self.owner, "shield_effects"):
+            if self in self.owner.shield_effects:
+                self.owner.shield_effects.remove(self)
 
 # 效果基类
 class TalentEffect:
