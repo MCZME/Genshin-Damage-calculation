@@ -1,7 +1,14 @@
-from core.context import get_context
+from typing import Dict
 
 def get_ascension_index(level: int) -> int:
-    """根据等级获取突破阶段索引。"""
+    """根据角色等级获取对应的突破阶段索引。
+
+    Args:
+        level: 角色当前等级。
+
+    Returns:
+        int: 突破阶段索引 (0-7)。
+    """
     ascension_levels = [1, 20, 40, 50, 60, 70, 80, 90]
     for i, val in enumerate(ascension_levels):
         if level <= val:
@@ -9,22 +16,35 @@ def get_ascension_index(level: int) -> int:
     return 0
 
 def get_attribute_name(attr_id: int) -> str:
-    """根据 ID 获取属性名称。"""
+    """根据属性 ID 获取对应的中文字符串名称。
+
+    Args:
+        attr_id: 属性的数值 ID。
+
+    Returns:
+        str: 属性名称，若未找到则返回 "未知属性"。
+    """
     attribute_map = {
-        1: '暴击率', 2: '暴击伤害', 3: '生命值', 4: '防御力', 5: '攻击力', 6: '元素精通', 7: '元素充能效率', 8: '治疗加成',
-        9: '元素伤害加成', 10: '受治疗加成', 11: '生命值%', 12: '攻击力%', 13: '防御力%'
+        1: "暴击率", 2: "暴击伤害", 3: "生命值", 4: "防御力", 5: "攻击力", 
+        6: "元素精通", 7: "元素充能效率", 8: "治疗加成", 9: "元素伤害加成", 
+        10: "受治疗加成", 11: "生命值%", 12: "攻击力%", 13: "防御力%"
     }
     return attribute_map.get(attr_id, "未知属性")
 
 def get_current_time() -> int:
-    """获取当前模拟帧。"""
+    """获取当前模拟器的全局帧数。
+
+    Returns:
+        int: 当前帧数，若无活跃上下文则返回 0。
+    """
     from core.context import get_context
     try:
         return get_context().current_frame
     except RuntimeError:
         return 0
 
-reaction_coefficients = {
+# 剧变反应等级系数表 (1-90级)
+REACTION_COEFFICIENTS: Dict[int, float] = {
     1: 17.17, 2: 18.54, 3: 19.9, 4: 21.27, 5: 22.65, 6: 24.65, 7: 26.64, 8: 28.87, 9: 31.37, 10: 34.14,
     11: 37.2, 12: 40.66, 13: 44.45, 14: 48.56, 15: 53.75, 16: 59.08, 17: 64.42, 18: 69.72, 19: 75.12, 20: 80.58,
     21: 86.11, 22: 91.7, 23: 97.24, 24: 102.81, 25: 108.41, 26: 113.2, 27: 118.1, 28: 122.98, 29: 129.73, 30: 136.29,
@@ -36,5 +56,13 @@ reaction_coefficients = {
     81: 1110.0, 82: 1142.98, 83: 1176.37, 84: 1210.18, 85: 1253.84, 86: 1288.95, 87: 1325.48, 88: 1363.46, 89: 1405.1, 90: 1446.85
 }
 
-def get_reaction_multiplier(level):
-    return reaction_coefficients[level]
+def get_reaction_multiplier(level: int) -> float:
+    """获取指定等级的剧变反应基础倍率。
+
+    Args:
+        level: 角色等级 (1-90)。
+
+    Returns:
+        float: 该等级对应的反应系数值。
+    """
+    return REACTION_COEFFICIENTS.get(level, 0.0)

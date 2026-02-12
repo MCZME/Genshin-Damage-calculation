@@ -1,56 +1,69 @@
-from typing import Any, List
+from typing import Any, Dict, List, Tuple
 from core.entities.base_entity import CombatEntity, Faction
-from core.action.damage import Damage
-from core.mechanics.aura import Element
 
 class Target(CombatEntity):
     """
-    测试人偶 / 怪物实体。
-    实现 CombatEntity 接口以接入 CombatSpace 广播系统。
+    仿真场景中的受击目标 (通常为敌方实体)。
+    负责承载基础属性、抗性面板以及伤害处理逻辑。
     """
-    def __init__(self, data: dict):
+
+    def __init__(self, config: Dict[str, Any]):
+        """初始化受击目标。
+
+        Args:
+            config: 包含目标属性的配置字典，支持 name, level, attributes 等字段。
+        """
+        name = config.get("name", "未命名目标")
         super().__init__(
-            name='测试人偶', 
+            name=name, 
             faction=Faction.ENEMY, 
-            pos=(0.0, 0.0, 0.0)
+            pos=(0.0, 0.0, 0.0), 
+            hitbox=(0.5, 2.0)
         )
+
+        self.level: int = config.get("level", 90)
         
-        self.level = data['level']
+        # 基础属性面板：从 config 的 attributes 字段获取，或使用默认值
+        input_attrs = config.get("attributes", {})
         
-        # 统一初始化 attribute_panel 以对齐新架构
-        self.attribute_panel = {
-            '防御力': self.level * 5 + 500,
-            '固定防御力': 0.0,
-            '防御力%': 0.0
+        self.attribute_panel: Dict[str, float] = {
+            "生命值": float(input_attrs.get("生命值", 100000.0)),
+            "防御力": float(input_attrs.get("防御力", 500.0)),
         }
+
+        # 初始化元素抗性 (默认为 10%)
+        elements = ["火", "水", "风", "雷", "草", "冰", "岩", "物理"]
+        for el in elements:
+            key = f"{el}元素抗性"
+            self.attribute_panel[key] = float(input_attrs.get(key, 10.0))
+
+        self.current_hp: float = self.attribute_panel["生命值"]
+
+    def handle_damage(self, damage: Any) -> None:
+        """处理作用于该目标的伤害逻辑。
         
-        # 填充抗性
-        resists = data.get('resists', {})
-        for el in ['火', '水', '雷', '草', '冰', '岩', '风', '物理']:
-            val = resists.get(el, 10.0)
-            self.attribute_panel[f"{el}元素抗性"] = val
-            
-    def handle_damage(self, damage: Damage) -> None:
+        V2.3: 此处目前主要负责触发元素附着逻辑 (ICD 判定)。
+        具体的伤害数值扣除逻辑由 HealthSystem 监听事件处理。
+
+        Args:
+            damage: 伤害对象 (core.action.damage.Damage)。
         """
-        [核心协议实现] 接收并处理伤害。
-        """
-        damage.set_target(self)
-        
-        # 触发元素碰撞逻辑，基类已处理 reaction_results 同步
+        # 1. 尝试触发元素附着 (Aura Application)
         self.apply_elemental_aura(damage)
+        
+        # 2. 标记 Damage 对象已命中该目标
+        damage.set_target(self)
 
-    def apply_elemental_aura(self, damage: Damage) -> List[Any]:
-        """
-        物理伤害过滤。
-        """
-        atk_el, _ = damage.element
-        if atk_el == Element.PHYSICAL:
-            return []
-        return super().apply_elemental_aura(damage)
+    def export_state(self) -> Dict[str, Any]:
+        """导出目标的实时仿真状态快照。
 
-    def clear(self):
-        """重置实体状态"""
-        from core.mechanics.aura import AuraManager
-        self.aura = AuraManager()
-        self.active_effects.clear()
-        self.current_frame = 0
+        Returns:
+            Dict[str, Any]: 包含位置、生命值比例、抗性等信息的字典。
+        """
+        base = super().export_state()
+        base.update({
+            "level": self.level,
+            "hp_percent": round((self.current_hp / self.attribute_panel["生命值"]) * 100, 2),
+            "resistances": {k: v for k, v in self.attribute_panel.items() if "抗性" in k}
+        })
+        return base
