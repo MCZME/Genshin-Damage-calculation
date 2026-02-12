@@ -1,62 +1,83 @@
-from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
 from core.tool import get_current_time
+
 
 @dataclass
 class ICDGroup:
-    """ICD 冷却组别定义"""
+    """ICD (Internal Cooldown) 组别定义。
+    
+    定义了附着重置的时间阈值以及攻击命中时的附着序列。
+    """
     reset_time: float    # 重置时间 (秒)
-    sequence: List[int]  # 元素量系数序列 (1代表附着, 0代表不附着)
+    sequence: List[int]  # 附着序列 (1 代表产生附着, 0 代表不产生)
     
     @property
     def reset_frames(self) -> int:
+        """重置时间转换为仿真帧数。"""
         return int(self.reset_time * 60)
 
-# 全局预定义组别 (可扩展)
+
+# --- 全局预定义 ICD 组别 ---
 ICD_GROUPS: Dict[str, ICDGroup] = {
-    # 默认组别: 2.5s重置, 第1,4,7...次附着 (3次一循环)
+    # 默认组别: 2.5s 重置, 每 3 次命中触发一次附着 (1, 4, 7...)
     "Default": ICDGroup(2.5, [1, 0, 0]), 
     
-    # 独立附着: 0s重置, 每次都附着
+    # 独立附着: 每次命中均触发附着
     "Independent": ICDGroup(0.0, [1]),
     
-    # 特殊组别: 柯莱爆发 (3s重置, 仅第1次附着)
-    "ColleiBurst": ICDGroup(3.0, [1, 0, 0, 0, 0, 0, 0, 0, 0]), 
+    # 特殊组别: 每 1 秒重置一次 (用于部分持续性伤害)
+    "Interval1s": ICDGroup(1.0, [1]),
     
-    # 特殊组别: 莫娜普攻 (2.5s重置, 默认3hit)
-    "MonaNormal": ICDGroup(2.5, [1, 0, 0]),
+    # 柯莱爆发组别: 3s 重置，长序列
+    "ColleiBurst": ICDGroup(3.0, [1, 0, 0, 0, 0, 0, 0, 0, 0]), 
 }
+
 
 @dataclass
 class ICDState:
-    """ICD 运行时状态"""
-    hit_count: int = 0       # 当前计数
-    last_reset_frame: int = -9999 # 上次重置时间的帧数
+    """ICD 运行时状态记录。"""
+    hit_count: int = 0            # 当前组别的命中计数
+    last_reset_frame: int = -9999 # 上次序列重置的起始帧
+
 
 class ICDManager:
+    """ICD 管理器。
+    
+    负责追踪并判定单个实体受到的各类攻击是否符合附着冷却规则。
+    每个 CombatEntity 实例持有一个 ICDManager。
     """
-    ICD 管理器 (高精度版)。
-    负责管理该实体受到的所有攻击的附着冷却状态。
-    """
-    def __init__(self, owner):
+
+    def __init__(self, owner: Any) -> None:
+        """初始化管理器。
+
+        Args:
+            owner: 所属的战斗实体。
+        """
         self.owner = owner
-        # 核心存储结构: 
-        # Key: (攻击者实例ID, ICD标签)
-        # Value: ICDState 对象
+        # 核心存储: (攻击者 ID, ICD 标签) -> 运行时状态
         self.records: Dict[Tuple[int, str], ICDState] = {}
 
     def check_attachment(self, attacker: Any, tag: str) -> float:
+        """判定本次攻击是否能够施加元素附着。
+
+        根据攻击者实例和 ICD 标签计算元素量系数。
+
+        Args:
+            attacker: 发起攻击的实体。
+            tag: 攻击携带的 ICD 标签 (对应 ICD_GROUPS 的键)。
+
+        Returns:
+            float: 元素量系数。1.0 代表附着，0.0 代表受冷却限制不附着。
         """
-        根据攻击者和标签，计算本次攻击的元素量系数。
-        返回: 1.0 (附着), 0.0 (不附着)
-        """
-        # 1. 独立附着快速通道 (兼容旧逻辑的 None)
+        # 1. 快速通道：独立附着或无标签
         if tag in ["None", "Independent", None]:
             return 1.0
             
         group = ICD_GROUPS.get(tag, ICD_GROUPS["Default"])
         
-        # 获取状态记录 (基于攻击者ID隔离)
+        # 2. 获取或创建状态记录 (实现攻击者间的 ICD 隔离)
         key = (id(attacker), tag)
         if key not in self.records:
             self.records[key] = ICDState()
@@ -64,56 +85,44 @@ class ICDManager:
         state = self.records[key]
         current_frame = get_current_time()
         
-        # 2. 时间重置判定
-        # 如果距离上次重置超过了时限，或者从未重置过
+        # 3. 时间重置判定
         if current_frame - state.last_reset_frame >= group.reset_frames:
-            from core.logger import get_emulation_logger
-            get_emulation_logger().log_debug(f"组别 {tag} 时间重置 (上次: {state.last_reset_frame})", sender="ICD")
-            
             state.hit_count = 0
             state.last_reset_frame = current_frame
-            # 重置后，计数从0开始，应用序列第0位系数
+            
             coeff = self._get_coefficient(group, 0)
-            # 命中计数加1
-            state.hit_count += 1
-            self._log_attachment(tag, coeff, state.hit_count)
+            state.hit_count = 1  # 记录本次命中
+            self._log_debug(tag, coeff, state.hit_count)
             return float(coeff)
             
-        # 3. 序列计数判定
-        # 获取当前计数对应的系数
+        # 4. 序列计数判定
         coeff = self._get_coefficient(group, state.hit_count)
         
-        # 命中计数加1
+        # 推进计数
         state.hit_count += 1
-        self._log_attachment(tag, coeff, state.hit_count)
+        self._log_debug(tag, coeff, state.hit_count)
         
         return float(coeff)
 
-    def _log_attachment(self, tag: str, coeff: int, count: int):
-        """内部辅助：记录附着判定日志"""
-        if coeff > 0:
-            # 仅在调试级别记录，避免淹没普通日志
-            from core.logger import get_emulation_logger
-            get_emulation_logger().log_debug(f"[ICD] {tag} 附着成功 (计数: {count})", sender="ICD")
-
     def _get_coefficient(self, group: ICDGroup, index: int) -> int:
-        """从序列中获取系数，支持循环或末位保持"""
+        """根据当前索引从序列中提取系数 (支持模运算循环)。"""
         if not group.sequence:
             return 1
-        
-        # 逻辑: 大于序列长度时，循环读取? 还是保持末位?
-        # 文档: "大于序列上限的攻击都使用序列最末尾的系数" -> ❌ 这通常是针对特殊序列
-        # 标准默认组: [1,0,0] 实际上是循环的 100100100
-        # 为了通用性，我们采用模运算循环 (Default行为)
-        # 但对于特殊序列 (如 Collei)，我们需要明确定义。
-        # 现阶段采用模运算循环，符合绝大多数 "3 hit" 规则。
-        seq_idx = index % len(group.sequence)
-        return group.sequence[seq_idx]
+        return group.sequence[index % len(group.sequence)]
 
-    def reset(self, attacker: Any = None, tag: Optional[str] = None):
-        """手动重置状态"""
+    def _log_debug(self, tag: str, coeff: int, count: int) -> None:
+        """记录附着判定的调试日志。"""
+        if coeff > 0:
+            from core.logger import get_emulation_logger
+            get_emulation_logger().log_debug(
+                f"[ICD] 标签 {tag} 附着成功 (当前计数: {count})", 
+                sender="ICD"
+            )
+
+    def reset(self, attacker: Optional[Any] = None, tag: Optional[str] = None) -> None:
+        """手动重置特定或全部 ICD 记录。"""
         if attacker and tag:
             key = (id(attacker), tag)
-            if key in self.records: del self.records[key]
+            self.records.pop(key, None)
         elif not attacker and not tag:
             self.records.clear()

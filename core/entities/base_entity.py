@@ -185,8 +185,8 @@ class CombatEntity(BaseEntity):
 
     def on_frame_update(self) -> None:
         """驱动战斗实体的每帧逻辑：元素衰减、效果更新。"""
-        # 驱动元素附着衰减 (假设 60 FPS)
-        self.aura.update(1/60)
+        # 驱动元素附着衰减 (传入自身以处理 Tick 伤害)
+        self.aura.update(self, 1/60)
         
         # 驱动并清理活跃效果
         for eff in self.active_effects[:]:

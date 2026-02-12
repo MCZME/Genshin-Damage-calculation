@@ -69,6 +69,10 @@ class EventType(Enum):
     AFTER_HYPERBLOOM = auto()
     BEFORE_BURGEON = auto()
     AFTER_BURGEON = auto()
+    
+    # 周期性反应 Tick
+    ELECTRO_CHARGED_TICK = auto()
+    BURNING_TICK = auto()
 
     # 生命、防御与状态
     BEFORE_HEALTH_CHANGE = auto()
