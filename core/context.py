@@ -1,6 +1,6 @@
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Type, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.combat_space import CombatSpace
@@ -32,9 +32,10 @@ class SimulationContext:
     global_move_dist: float = 0.0
     global_vertical_dist: float = 0.0
 
-    # 核心组件 (使用字符串前向引用规避循环引用)
+    # 核心组件
     event_engine: Optional["EventEngine"] = field(default=None)
     space: Optional["CombatSpace"] = None
+    team: Optional["Team"] = None # [新] 逻辑队伍组件
     system_manager: Optional["SystemManager"] = None
     logger: Optional["SimulationLogger"] = None
 
