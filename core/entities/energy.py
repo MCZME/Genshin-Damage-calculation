@@ -1,6 +1,7 @@
+from core.context import get_context
 from typing import Any
 from core.entities.base_entity import BaseEntity
-from core.event import EnergyChargeEvent, EventBus
+from core.event import EnergyChargeEvent
 from core.logger import get_emulation_logger
 import core.tool as T
 
@@ -30,4 +31,5 @@ class EnergyDropsObject(BaseEntity):
         if self.event_engine:
             self.event_engine.publish(energy_event)
         else:
-            EventBus.publish(energy_event) # 回退
+            get_context().event_engine.publish(energy_event) # 回退
+

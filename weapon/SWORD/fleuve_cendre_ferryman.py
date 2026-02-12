@@ -1,7 +1,8 @@
+from core.context import get_context
 from core.effect.stat_modifier import EnergyRechargeBoostEffect
 from core.action.damage import DamageType
 
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from weapon.weapon import Weapon
 from core.registry import register_weapon
 
@@ -14,8 +15,8 @@ class FleuveCendreFerryman(Weapon,EventHandler):
         self.engergy_recharge = [16,20,24,28,32]
 
     def skill(self):
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_SKILL:
@@ -25,3 +26,4 @@ class FleuveCendreFerryman(Weapon,EventHandler):
             if event.data["character"] == self.character and event.data["damage"].damage_type == DamageType.SKILL:
                 event.data["damage"].panel["暴击率"] += self.critical_rate[self.lv - 1]
                 event.data["damage"].setDamageData(self.name,self.critical_rate[self.lv - 1])
+

@@ -1,3 +1,4 @@
+from core.context import get_context
 from character.character import Character, CharacterState
 from core.base_class import ChargedAttackSkill, ElementalEnergy, EnergySkill, NormalAttackSkill, ConstellationEffect, PlungingAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import baseObject
@@ -5,7 +6,7 @@ from core.logger import get_emulation_logger
 from core.team import Team
 from core.effect.BaseEffect import AttackValueBoostEffect, ElementalDamageBoostEffect, ElementalInfusionEffect
 from core.action.damage import Damage, DamageType
-from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent EventHandler, EventType, GameEvent, HealEvent
 from core.action.healing import Healing, HealingType
 from core.tool import GetCurrentTime
 
@@ -44,7 +45,7 @@ class ChargedAttack(ChargedAttackSkill):
     def _apply_attack(self, target, hit_index):
         """应用重击伤害"""
         event = ChargedAttackEvent(self.caster, frame=get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
         # 计算当前段伤害
         damage_value = self.damageMultipiler[0][self.lv-1] * (0.5 if hit_index == 0 else 0.5)  # 两段各50%伤害
@@ -55,10 +56,10 @@ class ChargedAttack(ChargedAttackSkill):
             name=f'重击第{hit_index+1}段'
         )
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
         get_emulation_logger().log_skill_use(f"⚔️ 重击第{hit_index+1}段命中")
 
 class PlungingAttack(PlungingAttackSkill):
@@ -133,7 +134,7 @@ class ElementalSkill(SkillBase):
     def _apply_attack(self, target, hit_index):
         """应用元素战技伤害"""
         event = ElementalSkillEvent(self.caster, get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
         
         if self.hold_mode == 0:  # 点按
             damage = Damage(
@@ -169,10 +170,10 @@ class ElementalSkill(SkillBase):
                 get_emulation_logger().log_skill_use("💥 热情过载爆炸效果触发")
                 
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
         
         event = ElementalSkillEvent(self.caster, get_current_time(), before=False)
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
     def on_finish(self):
         return super().on_finish()
@@ -200,14 +201,14 @@ class InspirationFieldObject(baseObject, EventHandler):
             self.pyro_boost = 15
 
         # 订阅领域相关事件
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def apply(self):
         super().apply()
         get_emulation_logger().log_object(f'{self.character.name}的{self.name}生成')
         self.on_frame_update(None)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self) 
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self) 
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
@@ -236,7 +237,7 @@ class InspirationFieldObject(baseObject, EventHandler):
             heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
             heal.base_value = '生命值'
             heal_event = HealEvent(self.character, self.current_char,heal, get_current_time())
-            EventBus.publish(heal_event)
+            get_context().event_engine.publish(heal_event)
         else:
             # 基础攻击加成逻辑
             lv_index = self.character.Burst.lv - 1
@@ -253,7 +254,7 @@ class InspirationFieldObject(baseObject, EventHandler):
                 heal = Healing(self.multipiler["持续治疗"][lv_index],HealingType.BURST,'美妙旅程')
                 heal.base_value = '生命值'
                 heal_event = HealEvent(self.character, self.current_char,heal, get_current_time())
-                EventBus.publish(heal_event)
+                get_context().event_engine.publish(heal_event)
 
             lv_index = self.character.Burst.lv - 1
             atk_bonus_percent = (self.multipiler["攻击力加成比例"][lv_index]/100 + 0.2) * self.base_atk
@@ -270,7 +271,7 @@ class InspirationFieldObject(baseObject, EventHandler):
 
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
 class ElementalBurst(EnergySkill):
     def __init__(self, lv, caster=None):
@@ -303,7 +304,7 @@ class ElementalBurst(EnergySkill):
                 name=self.name,
             )
             damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-            EventBus.publish(damage_event)
+            get_context().event_engine.publish(damage_event)
             return True
         return False
     
@@ -347,7 +348,7 @@ class ConstellationEffect_2(ConstellationEffect,EventHandler):
         
     def apply(self, character):
         self.character = character
-        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
         self._update_energy_recharge()
         
     def handle_event(self, event: GameEvent):
@@ -368,7 +369,7 @@ class ConstellationEffect_2(ConstellationEffect,EventHandler):
             print(f"⚡ {self.character.name} 命座2效果解除")
                 
     def remove(self):
-        EventBus.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
         if self.is_active:
             self.character.attributePanel['元素充能效率'] = self.original_er
             self.is_active = False
@@ -441,7 +442,7 @@ class BENNETT(Character):
         if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self,get_current_time())
-            EventBus.publish(skillEvent)
+            get_context().event_engine.publish(skillEvent)
 
 bennett_table = {
     'id':BENNETT.ID,
@@ -456,3 +457,4 @@ bennett_table = {
     'skill': {'释放时长':['点按','一段蓄力','二段蓄力']},
     'burst': {}
 }
+

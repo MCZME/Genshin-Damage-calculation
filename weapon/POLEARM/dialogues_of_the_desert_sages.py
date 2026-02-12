@@ -1,6 +1,7 @@
+from core.context import get_context
 from core.tool import summon_energy
 from weapon.weapon import Weapon
-from core.event import EventBus, EventType, EventHandler
+from core.event import EventType, EventHandler
 from core.registry import register_weapon
 
 @register_weapon("沙中伟贤的对答", "长柄武器")
@@ -11,7 +12,7 @@ class DialoguesOfTheDesertSages(Weapon, EventHandler):
         self.energy_restore = [8, 10, 12, 14, 16]
         self.last_trigger_frame = -600  # 初始化为-600确保第一次可以触发
         
-        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
 
     def handle_event(self, event):
         if event.data["healing"].source != self.character:
@@ -25,3 +26,4 @@ class DialoguesOfTheDesertSages(Weapon, EventHandler):
         summon_energy(1,self.character,("无",self.energy_restore[self.lv-1]),True,True,0)
         
         self.last_trigger_frame = current_frame
+

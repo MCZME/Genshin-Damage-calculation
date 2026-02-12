@@ -1,5 +1,6 @@
+from core.context import get_context
 
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from core.effect.stat_modifier import AttackBoostEffect
 from weapon.weapon import Weapon
 from core.registry import register_weapon
@@ -14,7 +15,7 @@ class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
        
 
     def skill(self):
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def handle_event(self, event):
         current_time = event.frame
@@ -23,3 +24,4 @@ class ThrillingTalesOfDragonSlayers(Weapon, EventHandler):
                 effect = AttackBoostEffect(self.character,event.data["new_character"], "讨龙英杰谭", self.attack_boost[self.lv-1], 10*60)
                 effect.apply()
                 self.last_trigger_time = current_time
+

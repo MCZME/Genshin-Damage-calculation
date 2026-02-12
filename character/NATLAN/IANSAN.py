@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.NATLAN.natlan import Natlan
 from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, NormalAttackSkill, Damage, DamageType, SkillBase, EnergySkill, TalentEffect
 from core.BaseObject import baseObject
 from core.effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
-from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventType, GameEvent, HealEvent
+from core.event import ChargedAttackEvent, DamageEvent EventType, GameEvent, HealEvent
 from core.action.healing import Healing, HealingType
 from core.logger import get_emulation_logger
 from core.team import Team
@@ -16,7 +17,7 @@ class LightningDashEffect(Effect, EventHandler):
         super().__init__(character,5*60)
         self.name = '电掣雷驰'
         self.duration = 5*60
-        EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">伊安珊的重击将转为施展豪烈的「雷霆飞缒」，
@@ -36,7 +37,7 @@ class LightningDashEffect(Effect, EventHandler):
         
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
@@ -102,7 +103,7 @@ class IansanChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         event = ChargedAttackEvent(self.caster, frame=get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
         
         clamped_lv = min(max(self.lv, 1), 15) - 1
         
@@ -119,10 +120,10 @@ class IansanChargedAttack(ChargedAttackSkill):
         
         # 发布伤害事件
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
             
         event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
@@ -150,7 +151,7 @@ class ElementalSkill(SkillBase):
                 '电掣雷驰',
             )
             damage.setDamageData('夜魂伤害',True)
-            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             # 恢复夜魂值
             self.caster.gain_night_soul(54)
@@ -183,8 +184,8 @@ class KineticMarkObject(baseObject):
         self.max_boost = max_boost  # 最大攻击力加成
         self.current_character = caster # 记录当前角色
 
-        EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
 
     def on_frame_update(self, target):
@@ -278,8 +279,8 @@ class KineticMarkObject(baseObject):
     def on_finish(self, target):
         self.caster.romve_NightSoulBlessing()
         # 取消订阅事件
-        EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
-        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         super().on_finish(target)
 
     def handle_event(self, event: GameEvent):
@@ -324,7 +325,7 @@ class ElementalBurst(EnergySkill):
                 name='力的三原理'
             )
             event = DamageEvent(self.caster, target, damage, get_current_time())
-            EventBus.publish(event)
+            get_context().event_engine.publish(event)
 
             # 获得15点夜魂值并进入夜魂加持状态
             self.caster.gain_night_soul(15)
@@ -345,7 +346,7 @@ class WarmUpEffect(Effect, EventHandler):
         self.duration = 10 * 60  # 10秒
         self.last_heal_time = -9999
         self.heal_interval = 2.8 * 60  # 2.8秒
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">伊安珊恢复至少1点夜魂值时，会为当前场上自己的角色恢复生命值，</span></p>
@@ -364,7 +365,7 @@ class WarmUpEffect(Effect, EventHandler):
         
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
@@ -379,7 +380,7 @@ class WarmUpEffect(Effect, EventHandler):
         active_character = Team.current_character
         heal = Healing(60,HealingType.PASSIVE, name='热身效应')
         event = HealEvent(self.character, active_character, heal, get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
 class StandardActionEffect(Effect, EventHandler):
     """标准动作效果"""
@@ -393,7 +394,7 @@ class StandardActionEffect(Effect, EventHandler):
         self.last_enhanced_time = -9999  # 上次触发强化恢复的时间
         self.enhanced_interval = 2.8 * 60  # 2.8秒冷却
         self.is_enhanced = False  # 是否触发强化恢复
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">持续期间，伊安珊的攻击力提升20%，通过元素爆发力的三原理中的动能标示恢复夜魂值时，
@@ -421,7 +422,7 @@ class StandardActionEffect(Effect, EventHandler):
     def remove(self):
         self.character.attributePanel['攻击力%'] -= self.attack_boost
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}效果结束")
         
     def handle_event(self, event: GameEvent):
@@ -449,7 +450,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         
     def apply(self, character):
         self.character = character
-        EventBus.subscribe(EventType.NightsoulBurst, self)
+        get_context().event_engine.subscribe(EventType.NightsoulBurst, self)
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.NightsoulBurst:
@@ -465,7 +466,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         
     def apply(self, character):
         self.character = character
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         
     def handle_event(self, event: GameEvent):
         if not self.character.Nightsoul_Blessing:
@@ -491,8 +492,8 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
         super().__init__('偷懒是健身大忌!')
         
     def apply(self, character):
-        EventBus.subscribe(EventType.AFTER_BURST, self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         self.character = character
         self.current_character = None
         
@@ -570,7 +571,7 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
         self.character = character
         self.force_excitation = None
         self.is_gain = True
-        EventBus.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
         
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_BURST:
@@ -620,13 +621,13 @@ class LimitBreakEffect(DamageBoostEffect, EventHandler):
         self.current_character.add_effect(self)
         self.current_character.attributePanel[self.attribute_name] += self.bonus
         get_emulation_logger().log_effect(f"{self.current_character.name}获得{self.name}效果")
-        EventBus.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
     
     def remove(self):
         self.is_active = False
         self.current_character.attributePanel[self.attribute_name] -= self.bonus
         get_emulation_logger().log_effect(f"{self.current_character.name}: {self.name}的伤害加成效果结束")
-        EventBus.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_CHARACTER_SWITCH, self)
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.BEFORE_CHARACTER_SWITCH:
@@ -690,3 +691,4 @@ iansan_table = {
     'skill':{},
     'burst':{}
 }
+

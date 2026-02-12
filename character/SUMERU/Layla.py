@@ -1,9 +1,10 @@
+from core.context import get_context
 import random
 from character.SUMERU.sumeru import Sumeru
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import ShieldObject, baseObject
-from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, ShieldEvent
+from core.event import ChargedAttackEvent, DamageEvent EventHandler, EventType, ShieldEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -42,7 +43,7 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target):
         event = ChargedAttackEvent(self.caster, frame=get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
         damage = Damage(
             damageMultipiler=self.damageMultipiler[self.hit_frames.index(self.current_frame)][self.lv-1],
@@ -51,10 +52,10 @@ class ChargedAttack(ChargedAttackSkill):
             name='重击-'+str(self.hit_frames.index(self.current_frame)+1),
         )
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
     ...
@@ -64,7 +65,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
     def __init__(self, character, shield_value):
         shield = Shield(shield_value)
         event = ShieldEvent(character, shield, get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
         super().__init__(character, "安眠帷幕", "冰", event.data['shield'].shield_value, 750)
         Infusion.__init__(self, [1,0,0,0,0,0,0,1,0,0,0,0], 3*60)
         self.night_stars = 0
@@ -91,12 +92,12 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
             existing.life_frame = self.life_frame  # 刷新持续时间
             return
             
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
 
     def on_finish(self, target):
         super().on_finish(target)
         get_emulation_logger().log_effect(f"{self.character.name}: {self.name}护盾效果结束")
-        EventBus.unsubscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_SKILL, self)
 
     def handle_event(self, event):
         existing = next((e for e in Team.active_objects 
@@ -145,7 +146,7 @@ class VeilOfSlumberShield(ShieldObject, EventHandler, Infusion):
                 DamageType.SKILL,
                 '晚星'
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
             if self.night_stars == 0:
                 self.active_night_stars = False
 
@@ -182,7 +183,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 '垂裳端凝之夜'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             shield_value = self.caster.maxHP * self.shield_values[self.lv-1][0] / 100 + self.shield_values[self.lv-1][1]
             VeilOfSlumberShield(self.caster, shield_value).apply()
@@ -215,7 +216,7 @@ class DreamingAegisObject(baseObject, Infusion):
             "星流摇床之梦"
         )
         damage.setBaseValue('生命值')
-        EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
+        get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
 
         # 为护盾生成晚星
         shield = next((s for s in self.character.shield_effects 
@@ -243,7 +244,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
 
     def handle_event(self, event):
         if event.data['character'] is not self.character:
@@ -291,12 +292,12 @@ class DawnStarEffect(Effect, EventHandler):
         super().apply()
         self.current_character.add_effect(self)
         get_emulation_logger().log_effect(f'⭐ {self.current_character.name} 获得 {self.name} 效果')
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE,self)
 
     def remove(self):
         super().remove()
         get_emulation_logger().log_effect(f'⭐ {self.current_character.name} {self.name} 效果消失')
-        EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE,self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_FIXED_DAMAGE,self)
 
     def handle_event(self, event):
         damage = event.data['damage']
@@ -319,7 +320,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def handle_event(self, event):
         if event.data['character'] is not self.character:
@@ -363,3 +364,4 @@ layla_table = {
     'skill': {},
     'burst': {}
 }
+

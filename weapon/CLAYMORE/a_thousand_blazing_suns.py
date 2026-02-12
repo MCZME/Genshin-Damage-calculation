@@ -1,5 +1,6 @@
+from core.context import get_context
 from core.action.damage import DamageType
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from core.logger import get_emulation_logger
 from weapon.weapon import Weapon
 from core.registry import register_weapon
@@ -21,11 +22,11 @@ class AThousandBlazingSuns(Weapon, EventHandler):
         self.nightsoul_active = False    # 夜魂加持状态
         
         # 注册事件监听
-        EventBus.subscribe(EventType.BEFORE_SKILL, self)
-        EventBus.subscribe(EventType.BEFORE_BURST, self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE, self)
-        EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
-        EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_SKILL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_BURST, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
 
     def handle_event(self, event):
         # 仅处理当前角色的相关事件
@@ -127,3 +128,4 @@ class AThousandBlazingSuns(Weapon, EventHandler):
         self.fen_guang_active = False
         self.fen_guang_duration = 0
         self.max_extensions = 0
+

@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.character import Character
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.event import DamageEvent, EventBus, EventHandler, EventType
+from core.event import DamageEvent EventHandler, EventType
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
 from core.action.damage import Damage, DamageType
@@ -71,7 +72,7 @@ class PhantomObject(baseObject, Infusion):
                 duration_damage, 
                 get_current_time()
             )
-            EventBus.publish(damage_event)
+            get_context().event_engine.publish(damage_event)
 
     def on_finish(self, target):
         super().on_finish(target)
@@ -87,7 +88,7 @@ class PhantomObject(baseObject, Infusion):
             explosion_damage,
             get_current_time()
         )
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -116,7 +117,7 @@ class BubbleObject(baseObject, EventHandler):
 
     def apply(self):
         super().apply()
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         if  not self.is_burst:
@@ -138,13 +139,13 @@ class BubbleObject(baseObject, EventHandler):
                 self.burst_damage,
                 get_current_time()
             )
-            EventBus.publish(damage_event)
+            get_context().event_engine.publish(damage_event)
             get_emulation_logger().log_effect("✨ 泡影破裂，触发星异效果")
             self.on_finish(event.data['target'])
 
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
         if not self.is_burst:
             # 泡影自然结束时造成伤害
             damage_event = DamageEvent(
@@ -153,7 +154,7 @@ class BubbleObject(baseObject, EventHandler):
                 self.burst_damage,
                 get_current_time()
             )
-            EventBus.publish(damage_event)
+            get_context().event_engine.publish(damage_event)
             get_emulation_logger().log_effect(f"✨ {target.name} 的泡影自然破裂")
 
 class ElementalBurst(EnergySkill):
@@ -271,3 +272,4 @@ MONA_table = {
     'skill': {},
     'burst': {}
 }
+

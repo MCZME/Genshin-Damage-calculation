@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType
+from core.event import EventType
 import core.tool as T
 
 @register_artifact_set("黑曜秘典")
@@ -10,11 +11,11 @@ class ObsidianCodex(BaseArtifactSet):
 
     def apply_2_set_effect(self, character: Any) -> None:
         # 装备者处于夜魂加持状态，并且在场上时，造成的伤害提高15%。
-        EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
-        EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
@@ -34,3 +35,4 @@ class ObsidianCodex(BaseArtifactSet):
                 effect = CritRateBoostEffect(self.character, "黑曜秘典", 40, 6 * 60)
                 effect.apply()
                 self.last_trigger_time = T.get_current_time()
+

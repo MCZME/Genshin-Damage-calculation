@@ -1,5 +1,6 @@
+from core.context import get_context
 from weapon.weapon import Weapon
-from core.event import EventBus, EventType, EventHandler
+from core.event import EventType, EventHandler
 from core.effect.stat_modifier import AttackBoostEffect
 from core.registry import register_weapon
 
@@ -15,7 +16,7 @@ class SymphonistOfScents(Weapon, EventHandler):
     def skill(self):
         self.character.attribute_panel["攻击力%"] += self.atk_boost_1[self.lv-1]
 
-        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
 
     def handle_event(self, event):
         if event.data["healing"].source is not self.character:
@@ -43,3 +44,4 @@ class SymphonistOfScents(Weapon, EventHandler):
         elif self.is_applied and self.character.on_field:
             self.character.attribute_panel["攻击力%"] -= self.atk_boost_1[self.lv-1]
             self.is_applied = False
+

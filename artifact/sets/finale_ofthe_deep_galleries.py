@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType, GameEvent
+from core.event import EventType, GameEvent
 from core.action.damage import DamageType
 
 @register_artifact_set("深廊终曲")
@@ -12,7 +13,7 @@ class FinaleOftheDeepGalleries(BaseArtifactSet):
         pass
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def handle_event(self, event:GameEvent):
         if event.data["character"] is not self.character:
@@ -45,3 +46,4 @@ __all__ = [
     "FlowerOfParadiseLost",
     "LongNightsOath"
 ]
+

@@ -1,10 +1,11 @@
+from core.context import get_context
 import random
 from character.character import Character, CharacterState
 
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, NormalAttackEvent
+from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent EventHandler, EventType, NormalAttackEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -54,7 +55,7 @@ class NormalAttack(NormalAttackSkill,EventHandler):
         self.lunar_end_action_frame = 34
 
         self.last_energy_time = -15 *60
-        EventBus.subscribe(EventType.AFTER_DAMAGE,self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE,self)
 
     def _reset_config(self):
         """根据当前模式重置配置"""
@@ -99,12 +100,12 @@ class NormalAttack(NormalAttackSkill,EventHandler):
         if self.caster.mode == "七相一闪":
             damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster,target,damage, frame=get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击事件（后段）
         normal_attack_event = NormalAttackEvent(self.caster, frame=get_current_time(),before=False,
                                                 damage=damage,segment=self.current_segment+1)
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
     def handle_event(self, event):
         if event.data['character'] == self.caster and event.data['damage'].element[0] == '冰':
@@ -168,7 +169,7 @@ class ChargedAttack(ChargedAttackSkill):
     def _apply_attack(self, target):
         """应用重击伤害"""
         event = ChargedAttackEvent(self.caster, frame=get_current_time())
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
         damage = Damage(
             self.damageMultipiler[self.lv_param-1],
@@ -179,13 +180,13 @@ class ChargedAttack(ChargedAttackSkill):
         if self.caster.mode == "七相一闪":
             damage.setDamageData('不可覆盖',True)
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         if self.caster.level >= 20 and self.current_frame == self.hit_frame[0] and self.current_mode == '七相一闪':
             self.caster.get_rift_count()
 
         event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
-        EventBus.publish(event)
+        get_context().event_engine.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
     ...
@@ -304,7 +305,7 @@ class ElementalBurst(EnergySkill):
                 f'极恶技·灭-斩击{self.hit_frames.index(self.current_frame)+1}'
             )
             damage.setDamageData('蛇之狡谋_加成', self.bonus_multiplier)
-            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 触发最终伤害
         if self.current_frame == self.final_hit_frame:
@@ -315,7 +316,7 @@ class ElementalBurst(EnergySkill):
                 '极恶技·灭-终结'
             )
             damage.setDamageData('蛇之狡谋_加成', self.bonus_multiplier)
-            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
     def on_finish(self):
         super().on_finish()
@@ -356,7 +357,7 @@ class DecayEffect(Effect, EventHandler):
         if self.character.level >= 20:
             self.rift_count = min(3, self.rift_count + self.character.get_rift_count())
         get_emulation_logger().log_effect(f"{self.character.name}获得凋尽效果")
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
         
     def remove(self):
         super().remove()
@@ -427,10 +428,10 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
     def apply(self, character):
         super().apply(character)
 
-        EventBus.subscribe(EventType.AFTER_FREEZE, self)
-        EventBus.subscribe(EventType.AFTER_SUPERCONDUCT, self)
-        EventBus.subscribe(EventType.AFTER_SWIRL, self)
-        EventBus.subscribe(EventType.AFTER_CRYSTALLIZE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_FREEZE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SUPERCONDUCT, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SWIRL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CRYSTALLIZE, self)
 
     def summon_rift(self, frame):
         rift = [o for o in Team.active_objects  if o.name == '虚境裂隙']
@@ -457,7 +458,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
     def apply(self, character):
         super().apply(character)
 
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         element = event.data['character'].element
@@ -487,7 +488,7 @@ class DeathsCrossingEffect(Effect, EventHandler):
         self.add_effect(name)
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f'☄ {self.character.name}获得{self.name}效果')
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
 
     def add_effect(self, name):
         if self.character.constellation >= 4:
@@ -515,7 +516,7 @@ class DeathsCrossingEffect(Effect, EventHandler):
     def remove(self):
         super().remove()
         get_emulation_logger().log_effect(f'☄ {self.character.name}移除{self.name}效果')
-        EventBus.unsubscribe(EventType.BEFORE_INDEPENDENT_DAMAGE,self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_INDEPENDENT_DAMAGE,self)
 
     def handle_event(self, event):
         if event.data['character'] is not self.character:
@@ -566,7 +567,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+        get_context().event_engine.subscribe(EventType.OBJECT_DESTROY, self)
 
     def handle_event(self, event):
         o = event.data['object']
@@ -579,7 +580,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
                 self.attck_stack[i] -= 1
                 if self.attck_stack[i] == 0:
                     damage = Damage(500, ('冰', self.infusion.apply_infusion()), DamageType.CHARGED, '湮远-晶刃攻击')
-                    EventBus.publish(DamageEvent(self.character, target, damage,get_current_time()))
+                    get_context().event_engine.publish(DamageEvent(self.character, target, damage,get_current_time()))
                 
         self.attck_stack = [i for i in self.attck_stack if i > 0]
 
@@ -613,7 +614,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+        get_context().event_engine.subscribe(EventType.OBJECT_DESTROY, self)
 
     def handle_event(self, event):
         o = event.data['object']
@@ -644,8 +645,8 @@ class HavocSeverStackEffect(Effect, EventHandler):
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f'☄ {self.character.name}获得{self.name}效果')
 
-        EventBus.subscribe(EventType.BEFORE_BURST, self)
-        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
 
     def add_stack(self):
         if len(self.stacks) < 3:
@@ -666,13 +667,13 @@ class HavocSeverStackEffect(Effect, EventHandler):
         if self.coordinated_attack_burst + 10 == get_current_time():
             for _ in range(len(self.stacks)):
                 damage = Damage(750, ('冰', self.character.elemental_burst_infusion.apply_infusion()), DamageType.BURST, '极恶技·斩-协同攻击')
-                EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
+                get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.stacks.clear()
 
         if self.coordinated_attack_normal + 5 == get_current_time():
             for _ in range(3):
                 damage = Damage(180, ('冰', self.character.normal_attack_infusion.apply_infusion()), DamageType.NORMAL, '极恶技·斩-协同攻击')
-                EventBus.publish(DamageEvent(self.character, target, damage, get_current_time()))
+                get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.stacks.remove(min(self.stacks))
         
         self.msg = self.msg1 + f"""<p><span style="color: #c0e4e6; font-size: 12pt;">极恶技·斩:{len(self.stacks)}层</span></p>"""
@@ -730,7 +731,7 @@ class Skirk(Character):
         if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
             skillEvent = ElementalSkillEvent(self,get_current_time())
-            EventBus.publish(skillEvent)
+            get_context().event_engine.publish(skillEvent)
 
     def update(self, target):
         if self.mode == "七相一闪":
@@ -786,3 +787,4 @@ skirk_table = {
     'skill': {'释放时间':['长按','点按']},
     'burst': {}
 }
+

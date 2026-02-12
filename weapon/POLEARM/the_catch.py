@@ -1,6 +1,7 @@
+from core.context import get_context
 from core.action.damage import DamageType
 from weapon.weapon import Weapon
-from core.event import EventBus, EventType, EventHandler
+from core.event import EventType, EventHandler
 from core.registry import register_weapon
 
 @register_weapon("「渔获」", "长柄武器")
@@ -12,8 +13,8 @@ class TheCatch(Weapon, EventHandler):
         self.critical_bonus = [6,7.5,9,10.5,12]
         
         # 订阅伤害加成计算前事件
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL, self)
 
     def handle_event(self, event):
         if event.data["character"] != self.character:
@@ -25,3 +26,4 @@ class TheCatch(Weapon, EventHandler):
         elif event.event_type == EventType.BEFORE_CRITICAL and event.data["damage"].damage_type == DamageType.BURST:
             event.data["damage"].panel["暴击率"] += self.critical_bonus[self.lv-1]
             event.data["damage"].setDamageData("渔获_暴击率", self.critical_bonus[self.lv-1])
+

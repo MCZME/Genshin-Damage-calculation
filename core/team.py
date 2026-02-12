@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, Type
 from character.character import Character
 from core.effect.stat_modifier import AttackBoostEffect, HealthBoostEffect
 from core.effect.resonance import CreepingGrassEffect, SteadfastStoneEffect, SwiftWindEffect
-from core.event import CharacterSwitchEvent, EventBus 
+from core.event import CharacterSwitchEvent
 from core.context import get_context
 from core.tool import get_current_time
 
@@ -103,7 +103,7 @@ class Team:
         old_name = self.current_character.name if self.current_character else "None"
         get_emulation_logger().log_info(f"切换角色: {old_name} -> {new_char.name}", sender="Team")
         
-        EventBus.publish(CharacterSwitchEvent(self.current_character, new_char, frame=get_current_time()))
+        get_context().event_engine.publish(CharacterSwitchEvent(self.current_character, new_char, frame=get_current_time()))
         if self.current_character: self.current_character.on_field = False
         new_char.on_field = True
         self.current_character = new_char

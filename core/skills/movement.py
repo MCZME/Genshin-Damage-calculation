@@ -1,5 +1,6 @@
+from core.context import get_context
 from core.skills.base import SkillBase
-from core.event import EventBus, EventType, GameEvent
+from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
 
@@ -12,7 +13,7 @@ class DashSkill(SkillBase):
         if not super().start(caster):
             return False
         get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始冲刺")
-        EventBus.publish(GameEvent(EventType.BEFORE_DASH, get_current_time(), character=self.caster))
+        get_context().event_engine.publish(GameEvent(EventType.BEFORE_DASH, get_current_time(), character=self.caster))
         return True
 
     def on_frame_update(self, target):
@@ -20,7 +21,7 @@ class DashSkill(SkillBase):
     
     def on_finish(self):
         get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 冲刺结束")
-        EventBus.publish(GameEvent(EventType.AFTER_DASH, get_current_time(), character=self.caster))
+        get_context().event_engine.publish(GameEvent(EventType.AFTER_DASH, get_current_time(), character=self.caster))
         return super().on_finish()
     
     def on_interrupt(self):
@@ -36,7 +37,7 @@ class JumpSkill(SkillBase):
             return False
 
         get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始跳跃")
-        EventBus.publish(GameEvent(EventType.BEFORE_JUMP, get_current_time(), character=self.caster))
+        get_context().event_engine.publish(GameEvent(EventType.BEFORE_JUMP, get_current_time(), character=self.caster))
         return True
     
     def on_frame_update(self, target):
@@ -58,7 +59,8 @@ class JumpSkill(SkillBase):
              pass 
              
         get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 跳跃结束")
-        EventBus.publish(GameEvent(EventType.AFTER_JUMP, get_current_time(), character=self.caster))
+        get_context().event_engine.publish(GameEvent(EventType.AFTER_JUMP, get_current_time(), character=self.caster))
 
     def on_interrupt(self):
         return super().on_interrupt()
+

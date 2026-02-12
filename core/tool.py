@@ -1,4 +1,5 @@
-from core.event import EnergyChargeEvent, EventBus
+from core.context import get_context
+from core.event import EnergyChargeEvent
 
 def get_ascension_index(level: int) -> int:
     """根据等级获取突破阶段索引。"""
@@ -47,7 +48,7 @@ def summon_energy(num, character, element_energy, is_fixed=False, is_alone=False
     else:
         energy_event = EnergyChargeEvent(character, element_energy, get_current_time(),
                                         is_fixed=is_fixed, is_alone=is_alone)
-        EventBus.publish(energy_event)
+        get_context().event_engine.publish(energy_event)
 
 def get_shield(name = None):
     from core.context import get_context

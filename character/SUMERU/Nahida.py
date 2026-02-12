@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.SUMERU.sumeru import Sumeru
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, NormalAttackEvent
+from core.event import DamageEvent EventHandler, EventType, GameEvent, NormalAttackEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -31,7 +32,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
         )
         
         damage_event = DamageEvent(self.caster, target, damage, get_current_time())
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         normal_attack_event = NormalAttackEvent(
             self.caster, 
@@ -40,7 +41,7 @@ class NormalAttack(NormalAttackSkill, Infusion):
             damage=damage,
             segment=self.current_segment+1
         )
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
 class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=66, cd=0):
@@ -83,12 +84,12 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
 
         self.target.add_effect(self)
         # 订阅相关事件
-        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def remove(self):
-        EventBus.unsubscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
         super().remove()
 
     def handle_event(self, event: GameEvent):
@@ -126,7 +127,7 @@ class SeedOfSkandhaEffect(Effect, EventHandler):
             damage,
             get_current_time()
         )
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
         get_emulation_logger().log_effect(f"🌿 {self.target.name} 触发灭净三业")
         if current_time - self.last_energy_time >= 7*60:
             summon_energy(3, self.character, ('草',2))
@@ -180,7 +181,7 @@ class ElementalSkill(SkillBase):
                 damageType=DamageType.SKILL,
                 name='所闻遍计·' + mode
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, get_current_time()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             self.effect = SeedOfSkandhaEffect(self.caster, target, 25*60)
             self.effect.apply()
 
@@ -224,8 +225,8 @@ class MayaPalaceObject(baseObject,EventHandler):
             self.setEM()
         # 应用领域效果
         self._apply_effects()
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH,self)
         
     def _apply_effects(self):
         """应用领域效果到角色"""  
@@ -317,8 +318,8 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL,self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE_BONUS:
@@ -342,10 +343,10 @@ class ConstellationEffect_2(ConstellationEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_CALCULATE,self)
-        EventBus.subscribe(EventType.AFTER_AGGRAVATE,self)
-        EventBus.subscribe(EventType.AFTER_QUICKEN,self)
-        EventBus.subscribe(EventType.AFTER_SPREAD,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CALCULATE,self)
+        get_context().event_engine.subscribe(EventType.AFTER_AGGRAVATE,self)
+        get_context().event_engine.subscribe(EventType.AFTER_QUICKEN,self)
+        get_context().event_engine.subscribe(EventType.AFTER_SPREAD,self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_CALCULATE:
@@ -378,7 +379,7 @@ class ConstellationEffect_4(ConstellationEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_SKILL,self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL,self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_SKILL:
@@ -408,11 +409,11 @@ class KarmicOblivionEffect(Effect,EventHandler):
 
     def apply(self):
         super().apply()
-        EventBus.subscribe(EventType.AFTER_DAMAGE,self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE,self)
 
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE,self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE,self)
 
     def handle_event(self, event):
         if event.data['character'] != self.character:
@@ -424,7 +425,7 @@ class KarmicOblivionEffect(Effect,EventHandler):
                     self.hit_count = 0
                 damage = Damage((200,400),('草', 1),DamageType.SKILL,'灭净三业·业障')
                 damage.setBaseValue(('攻击力', '元素精通'))
-                EventBus.publish(DamageEvent(self.character, event.data['target'], damage, get_current_time()))
+                get_context().event_engine.publish(DamageEvent(self.character, event.data['target'], damage, get_current_time()))
                 self.last_attack_time = event.frame
                 self.hit_count += 1    
 
@@ -434,7 +435,7 @@ class ConstellationEffect_6(ConstellationEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.OBJECT_CREATE,self)
+        get_context().event_engine.subscribe(EventType.OBJECT_CREATE,self)
 
     def handle_event(self, event):
         if event.event_type == EventType.OBJECT_CREATE:
@@ -475,3 +476,4 @@ nahida_table = {
     'skill': {},
     'burst': {}
 }
+

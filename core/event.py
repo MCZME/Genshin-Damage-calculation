@@ -214,25 +214,3 @@ class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
         pass
-
-from core.context import get_context
-
-class EventBus:
-    """
-    [Deprecated] 仅作为 Context Engine 的静态代理。
-    """
-    @classmethod
-    def subscribe(cls, event_type: EventType, handler: EventHandler):
-        get_context().event_engine.subscribe(event_type, handler)
-
-    @classmethod
-    def unsubscribe(cls, event_type: EventType, handler: EventHandler):
-        get_context().event_engine.unsubscribe(event_type, handler)
-
-    @classmethod
-    def publish(cls, event: GameEvent):
-        get_context().event_engine.publish(event)
-
-    @classmethod
-    def clear(cls):
-        get_context().event_engine.clear()
