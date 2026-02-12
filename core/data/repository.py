@@ -43,7 +43,7 @@ class MySQLDataRepository(DataRepository):
     """
     def __init__(self):
         self.db = db_manager
-        self.level_cols = ['1', '20', '40', '50', '60', '70', '80', '90']
+        self.level_cols = ["1", "20", "40", "50", "60", "70", "80", "90", "95", "100"]
 
     def get_all_characters(self) -> List[Dict[str, Any]]:
         """获取所有角色的 ID, Name, Element, Type"""
@@ -96,7 +96,7 @@ class MySQLDataRepository(DataRepository):
         }
 
     def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
-        idx = level_to_idx(level)
+        idx = get_ascension_index(level)
         col = self.level_cols[idx]
 
         w_info = self.db.execute_query(f"SELECT ID, type, Rarity FROM `weapon` WHERE Name = '{weapon_name}'")
@@ -118,7 +118,7 @@ class MySQLDataRepository(DataRepository):
 
         if sub_info:
             val, aid = sub_info[0]
-            stats["secondary_attribute"] = attr_id_to_name(aid)
+            stats["secondary_attribute"] = get_attribute_name(aid)
             stats["secondary_value"] = float(val)
 
         return stats

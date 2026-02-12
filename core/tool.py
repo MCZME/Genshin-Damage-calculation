@@ -7,9 +7,9 @@ def get_ascension_index(level: int) -> int:
         level: 角色当前等级。
 
     Returns:
-        int: 突破阶段索引 (0-7)。
+        int: 突破阶段索引 (0-9)。
     """
-    ascension_levels = [1, 20, 40, 50, 60, 70, 80, 90]
+    ascension_levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
     for i, val in enumerate(ascension_levels):
         if level <= val:
             return i
