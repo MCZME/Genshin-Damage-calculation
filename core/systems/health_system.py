@@ -1,146 +1,135 @@
-import logging
-from typing import Union, Tuple
-from core.systems.utils import AttributeCalculator
-from core.systems.base_system import GameSystem
+from typing import Any, Dict, Optional, Tuple, Union
+
+from core.action.healing import Healing
 from core.context import EventEngine
 from core.event import EventType, GameEvent, HealEvent, HurtEvent
-from core.action.healing import Healing
 from core.logger import get_emulation_logger
+from core.systems.base_system import GameSystem
+from core.systems.utils import AttributeCalculator
 
-# ---------------------------------------------------------
-# Healing Calculation Helper
-# ---------------------------------------------------------
-class Calculation:
-    def __init__(self, source, target, healing: Healing):
+
+class HealingCalculator:
+    """
+    治疗数值计算辅助类。
+    负责根据缩放属性 (攻击力、生命值、防御力) 计算最终治疗量。
+    """
+
+    def __init__(self, source: Any, target: Any, healing: Healing):
         self.source = source
         self.target = target
         self.healing = healing
 
-    def get_attack(self):
-        """获取攻击力"""
-        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
-        return AttributeCalculator.get_attack(entity)
+    def _get_base_attr(self) -> float:
+        """根据 multiplier_provider 获取基础属性值。"""
+        entity = self.source if self.healing.multiplier_provider == "来源" else self.target
+        stat = self.healing.scaling_stat
+        
+        if stat == "攻击力":
+            return AttributeCalculator.get_attack(entity)
+        if stat == "生命值":
+            return AttributeCalculator.get_hp(entity)
+        if stat == "防御力":
+            return AttributeCalculator.get_defense(entity)
+        return 0.0
 
-    def get_hp(self):
-        """获取生命值"""
-        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
-        return AttributeCalculator.get_hp(entity)
-
-    def get_defense(self):
-        """获取防御力"""
-        entity = self.source if self.healing.multiplier_provider == '来源' else self.target
-        return AttributeCalculator.get_defense(entity)
-
-    def get_multiplier(self) -> Union[float, Tuple[float, float]]:
-        """获取倍率"""
-        return self.healing.base_multiplier
-
-    def get_healing_bonus(self):
-        """获取治疗加成"""
-        return AttributeCalculator.get_healing_bonus(self.source)
-
-    def get_healed_bonus(self):
-        """获取受治疗加成"""
-        return AttributeCalculator.get_healed_bonus(self.target)
-
-    def calculate_by_attack(self):
-        """基于攻击力的治疗计算"""
-        m = self.get_multiplier()
-        if isinstance(m, tuple):
-            value = (m[0]/100)*self.get_attack() + m[1]
+    def calculate(self) -> float:
+        """执行计算并更新 Healing 对象的 final_value。"""
+        base_val = self._get_base_attr()
+        m = self.healing.base_multiplier
+        
+        # 处理倍率 (百分比 + 固定值) 或 仅百分比
+        if isinstance(m, (tuple, list)):
+            raw_value = (m[0] / 100.0) * base_val + m[1]
         else:
-            value = (m/100) * self.get_attack()
-        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
-        self.healing.final_value = value
+            raw_value = (m / 100.0) * base_val
+            
+        # 应用治疗加成与受治疗加成
+        bonus = AttributeCalculator.get_healing_bonus(self.source)
+        received_bonus = AttributeCalculator.get_healed_bonus(self.target)
+        
+        final_value = raw_value * (1 + bonus) * (1 + received_bonus)
+        self.healing.final_value = final_value
+        return final_value
 
-    def calculate_by_hp(self):
-        """基于生命值的治疗计算"""
-        m = self.get_multiplier()
-        if isinstance(m, tuple):
-            value = (m[0]/100)*self.get_hp() + m[1]
-        else:
-            value = (m/100) * self.get_hp()
-        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
-        self.healing.final_value = value
 
-    def calculate_by_defense(self):
-        """基于防御力的治疗计算"""
-        m = self.get_multiplier()
-        if isinstance(m, tuple):
-            value = (m[0]/100)*self.get_defense() + m[1]
-        else:
-            value = (m/100) * self.get_defense()
-        value = value * (1 + self.get_healing_bonus()) * (1 + self.get_healed_bonus())
-        self.healing.final_value = value
-
-# ---------------------------------------------------------
-# Health System
-# ---------------------------------------------------------
 class HealthSystem(GameSystem):
-    def register_events(self, engine: EventEngine):
+    """
+    生命值管理系统。
+    负责处理全场实体的治疗 (Heal) 与受伤 (Hurt) 结算，并协调护盾吸收。
+    """
+
+    def register_events(self, engine: EventEngine) -> None:
+        """订阅治疗与受伤的原始事件。"""
         engine.subscribe(EventType.BEFORE_HEAL, self)
         engine.subscribe(EventType.BEFORE_HURT, self)
 
-    def handle_event(self, event: GameEvent):
+    def handle_event(self, event: GameEvent) -> None:
+        """事件分发处理。"""
         if event.event_type == EventType.BEFORE_HEAL:
             self._handle_heal(event)
         elif event.event_type == EventType.BEFORE_HURT:
             self._handle_hurt(event)
 
-    def _handle_heal(self, event: HealEvent):
-        # 修正：获取 scaling_stat
-        scaling_stat = event.data['healing'].scaling_stat
-        
-        calculation = Calculation(
-            source=event.data['character'],
-            target=event.data['target'],
-            healing=event.data['healing']
-        )
-        
-        if scaling_stat == '攻击力':
-            calculation.calculate_by_attack()
-        elif scaling_stat == '生命值':
-            calculation.calculate_by_hp()
-        elif scaling_stat == '防御力':
-            calculation.calculate_by_defense()
-        
-        # 执行治疗
-        event.data['target'].heal(event.data['healing'].final_value)
+    def _handle_heal(self, event: GameEvent) -> None:
+        """处理治疗逻辑。"""
+        data = event.data
+        source = data.get("character")
+        target = data.get("target")
+        healing: Healing = data.get("healing")
 
-        get_emulation_logger().log_heal(
-            event.data["character"], 
-            event.data["target"], 
-            event.data["healing"]
-        )
+        if not target or not healing:
+            return
+
+        # 1. 执行数值计算
+        calculator = HealingCalculator(source, target, healing)
+        calculator.calculate()
         
-        # 发布治疗后事件
+        # 2. 调用实体接口执行回复
+        if hasattr(target, "heal"):
+            target.heal(healing.final_value)
+
+        # 3. 记录日志
+        get_emulation_logger().log_heal(source, target, healing)
+        
+        # 4. 发布治疗后置事件
         after_event = HealEvent(
-            source=event.data['character'],
-            target=event.data['target'],
-            healing=event.data['healing'],
+            event_type=EventType.AFTER_HEAL,
             frame=event.frame,
-            before=False
+            source=source,
+            target=target,
+            healing=healing
         )
         self.engine.publish(after_event)
 
-    def _handle_hurt(self, event: GameEvent):
-        # 执行扣血
-        event.data['target'].hurt(event.data['amount'])
-        
-        # 使用结构化日志
-        msg = f"💔 {event.data['target'].name} 受到 {event.data['amount']:.2f} 点伤害"
-        payload = {
-            "type": "hurt", 
-            "target": event.data['target'].name, 
-            "amount": event.data['amount']
-        }
-        get_emulation_logger()._log(logging.INFO, msg, payload)
+    def _handle_hurt(self, event: GameEvent) -> None:
+        """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
+        data = event.data
+        target = data.get("target")
+        source = data.get("character")
+        amount = data.get("amount", 0.0)
 
+        if not target or amount <= 0:
+            return
+
+        # 注意：此处假设 ShieldSystem 已通过 BEFORE_HURT 拦截并修正了 data["amount"]
+        
+        # 1. 调用实体接口执行扣血
+        if hasattr(target, "hurt"):
+            target.hurt(amount)
+        
+        # 2. 记录日志
+        from core.logger import get_emulation_logger
+        get_emulation_logger().log_info(
+            f"💔 {target.name} 受到 {round(amount, 1)} 点实际伤害", 
+            sender="Health"
+        )
+
+        # 3. 发布受伤后置事件
         after_event = HurtEvent(
-            event.data['character'], 
-            event.data['target'], 
-            event.data['amount'], 
-            event.frame, 
-            before=False
+            event_type=EventType.AFTER_HURT,
+            frame=event.frame,
+            source=source,
+            target=target,
+            amount=amount
         )
         self.engine.publish(after_event)
