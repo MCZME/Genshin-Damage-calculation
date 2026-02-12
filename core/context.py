@@ -236,6 +236,7 @@ def create_context() -> SimulationContext:
     from core.systems.natlan_system import NatlanSystem
     from core.systems.reaction_system import ReactionSystem
     from core.systems.shield_system import ShieldSystem
+    from core.systems.resonance_system import ResonanceSystem
 
     # 1. 基础环境准备
     initialize_registry()
@@ -253,5 +254,6 @@ def create_context() -> SimulationContext:
     ctx.system_manager.add_system(ShieldSystem)
     ctx.system_manager.add_system(EnergySystem)
     ctx.system_manager.add_system(NatlanSystem)
+    ctx.system_manager.add_system(ResonanceSystem)
 
     return ctx
