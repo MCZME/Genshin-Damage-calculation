@@ -74,7 +74,8 @@ class HealthSystem(GameSystem):
         """处理治疗逻辑。"""
         data = event.data
         source = data.get("character")
-        target = data.get("target")
+        from core.entities.base_entity import CombatEntity
+        target: Optional[CombatEntity] = data.get("target")
         healing: Healing = data.get("healing")
 
         if not target or not healing:
@@ -84,9 +85,8 @@ class HealthSystem(GameSystem):
         calculator = HealingCalculator(source, target, healing)
         calculator.calculate()
         
-        # 2. 调用实体接口执行回复
-        if hasattr(target, "heal"):
-            target.heal(healing.final_value)
+        # 2. 调用标准接口执行回复 (不再使用 hasattr)
+        target.heal(healing.final_value)
 
         # 3. 记录日志
         get_emulation_logger().log_heal(source, target, healing)
@@ -104,7 +104,8 @@ class HealthSystem(GameSystem):
     def _handle_hurt(self, event: GameEvent) -> None:
         """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
         data = event.data
-        target = data.get("target")
+        from core.entities.base_entity import CombatEntity
+        target: Optional[CombatEntity] = data.get("target")
         source = data.get("character")
         amount = data.get("amount", 0.0)
         is_ignore_shield = data.get("ignore_shield", False)
@@ -112,9 +113,8 @@ class HealthSystem(GameSystem):
         if not target or amount <= 0:
             return
 
-        # 1. 调用实体接口执行扣血
-        if hasattr(target, "hurt"):
-            target.hurt(amount)
+        # 1. 调用标准接口执行扣血 (不再使用 hasattr)
+        target.hurt(amount)
         
         # 2. 记录日志 (根据是否无视护盾调整描述)
         msg_prefix = "🩸 [侵蚀]" if is_ignore_shield else "💔"

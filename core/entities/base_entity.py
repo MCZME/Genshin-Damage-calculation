@@ -154,8 +154,16 @@ class CombatEntity(BaseEntity):
             self.pos[2] = y
 
     def handle_damage(self, damage: Any) -> None:
-        """[抽象] 处理受到的伤害。由子类实现。"""
-        raise NotImplementedError("CombatEntity 子类必须实现 handle_damage")
+        """处理受到的伤害。由子类实现。"""
+        pass
+
+    def heal(self, amount: float) -> None:
+        """[接口] 处理治疗。由子类实现具体逻辑。"""
+        pass
+
+    def hurt(self, amount: float) -> None:
+        """[接口] 处理受伤/扣血。由子类实现具体逻辑。"""
+        pass
 
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。
