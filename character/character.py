@@ -89,6 +89,7 @@ class Character(CombatEntity, ABC):
         self.apply_effects()
         
         self.current_hp = 0.0
+        self._last_max_hp = 0.0 # 用于追踪最大生命值变动
 
     @abstractmethod
     def _setup_character_components(self) -> None:
@@ -122,8 +123,11 @@ class Character(CombatEntity, ABC):
         if self.artifact_manager:
             self.artifact_manager.apply_static_stats()
             self.artifact_manager.set_effect()
+        
         from core.systems.utils import AttributeCalculator
-        self.current_hp = AttributeCalculator.get_hp(self)
+        max_hp = AttributeCalculator.get_hp(self)
+        self.current_hp = max_hp
+        self._last_max_hp = max_hp
 
     # -----------------------------------------------------
     # 统一驱动接口
@@ -135,10 +139,19 @@ class Character(CombatEntity, ABC):
         """
         super().on_frame_update()
         
+        # 1. 检测最大生命值变动并同比缩放当前血量
+        from core.systems.utils import AttributeCalculator
+        current_max_hp = AttributeCalculator.get_hp(self)
+        if current_max_hp != self._last_max_hp and self._last_max_hp > 0:
+            # 同比缩放公式: (变动前的当前生命值/变动前的最大生命值) * 变动后的最大生命值
+            ratio = self.current_hp / self._last_max_hp
+            self.current_hp = ratio * current_max_hp
+            self._last_max_hp = current_max_hp
+        
         if self.weapon and hasattr(self.weapon, "on_frame_update"): 
             self.weapon.on_frame_update()
             
-        self.action_manager.on_frame_update() # ActionManager 内部也应同步改为此命名
+        self.action_manager.on_frame_update()
         
         # 驱动技能逻辑
         for skill in self.skills.values():
@@ -196,8 +209,14 @@ class Character(CombatEntity, ABC):
         results = self.apply_elemental_aura(damage)
         damage.data['reaction_results'] = results
 
-    def heal(self, amount: float) -> None: pass
-    def hurt(self, amount: float) -> None: pass
+    def heal(self, amount: float) -> None:
+        from core.systems.utils import AttributeCalculator
+        max_hp = AttributeCalculator.get_hp(self)
+        self.current_hp = min(max_hp, self.current_hp + amount)
+
+    def hurt(self, amount: float) -> None:
+        self.current_hp = max(0.0, self.current_hp - amount)
+
     def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
     def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
     def add_shield(self, shield: Any) -> None: self.shield_effects.append(shield)
