@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 
 from character.character import Character
-from core.event import CharacterSwitchEvent
+from core.event import GameEvent, EventType
 from core.tool import get_current_time
 
 
@@ -80,9 +80,12 @@ class Team:
 
         # 3. 发布事件 (供 CombatSpace 更新物理注册信息)
         if self.ctx and self.ctx.event_engine:
-            self.ctx.event_engine.publish(
-                CharacterSwitchEvent(old_char, new_char, frame=get_current_time())
-            )
+            self.ctx.event_engine.publish(GameEvent(
+                event_type=EventType.AFTER_CHARACTER_SWITCH,
+                frame=get_current_time(),
+                source=new_char,
+                data={"old_character": old_char, "new_character": new_char}
+            ))
             
         get_emulation_logger().log_info(
             f"切换角色: {old_char.name if old_char else 'None'} -> {new_char.name} (坐标同步完成)", 

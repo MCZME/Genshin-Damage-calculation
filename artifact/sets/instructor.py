@@ -9,7 +9,7 @@ class Instructor(BaseArtifactSet):
     
 
     def apply_2_set_effect(self, character: Any) -> None:
-        attributrPanel = character.attribute_panel
+        attributrPanel = character.attribute_data
         attributrPanel["元素精通"] += 80
     
     def apply_4_set_effect(self, character: Any) -> None:

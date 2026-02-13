@@ -2,7 +2,7 @@ from typing import Any, List
 
 from core.systems.contract.shield import ShieldConfig
 from core.effect.common import ShieldEffect
-from core.event import EventType, GameEvent, HurtEvent
+from core.event import EventType, GameEvent
 from core.mechanics.aura import Element
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
@@ -32,7 +32,7 @@ class ShieldSystem(GameSystem):
         # 1. 计算护盾强效 (来自创建者)
         shield_strength = 0.0
         if config.creator:
-            shield_strength = getattr(config.creator, "attribute_panel", {}).get("护盾强效", 0.0)
+            shield_strength = getattr(config.creator, "attribute_data", {}).get("护盾强效", 0.0)
         
         # 2. 计算最终吸收量
         final_hp = config.base_hp * (1 + shield_strength / 100.0)

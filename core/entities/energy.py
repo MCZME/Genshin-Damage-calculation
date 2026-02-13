@@ -1,7 +1,7 @@
 from core.context import get_context
 from typing import Any
 from core.entities.base_entity import BaseEntity
-from core.event import EnergyChargeEvent
+from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
 
@@ -26,10 +26,17 @@ class EnergyDropsObject(BaseEntity):
 
     def on_finish(self, target: Any) -> None:
         get_emulation_logger().log_object(f"{self.character.name}的 {self.name} 存活时间结束")
-        energy_event = EnergyChargeEvent(self.character, self.element_energy, get_current_time(),
-                                        is_fixed=self.is_fixed, is_alone=self.is_alone)
-        if self.event_engine:
-            self.event_engine.publish(energy_event)
-        else:
-            get_context().event_engine.publish(energy_event) # 回退
+        energy_event = GameEvent(
+            event_type=EventType.BEFORE_ENERGY_CHANGE,
+            frame=get_current_time(),
+            source=self.character,
+            data={
+                "character": self.character,
+                "amount": self.element_energy,
+                "is_fixed": self.is_fixed,
+                "is_alone": self.is_alone
+            }
+        )
+        engine = self.event_engine or get_context().event_engine
+        engine.publish(energy_event)
 

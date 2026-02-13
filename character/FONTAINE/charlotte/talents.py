@@ -27,8 +27,8 @@ class PassiveSkillEffect_2(TalentEffect):
                     a += 1
                 else:
                     b += 1
-            self.character.attribute_panel['治疗加成'] += a * 5
-            self.character.attribute_panel['冰元素伤害加成'] += b * 5
+            self.character.attribute_data['治疗加成'] += a * 5
+            self.character.attribute_data['冰元素伤害加成'] += b * 5
 
 class ConstellationEffect_1(ConstellationEffect, EventHandler):
     """命座1：以核实为约束"""

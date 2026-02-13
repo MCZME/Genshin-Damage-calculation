@@ -1,10 +1,9 @@
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 from core.systems.contract.damage import Damage
 from core.systems.contract.reaction import ElementalReactionType
-from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
-from core.event import DamageEvent, EventType
+from core.event import GameEvent, EventType
 from core.mechanics.aura import Element
 from core.tool import get_current_time, get_reaction_multiplier
 
@@ -91,12 +90,11 @@ class DendroCoreEntity(CombatEntity):
         
         if target:
             dmg = self._create_react_damage("超绽放", 3.0, Element.DENDRO)
-            self.event_engine.publish(DamageEvent(
+            self.event_engine.publish(GameEvent(
                 event_type=EventType.BEFORE_DAMAGE,
                 frame=get_current_time(),
                 source=self.creator,
-                target=target,
-                damage=dmg
+                data={"character": self.creator, "target": target, "damage": dmg}
             ))
         self.state = "FINISHING"
 

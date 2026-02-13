@@ -18,7 +18,7 @@ class AThousandFloatingDreams(Weapon):
     def skill(self):
         for c in Team.team:
             if c != self.character:
-                c.attribute_panel["元素精通"] += self.em_bonus_1[self.lv-1]
+                c.attribute_data["元素精通"] += self.em_bonus_1[self.lv-1]
     
     def getElementNum(self):
         self.same = 0
@@ -32,15 +32,15 @@ class AThousandFloatingDreams(Weapon):
 
     def applyEffect(self):
         if self.same != 0:
-            self.character.attribute_panel["元素精通"] += self.em_bonus_0[self.lv-1] * self.same
+            self.character.attribute_data["元素精通"] += self.em_bonus_0[self.lv-1] * self.same
         if self.different != 0:
-            self.character.attribute_panel[self.character.element + "元素伤害加成"] += self.damage_bonus[self.lv-1] * self.different
+            self.character.attribute_data[self.character.element + "元素伤害加成"] += self.damage_bonus[self.lv-1] * self.different
 
     def removeEffect(self):
         if self.same != 0:
-            self.character.attribute_panel["元素精通"] -= self.em_bonus_0[self.lv-1] * self.same
+            self.character.attribute_data["元素精通"] -= self.em_bonus_0[self.lv-1] * self.same
         if self.different != 0:
-            self.character.attribute_panel[self.character.element + "元素伤害加成"] -= self.damage_bonus[self.lv-1] * self.different
+            self.character.attribute_data[self.character.element + "元素伤害加成"] -= self.damage_bonus[self.lv-1] * self.different
 
     def update(self, target):
         if T.get_current_time() % 60 == 1:

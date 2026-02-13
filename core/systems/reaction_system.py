@@ -7,7 +7,7 @@ from core.systems.contract.reaction import (
     ReactionResult
 )
 from core.context import EventEngine
-from core.event import DamageEvent, EventType, GameEvent
+from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
 from core.mechanics.aura import Element
 from core.systems.base_system import GameSystem
@@ -43,7 +43,7 @@ class ReactionSystem(GameSystem):
     def handle_event(self, event: GameEvent) -> None:
         """事件分发。"""
         if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
-            res = event.data.get("elementalReaction")
+            res = event.data.get("elemental_reaction")
             if res:
                 self._apply_reaction_effect(event, res)
         elif event.event_type == EventType.ELECTRO_CHARGED_TICK:
@@ -111,18 +111,21 @@ class ReactionSystem(GameSystem):
         dmg.add_data("等级系数", level_mult)
         dmg.add_data("反应系数", multiplier)
         
-        self.engine.publish(DamageEvent(
+        self.engine.publish(GameEvent(
             event_type=EventType.BEFORE_DAMAGE,
             frame=get_current_time(),
             source=source_char,
-            target=target,
-            damage=dmg
+            data={
+                "character": source_char,
+                "target": target,
+                "damage": dmg
+            }
         ))
 
     def _apply_reaction_effect(self, event: GameEvent, res: ReactionResult) -> None:
         """根据反应类别分发逻辑。"""
         source_char = event.source
-        target = getattr(event, "target", None)
+        target = event.data.get("target")
 
         get_emulation_logger().log_reaction(
             source_char=source_char,
@@ -152,7 +155,7 @@ class ReactionSystem(GameSystem):
         """处理结晶反应。"""
         from core.entities.elemental_entities import CrystalShardEntity
         target = event.data.get("target")
-        source_char = event.data.get("character")
+        source_char = event.source
         
         base_shield = get_reaction_multiplier(source_char.level) * 1.0
         shard = CrystalShardEntity(
@@ -167,7 +170,7 @@ class ReactionSystem(GameSystem):
         """处理绽放反应。"""
         from core.entities.elemental_entities import DendroCoreEntity
         target = event.data.get("target")
-        source_char = event.data.get("character")
+        source_char = event.source
         core = DendroCoreEntity(creator=source_char, pos=tuple(target.pos))
         self.context.space.register(core)
 
@@ -175,7 +178,7 @@ class ReactionSystem(GameSystem):
         """处理超导减抗逻辑。"""
         from core.effect.common import ResistanceDebuffEffect
         target = event.data.get("target")
-        source_char = event.data.get("character")
+        source_char = event.source
         
         # 降低 40% 物理抗性，持续 12s
         debuff = ResistanceDebuffEffect(
@@ -197,7 +200,7 @@ class ReactionSystem(GameSystem):
     def _handle_swirl(self, event: GameEvent, res: ReactionResult) -> None:
         """处理扩散反应的空间传播。"""
         target = event.data.get("target")
-        source_char = event.data.get("character")
+        source_char = event.source
         
         # 扩散半径通常为 6m
         # 传播除了风以外的反应元素

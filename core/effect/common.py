@@ -27,23 +27,23 @@ class ShieldEffect(BaseEffect):
 class StatModifierEffect(BaseEffect):
     """
     通用属性修改效果。
-    在生效期间直接修改 owner 的 attribute_panel。
+    在生效期间直接修改 owner 的 attribute_data。
     """
     def __init__(self, owner: Any, name: str, stats: Dict[str, float], duration: float):
         super().__init__(owner, name, duration)
         self.stats = stats
 
     def on_apply(self):
-        if not hasattr(self.owner, "attribute_panel"):
+        if not hasattr(self.owner, "attribute_data"):
             return
         for key, value in self.stats.items():
-            self.owner.attribute_panel[key] = self.owner.attribute_panel.get(key, 0.0) + value
+            self.owner.attribute_data[key] = self.owner.attribute_data.get(key, 0.0) + value
 
     def on_remove(self):
-        if not hasattr(self.owner, "attribute_panel"):
+        if not hasattr(self.owner, "attribute_data"):
             return
         for key, value in self.stats.items():
-            self.owner.attribute_panel[key] = self.owner.attribute_panel.get(key, 0.0) - value
+            self.owner.attribute_data[key] = self.owner.attribute_data.get(key, 0.0) - value
 
 
 class ResistanceDebuffEffect(StatModifierEffect):

@@ -125,10 +125,20 @@ class CombatEntity(BaseEntity):
         # 核心战斗组件
         self.aura: AuraManager = AuraManager()
         self.active_effects: List[Any] = []
-        self.shield_effects: List["ShieldEffect"] = []  # 挂载在该实体上的活跃护盾列表
+        self.shield_effects: List["ShieldEffect"] = []
         
         # ICD 管理器 (用于追踪该实体受到的附着冷却)
         self.icd_manager: ICDManager = ICDManager(self)
+        
+        # [新] 属性审计链支持
+        from core.systems.contract.modifier import ModifierRecord
+        self.dynamic_modifiers: List[ModifierRecord] = []
+        self.attribute_data: Dict[str, float] = {}
+
+    def add_modifier(self, source: str, stat: str, value: float, op: str = "ADD") -> None:
+        """向实体注入一个带来源的属性修饰符。"""
+        from core.systems.contract.modifier import ModifierRecord
+        self.dynamic_modifiers.append(ModifierRecord(source, stat, value, op))
 
     def export_state(self) -> Dict[str, Any]:
         """导出战斗状态快照。"""
@@ -138,12 +148,9 @@ class CombatEntity(BaseEntity):
             "facing": round(self.facing, 2),
             "faction": self.faction.name,
             "auras": self.aura.export_state(),
-            "shield_count": len(self.shield_effects)
+            "shield_count": len(self.shield_effects),
+            "attributes": self.attribute_data.copy()
         })
-        
-        if hasattr(self, "attribute_panel"):
-            base["attributes"] = self.attribute_panel.copy()
-            
         return base
 
     def set_position(self, x: float, z: float, y: Optional[float] = None) -> None:
@@ -158,11 +165,11 @@ class CombatEntity(BaseEntity):
         pass
 
     def heal(self, amount: float) -> None:
-        """[接口] 处理治疗。由子类实现具体逻辑。"""
+        """处理治疗。"""
         pass
 
     def hurt(self, amount: float) -> None:
-        """[接口] 处理受伤/扣血。由子类实现具体逻辑。"""
+        """处理受伤/扣血。"""
         pass
 
     def add_effect(self, effect: Any) -> None:
@@ -176,53 +183,51 @@ class CombatEntity(BaseEntity):
             self.active_effects.remove(effect)
 
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
-        """接收元素附着的统一入口，包含 ICD 判定逻辑。
-
-        Args:
-            damage: 伤害对象。
-
-        Returns:
-            List[Any]: 产生的反应结果列表。
-        """
-        # 1. 检查 ICD (通过 AttackConfig 标签与来源判定)
+        """接收元素附着的统一入口，包含 ICD 判定逻辑。"""
+        # 1. 检查 ICD
         tag = getattr(damage.config, "icd_tag", "Default")
         group = getattr(damage.config, "icd_group", "Default")
-        multiplier = self.icd_manager.check_attachment(damage.source, tag, group)
+        
+        # 修正：显式判断 damage.source 是否为 None
+        source_ent = getattr(damage, "source", None)
+        if source_ent is None:
+            source_ent = self
+        
+        multiplier = self.icd_manager.check_attachment(source_ent, tag, group)
         
         if multiplier <= 0:
             return []
             
-        # 2. 计算最终元素量并应用 (使用 Damage 对象自带的元素量)
+        # 2. 应用元素附着
         final_u = damage.element[1] * multiplier
         results = self.aura.apply_element(damage.element[0], final_u)
         
-        # 3. 反馈至伤害流水线并发布事件
-        from core.event import ElementalReactionEvent, EventType
+        # 3. 反馈并发布反应事件
+        from core.event import GameEvent, EventType
         from core.tool import get_current_time
         
         if hasattr(damage, "reaction_results"):
             damage.reaction_results.extend(results)
             
         for res in results:
-            self.event_engine.publish(ElementalReactionEvent(
+            self.event_engine.publish(GameEvent(
                 event_type=EventType.AFTER_ELEMENTAL_REACTION,
                 frame=get_current_time(),
-                source=damage.source,
-                target=self,
-                elemental_reaction=res
+                source=source_ent,
+                data={
+                    "target": self,
+                    "elemental_reaction": res
+                }
             ))
             
         return results
 
     def on_frame_update(self) -> None:
-        """驱动战斗实体的每帧逻辑：元素衰减、效果更新。"""
-        # 驱动元素附着衰减 (传入自身以处理 Tick 伤害)
+        """驱动战斗实体的每帧逻辑。"""
         self.aura.update(self, 1/60)
         
-        # 驱动并清理活跃效果
         for eff in self.active_effects[:]:
             if hasattr(eff, "on_frame_update"):
                 eff.on_frame_update()
-            
             if not getattr(eff, "is_active", True):
                 self.active_effects.remove(eff)

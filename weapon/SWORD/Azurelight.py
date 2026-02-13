@@ -12,13 +12,13 @@ class AzurelightEffect(BaseEffect):
         self.bonus = [12, 15, 18, 21, 24]
 
     def on_apply(self) -> None:
-        panel = self.character.attribute_panel
+        panel = self.character.attribute_data
         for e in ["火", "水", "雷", "风", "冰", "岩", "草"]:
             key = f"{e}元素伤害加成"
             panel[key] = panel.get(key, 0.0) + self.bonus[self.lv-1]
 
     def on_remove(self) -> None:
-        panel = self.character.attribute_panel
+        panel = self.character.attribute_data
         for e in ["火", "水", "雷", "风", "冰", "岩", "草"]:
             key = f"{e}元素伤害加成"
             panel[key] = panel.get(key, 0.0) - self.bonus[self.lv-1]

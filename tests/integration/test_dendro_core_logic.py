@@ -5,7 +5,6 @@ from core.systems.contract.damage import Damage
 from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
 from core.mechanics.aura import Element
 from core.entities.elemental_entities import DendroCoreEntity
-from core.systems.damage_system import DamageContext
 from core.mechanics.icd import ICDManager
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
@@ -17,7 +16,7 @@ class MockCharacter(CombatEntity):
         self.level = 90
         self.icd_manager = ICDManager(self)
         self.skill_params = [1, 1, 1]
-        self.attribute_panel = {
+        self.attribute_data = {
             "攻击力": 2000,
             "元素精通": 200,
             "火元素伤害加成": 0,
@@ -37,7 +36,7 @@ class MockEnemy(CombatEntity):
         super().__init__(name, Faction.ENEMY)
         self.level = 90
         self.icd_manager = ICDManager(self)
-        self.attribute_panel = {
+        self.attribute_data = {
             "防御力": 500,
             "火元素抗性": 10,
             "草元素抗性": 10,
@@ -48,12 +47,6 @@ class MockEnemy(CombatEntity):
     def handle_damage(self, damage):
         damage.set_target(self)
         self.apply_elemental_aura(damage)
-
-    def apply_elemental_aura(self, damage: Damage) -> list:
-        results = self.aura.apply_element(damage.element[0], damage.element[1])
-        if hasattr(damage, "reaction_results"):
-            damage.reaction_results.extend(results)
-        return results
 
 class TestDendroCoreLogic:
     @pytest.fixture
@@ -74,13 +67,14 @@ class TestDendroCoreLogic:
             element=(Element.HYDRO, 1.0),
             damage_multiplier=0,
             scaling_stat="攻击力",
-            name="挂水"
+            name="挂水",
+            config=AttackConfig(icd_tag="Independent") # 确保挂上
         )
         hydro_dmg.set_source(player)
         enemy.handle_damage(hydro_dmg)
         assert any(a.element == Element.HYDRO for a in enemy.aura.auras)
         
-        config = AttackConfig(is_deployable=True, hitbox=HitboxConfig(shape=AOEShape.SINGLE))
+        config = AttackConfig(is_deployable=True, hitbox=HitboxConfig(shape=AOEShape.SINGLE), icd_tag="Independent")
         dendro_dmg = Damage(
             element=(Element.DENDRO, 1.0),
             damage_multiplier=100.0,

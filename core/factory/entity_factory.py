@@ -57,9 +57,18 @@ class EntityFactory:
             for _ in range(num):
                 EntityFactory.create_entity(EnergyDropsObject, character, element_energy, life_frame=time)
         else:
-            from core.event import EnergyChargeEvent
+            from core.event import GameEvent, EventType
             from core.tool import get_current_time
             ctx = get_context()
-            energy_event = EnergyChargeEvent(character, element_energy, get_current_time(),
-                                            is_fixed=is_fixed, is_alone=is_alone)
+            energy_event = GameEvent(
+                event_type=EventType.BEFORE_ENERGY_CHANGE,
+                frame=get_current_time(),
+                source=character,
+                data={
+                    "character": character,
+                    "amount": element_energy,
+                    "is_fixed": is_fixed,
+                    "is_alone": is_alone
+                }
+            )
             ctx.event_engine.publish(energy_event)

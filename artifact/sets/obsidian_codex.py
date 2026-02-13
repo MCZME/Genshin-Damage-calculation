@@ -19,11 +19,11 @@ class ObsidianCodex(BaseArtifactSet):
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_NIGHTSOUL_BLESSING:
-            attribute_panel = event.data["character"].attribute_panel
-            attribute_panel["伤害加成"] += 15
+            attribute_data = event.data["character"].attribute_data
+            attribute_data["伤害加成"] += 15
         elif event.event_type == EventType.AFTER_NIGHTSOUL_BLESSING:
-            attribute_panel = event.data["character"].attribute_panel
-            attribute_panel["伤害加成"] -= 15
+            attribute_data = event.data["character"].attribute_data
+            attribute_data["伤害加成"] -= 15
         elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             # 检查是否是当前角色且夜魂值减少
             if (event.data["character"] == self.character and 

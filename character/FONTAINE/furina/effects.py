@@ -53,9 +53,10 @@ class FurinaFanfareEffect(BaseEffect):
         self.owner.event_engine.unsubscribe(EventType.BEFORE_CALCULATE, self)
         self.owner.event_engine.unsubscribe(EventType.BEFORE_HEAL, self)
         
-        # 清除 C2 溢出带来的生命值加成
-        if "芙宁娜C2生命加成" in self.owner.attribute_panel:
-            del self.owner.attribute_panel["芙宁娜C2生命加成"]
+        # 清除 C2 生命加成修饰符
+        self.owner.dynamic_modifiers = [
+            m for m in self.owner.dynamic_modifiers if m.source != "芙宁娜C2生命加成"
+        ]
 
     def handle_event(self, event: GameEvent):
         """核心事件分发中心。"""
@@ -75,7 +76,7 @@ class FurinaFanfareEffect(BaseEffect):
             target = event.data.get("target")
             if target:
                 bonus = self.points * self.heal_ratio
-                # 此处假定 HealthSystem 会从 attribute_panel 实时读取
+                # 此处假定 HealthSystem 会从 attribute_data 实时读取
                 # 暂时通过 data 传递给计算器，或者注入目标的临时属性
                 event.data["fanfare_heal_bonus"] = bonus
 
@@ -108,9 +109,13 @@ class FurinaFanfareEffect(BaseEffect):
                 overflow = self.points - self.max_points
                 # 每 1 点溢出气氛值提升 0.35% HP上限, 至多 140%
                 hp_bonus = min(140.0, overflow * 0.35)
-                # 这里的加成应该加到 生命值% 上
-                # 为了保持独立性，我们单独维护一个 key
-                self.owner.attribute_panel["生命值%"] = self.owner.attribute_data["生命值%"] + hp_bonus
+                
+                # 先清除旧的加成修饰符
+                self.owner.dynamic_modifiers = [
+                    m for m in self.owner.dynamic_modifiers if m.source != "芙宁娜C2生命加成"
+                ]
+                # 注入新的审计修饰符
+                self.owner.add_modifier(source="芙宁娜C2生命加成", stat="生命值%", value=hp_bonus)
         
         # 气氛值自身上限钳制
         self.points = min(self.points, 1000.0 if self.owner.constellation_level >= 2 else self.max_points)

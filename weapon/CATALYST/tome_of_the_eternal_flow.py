@@ -50,7 +50,7 @@ class TomeOfTheEternalFlow(Weapon, EventHandler):
         super().__init__(character, TomeOfTheEternalFlow.ID, level, lv)
 
     def skill(self):
-        self.character.attribute_panel["生命值%"] += 16
+        self.character.attribute_data["生命值%"] += 16
         self.event_engine.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def handle_event(self, event: GameEvent):

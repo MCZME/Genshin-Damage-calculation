@@ -43,7 +43,7 @@ class TestEnergySystemUnit:
 
     def test_particle_energy_charge_same_element(self, energy_sys, source_entity, setup_team):
         """测试同元素微粒恢复 (is_fixed=False)"""
-        source_entity.attribute_panel['元素充能效率'] = 200.0
+        source_entity.attribute_data['元素充能效率'] = 200.0
         source_entity.elemental_energy.current_energy = 0.0
         source_entity.on_field = True
 

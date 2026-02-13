@@ -9,7 +9,7 @@ from core.event import GameEvent, EventType
 class MockEnemy(CombatEntity):
     def __init__(self, name, pos=(0,0,0)):
         super().__init__(name, Faction.ENEMY, pos=pos)
-        self.attribute_panel = {
+        self.attribute_data = {
             "防御力": 500,
             "物理元素抗性": 10.0,
             "火元素抗性": 10.0,
@@ -55,7 +55,7 @@ class TestReactionSideEffects:
         
         # 3. 验证抗性
         # 初始 10.0, 降低 40.0 -> 应为 -30.0
-        res = enemy.attribute_panel.get("物理元素抗性")
+        res = enemy.attribute_data.get("物理元素抗性")
         assert res == -30.0
         
         # 4. 验证效果是否存在

@@ -76,8 +76,8 @@ class AThousandBlazingSuns(Weapon, EventHandler):
             base_atk *= 1.75
             
         # 应用属性
-        self.character.attribute_panel["暴击伤害"] += base_cd
-        self.character.attribute_panel["攻击力%"] += base_atk
+        self.character.attribute_data["暴击伤害"] += base_cd
+        self.character.attribute_data["攻击力%"] += base_atk
         
         # 初始化状态
         self.fen_guang_active = True
@@ -121,8 +121,8 @@ class AThousandBlazingSuns(Weapon, EventHandler):
             base_cd *= 1.75
             base_atk *= 1.75
             
-        self.character.attribute_panel["暴击伤害"] -= base_cd
-        self.character.attribute_panel["攻击力%"] -= base_atk
+        self.character.attribute_data["暴击伤害"] -= base_cd
+        self.character.attribute_data["攻击力%"] -= base_atk
         
         # 重置状态
         self.fen_guang_active = False

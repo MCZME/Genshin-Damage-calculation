@@ -26,7 +26,7 @@ class TestCombatSpaceDispatch:
                 self.level = 90
                 self.pos = [0.0, 0.0, 0.0]
                 self.facing = 0.0
-                self.attribute_panel = {
+                self.attribute_data = {
                     '攻击力': 1000.0,
                     '元素精通': 0.0,
                     '暴击率': 5.0,
@@ -59,7 +59,7 @@ class TestCombatSpaceDispatch:
                 self.level = 90
                 self.pos = [0.0, 0.0, 0.0]
                 self.facing = 0.0
-                self.attribute_panel = {k: 0.0 for k in ['攻击力', '元素精通', '暴击率', '暴击伤害']}
+                self.attribute_data = {k: 0.0 for k in ['攻击力', '元素精通', '暴击率', '暴击伤害']}
                 self.active_effects = []
         attacker = MockChar()
 

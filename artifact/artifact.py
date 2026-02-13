@@ -43,7 +43,7 @@ class ArtifactManager:
                     totals[k] = totals.get(k, 0.0) + v
         
         # 2. 映射到角色面板的对应乘区
-        attr_panel = self.character.attribute_panel
+        attr_panel = self.character.attribute_data
         
         for key, val in totals.items():
             # 智能映射：如果属性名是“攻击力”且不带%，则存入“固定值”乘区

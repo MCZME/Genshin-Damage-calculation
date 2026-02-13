@@ -4,7 +4,7 @@ import random
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.event import GameEvent, DamageEvent, EventType
+from core.event import GameEvent, EventType
 from core.systems.contract.damage import Damage
 from core.systems.contract.modifier import ModifierRecord
 from core.mechanics.aura import Element
@@ -92,25 +92,25 @@ class DamagePipeline:
         
         if el_name != "无":
             el_bonus_key = f"{el_name}元素伤害加成" if el_name != "物理" else "物理伤害加成"
-            bonus += src.attribute_panel.get(el_bonus_key, 0.0) / 100
+            bonus += src.attribute_data.get(el_bonus_key, 0.0) / 100
             
-        if AttackCategory.NORMAL in categories: bonus += src.attribute_panel.get("普通攻击伤害加成", 0.0) / 100
-        if AttackCategory.CHARGED in categories: bonus += src.attribute_panel.get("重击伤害加成", 0.0) / 100
-        if AttackCategory.PLUNGING in categories: bonus += src.attribute_panel.get("下落攻击伤害加成", 0.0) / 100
-        if AttackCategory.SKILL in categories: bonus += src.attribute_panel.get("元素战技伤害加成", 0.0) / 100
-        if AttackCategory.BURST in categories: bonus += src.attribute_panel.get("元素爆发伤害加成", 0.0) / 100
+        if AttackCategory.NORMAL in categories: bonus += src.attribute_data.get("普通攻击伤害加成", 0.0) / 100
+        if AttackCategory.CHARGED in categories: bonus += src.attribute_data.get("重击伤害加成", 0.0) / 100
+        if AttackCategory.PLUNGING in categories: bonus += src.attribute_data.get("下落攻击伤害加成", 0.0) / 100
+        if AttackCategory.SKILL in categories: bonus += src.attribute_data.get("元素战技伤害加成", 0.0) / 100
+        if AttackCategory.BURST in categories: bonus += src.attribute_data.get("元素爆发伤害加成", 0.0) / 100
         
         ctx.add_modifier("总和伤害加成区", "伤害加成", bonus * 100, "SET")
 
     def _calculate_def_res(self, ctx: DamageContext):
-        target_def = ctx.target.attribute_panel.get("防御力", 0)
+        target_def = ctx.target.attribute_data.get("防御力", 0)
         coeff_def = (5 * ctx.source.level + 500) / (target_def + 5 * ctx.source.level + 500)
         ctx.add_modifier("防御减免", "防御区系数", coeff_def, "SET")
         
         el = ctx.damage.element[0]
         el_name = el.value if isinstance(el, Element) else el
         
-        res = ctx.target.attribute_panel.get(f"{el_name}元素抗性", 10.0)
+        res = ctx.target.attribute_data.get(f"{el_name}元素抗性", 10.0)
         coeff_res = 1.0
         if res > 75: coeff_res = 1 / (1 + 4 * res / 100)
         elif res < 0: coeff_res = 1 - res / 2 / 100
@@ -190,4 +190,9 @@ class DamageSystem(GameSystem):
             
             if dmg.target:
                 get_emulation_logger().log_damage(char, dmg.target, dmg)
-                self.engine.publish(DamageEvent(EventType.AFTER_DAMAGE, event.frame, source=char, target=dmg.target, damage=dmg))
+                self.engine.publish(GameEvent(
+                    event_type=EventType.AFTER_DAMAGE, 
+                    frame=event.frame, 
+                    source=char, 
+                    data={"character": char, "target": dmg.target, "damage": dmg}
+                ))

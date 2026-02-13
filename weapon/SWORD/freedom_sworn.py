@@ -16,13 +16,13 @@ class FreedomSwornEffect(BaseEffect, EventHandler):
         self.atk_bonus = [20, 25, 30, 35, 40]
 
     def on_apply(self):
-        # 兼容旧代码使用 attribute_panel
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        # 兼容旧代码使用 attribute_data
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         panel["攻击力%"] = panel.get("攻击力%", 0) + self.atk_bonus[self.lv-1]
         self.owner.event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def on_remove(self):
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         panel["攻击力%"] -= self.atk_bonus[self.lv-1]
         self.owner.event_engine.unsubscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
@@ -45,7 +45,7 @@ class FreedomSworn(Weapon, EventHandler):
         self.lasr_effect_time = -20*60
 
     def skill(self):
-        self.character.attribute_panel["伤害加成"] += 10
+        self.character.attribute_data["伤害加成"] += 10
         self.event_engine.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
 
     def handle_event(self, event: GameEvent):

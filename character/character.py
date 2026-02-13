@@ -6,7 +6,7 @@ from core.action.action_manager import ActionManager
 from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
 from core.event import (
-    ActionEvent,
+    GameEvent,
     EventType,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
@@ -63,8 +63,6 @@ class Character(CombatEntity, ABC):
             self.element = "无"
             self.type = "Unknown"
 
-        self.attribute_panel = self.attribute_data.copy()
-        
         # -----------------------------------------------------
         # 标准化组件
         # -----------------------------------------------------
@@ -116,7 +114,6 @@ class Character(CombatEntity, ABC):
             if c: c.apply(self)
 
     def initialize_gear(self) -> None:
-        self.attribute_panel = self.attribute_data.copy()
         if self.weapon:
             self.weapon.apply_static_stats()
             self.weapon.skill()
@@ -183,13 +180,13 @@ class Character(CombatEntity, ABC):
 
     def elemental_skill(self, params: Any = None) -> bool:
         if self._request_action("elemental_skill", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, get_current_time(), self, "elemental_skill"))
+            self.event_engine.publish(GameEvent(EventType.BEFORE_SKILL, get_current_time(), self, data={"action_name": "elemental_skill"}))
             return True
         return False
 
     def elemental_burst(self, params: Any = None) -> bool:
         if self._request_action("elemental_burst", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, get_current_time(), self, "elemental_burst"))
+            self.event_engine.publish(GameEvent(EventType.BEFORE_BURST, get_current_time(), self, data={"action_name": "elemental_burst"}))
             return True
         return False
 

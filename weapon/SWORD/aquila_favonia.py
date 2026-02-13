@@ -15,4 +15,4 @@ class AquilaFavonia(Weapon):
         self.attribute_data["物理伤害加成"] = self.stats[12+l]
     
     def skill(self):
-        self.character.attribute_panel["攻击力%"] += 20
+        self.character.attribute_data["攻击力%"] += 20

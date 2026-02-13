@@ -32,7 +32,7 @@ class STWHealthBoostEffect(BaseEffect):
             self.duration = self.max_duration
 
     def _update_panel(self, sign: int):
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         panel["生命值%"] = panel.get("生命值%", 0) + sign * self.bonus * self.stack
 
 class STWElementSkillBoostEffect(BaseEffect, EventHandler):

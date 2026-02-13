@@ -9,7 +9,7 @@ class SerpentSpine(Weapon):
         self.skill_param = [6,7,8,9,10]
 
     def skill(self):
-        attribute_panel = self.character.attribute_panel
-        attribute_panel["伤害加成"] += 5*self.skill_param[self.lv-1]
+        attribute_data = self.character.attribute_data
+        attribute_data["伤害加成"] += 5*self.skill_param[self.lv-1]
 
 # 焚曜千阳

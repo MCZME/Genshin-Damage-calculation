@@ -19,8 +19,8 @@ class TestDamagePipelineUnit:
         )
         ctx = DamageContext(dmg, source_entity, target_entity)
 
-        source_entity.attribute_panel['攻击力'] = 2500
-        source_entity.attribute_panel['暴击率'] = 88.8
+        source_entity.attribute_data['攻击力'] = 2500
+        source_entity.attribute_data['暴击率'] = 88.8
 
         pipeline._snapshot(ctx)
 
@@ -44,7 +44,7 @@ class TestDamagePipelineUnit:
         )
         ctx = DamageContext(dmg, source_entity, target_entity)
 
-        target_entity.attribute_panel['防御力'] = defense
+        target_entity.attribute_data['防御力'] = defense
         source_entity.level = attacker_lv
 
         pipeline._calculate_def_res(ctx)
@@ -65,8 +65,8 @@ class TestDamagePipelineUnit:
         )
         ctx = DamageContext(dmg, source_entity, target_entity)
         
-        source_entity.attribute_panel['生命值'] = 40000
-        source_entity.attribute_panel['伤害加成'] = 20.0 # 基础 20%
+        source_entity.attribute_data['生命值'] = 40000
+        source_entity.attribute_data['伤害加成'] = 20.0 # 基础 20%
         
         # 模拟一个外部增益注入 (使用具备 handle_event 的 Mock 对象)
         class MockBuff:

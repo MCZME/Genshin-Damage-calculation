@@ -9,7 +9,7 @@ class VividNotions(Weapon, EventHandler):
     ID = 215
     def __init__(self, character, level=1, lv=1):
         super().__init__(character, VividNotions.ID, level, lv)
-        self.character.attribute_panel["攻击力%"] += [28,35,42,49,56][lv-1]
+        self.character.attribute_data["攻击力%"] += [28,35,42,49,56][lv-1]
         
         # 效果状态
         self.morning_effect = MorningGlowEffect(self.character,lv)  # 初霞之彩

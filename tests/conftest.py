@@ -33,7 +33,7 @@ class MockAttributeEntity:
             '伤害加成': 0.0,
             '元素充能效率': 100.0
         }
-        self.attribute_panel = self.attribute_data.copy()
+        self.attribute_data = self.attribute_data.copy()
         self.current_resistance = {k: 10.0 for k in ['火', '水', '雷', '草', '冰', '岩', '风', '物理']}
         self.aura = AuraManager()
         self.icd_manager = ICDManager(self)
@@ -44,7 +44,7 @@ class MockAttributeEntity:
 
     @property
     def defense(self):
-        return self.attribute_panel['防御力']
+        return self.attribute_data['防御力']
 
     def handle_damage(self, damage: Any) -> None:
         """Mock 伤害处理，建立引用并触发附着逻辑"""
@@ -73,7 +73,7 @@ class MockAttributeEntity:
             "level": self.level,
             "faction": self.faction.name,
             "pos": self.pos,
-            "attributes": self.attribute_panel.copy(),
+            "attributes": self.attribute_data.copy(),
             "auras": self.aura.export_state()
         }
 

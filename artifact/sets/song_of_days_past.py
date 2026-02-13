@@ -11,7 +11,7 @@ class SongOfDaysPast(BaseArtifactSet):
 
     def apply_2_set_effect(self, character: Any) -> None:
         # 治疗加成提高15%
-        character.attribute_panel["治疗加成"] += 15
+        character.attribute_data["治疗加成"] += 15
 
     def apply_4_set_effect(self, character: Any) -> None:
         get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)

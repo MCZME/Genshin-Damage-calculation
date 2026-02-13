@@ -26,7 +26,7 @@ class Target(CombatEntity):
         # 基础属性面板：从 config 的 attributes 字段获取，或使用默认值
         input_attrs = config.get("attributes", {})
         
-        self.attribute_panel: Dict[str, float] = {
+        self.attribute_data: Dict[str, float] = {
             "生命值": float(input_attrs.get("生命值", 100000.0)),
             "防御力": float(input_attrs.get("防御力", 500.0)),
         }
@@ -35,9 +35,9 @@ class Target(CombatEntity):
         elements = ["火", "水", "风", "雷", "草", "冰", "岩", "物理"]
         for el in elements:
             key = f"{el}元素抗性"
-            self.attribute_panel[key] = float(input_attrs.get(key, 10.0))
+            self.attribute_data[key] = float(input_attrs.get(key, 10.0))
 
-        self.current_hp: float = self.attribute_panel["生命值"]
+        self.current_hp: float = self.attribute_data["生命值"]
 
     def handle_damage(self, damage: Any) -> None:
         """处理作用于该目标的伤害逻辑。
@@ -63,7 +63,7 @@ class Target(CombatEntity):
         base = super().export_state()
         base.update({
             "level": self.level,
-            "hp_percent": round((self.current_hp / self.attribute_panel["生命值"]) * 100, 2),
-            "resistances": {k: v for k, v in self.attribute_panel.items() if "抗性" in k}
+            "hp_percent": round((self.current_hp / self.attribute_data["生命值"]) * 100, 2),
+            "resistances": {k: v for k, v in self.attribute_data.items() if "抗性" in k}
         })
         return base

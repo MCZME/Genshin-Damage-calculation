@@ -14,7 +14,7 @@ class SymphonistOfScents(Weapon, EventHandler):
         self.is_applied = False
 
     def skill(self):
-        self.character.attribute_panel["攻击力%"] += self.atk_boost_1[self.lv-1]
+        self.character.attribute_data["攻击力%"] += self.atk_boost_1[self.lv-1]
 
         get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
 
@@ -39,9 +39,9 @@ class SymphonistOfScents(Weapon, EventHandler):
 
     def update(self, target):
         if not self.is_applied and not self.character.on_field:
-            self.character.attribute_panel["攻击力%"] += self.atk_boost_1[self.lv-1]
+            self.character.attribute_data["攻击力%"] += self.atk_boost_1[self.lv-1]
             self.is_applied = True
         elif self.is_applied and self.character.on_field:
-            self.character.attribute_panel["攻击力%"] -= self.atk_boost_1[self.lv-1]
+            self.character.attribute_data["攻击力%"] -= self.atk_boost_1[self.lv-1]
             self.is_applied = False
 

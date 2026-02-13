@@ -26,7 +26,7 @@ class FurinaSummonBase(CombatEntity):
 
     # 这又是什么
     def get_owner_attr(self, attr_name: str) -> float:
-        return self.owner.attribute_panel.get(attr_name, 0.0)
+        return self.owner.attribute_data.get(attr_name, 0.0)
 
     def _build_attack_config(self, name: str) -> AttackConfig:
         """从原生数据构建物理契约。"""
@@ -113,7 +113,7 @@ class SalonMember(FurinaSummonBase):
         ratio = ELEMENTAL_SKILL_DATA[consume_key][1][0] / 100.0
         
         for m in self.ctx.team.get_members():
-            max_hp = m.attribute_panel.get("生命值", 1.0)
+            max_hp = m.attribute_data.get("生命值", 1.0)
             if m.current_hp / max_hp > 0.5:
                 healthy_count += 1
                 consume_val = max_hp * ratio

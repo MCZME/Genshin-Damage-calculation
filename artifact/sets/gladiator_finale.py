@@ -9,7 +9,7 @@ class GladiatorFinale(BaseArtifactSet):
     """角斗士的终幕礼"""
     def apply_2_set_effect(self, character: Any) -> None:
         """两件套：攻击力提高18%。"""
-        character.attribute_panel["攻击力%"] = character.attribute_panel.get("攻击力%", 0.0) + 18
+        character.attribute_data["攻击力%"] = character.attribute_data.get("攻击力%", 0.0) + 18
 
     def apply_4_set_effect(self, character: Any) -> None:
         """四件套：普通攻击造成的伤害提高35%。"""

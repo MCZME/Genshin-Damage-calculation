@@ -38,7 +38,7 @@ class RongHuaZhiGeEffect(BaseEffect):
             self.duration = self.max_duration
 
     def _update_panel(self, sign: int):
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         panel["防御力%"] = panel.get("防御力%", 0) + sign * self.defense_bonus[self.lv-1] * self.stack
         for e in ["水", "火", "风", "雷", "冰", "岩"]:
             key = f"{e}元素伤害加成"
@@ -55,19 +55,19 @@ class RongHuaZhiGeTeamEffect(BaseEffect):
 
     def _calculate_val(self, source):
         # 简单计算，未来应使用 AttributeCalculator
-        panel = getattr(source, "attribute_panel", getattr(source, "attribute_panel", {}))
+        panel = getattr(source, "attribute_data", getattr(source, "attribute_data", {}))
         defense = (panel.get("防御力", 0) * (1 + panel.get("防御力%", 0)/100) + 
                    panel.get("固定防御力", 0))
         return min((defense/1000) * self.bonus_per_1000[self.lv-1], self.max_bonus[self.lv-1])
 
     def on_apply(self):
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         for e in ["水", "火", "风", "雷", "冰", "岩"]:
             key = f"{e}元素伤害加成"
             panel[key] = panel.get(key, 0) + self.val
 
     def on_remove(self):
-        panel = getattr(self.owner, "attribute_panel", getattr(self.owner, "attribute_panel", {}))
+        panel = getattr(self.owner, "attribute_data", getattr(self.owner, "attribute_data", {}))
         for e in ["水", "火", "风", "雷", "冰", "岩"]:
             key = f"{e}元素伤害加成"
             panel[key] = panel.get(key, 0) - self.val

@@ -11,5 +11,5 @@ class AquaSimulacra(Weapon):
 
     def skill(self):
         # 默认周围存在敌人
-        self.character.attribute_panel["生命值%"] += self.hp_bonus[self.lv - 1]
-        self.character.attribute_panel["伤害加成"] += self.dmg_bonus[self.lv - 1]
+        self.character.attribute_data["生命值%"] += self.hp_bonus[self.lv - 1]
+        self.character.attribute_data["伤害加成"] += self.dmg_bonus[self.lv - 1]

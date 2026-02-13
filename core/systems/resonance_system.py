@@ -61,22 +61,22 @@ class ResonanceSystem(GameSystem):
         # 1. 热诚之火 (火): 攻击力提高25%
         if "火" in self.active_resonances:
             for c in chars:
-                c.attribute_panel["攻击力%"] += 25.0
+                c.attribute_data["攻击力%"] += 25.0
 
         # 2. 愈疗之水 (水): 生命值上限提高25%
         if "水" in self.active_resonances:
             for c in chars:
-                c.attribute_panel["生命值%"] += 25.0
+                c.attribute_data["生命值%"] += 25.0
 
         # 3. 坚定之岩 (岩): 护盾强效提升15%
         if "岩" in self.active_resonances:
             for c in chars:
-                c.attribute_panel["护盾强效"] += 15.0
+                c.attribute_data["护盾强效"] += 15.0
 
         # 4. 蔓生之草 (草): 元素精通提升50
         if "草" in self.active_resonances:
             for c in chars:
-                c.attribute_panel["元素精通"] += 50.0
+                c.attribute_data["元素精通"] += 50.0
 
         # 5. 迅捷之风 (风): 占位符
         if "风" in self.active_resonances:
