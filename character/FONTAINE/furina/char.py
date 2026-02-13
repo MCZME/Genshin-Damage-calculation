@@ -1,66 +1,109 @@
-from typing import Dict, Any, List
-from core.registry import register_character
+from typing import Any, Dict, Optional
+
 from character.FONTAINE.fontaine import Fontaine
-from core.mechanics.energy import ElementalEnergy
-from core.event import EventHandler, EventType, GameEvent
-from core.action.damage import Damage, DamageType
-from core.entities.arkhe import ArkheObject
-from character.FONTAINE.furina.skills import SalonSolitaire, UniversalRevelry, FurinaChargedAttack
-from character.FONTAINE.furina.talents import (
-    PassiveSkillEffect_1, PassiveSkillEffect_2,
-    ConstellationEffect_1, ConstellationEffect_2, ConstellationEffect_4, ConstellationEffect_6
+from core.registry import register_character
+from core.skills.movement import DashSkill, JumpSkill
+from core.skills.common import SkipSkill
+from character.FONTAINE.furina.skills import (
+    FurinaNormalAttack, FurinaChargedAttack, FurinaPlungingAttack,
+    FurinaElementalSkill, FurinaElementalBurst
+)
+from character.FONTAINE.furina.talents import EndlessWaltz, UnheardConfession
+from character.FONTAINE.furina.constellations import (
+    FurinaC1, FurinaC2, FurinaC3, FurinaC4, FurinaC5, FurinaC6
 )
 
-class ArkheAttackHandler(EventHandler):
-    """处理普攻触发始基力伤害"""
-    def __init__(self, character: Any):
-        self.character = character
-        self.last_trigger_time = -360
-        self.multipliers = [9.46, 10.23, 11, 12.1, 12.87, 13.75, 14.96, 16.17, 17.38, 18.7, 20.02, 21.34, 22.66, 23.98, 25.3]
-
-    def handle_event(self, event: GameEvent):
-        if event.event_type == EventType.AFTER_NORMAL_ATTACK and event.source == self.character:
-            now = event.frame
-            if now - self.last_trigger_time >= 360:
-                self.last_trigger_time = now
-                name = '流涌之刃' if self.character.arkhe == '荒性' else '灵息之刺'
-                damage = Damage(self.multipliers[self.character.skill_params[0]-1], ('水', 0), DamageType.NORMAL, name)
-                ArkheObject(name, self.character, self.character.arkhe, damage, 18).apply()
 
 @register_character("芙宁娜")
-class FURINA(Fontaine):
-    """芙宁娜 - 完整复刻版"""
-    def __init__(self, level: int = 1, skill_params: List[int] = None, constellation: int = 0, base_data: Dict[str, Any] = None):
-        super().__init__(id=75, level=level, skill_params=skill_params, constellation=constellation, base_data=base_data)
+class Furina(Fontaine):
+    """
+    芙宁娜 (Furina) - 不休独舞。
+    """
 
-    def _init_character(self):
-        self.elemental_energy = ElementalEnergy(self, ('水', 60))
+    def __init__(
+        self, 
+        id: int = 75, 
+        level: int = 90, 
+        skill_params: list = None, 
+        constellation: int = 0, 
+        base_data: dict = None
+    ):
+        super().__init__(
+            id=id, 
+            level=level, 
+            skill_params=skill_params or [1, 1, 1], 
+            constellation=constellation, 
+            base_data=base_data
+        )
+        
+        # 初始形态
+        self.arkhe_mode = "荒"
         self.arkhe = "荒性"
         
-        # 技能实例化
-        self.Skill = SalonSolitaire(self.skill_params[1])
-        self.Burst = UniversalRevelry(self.skill_params[2])
-        self.ChargedAttack = FurinaChargedAttack(self.skill_params[0])
+        self.singer_interval_override: Optional[int] = None
+
+    def _setup_character_components(self) -> None:
+        """实例化并配置全量技能组件。"""
+        # 1. 核心战斗技能
+        self.skills = {
+            "normal": FurinaNormalAttack(self.skill_params[0], self),
+            "charged": FurinaChargedAttack(self.skill_params[0], self),
+            "plunge": FurinaPlungingAttack(self.skill_params[0], self),
+            "skill": FurinaElementalSkill(self.skill_params[1], self),
+            "burst": FurinaElementalBurst(self.skill_params[2], self)
+        }
         
-        # 始基力攻击处理器
-        self.arkhe_handler = ArkheAttackHandler(self)
-        self.event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self.arkhe_handler)
+        # 2. 通用移动与辅助组件
+        self.skills["dash"] = DashSkill(caster=self)
+        self.skills["jump"] = JumpSkill(caster=self)
+        self.skills["skip"] = SkipSkill(caster=self)
+
+    def _setup_effects(self) -> None:
+        """挂载天赋与命座组件。"""
+        self.talents = [
+            EndlessWaltz(),      
+            UnheardConfession()  
+        ]
         
-        # 天赋与命座
-        self.talent1 = PassiveSkillEffect_1()
-        self.talent2 = PassiveSkillEffect_2()
-        
-        self.constellation_effects = [
-            ConstellationEffect_1(),
-            ConstellationEffect_2(),
-            None, # 3命通常是等级加成
-            ConstellationEffect_4(),
-            None, # 5命通常是等级加成
-            ConstellationEffect_6()
+        self.constellations = [
+            FurinaC1(), FurinaC2(), FurinaC3(),
+            FurinaC4(), FurinaC5(), FurinaC6()
         ]
 
-    def _get_action_data(self, name: str, params: Any) -> Any:
-        if name == "elemental_skill": return self.Skill.to_action_data()
-        if name == "elemental_burst": return self.Burst.to_action_data()
-        if name == "charged_attack": return self.ChargedAttack.to_action_data()
-        return super()._get_action_data(name, params)
+    @classmethod
+    def get_action_metadata(cls) -> Dict[str, Any]:
+        """UI 元数据。"""
+        return {
+            "normal_attack": {
+                "label": "普通攻击",
+                "params": [
+                    {"key": "index", "label": "段位", "type": "int", "min": 1, "max": 4, "default": 1}
+                ]
+            },
+            "charged_attack": {
+                "label": "重击",
+                "params": []
+            },
+            "plunging_attack": {
+                "label": "下落攻击",
+                "params": [
+                    {"key": "is_high", "label": "高空", "type": "bool", "default": False}
+                ]
+            },
+            "elemental_skill": {
+                "label": "元素战技",
+                "params": [] 
+            },
+            "elemental_burst": {
+                "label": "元素爆发",
+                "params": []
+            },
+            "dash": { "label": "冲刺", "params": [] },
+            "jump": { "label": "跳跃", "params": [] },
+            "skip": { 
+                "label": "等待", 
+                "params": [
+                    {"key": "frames", "label": "帧数", "type": "int", "default": 60}
+                ] 
+            }
+        }
