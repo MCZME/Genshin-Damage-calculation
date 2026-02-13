@@ -53,6 +53,9 @@ class AttackTagResolver:
         if tag.startswith("元素爆发") or "元素爆发" in extra:
             categories.add(AttackCategory.BURST)
 
+        if tag == "剧变反应" or "剧变反应" in extra:
+            categories.add(AttackCategory.REACTION)
+
         # 2. 特殊标签映射 (可根据需求扩展)
         # 某些召唤物可能被归类为战技
         summons_as_skill = ["乌瑟勋爵", "海薇玛夫人", "谢贝蕾妲小姐"]

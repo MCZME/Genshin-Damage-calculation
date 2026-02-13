@@ -7,6 +7,7 @@ from core.context import EventEngine
 from core.event import GameEvent, DamageEvent, EventType
 from core.systems.contract.damage import Damage
 from core.systems.contract.modifier import ModifierRecord
+from core.mechanics.aura import Element
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
@@ -86,7 +87,9 @@ class DamagePipeline:
         
         # 3. 动态增伤区注入
         bonus = AttributeCalculator.get_damage_bonus(src) # 通用全增伤
-        el_name = ctx.damage.element[0]
+        el = ctx.damage.element[0]
+        el_name = el.value if isinstance(el, Element) else el
+        
         if el_name != "无":
             el_bonus_key = f"{el_name}元素伤害加成" if el_name != "物理" else "物理伤害加成"
             bonus += src.attribute_panel.get(el_bonus_key, 0.0) / 100
@@ -104,7 +107,9 @@ class DamagePipeline:
         coeff_def = (5 * ctx.source.level + 500) / (target_def + 5 * ctx.source.level + 500)
         ctx.add_modifier("防御减免", "防御区系数", coeff_def, "SET")
         
-        el_name = ctx.damage.element[0]
+        el = ctx.damage.element[0]
+        el_name = el.value if isinstance(el, Element) else el
+        
         res = ctx.target.attribute_panel.get(f"{el_name}元素抗性", 10.0)
         coeff_res = 1.0
         if res > 75: coeff_res = 1 / (1 + 4 * res / 100)
@@ -160,12 +165,7 @@ class DamagePipeline:
     def _dispatch_broadcast(self, ctx: DamageContext):
         from core.context import get_context
         sim_ctx = get_context()
-        hb = ctx.config.hitbox
-        sim_ctx.space.broadcast_damage(
-            ctx.source, ctx.damage, 
-            shape=hb.shape.name, radius=hb.radius, height=hb.height, 
-            width=hb.width, length=hb.length, offset=hb.offset
-        )
+        sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
 
     def _preprocess_reaction_stats(self, ctx: DamageContext):
         for res in ctx.damage.reaction_results:
@@ -184,7 +184,8 @@ class DamageSystem(GameSystem):
         if event.event_type == EventType.BEFORE_DAMAGE:
             char = event.data['character']
             dmg = event.data['damage']
-            ctx = DamageContext(dmg, char)
+            target = event.data.get('target')
+            ctx = DamageContext(dmg, char, target)
             self.pipeline.run(ctx)
             
             if dmg.target:

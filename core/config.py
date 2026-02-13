@@ -54,15 +54,21 @@ class Config:
         return value
 
     @classmethod
-    def set(self, key, value):
+    def set(cls, key, value):
         """设置配置值
         
         Args:
             key (str): 配置键，支持点分隔符如'project.name'
             value: 要设置的值
         """
+        if cls.config is None:
+            try:
+                Config()
+            except:
+                cls.config = {}
+                
         keys = key.split('.')
-        current = Config.config
+        current = cls.config
         for i, k in enumerate(keys[:-1]):
             if k not in current:
                 current[k] = {}

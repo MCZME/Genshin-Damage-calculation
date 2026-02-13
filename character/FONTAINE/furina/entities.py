@@ -5,6 +5,7 @@ from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape, S
 from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
+from core.mechanics.aura import Element
 from character.FONTAINE.furina.data import (
     ATTACK_DATA, ELEMENTAL_SKILL_DATA, MECHANISM_CONFIG
 )
@@ -87,7 +88,7 @@ class SalonMember(FurinaSummonBase):
         
         # 构造伤害对象，Key 即是 Name
         dmg_obj = Damage(
-            element=("水", 1.0),
+            element=(Element.HYDRO, 1.0),
             damage_multiplier=multiplier * bonus,
             scaling_stat="生命值",
             config=self.attack_config,
@@ -95,7 +96,7 @@ class SalonMember(FurinaSummonBase):
         )
         
         # 注入 element_u (从原生数据读取)
-        dmg_obj.set_element("水", ATTACK_DATA[self.attack_name]["element_u"])
+        dmg_obj.set_element(Element.HYDRO, ATTACK_DATA[self.attack_name]["element_u"])
         
         self.ctx.event_engine.publish(GameEvent(
             EventType.BEFORE_DAMAGE,

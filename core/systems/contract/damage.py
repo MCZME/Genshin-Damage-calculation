@@ -1,16 +1,6 @@
-from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Tuple, Union
 from core.systems.contract.attack import AttackConfig
-
-class DamageType(Enum):
-    """旧版伤害类型映射 (V2.4 推荐使用 AttackCategory)。"""
-    NORMAL = auto()
-    CHARGED = auto()
-    PLUNGING = auto()
-    SKILL = auto()
-    BURST = auto()
-    REACTION = auto()
-    ADDITIONAL = auto()
+from core.mechanics.aura import Element
 
 class Damage:
     """
@@ -22,14 +12,14 @@ class Damage:
 
     def __init__(
         self,
-        element: Tuple[str, float] = ("无", 1.0),
+        element: Tuple[Element, float] = (Element.NONE, 1.0),
         damage_multiplier: Union[float, List[float]] = 0.0,
         scaling_stat: str = "攻击力",
         config: Optional[AttackConfig] = None,
         name: str = "Unknown Damage"
     ) -> None:
         """初始化伤害对象。"""
-        self.element: Tuple[str, float] = element
+        self.element: Tuple[Element, float] = element
         self.damage_multiplier: Union[float, List[float]] = damage_multiplier
         self.scaling_stat: str = scaling_stat
         self.config: AttackConfig = config if config else AttackConfig()
@@ -55,9 +45,9 @@ class Damage:
         """修改伤害计算所依赖的属性名称 (如 '生命值')。"""
         self.scaling_stat = scaling_stat
 
-    def set_element(self, element_name: str, element_u: float = 1.0) -> None:
+    def set_element(self, element: Element, element_u: float = 1.0) -> None:
         """修改伤害的元素属性。"""
-        self.element = (element_name, element_u)
+        self.element = (element, element_u)
 
     def add_data(self, key: str, value: Any) -> None:
         """向伤害对象注入额外的运行时上下文数据。"""

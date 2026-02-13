@@ -1,10 +1,9 @@
 import pytest
 from core.systems.contract.damage import Damage
-from core.action.action_data import AttackConfig
-from core.action.attack_tag_resolver import AttackCategory
+from core.systems.contract.attack import AttackConfig
 from core.systems.damage_system import DamagePipeline, DamageContext
-from core.event import GameEvent, EventType
-from core.tool import get_current_time
+from core.event import EventType
+from core.mechanics.aura import Element
 
 class TestDamagePipelineUnit:
     def test_snapshot_attributes(self, event_engine, source_entity, target_entity):
@@ -12,7 +11,7 @@ class TestDamagePipelineUnit:
         pipeline = DamagePipeline(event_engine)
         # element, damage_multiplier, scaling_stat, config, name
         dmg = Damage(
-            element=("火", 1.0),
+            element=(Element.PYRO, 1.0),
             damage_multiplier=100.0,
             scaling_stat="攻击力",
             config=AttackConfig(attack_tag="普通攻击1"),
@@ -37,7 +36,7 @@ class TestDamagePipelineUnit:
         """参数化测试防御区计算"""
         pipeline = DamagePipeline(event_engine)
         dmg = Damage(
-            element=("火", 1.0),
+            element=(Element.PYRO, 1.0),
             damage_multiplier=100.0,
             scaling_stat="攻击力",
             config=AttackConfig(attack_tag="普通攻击1"),
@@ -53,9 +52,12 @@ class TestDamagePipelineUnit:
 
     def test_damage_audit_trail(self, event_engine, source_entity, target_entity):
         """测试伤害审计链记录"""
+        from core.config import Config
+        Config.set('emulation.open_critical', False)
+        
         pipeline = DamagePipeline(event_engine)
         dmg = Damage(
-            element=("水", 1.0),
+            element=(Element.HYDRO, 1.0),
             damage_multiplier=200.0,
             scaling_stat="生命值",
             config=AttackConfig(attack_tag="元素战技"),
@@ -83,11 +85,6 @@ class TestDamagePipelineUnit:
         assert "测试增益" in sources
         assert "总和伤害加成区" in sources
         
-        # 验证数值 (生命值 40000 * 200% * (1 + (20+30)/100) * 防御(0.5) * 抗性(0.9))
-        # 40000 * 2.0 * 1.5 * 0.5 * 0.9 = 54000
-        # 注意: 这里的防御和抗性取决于 MockEntity 的默认值
-        # MockEntity: 防御 800, 等级 90 -> coeff = (5*90+500)/(800+5*90+500) = 950 / 1750 = 0.542857
-        # MockEntity: 抗性 10 -> coeff = 1 - 10/100 = 0.9
-        # 40000 * 2.0 * 1.5 * 0.542857 * 0.9 = 58628.556
-        
-        assert pytest.approx(dmg.damage, 0.1) == 58628.6
+        # 验证数值
+        # 预期: 40000 * 2.0 * 1.5 * 0.542857 * 0.9 = 58628.556
+        assert dmg.damage == pytest.approx(58628.6, abs=0.1)

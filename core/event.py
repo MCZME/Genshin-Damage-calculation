@@ -178,9 +178,13 @@ class CharacterSwitchEvent(GameEvent):
 
 @dataclass
 class ElementalReactionEvent(GameEvent):
+    target: Any = None
     elemental_reaction: Any = None
     def __post_init__(self):
-        self.data["elementalReaction"] = self.elemental_reaction
+        self.data.update({
+            "target": self.target,
+            "elementalReaction": self.elemental_reaction
+        })
 
 @dataclass
 class HurtEvent(GameEvent):

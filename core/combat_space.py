@@ -1,6 +1,7 @@
 import math
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from core.mechanics.aura import Element
 from core.systems.contract.attack import AOEShape
 from core.entities.base_entity import CombatEntity, EntityState, Faction
 
@@ -208,6 +209,40 @@ class CombatSpace:
             if not damage.target:
                 damage.set_target(t)
             t.handle_damage(damage)
+
+    def broadcast_element(
+        self, 
+        source: CombatEntity, 
+        element: "Element", 
+        u_value: float, 
+        origin: Tuple[float, float],
+        radius: float,
+        exclude_target: Optional[CombatEntity] = None
+    ) -> None:
+        """在特定位置发起元素广播 (用于扩散传播等)。
+
+        Args:
+            source: 广播源实体。
+            element: 传播的元素类型。
+            u_value: 初始元素量。
+            origin: 广播中心点 (X, Z)。
+            radius: 广播半径。
+            exclude_target: 需要排除的目标 (通常是触发反应的原目标)。
+        """
+        hit_count = 0
+        for faction in Faction:
+            targets = self.get_entities_in_range(origin, radius, faction)
+            for t in targets:
+                if t == exclude_target or not t.is_active:
+                    continue
+                t.aura.apply_element(element, u_value)
+                hit_count += 1
+
+        from core.logger import get_emulation_logger
+        get_emulation_logger().log_info(
+            f"元素广播: {element.value} ({u_value}U), 半径 {radius}m, 命中 {hit_count} 个目标", 
+            sender="Physics"
+        )
 
     def _find_closest(self, origin: Tuple[float, float], faction: Faction) -> Optional[CombatEntity]:
         """寻找距离指定点最近的阵营实体。"""

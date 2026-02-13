@@ -7,6 +7,7 @@ from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
 from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
+from core.mechanics.aura import Element
 from character.FONTAINE.furina.data import (
     ACTION_FRAME_DATA, ATTACK_DATA, MECHANISM_CONFIG,
     NORMAL_ATTACK_DATA, ELEMENTAL_SKILL_DATA, ELEMENTAL_BURST_DATA
@@ -104,13 +105,13 @@ class FurinaElementalSkill(SkillBase):
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         if self.caster.action_manager.current_action.data.attack_config:
             dmg_obj = Damage(
-                element=("水", 1.0),
+                element=(Element.HYDRO, 1.0),
                 damage_multiplier=self.caster.action_manager.current_action.data.damage_multiplier,
                 scaling_stat="生命值",
                 config=self.caster.action_manager.current_action.data.attack_config,
                 name="荒性泡沫伤害"
             )
-            dmg_obj.set_element("水", ATTACK_DATA["元素战技"]["element_u"])
+            dmg_obj.set_element(Element.HYDRO, ATTACK_DATA["元素战技"]["element_u"])
             self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
                                                       source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
 
@@ -168,13 +169,13 @@ class FurinaElementalBurst(EnergySkill):
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         dmg_obj = Damage(
-            element=("水", 1.0),
+            element=(Element.HYDRO, 1.0),
             damage_multiplier=ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],
             scaling_stat="生命值",
             config=self.caster.action_manager.current_action.data.attack_config,
             name="万众狂欢伤害"
         )
-        dmg_obj.set_element("水", ATTACK_DATA["元素爆发"]["element_u"])
+        dmg_obj.set_element(Element.HYDRO, ATTACK_DATA["元素爆发"]["element_u"])
         self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
                                                   source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
 

@@ -165,6 +165,16 @@ class CombatEntity(BaseEntity):
         """[接口] 处理受伤/扣血。由子类实现具体逻辑。"""
         pass
 
+    def add_effect(self, effect: Any) -> None:
+        """[接口] 向实体挂载一个效果。"""
+        if effect not in self.active_effects:
+            self.active_effects.append(effect)
+
+    def remove_effect(self, effect: Any) -> None:
+        """[接口] 从实体移除一个效果。"""
+        if effect in self.active_effects:
+            self.active_effects.remove(effect)
+
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。
 
@@ -176,7 +186,8 @@ class CombatEntity(BaseEntity):
         """
         # 1. 检查 ICD (通过 AttackConfig 标签与来源判定)
         tag = getattr(damage.config, "icd_tag", "Default")
-        multiplier = self.icd_manager.check_attachment(damage.source, tag)
+        group = getattr(damage.config, "icd_group", "Default")
+        multiplier = self.icd_manager.check_attachment(damage.source, tag, group)
         
         if multiplier <= 0:
             return []
@@ -185,9 +196,21 @@ class CombatEntity(BaseEntity):
         final_u = damage.element[1] * multiplier
         results = self.aura.apply_element(damage.element[0], final_u)
         
-        # 3. 反馈至伤害流水线
+        # 3. 反馈至伤害流水线并发布事件
+        from core.event import ElementalReactionEvent, EventType
+        from core.tool import get_current_time
+        
         if hasattr(damage, "reaction_results"):
             damage.reaction_results.extend(results)
+            
+        for res in results:
+            self.event_engine.publish(ElementalReactionEvent(
+                event_type=EventType.AFTER_ELEMENTAL_REACTION,
+                frame=get_current_time(),
+                source=damage.source,
+                target=self,
+                elemental_reaction=res
+            ))
             
         return results
 
