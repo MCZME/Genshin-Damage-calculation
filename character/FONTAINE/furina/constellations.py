@@ -3,7 +3,7 @@ from typing import Any
 from core.effect.common import ConstellationEffect
 from core.effect.base import BaseEffect
 from core.event import EventType, GameEvent
-from core.action.healing import Healing, HealingType
+from core.systems.contract.healing import Healing, HealingType
 from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
 from core.tool import get_current_time
 from core.systems.utils import AttributeCalculator

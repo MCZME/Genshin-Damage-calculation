@@ -6,9 +6,9 @@ from character.INAZUMA.inazuma import Inazuma
 from core.event import ChargedAttackEvent, DamageEvent EventHandler, EventType, HealEvent, HurtEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.BaseObject import baseObject
-from core.action.healing import Healing, HealingType
+from core.systems.contract.healing import Healing, HealingType
 
 class NormalAttack(NormalAttackSkill):
     def __init__(self, lv):

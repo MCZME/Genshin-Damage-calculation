@@ -46,7 +46,7 @@ class Target(CombatEntity):
         具体的伤害数值扣除逻辑由 HealthSystem 监听事件处理。
 
         Args:
-            damage: 伤害对象 (core.action.damage.Damage)。
+            damage: 伤害对象 (core.systems.contract.damage.Damage)。
         """
         # 1. 尝试触发元素附着 (Aura Application)
         self.apply_elemental_aura(damage)

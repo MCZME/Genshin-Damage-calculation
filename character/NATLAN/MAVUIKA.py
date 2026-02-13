@@ -5,7 +5,7 @@ from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, ConstellationEffect, DashSkill, ElementalEnergy, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from core.BaseObject import baseObject
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy

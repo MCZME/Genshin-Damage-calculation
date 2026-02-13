@@ -2,8 +2,9 @@ from typing import Any, Dict, List, Optional
 
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import NormalAttackSkill, ChargedAttackSkill, PlungingAttackSkill
-from core.action.action_data import ActionFrameData, AttackConfig, HitboxConfig, AOEShape
-from core.action.damage import Damage
+from core.action.action_data import ActionFrameData
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
+from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from character.FONTAINE.furina.data import (

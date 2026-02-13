@@ -1,7 +1,7 @@
 import pytest
 from core.context import create_context
 from core.target import Target
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType
 from core.tool import get_current_time

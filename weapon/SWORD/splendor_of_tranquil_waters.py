@@ -62,7 +62,7 @@ class STWElementSkillBoostEffect(BaseEffect, EventHandler):
     def handle_event(self, event: GameEvent):
         if event.data["character"] == self.owner:
             damage = event.data["damage"]
-            from core.action.damage import DamageType
+            from core.systems.contract.damage import DamageType
             d_type = getattr(damage, "damage_type", getattr(damage, "damage_type", None))
             if d_type == DamageType.SKILL:
                 damage.panel["伤害加成"] += self.bonus * self.stack

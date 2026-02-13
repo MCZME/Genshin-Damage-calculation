@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
-from core.action.healing import Healing
+from core.systems.contract.healing import Healing
 from core.context import EventEngine
 from core.event import EventType, GameEvent, HealEvent, HurtEvent
 from core.logger import get_emulation_logger

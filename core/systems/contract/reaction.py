@@ -68,4 +68,3 @@ REACTION_CLASSIFICATION: Dict[ElementalReactionType, ReactionCategory] = {
     ElementalReactionType.BURNING: ReactionCategory.STATUS,
     ElementalReactionType.CRYSTALLIZE: ReactionCategory.STATUS,
 }
-

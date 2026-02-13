@@ -1,5 +1,5 @@
 from core.entities.base_entity import CombatEntity, Faction
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.mechanics.aura import Element
 from core.tool import summon_energy
 

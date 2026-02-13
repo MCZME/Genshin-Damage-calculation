@@ -1,8 +1,8 @@
 from typing import Any
 from core.effect.common import TalentEffect, ConstellationEffect
 from core.event import EventType, EventHandler, GameEvent
-from core.action.healing import HealingType
-from core.action.damage import Damage, DamageType
+from core.systems.contract.healing import HealingType
+from core.systems.contract.damage import Damage, DamageType
 from core.effect.stat_modifier import AttackBoostEffect
 from core.team import Team
 from core.tool import GetCurrentTime
@@ -116,8 +116,8 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                 self._trigger_coordination(damage.target)
 
     def _trigger_coordination(self, target):
-        from core.action.damage import DamageType
-        from core.action.healing import Healing, HealingType
+        from core.systems.contract.damage import DamageType
+        from core.systems.contract.healing import Healing, HealingType
         from core.event import DamageEvent, HealEvent
         
         co_dmg = Damage(180, ('冰', 1), DamageType.BURST, '命座6协同伤害')

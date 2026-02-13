@@ -1,24 +1,15 @@
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 import random
 
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import GameEvent, DamageEvent, EventType
-from core.action.damage import Damage
+from core.systems.contract.damage import Damage
+from core.systems.contract.modifier import ModifierRecord
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
-
-
-@dataclass
-class ModifierRecord:
-    """伤害修幅记录条目。"""
-    source: str      # 来源 (如 "芙宁娜-气氛值", "基础攻击力")
-    stat: str        # 属性名 (如 "伤害加成")
-    value: float     # 数值
-    op: str = "ADD"  # 操作: ADD, MULT, SET
 
 
 class DamageContext:
@@ -54,6 +45,9 @@ class DamagePipeline:
 
     def run(self, ctx: DamageContext):
         self._snapshot(ctx)
+        
+        # 建立 source 引用
+        ctx.damage.set_source(ctx.source)
         
         self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, get_current_time(), 
                                       source=ctx.source, data={"damage_context": ctx}))

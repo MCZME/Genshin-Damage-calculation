@@ -1,5 +1,5 @@
 from core.context import get_context
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 
 from core.event import EventHandler, EventType
 import core.tool as T

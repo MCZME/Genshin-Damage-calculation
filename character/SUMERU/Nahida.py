@@ -7,7 +7,7 @@ from core.event import DamageEvent EventHandler, EventType, GameEvent, NormalAtt
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.effect.BaseEffect import DefenseDebuffEffect, Effect, ElementalMasteryBoostEffect
 
 class NormalAttack(NormalAttackSkill, Infusion):

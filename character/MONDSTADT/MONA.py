@@ -6,7 +6,7 @@ from core.BaseObject import baseObject
 from core.event import DamageEvent EventHandler, EventType
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.effect.BaseEffect import DamageBoostEffect
 
 class NormalAttack(NormalAttackSkill,Infusion):

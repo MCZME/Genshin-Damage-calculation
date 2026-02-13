@@ -4,9 +4,9 @@ from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalE
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, Effect
 from core.BaseObject import ShieldObject, baseObject
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.event import DamageEvent NormalAttackEvent, ShieldEvent, EventHandler, EventType
-from core.action.shield import Shield
+from core.systems.contract.shield import Shield
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
 from core.logger import get_emulation_logger

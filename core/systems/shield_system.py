@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from core.action.shield import ShieldConfig
+from core.systems.contract.shield import ShieldConfig
 from core.effect.common import ShieldEffect
 from core.event import EventType, GameEvent, HurtEvent
 from core.mechanics.aura import Element

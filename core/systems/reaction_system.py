@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.action.damage import Damage, DamageType
-from core.action.reaction import (
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.reaction import (
     ElementalReactionType, 
     ReactionCategory, 
     ReactionResult
@@ -67,7 +67,7 @@ class ReactionSystem(GameSystem):
         
         # 产生燃烧剧变伤害 (倍率 0.25)
         # 燃烧是 AOE 伤害，我们手动调用一次广播
-        from core.action.action_data import AttackConfig, HitboxConfig, AOEShape
+        from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
         
         react_dmg = Damage(
             damage_multiplier=0,

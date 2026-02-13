@@ -8,7 +8,7 @@ from core.event import DamageEvent EventHandler, EventType
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.effect.BaseEffect import Effect, HealthBoostEffect
 
 class NormalAttack(NormalAttackSkill):

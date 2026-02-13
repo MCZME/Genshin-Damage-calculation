@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional
 from core.skills.base import SkillBase
-from core.action.action_data import ActionFrameData, AttackConfig, HitboxConfig, AOEShape, StrikeType
-from core.action.damage import Damage
+from core.action.action_data import ActionFrameData
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape, StrikeType
+from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 

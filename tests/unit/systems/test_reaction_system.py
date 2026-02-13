@@ -1,7 +1,7 @@
 import pytest
 from core.context import create_context
-from core.action.damage import Damage, DamageType
-from core.action.reaction import ReactionResult, ElementalReactionType, ReactionCategory
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.reaction import ReactionResult, ElementalReactionType, ReactionCategory
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType, EventHandler
 from core.tool import get_current_time

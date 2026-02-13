@@ -1,8 +1,8 @@
 import pytest
 from core.context import create_context
 from core.entities.base_entity import Faction, CombatEntity
-from core.action.damage import Damage, DamageType
-from core.action.action_data import AttackConfig, HitboxConfig, AOEShape
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
 from core.mechanics.aura import Element
 from core.entities.elemental_entities import DendroCoreEntity
 from core.systems.damage_system import DamageContext

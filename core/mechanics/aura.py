@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.action.reaction import (
+from core.systems.contract.reaction import (
     REACTION_CLASSIFICATION,
     ElementalReactionType,
     ReactionCategory,

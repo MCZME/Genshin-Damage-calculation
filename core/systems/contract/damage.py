@@ -1,5 +1,16 @@
+from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Tuple, Union
-from core.action.action_data import AttackConfig
+from core.systems.contract.attack import AttackConfig
+
+class DamageType(Enum):
+    """旧版伤害类型映射 (V2.4 推荐使用 AttackCategory)。"""
+    NORMAL = auto()
+    CHARGED = auto()
+    PLUNGING = auto()
+    SKILL = auto()
+    BURST = auto()
+    REACTION = auto()
+    ADDITIONAL = auto()
 
 class Damage:
     """
@@ -25,11 +36,16 @@ class Damage:
         self.name: str = name
 
         # 运行时状态
+        self.source: Any = None
         self.target: Any = None
         self.damage: float = 0.0
         self.is_crit: bool = False
         self.reaction_results: List[Any] = []
         self.data: Dict[str, Any] = {}
+
+    def set_source(self, source: Any) -> None:
+        """设置伤害来源实体。"""
+        self.source = source
 
     def set_target(self, target: Any) -> None:
         """设置伤害的命中目标。"""

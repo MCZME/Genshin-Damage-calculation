@@ -1,8 +1,8 @@
 from typing import Any
 
 from core.entities.base_entity import CombatEntity, Faction
-from core.action.action_data import AttackConfig, HitboxConfig, AOEShape, StrikeType
-from core.action.damage import Damage
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape, StrikeType
+from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from character.FONTAINE.furina.data import (
@@ -159,7 +159,7 @@ class SingerOfManyWaters(FurinaSummonBase):
         perc, flat = mult_info[1][self.skill_lv - 1]
         
         # 构造规范治疗
-        from core.action.healing import Healing, HealingType
+        from core.systems.contract.healing import Healing, HealingType
         heal_obj = Healing(base_multiplier=(perc, flat), healing_type=HealingType.SKILL, name="众水的歌者治疗")
         heal_obj.set_scaling_stat("生命值")
         

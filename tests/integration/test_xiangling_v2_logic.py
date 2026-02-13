@@ -3,7 +3,7 @@ from core.context import create_context
 from core.team import Team
 from character.LIYUE.xiangling import XIANG_LING
 from core.entities.base_entity import Faction, CombatEntity
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.mechanics.aura import Element
 
 class MockTarget(CombatEntity):

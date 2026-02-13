@@ -1,8 +1,8 @@
 import pytest
 from core.context import create_context
 from core.systems.damage_system import DamageContext
-from core.action.damage import Damage, DamageType
-from core.action.reaction import ElementalReactionType
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.reaction import ElementalReactionType
 from core.mechanics.aura import Element
 
 class TestElementalReactionsFullFlow:

@@ -12,7 +12,7 @@ class MockAttributeEntity:
         self.faction = Faction.PLAYER
         self.level = 90
         self.facing = 0.0
-        self.attribute_panel = {
+        self.attribute_data = {
             '攻击力': 1000.0,
             '固定攻击力': 0.0,
             '攻击力%': 0.0,
@@ -33,6 +33,7 @@ class MockAttributeEntity:
             '伤害加成': 0.0,
             '元素充能效率': 100.0
         }
+        self.attribute_panel = self.attribute_data.copy()
         self.current_resistance = {k: 10.0 for k in ['火', '水', '雷', '草', '冰', '岩', '风', '物理']}
         self.aura = AuraManager()
         self.icd_manager = ICDManager(self)
@@ -53,7 +54,8 @@ class MockAttributeEntity:
     def apply_elemental_aura(self, damage: Any) -> list:
         # 1. 检查 ICD
         tag = getattr(damage.config, 'icd_tag', 'Default')
-        multiplier = self.icd_manager.check_attachment(damage.source, tag)
+        group = getattr(damage.config, 'icd_group', 'Default')
+        multiplier = self.icd_manager.check_attachment(damage.source, tag, group)
         if multiplier <= 0: return []
         
         # 2. 调用 AuraManager

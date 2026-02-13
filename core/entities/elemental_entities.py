@@ -1,7 +1,7 @@
 from typing import Any, List, Optional, Tuple
 
-from core.action.damage import Damage, DamageType
-from core.action.reaction import ElementalReactionType
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.reaction import ElementalReactionType
 from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
 from core.event import DamageEvent, EventType
@@ -101,7 +101,7 @@ class DendroCoreEntity(CombatEntity):
         """发布范围伤害事件。"""
         dmg = self._create_react_damage(name, multiplier, element)
         # 手动执行一次 AOE 广播
-        from core.action.action_data import AttackConfig, HitboxConfig, AOEShape
+        from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
         dmg.config = AttackConfig(
             hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=radius)
         )
@@ -166,7 +166,7 @@ class CrystalShardEntity(CombatEntity):
     def _on_picked_up(self, player: Any) -> None:
         """被玩家拾取时的逻辑。"""
         from core.systems.shield_system import ShieldSystem
-        from core.action.shield import ShieldConfig
+        from core.systems.contract.shield import ShieldConfig
         
         shield_sys = self.ctx.get_system(ShieldSystem)
         if shield_sys:

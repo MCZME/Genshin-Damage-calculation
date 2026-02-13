@@ -1,8 +1,9 @@
 from typing import Any
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import NormalAttackSkill
-from core.action.damage import Damage, DamageType
-from core.action.action_data import ActionFrameData, AttackConfig
+from core.systems.contract.damage import Damage, DamageType
+from core.action.action_data import ActionFrameData
+from core.systems.contract.attack import AttackConfig
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType
 from character.LIYUE.xiangling.entities import GuobaEntity, PyronadoEntity

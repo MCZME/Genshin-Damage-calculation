@@ -2,7 +2,7 @@ from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
 from core.event import EventType, EventHandler, GameEvent
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 import core.tool as T
 
 @register_artifact_set("黄金剧团")

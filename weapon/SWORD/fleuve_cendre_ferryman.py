@@ -1,6 +1,6 @@
 from core.context import get_context
 from core.effect.stat_modifier import EnergyRechargeBoostEffect
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 
 from core.event import EventHandler, EventType
 from weapon.weapon import Weapon

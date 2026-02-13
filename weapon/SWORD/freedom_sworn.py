@@ -1,5 +1,5 @@
 from typing import Any
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 from core.event import EventHandler, EventType, GameEvent
 from core.team import Team
 import core.tool as T

@@ -4,7 +4,7 @@ from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEn
 from core.BaseObject import baseObject
 from core.effect.BaseEffect import AttackBoostEffect, DamageBoostEffect
 from core.event import ChargedAttackEvent, DamageEvent EventType, GameEvent, HealEvent
-from core.action.healing import Healing, HealingType
+from core.systems.contract.healing import Healing, HealingType
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy

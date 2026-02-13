@@ -1,5 +1,5 @@
 from core.context import get_context
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 from weapon.weapon import Weapon
 from core.event import EventType, EventHandler
 from core.registry import register_weapon

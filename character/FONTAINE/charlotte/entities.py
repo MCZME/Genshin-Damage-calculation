@@ -3,8 +3,8 @@ from core.entities.base_entity import BaseEntity
 from core.event import DamageEvent, HealEvent
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime
-from core.action.damage import Damage, DamageType
-from core.action.healing import Healing, HealingType
+from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.healing import Healing, HealingType
 from core.mechanics.infusion import Infusion
 from core.team import Team
 

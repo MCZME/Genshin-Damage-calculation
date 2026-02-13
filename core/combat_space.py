@@ -1,11 +1,11 @@
 import math
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from core.action.action_data import AOEShape
+from core.systems.contract.attack import AOEShape
 from core.entities.base_entity import CombatEntity, EntityState, Faction
 
 if TYPE_CHECKING:
-    from core.action.damage import Damage
+    from core.systems.contract.damage import Damage
 
 
 class CombatSpace:

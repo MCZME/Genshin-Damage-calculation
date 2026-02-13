@@ -5,9 +5,9 @@ from core.BaseObject import baseObject
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.effect.BaseEffect import AttackValueBoostEffect, ElementalDamageBoostEffect, ElementalInfusionEffect
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent EventHandler, EventType, GameEvent, HealEvent
-from core.action.healing import Healing, HealingType
+from core.systems.contract.healing import Healing, HealingType
 from core.tool import GetCurrentTime
 
 class NormalAttack(NormalAttackSkill):

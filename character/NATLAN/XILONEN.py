@@ -2,9 +2,9 @@ from core.context import get_context
 from character.NATLAN.natlan import Natlan
 from core.base_class import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage, DamageType
 from core.event import DamageEvent EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
-from core.action.healing import Healing, HealingType
+from core.systems.contract.healing import Healing, HealingType
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime, summon_energy
 from core.team import Team

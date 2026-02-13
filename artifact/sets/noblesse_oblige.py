@@ -3,7 +3,7 @@ from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
 from core.event import EventType
-from core.action.damage import DamageType
+from core.systems.contract.damage import DamageType
 
 @register_artifact_set("昔日宗室之仪")
 class NoblesseOblige(BaseArtifactSet):
