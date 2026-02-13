@@ -34,14 +34,7 @@ class SimulationAssembler:
         
         # 2.1 创建角色对象
         team = self.team_factory.create_team(team_list_cfg)
-
-        # 2.2 [NEW] 设置角色初始坐标
-        # 注意：TeamFactory 返回的是 Team 实例，其实际角色列表在 .team 属性中
-        for idx, char_inst in enumerate(team.team):
-            if idx < len(team_list_cfg):
-                char_cfg = team_list_cfg[idx]
-                pos = char_cfg.get("position", {"x": 0, "y": 0, "z": 0})
-                char_inst.set_position(pos.get("x", 0), pos.get("z", 0))
+        ctx.team = team
 
         # 3. 组装受击目标 (Enemy)
         target_cfg_list = context_cfg.get("targets", [])

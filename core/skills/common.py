@@ -245,6 +245,10 @@ class SkipSkill(SkillBase):
     通用跳过/等待组件。
     用于在动作序列中插入一段空闲时间。
     """
+
+    def __init__(self, lv: int = 1, caster: Any = None):
+        super().__init__(lv, caster)
+        
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
         frames = intent.get("frames", 1) if intent else 1
         return ActionFrameData(

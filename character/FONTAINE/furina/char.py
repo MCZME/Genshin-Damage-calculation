@@ -86,9 +86,7 @@ class Furina(Fontaine):
             },
             "plunging_attack": {
                 "label": "下落攻击",
-                "params": [
-                    {"key": "is_high", "label": "高空", "type": "bool", "default": False}
-                ]
+                "params": []
             },
             "elemental_skill": {
                 "label": "元素战技",

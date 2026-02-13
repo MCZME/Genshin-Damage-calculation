@@ -59,6 +59,10 @@ class TeamFactory:
             base_data=base_stats
         )
 
+        # [V2.4 新增] 设置初始物理坐标
+        pos = data.get("position", {"x": 0, "z": 0})
+        character.set_position(pos.get("x", 0), pos.get("z", 0))
+
         # 5. 组装武器 (支持从外层或嵌套层获取)
         weapon_data = data.get("weapon")
         if weapon_data:
@@ -121,5 +125,11 @@ class TeamFactory:
             '时之沙': ArtifactPiece.Sands_of_Eon,
             '空之杯': ArtifactPiece.Goblet_of_Eonothem,
             '理之冠': ArtifactPiece.Circlet_of_Logos,
+            # 兼容 UI 传参
+            'flower': ArtifactPiece.Flower_of_Life,
+            'feather': ArtifactPiece.Plume_of_Death,
+            'sands': ArtifactPiece.Sands_of_Eon,
+            'goblet': ArtifactPiece.Goblet_of_Eonothem,
+            'circlet': ArtifactPiece.Circlet_of_Logos,
         }
         return mapping.get(slot_name)

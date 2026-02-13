@@ -178,28 +178,40 @@ class Character(CombatEntity, ABC):
         if skill_obj: data.origin_skill = skill_obj
         return data
 
-    def elemental_skill(self, params: Any = None) -> bool:
-        if self._request_action("elemental_skill", params):
-            self.event_engine.publish(GameEvent(EventType.BEFORE_SKILL, get_current_time(), self, data={"action_name": "elemental_skill"}))
-            return True
-        return False
-
-    def elemental_burst(self, params: Any = None) -> bool:
-        if self._request_action("elemental_burst", params):
-            self.event_engine.publish(GameEvent(EventType.BEFORE_BURST, get_current_time(), self, data={"action_name": "elemental_burst"}))
-            return True
-        return False
+    def perform_action(self, name: str, params: Any = None) -> bool:
+        """[V2.4 核心接口] 直接请求执行动作。"""
+        return self._request_action(name, params)
 
     def _request_action(self, name: str, params: Any = None) -> bool:
+        """核心动作请求入口，负责翻译技能数据并发布对应事件。"""
         action_data = self._get_action_data(name, params)
-        return self.action_manager.request_action(action_data)
-
-    def skip(self, n: int) -> None: self._request_action("skip", n)
-    def dash(self) -> None: self._request_action("dash")
-    def jump(self) -> None: self._request_action("jump")
-    def normal_attack(self, n: int) -> None: self._request_action("normal_attack", n)
-    def charged_attack(self) -> None: self._request_action("charged_attack")
-    def plunging_attack(self, is_high: bool = False) -> None: self._request_action("plunging_attack", is_high)
+        
+        # 1. 向动作管理器请求执行
+        if not self.action_manager.request_action(action_data):
+            return False
+            
+        # 2. 根据动作类型发布对应的标准事件 (V2.4 统一事件流)
+        event_map = {
+            "elemental_skill": EventType.BEFORE_SKILL,
+            "elemental_burst": EventType.BEFORE_BURST,
+            "normal_attack": EventType.BEFORE_NORMAL_ATTACK,
+            "charged_attack": EventType.BEFORE_CHARGED_ATTACK,
+            "plunging_attack": EventType.BEFORE_PLUNGING_ATTACK,
+            "dash": EventType.BEFORE_DASH,
+            "jump": EventType.BEFORE_JUMP,
+            "falling": EventType.BEFORE_FALLING
+        }
+        
+        et = event_map.get(name)
+        if et:
+            self.event_engine.publish(GameEvent(
+                event_type=et,
+                frame=get_current_time(),
+                source=self,
+                data={"action_name": name, "params": params}
+            ))
+            
+        return True
 
     def handle_damage(self, damage: Any) -> None:
         damage.set_target(self)

@@ -121,19 +121,20 @@ class Simulator:
 
         command: ActionCommand = self.actions[self.action_ptr]
         
-        # 从 CombatSpace 中查找对应名称的玩家实体
-        player_entities = self.ctx.space._entities.get(Faction.PLAYER, [])
-        char = next((e for e in player_entities if e.name == command.character_name), None)
+        # 修正：优先从 Team 实例中查找角色，这是最权威的来源
+        char = None
+        if self.ctx.team:
+            char = self.ctx.team.get_character_by_name(command.character_name)
         
         if not char:
             get_emulation_logger().log_error(
-                f"无法找到角色: {command.character_name}, 跳过指令"
+                f"无法找到角色: {command.character_name}, 跳过指令", sender="Simulator"
             )
             self.action_ptr += 1
             return
 
-        # 尝试通过角色内置的动作管理接口执行指令
-        if char.action_manager.request_action_by_name(command.action_type, command.params):
+        # 尝试通过角色提供的统一动作分发接口执行指令
+        if char.perform_action(command.action_type, command.params):
             self.action_ptr += 1
 
     def _is_finished(self) -> bool:
