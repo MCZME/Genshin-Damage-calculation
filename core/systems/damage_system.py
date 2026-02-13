@@ -75,15 +75,15 @@ class DamagePipeline:
         from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
         categories = AttackTagResolver.resolve_categories(ctx.config.attack_tag, ctx.config.extra_attack_tags)
         
-        # 1. 基础面板注入
-        ctx.add_modifier("角色基础面板", "攻击力", AttributeCalculator.get_attack(src), "SET")
-        ctx.add_modifier("角色基础面板", "生命值", AttributeCalculator.get_hp(src), "SET")
-        ctx.add_modifier("角色基础面板", "防御力", AttributeCalculator.get_defense(src), "SET")
-        ctx.add_modifier("角色基础面板", "元素精通", AttributeCalculator.get_mastery(src), "SET")
+        # 1. 基础属性注入 (包含动态加成的最终值快照)
+        ctx.add_modifier("角色面板快照", "攻击力", AttributeCalculator.get_attack(src), "SET")
+        ctx.add_modifier("角色面板快照", "生命值", AttributeCalculator.get_hp(src), "SET")
+        ctx.add_modifier("角色面板快照", "防御力", AttributeCalculator.get_defense(src), "SET")
+        ctx.add_modifier("角色面板快照", "元素精通", AttributeCalculator.get_mastery(src), "SET")
         
-        # 2. 暴击区注入
-        ctx.add_modifier("基础暴击", "暴击率", AttributeCalculator.get_crit_rate(src)*100, "SET")
-        ctx.add_modifier("基础爆伤", "暴击伤害", AttributeCalculator.get_crit_damage(src)*100, "SET")
+        # 2. 暴击区快照
+        ctx.add_modifier("角色面板快照", "暴击率", AttributeCalculator.get_crit_rate(src)*100, "SET")
+        ctx.add_modifier("角色面板快照", "暴击伤害", AttributeCalculator.get_crit_damage(src)*100, "SET")
         
         # 3. 动态增伤区注入
         bonus = AttributeCalculator.get_damage_bonus(src) # 通用全增伤

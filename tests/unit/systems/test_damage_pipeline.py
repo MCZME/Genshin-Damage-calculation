@@ -81,7 +81,7 @@ class TestDamagePipelineUnit:
         audit = dmg.data["audit_trail"]
         sources = [record.source for record in audit]
         
-        assert "角色基础面板" in sources
+        assert "角色面板快照" in sources
         assert "测试增益" in sources
         assert "总和伤害加成区" in sources
         

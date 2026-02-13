@@ -68,8 +68,9 @@ class FurinaFanfareEffect(BaseEffect):
             dmg_ctx = event.data.get("damage_context")
             if dmg_ctx:
                 bonus = self.points * self.dmg_ratio
-                # 使用审计接口注入增益
-                dmg_ctx.add_modifier(source="芙宁娜-气氛值", stat="伤害加成", value=bonus)
+                # 使用审计接口注入增益，包含实时层数信息
+                source_label = f"芙宁娜-气氛值({int(self.points)}层)"
+                dmg_ctx.add_modifier(source=source_label, stat="伤害加成", value=bonus)
                 
         elif event.event_type == EventType.BEFORE_HEAL:
             # 动态注入受治疗加成 (全队有效)

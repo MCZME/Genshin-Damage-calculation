@@ -150,7 +150,8 @@ class CenterOfAttentionEffect(BaseEffect):
                 
                 # [规范化附魔]
                 # C6 附魔优先级最高且不可被覆盖
-                dmg_ctx.damage.set_element("水", 1.0) 
+                from core.mechanics.aura import Element
+                dmg_ctx.damage.set_element(Element.HYDRO, 1.0) 
 
         elif event.event_type == EventType.AFTER_DAMAGE:
             dmg = event.data.get("damage")
