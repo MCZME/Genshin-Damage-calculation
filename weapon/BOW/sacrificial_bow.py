@@ -1,5 +1,6 @@
+from core.context import get_context
 import random
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from core.logger import get_emulation_logger
 import core.tool as T
 from weapon.weapon import Weapon
@@ -15,7 +16,7 @@ class SacrificialBow(Weapon,EventHandler):
         self.chance = [0.4,0.5,0.6,0.7,0.8]
 
     def skill(self):
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_SKILL:
@@ -25,3 +26,4 @@ class SacrificialBow(Weapon,EventHandler):
                         self.last_tigger_time = T.get_current_time()
                         self.character.Skill.last_use_time = -9999
                         get_emulation_logger().log_skill_use("⌚" + self.character.name + f" 触发{self.name}")
+

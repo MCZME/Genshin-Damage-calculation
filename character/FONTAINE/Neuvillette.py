@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.FONTAINE.fontaine import Fontaine
 from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import ArkheObject, baseObject
 from core.action.damage import Damage, DamageType
-from core.event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
+from core.event import DamageEvent EventHandler, EventType, HealEvent, HurtEvent, NormalAttackEvent
 from core.action.healing import Healing, HealingType
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -24,7 +25,7 @@ class NormalAttack(NormalAttackSkill):
         self.last_attach_time = 0  # 上次元素附着时间(帧数)
 
     def _apply_segment_effect(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         # 计算是否应该附着元素
         should_attach = False
         
@@ -56,7 +57,7 @@ class NormalAttack(NormalAttackSkill):
         
         # 发布伤害事件
         damage_event = DamageEvent(self.caster, target, damage, current_time)
-        EventBus.publish(damage_event)
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击事件
         normal_attack_event = NormalAttackEvent(
@@ -66,7 +67,7 @@ class NormalAttack(NormalAttackSkill):
             damage=damage,
             segment=self.current_segment+1
         )
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
 class ChargedAttack(ChargedAttackSkill):
     def __init__(self, lv, total_frames=212, cd=0):
@@ -103,7 +104,7 @@ class ChargedAttack(ChargedAttackSkill):
         if self.current_frame == 11:
             heal = Healing(self.heal_per_droplet*self.source_water_droplet,HealingType.PASSIVE,name='源水之滴')
             heal.base_value = '生命值'
-            EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
+            get_context().event_engine.publish(HealEvent(self.caster,self.caster,heal,get_current_time()))
             
         if self.current_frame in [i + self.hit_frame for i in self.interval]:
             damage = Damage(
@@ -113,12 +114,12 @@ class ChargedAttack(ChargedAttackSkill):
                 name='衡平推裁'
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
         if self.current_frame in [i + self.hit_frame for i in self.hp_cost_interval] and self.caster.currentHP/self.caster.maxHP > 0.5:
-            EventBus.publish(HurtEvent(self.caster,self.caster, 
+            get_context().event_engine.publish(HurtEvent(self.caster,self.caster, 
                                        self.hp_cost_per_half_second * self.caster.maxHP/100, 
-                                       GetCurrentTime()))
+                                       get_current_time()))
         
         if self.current_frame % 60 == 0 and self.current_frame > self.hit_frame:
             self.update_c6()
@@ -127,7 +128,7 @@ class ChargedAttack(ChargedAttackSkill):
             self.apply_c6_damage(target)
 
     def set_element_attach(self):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         # 重击伤害元素附着判断
         should_attach = False
         if self.sequence_pos < len(self.attach_sequence):
@@ -160,7 +161,7 @@ class ChargedAttack(ChargedAttackSkill):
                         self.hp_cost_interval.append(self.hp_cost_interval[-1]+0.5*60)
                     heal = Healing(self.heal_per_droplet,HealingType.PASSIVE,name='源水之滴')
                     heal.base_value = '生命值'
-                    EventBus.publish(HealEvent(self.caster,self.caster,heal,GetCurrentTime()))
+                    get_context().event_engine.publish(HealEvent(self.caster,self.caster,heal,get_current_time()))
                     break                   
 
     def apply_c6_damage(self, target):
@@ -172,7 +173,7 @@ class ChargedAttack(ChargedAttackSkill):
                 name='衡平推裁_洪流'
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
     def on_finish(self):
         return super().on_finish()
@@ -198,7 +199,7 @@ class ElementalSkill(SkillBase):
         return True
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         logger = get_emulation_logger()
         
         if self.current_frame == 23:
@@ -210,7 +211,7 @@ class ElementalSkill(SkillBase):
                 name=self.name
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, current_time))
             
             # 生成3枚源水之滴
             for _ in range(3):
@@ -265,7 +266,7 @@ class ElementalBurst(EnergySkill):
         }
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         logger = get_emulation_logger()
         
         # 初始爆发伤害 (95帧)
@@ -278,7 +279,7 @@ class ElementalBurst(EnergySkill):
                 name=self.name
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, current_time))
             
         # 第一道水瀑 (135帧)
         elif self.current_frame == 135:
@@ -290,7 +291,7 @@ class ElementalBurst(EnergySkill):
                 name=f"{self.name}-水瀑"
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, current_time))
             
         # 第二道水瀑 (154帧)
         elif self.current_frame == 154:
@@ -302,7 +303,7 @@ class ElementalBurst(EnergySkill):
                 name=f"{self.name}-水瀑"
             )
             damage.setBaseValue('生命值')
-            EventBus.publish(DamageEvent(self.caster, target, damage, current_time))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, current_time))
             
         if self.current_frame in [94, 135, 152]:
             for _ in range(2):
@@ -337,8 +338,8 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
     def apply(self, character):
         super().apply(character)
 
-        EventBus.subscribe(EventType.AFTER_ELEMENTAL_REACTION,self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
+        get_context().event_engine.subscribe(EventType.AFTER_ELEMENTAL_REACTION,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER,self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_ELEMENTAL_REACTION:
@@ -390,7 +391,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         self.character.attributePanel['水元素伤害加成'] += self.hydro_dmg_bonus
         self.last_hydro_dmg_bonus = self.hydro_dmg_bonus
         
-        EventBus.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_HEALTH_CHANGE:
@@ -413,7 +414,7 @@ class ConstellationEffect_1(ConstellationEffect,EventHandler):
     def apply(self, character):
         super().apply(character)
         if self.character.level >=20:
-            EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+            get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH:
@@ -430,7 +431,7 @@ class ConstellationEffect_2(ConstellationEffect,EventHandler):
     def apply(self, character):
         super().apply(character)
         if self.character.level >=20:
-            EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+            get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_CRITICAL_BRACKET:
@@ -465,15 +466,15 @@ class ConstellationEffect_4(ConstellationEffect):
     def apply(self, character):
         super().apply(character)
 
-        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_HEAL:
             if event.data['healing'].target == self.character and self.character.on_field:
-                if GetCurrentTime() - self.last_heal_time > self.cd:
+                if get_current_time() - self.last_heal_time > self.cd:
                     SourceWaterDroplet(self.character).apply()
                     get_emulation_logger().log("CONSTELLATION",f"🌊 {self.character.name} 悲悯的冠冕触发")
-                    self.last_heal_time = GetCurrentTime()
+                    self.last_heal_time = get_current_time()
 
 class ConstellationEffect_5(ConstellationEffect):
     """公理的决裁"""
@@ -529,3 +530,4 @@ Neuvillette_table = {
     'skill': {},
     'burst': {}
 }
+

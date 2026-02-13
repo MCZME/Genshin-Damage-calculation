@@ -1,10 +1,11 @@
+from core.context import get_context
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, DashSkill, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.logger import get_emulation_logger
 from core.effect.BaseEffect import Effect
 from core.action.damage import Damage, DamageType
-from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
+from core.event import ChargedAttackEvent, DamageEvent EventHandler, NightSoulChangeEvent, NormalAttackEvent, PlungingAttackEvent, EventType
 from core.tool import GetCurrentTime, summon_energy
 
 class VaresaNormalAttack(NormalAttackSkill,Infusion):
@@ -63,18 +64,18 @@ class VaresaNormalAttack(NormalAttackSkill,Infusion):
                 damageType=DamageType.NORMAL,
                 name=f'{self.name} 第{self.current_segment+1}段'
             )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击事件（后段）
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
         )
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
 class VaresaPlungingAttackSkill(PlungingAttackSkill):
     def __init__(self, lv, total_frames=34, cd=0):
@@ -114,8 +115,8 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             self.damageMultipiler = self.damageMultipiler
             
         self.height_type = '高空' if is_high else '低空'
-        event = PlungingAttackEvent(self.caster, frame=GetCurrentTime())
-        EventBus.publish(event)
+        event = PlungingAttackEvent(self.caster, frame=get_current_time())
+        get_context().event_engine.publish(event)
         return True
 
     def _apply_impact_damage(self, target):
@@ -146,10 +147,10 @@ class VaresaPlungingAttackSkill(PlungingAttackSkill):
             f'夜魂·{damage_type_key}' if not passion_effect else f'炽热激情·夜魂·{damage_type_key}'
         )
         damage.setDamageData('夜魂伤害',True)
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
-        EventBus.publish(PlungingAttackEvent(self.caster, frame=GetCurrentTime(), before=False))
+        get_context().event_engine.publish(PlungingAttackEvent(self.caster, frame=get_current_time(), before=False))
         
         # 炽热激情状态下消耗全部夜魂值
         if passion_effect:
@@ -195,8 +196,8 @@ class VaresaChargedAttack(ChargedAttackSkill):
         return True
 
     def _apply_attack(self, target):
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
+        get_context().event_engine.publish(event)
         
         clamped_lv = min(max(self.lv, 1), 15) - 1
         passion_effect = next((e for e in self.caster.active_effects if isinstance(e, PassionEffect)), None)
@@ -217,11 +218,11 @@ class VaresaChargedAttack(ChargedAttackSkill):
 
         damage.setDamageData('夜魂伤害',True)
         # 发布伤害事件
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
+        get_context().event_engine.publish(event)
 
     def on_frame_update(self, target):
         if self.current_frame == self.hit_frame:
@@ -253,12 +254,12 @@ class RainbowPlungeEffect(Effect, EventHandler):
         if rainbowPlungeEffect:
             rainbowPlungeEffect.duration = self.duration
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         get_emulation_logger().log_effect(f"🌈 {self.character.name}获得{self.name}效果")
         
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         get_emulation_logger().log_effect(f"🌈 {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
@@ -283,12 +284,12 @@ class ChaseEffect(Effect,EventHandler):
             chase.duration = self.duration
             return
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"✨ {self.character.name}获得{self.name}效果")
         
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARGED_ATTACK, self)
         get_emulation_logger().log_effect(f"✨ {self.character.name}的{self.name}效果消失")
         
     def handle_event(self, event):
@@ -319,7 +320,7 @@ class ElementalSkill(SkillBase):
         
     def update_charges(self):
         """更新当前充能次数，基于各充能槽位的冷却状态"""
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         available = 0
         for i in range(self.max_charges):
             if current_time >= self.last_use_time[i] + self.cd:
@@ -333,7 +334,7 @@ class ElementalSkill(SkillBase):
             return False
 
         # 找到第一个可用的充能槽位
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         used_index = -1
         for i in range(self.max_charges):
             if current_time >= self.last_use_time[i] + self.cd:
@@ -390,8 +391,8 @@ class ElementalSkill(SkillBase):
                 damageType=DamageType.SKILL,
                 name=skill_name
             )
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(damage_event)
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(damage_event)
 
             if self.caster.level >= 20:
                 effect = RainbowPlungeEffect(self.caster)
@@ -412,7 +413,7 @@ class PassionEffect(Effect, EventHandler):
         super().__init__(character, duration)
         self.name = '炽热激情'
         self.character = character
-        self.start_time = GetCurrentTime()
+        self.start_time = get_current_time()
         self.msg = f"""
         <p><span style="color: #faf8f0; font-size: 14pt;">{self.character.name} - {self.name}</span></p>
         <p><span style="color: #c0e4e6; font-size: 12pt;">在炽热激情状态下，
@@ -430,20 +431,20 @@ class PassionEffect(Effect, EventHandler):
         if self.character.Skill.current_charges < self.character.Skill.max_charges:
             t = self.character.Skill.last_use_time
             for i in range(len(t)):
-                if GetCurrentTime() < t[i] + self.character.Skill.cd:
-                    t[i] = GetCurrentTime() - self.character.Skill.cd
+                if get_current_time() < t[i] + self.character.Skill.cd:
+                    t[i] = get_current_time() - self.character.Skill.cd
                     break
 
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
-        EventBus.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         get_emulation_logger().log_effect("🔥 进入炽热激情状态！")
         
     def remove(self):
         super().remove()
         self.character.romve_NightSoulBlessing()
-        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
-        EventBus.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_PLUNGING_ATTACK, self)
         get_emulation_logger().log_effect("🔥 炽热激情状态结束！")
         
     def handle_event(self, event):
@@ -480,11 +481,11 @@ class LimitDriveEffect(Effect,EventHandler):
         
         self.character.add_effect(self)
         get_emulation_logger().log_effect("⚡ 进入极限驱动状态！")
-        EventBus.subscribe(EventType.BEFORE_SKILL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_SKILL, self)
         
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.BEFORE_SKILL, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_SKILL, self)
         get_emulation_logger().log_effect("⚡ 极限驱动状态结束！")
 
     def handle_event(self, event):
@@ -534,8 +535,8 @@ class SpecialElementalBurst(EnergySkill):
                 name=self.name,
             )
             damage.setDamageData('夜魂伤害',True)
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(damage_event)
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(damage_event)
         self.caster.movement += 1.627
 
 class ElementalBurst(EnergySkill):
@@ -570,8 +571,8 @@ class ElementalBurst(EnergySkill):
                 name=f'{self.name} {damage_key}',
             )
             damage.setDamageData('夜魂伤害',True)
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(damage_event)
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(damage_event)
                 
             get_emulation_logger().log_effect("⚡ 正义英雄的飞踢！")
         self.caster.movement += 1.09375
@@ -645,7 +646,7 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.NightsoulBurst, self)
+        get_context().event_engine.subscribe(EventType.NightsoulBurst, self)
         
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
@@ -693,16 +694,16 @@ class Varesa(Natlan):
     def gain_night_soul(self, amount):
         """获取夜魂值"""
         actual_amount = min(amount, self.max_night_soul - self.current_night_soul)
-        EventBus.publish(NightSoulChangeEvent(
+        get_context().event_engine.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
         ))
         self.current_night_soul += actual_amount
-        EventBus.publish(NightSoulChangeEvent(
+        get_context().event_engine.publish(NightSoulChangeEvent(
             character=self,
             amount=actual_amount,
-            frame=GetCurrentTime(),
+            frame=get_current_time(),
             before=False
         ))
         existing = next((e for e in self.active_effects 
@@ -725,3 +726,4 @@ Varesa_table = {
     'burst': {},
     'dash' : {}
 }
+

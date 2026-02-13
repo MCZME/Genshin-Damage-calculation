@@ -19,12 +19,14 @@ def get_git_status():
         "pending_changes": status if status else "Clean"
     }
 
-def get_github_issues():
-    cmd = "gh issue list --assignee @me --state open --json number,title,milestone,labels"
+def get_github_issues(assignee=None):
+    assignee_flag = f"--assignee {assignee}" if assignee else ""
+    cmd = f"gh issue list {assignee_flag} --state open --json number,title,milestone,labels"
     result = run_command(cmd)
     if result.startswith("Error") or not result: return result
     try:
         issues = json.loads(result)
+        if not issues: return ""
         return "".join([f"- [#{i['number']}] {i['title']} (Milestone: {i['milestone']['title'] if i['milestone'] else 'None'})\n" for i in issues])
     except: return "Error parsing issues."
 
@@ -64,11 +66,15 @@ def main():
     print("## 2. 🎯 Active Milestones")
     print(get_milestones() or "* No active milestones.\n")
 
-    print("## 3. 🐙 GitHub Issues (Assigned to @me)")
-    issues = get_github_issues()
-    print(issues if issues else "* No open issues assigned.\n")
+    print("## 3. 🐙 Assigned Issues (@me)")
+    assigned = get_github_issues(assignee="@me")
+    print(assigned if assigned else "* No open issues assigned to you.\n")
 
-    print("## 4. 🔀 Active Pull Requests")
+    print("## 4. 🌐 All Open Issues")
+    all_issues = get_github_issues()
+    print(all_issues if all_issues else "* No open issues found.\n")
+
+    print("## 5. 🔀 Active Pull Requests")
     prs = get_github_prs()
     print(prs if prs else "* No active PRs.\n")
 

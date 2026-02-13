@@ -1,135 +1,101 @@
-from typing import List, Optional, Dict, Any, Type
+from typing import Any, List, Optional
+
 from character.character import Character
-from core.effect.stat_modifier import AttackBoostEffect, HealthBoostEffect
-from core.effect.resonance import CreepingGrassEffect, SteadfastStoneEffect, SwiftWindEffect
-from core.event import CharacterSwitchEvent, EventBus
-from core.tool import GetCurrentTime
-from core.context import get_context
+from core.event import CharacterSwitchEvent
+from core.tool import get_current_time
+
 
 class Team:
     """
-    队伍管理类。
-    负责角色编队、切换、共鸣逻辑。
-    实体的物理生存与驱动由 CombatSpace 全权负责。
+    队伍管理类 (逻辑层)。
+    
+    负责角色生命值、能量、冷却状态的全局管理，以及场上角色切换。
+    解耦说明：不再自动将全员注册进 CombatSpace，物理空间应仅感知当前场上角色。
     """
-    def __init__(self, characters: List[Character]):
-        self.team: List[Character] = characters
-        self.current_character: Optional[Character] = characters[0] if characters else None
+
+    def __init__(self, characters: List[Character], context: Any = None):
+        """初始化队伍。
+
+        Args:
+            characters: 参与编队的初始化角色列表。
+            context: 仿真上下文。
+        """
+        self.ctx = context
+        self.members: List[Character] = characters
+        self.active_index: int = 0
         
-        self.active_resonances: Dict[str, bool] = {}
-        self.element_counts: Dict[str, int] = {}
         self.swap_cd: int = 60
         self.swap_cd_timer: int = 0
-        
-        if self.current_character:
-            self.current_character.on_field = True
-            
-        # 自动化注册角色至战斗空间
-        ctx = get_context()
-        for char in self.team:
-            ctx.space.register(char)
-            
-        self._update_element_counts()
-        self._apply_resonance_effects()
 
-    def get_character_by_name(self, name: str) -> Optional[Character]:
-        for char in self.team:
-            if char.name == name: return char
+        # 初始化状态
+        for char in self.members:
+            char.on_field = False
+            
+        if self.members:
+            self.members[0].on_field = True
+
+    @property
+    def current_character(self) -> Optional[Character]:
+        """获取当前活跃角色 (场上角色)。"""
+        if 0 <= self.active_index < len(self.members):
+            return self.members[self.active_index]
         return None
 
-    def _update_element_counts(self) -> None:
-        self.element_counts = {}
-        for char in self.team:
-            self.element_counts[char.element] = self.element_counts.get(char.element, 0) + 1
+    def get_members(self) -> List[Character]:
+        """获取全队成员 (包含后台)。"""
+        return self.members
 
-    def _apply_resonance_effects(self) -> None:
-        for resonance in list(self.active_resonances.keys()):
-            if not self._check_resonance_condition(resonance):
-                self._remove_resonance(resonance)
-        self._check_and_apply_resonance('热诚之火', '火', AttackBoostEffect, 25)
-        self._check_and_apply_resonance('愈疗之水', '水', HealthBoostEffect, 25)
-        self._check_and_apply_resonance('迅捷之风', '风', SwiftWindEffect)
-        self._check_and_apply_resonance('蔓生之草', '草', CreepingGrassEffect)
-        self._check_and_apply_resonance('坚定之岩', '岩', SteadfastStoneEffect)
-        self._handle_special_resonance()
+    def get_character_by_name(self, name: str) -> Optional[Character]:
+        for char in self.members:
+            if char.name == name:
+                return char
+        return None
 
-    def _check_and_apply_resonance(self, name: str, element: str, effect_cls: Type, *args) -> None:
-        if self.element_counts.get(element, 0) >= 2 and len(self.team) >= 4:
-            if name not in self.active_resonances:
-                for char in self.team:
-                    if args: effect = effect_cls(char, char, name, *args, float('inf'))
-                    else: effect = effect_cls(char)
-                    effect.apply()
-                self.active_resonances[name] = True
-
-    def _handle_special_resonance(self) -> None:
-        if self.element_counts.get('雷', 0) >= 2 and len(self.team) >= 4:
-            if '强能之雷' not in self.active_resonances:
-                from core.entities.elemental_entities import LightningBladeObject
-                LightningBladeObject().apply()
-                self.active_resonances['强能之雷'] = True
-        if self.element_counts.get('冰', 0) >= 2 and len(self.team) >= 4:
-            if '粉碎之冰' not in self.active_resonances:
-                from core.entities.combat_entities import ShatteredIceObject
-                ShatteredIceObject().apply()
-                self.active_resonances['粉碎之冰'] = True
-
-    def _check_resonance_condition(self, resonance_name: str) -> bool:
-        mapping = {'热诚之火':'火', '愈疗之水':'水', '强能之雷':'雷', '粉碎之冰':'冰', '迅捷之风':'风', '蔓生之草':'草', '坚定之岩':'岩'}
-        el = mapping.get(resonance_name)
-        return self.element_counts.get(el, 0) >= 2 if el else False
-
-    def _remove_resonance(self, resonance_name: str) -> None:
-        if resonance_name in ['热诚之火', '愈疗之水', '迅捷之风', '蔓生之草', '坚定之岩']:
-             for char in self.team:
-                for eff in [e for e in char.active_effects if e.name == resonance_name]: eff.remove()
-        self.active_resonances.pop(resonance_name, None)
-    
-    def swap(self, action: tuple) -> bool:
-        char_name, method, params = action
-        if self.current_character is None: return False
-        if char_name == self.current_character.name:
-            return self._execute_action(self.current_character, method, params)
-        else:
-            if self.swap_cd_timer == 0:
-                target_char = self.get_character_by_name(char_name)
-                if target_char:
-                    self._perform_switch(target_char)
-                    return self._execute_action(self.current_character, method, params)
-        return False
-
-    def _perform_switch(self, new_char: Character) -> None:
-        EventBus.publish(CharacterSwitchEvent(self.current_character, new_char, frame=GetCurrentTime()))
-        if self.current_character: self.current_character.on_field = False
-        new_char.on_field = True
-        self.current_character = new_char
-        self.swap_cd_timer = self.swap_cd
-
-    def _execute_action(self, char: Character, method: str, params: Any) -> bool:
-        if hasattr(char, method):
-            attr = getattr(char, method)
-            if params is not None: attr(params)
-            else: attr()
+    def swap(self, char_name: str) -> bool:
+        """根据名称请求切换角色。"""
+        if self.swap_cd_timer > 0:
+            return False
+            
+        target = self.get_character_by_name(char_name)
+        if target and target != self.current_character:
+            self._perform_switch(target)
             return True
         return False
 
+    def _perform_switch(self, new_char: Character) -> None:
+        """执行实际的场上角色切换逻辑，并同步物理位置。"""
+        from core.logger import get_emulation_logger
+        old_char = self.current_character
+        
+        # 1. 物理位置同步：新角色继承旧角色的坐标与朝向
+        if old_char:
+            new_char.pos = old_char.pos.copy()
+            new_char.facing = old_char.facing
+            old_char.on_field = False
+            
+        # 2. 逻辑状态变更
+        new_char.on_field = True
+        self.active_index = self.members.index(new_char)
+        self.swap_cd_timer = self.swap_cd
+
+        # 3. 发布事件 (供 CombatSpace 更新物理注册信息)
+        if self.ctx and self.ctx.event_engine:
+            self.ctx.event_engine.publish(
+                CharacterSwitchEvent(old_char, new_char, frame=get_current_time())
+            )
+            
+        get_emulation_logger().log_info(
+            f"切换角色: {old_char.name if old_char else 'None'} -> {new_char.name} (坐标同步完成)", 
+            sender="Team"
+        )
+
     def update(self) -> None:
-        """驱动编队逻辑 (仅包含切换 CD)。实体驱动已外包。"""
+        """驱动编队相关的每帧逻辑。"""
         if self.swap_cd_timer > 0:
             self.swap_cd_timer -= 1
 
-    def add_object(self, obj: Any) -> None:
-        """注册实体到场景"""
-        get_context().space.register(obj)
-
-    def remove_object(self, obj: Any) -> None:
-        """从场景注销实体"""
-        get_context().space.unregister(obj)
-            
     def reset(self) -> None:
-        self.active_resonances.clear()
         self.swap_cd_timer = 0
-        if self.current_character: self.current_character.on_field = False
-        if self.team:
-            self.current_character = self.team[0]
-            self.current_character.on_field = True
+        self.active_index = 0
+        for i, char in enumerate(self.members):
+            char.on_field = (i == 0)

@@ -10,7 +10,7 @@ class AquilaFavonia(Weapon):
         super().__init__(character, AquilaFavonia.ID, level, lv)
 
     def get_data(self, level):
-        l = T.level(level)
+        l = T.get_ascension_index(level)
         self.attribute_data["攻击力"] = self.stats[4+l]
         self.attribute_data["物理伤害加成"] = self.stats[12+l]
     

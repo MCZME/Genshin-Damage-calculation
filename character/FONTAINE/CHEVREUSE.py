@@ -1,9 +1,10 @@
+from core.context import get_context
 from character.FONTAINE.fontaine import Fontaine
 from character.character import CharacterState
 from core.base_class import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import ArkheObject, baseObject
 from core.action.damage import Damage, DamageType
-from core.event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent
+from core.event import DamageEvent, ElementalSkillEvent EventHandler, EventType, GameEvent, HealEvent
 from core.action.healing import Healing, HealingType
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ElementalDamageBoostEffect, ResistanceDebuffEffect
 from core.logger import get_emulation_logger
@@ -55,14 +56,14 @@ class HealingFieldEffect(Effect, EventHandler):
         self.current_char.add_effect(self)
         self._apply_heal(self.current_char)
          # 订阅领域相关事件
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def _apply_heal(self, target):
         """应用治疗逻辑"""
         if not target:
             return
             
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= 120:  # 每秒触发
             lv_index = self.character.Skill.lv - 1
             self.last_heal_time = current_time
@@ -70,7 +71,7 @@ class HealingFieldEffect(Effect, EventHandler):
             heal = Healing(self.multipiler[lv_index], HealingType.SKILL,'近迫式急促拦射')
             heal.base_value = '生命值'
             heal_event = HealEvent(self.character, target, heal, current_time)
-            EventBus.publish(heal_event)
+            get_context().event_engine.publish(heal_event)
 
     def handle_event(self, event: GameEvent):
         """处理角色切换"""
@@ -91,7 +92,7 @@ class HealingFieldEffect(Effect, EventHandler):
 
     def remove(self):
         get_emulation_logger().log_effect("🩺 生命恢复效果消失")
-        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
         super().remove()
 
 class ElementalSkill(SkillBase, EventHandler):
@@ -117,7 +118,7 @@ class ElementalSkill(SkillBase, EventHandler):
            }
         
         # 订阅超载反应事件
-        EventBus.subscribe(EventType.BEFORE_OVERLOAD, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_OVERLOAD, self)
         self.last_arkhe_time = 0  # 记录上次荒性伤害时间
 
     def start(self, caster, hold=False):
@@ -189,8 +190,8 @@ class ElementalSkill(SkillBase, EventHandler):
         if hasattr(self, 'scheduled_damage'):
             damage, trigger_frame = self.scheduled_damage
             if self.current_frame == trigger_frame:
-                event =  DamageEvent(self.caster, target, damage, GetCurrentTime())
-                EventBus.publish(event)
+                event =  DamageEvent(self.caster, target, damage, get_current_time())
+                get_context().event_engine.publish(event)
                 del self.scheduled_damage
                 
                 # 生成流涌之刃
@@ -228,8 +229,8 @@ class DoubleDamageBullet(baseObject):
 
     def on_finish(self,target):
         # 在二重毁伤弹结束时触发伤害
-        event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
-        EventBus.publish(event)
+        event = DamageEvent(self.caster, target, self.damage, get_current_time())
+        get_context().event_engine.publish(event)
         super().on_finish(target)
 
     def on_frame_update(self, target):
@@ -257,7 +258,7 @@ class ElementalBurst(EnergySkill):
         return True
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         
         if self.current_frame == self.skill_frames[0]:
             main_damage = Damage(
@@ -266,7 +267,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=self.name
             )
-            EventBus.publish(DamageEvent(self.caster, target, main_damage, current_time))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, main_damage, current_time))
             
             for i in range(self.split_bullets):
                 damage = Damage(
@@ -306,7 +307,7 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
         if coordinatedTacticsEffect:
             coordinatedTacticsEffect.duration = self.duration
             return
-        EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
+        get_context().event_engine.subscribe(EventType.AFTER_OVERLOAD, self)
         self.current_character.add_effect(self)
 
     def handle_event(self, event: GameEvent):
@@ -326,7 +327,7 @@ class CoordinatedTacticsEffect(Effect, EventHandler):
 
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.AFTER_OVERLOAD, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_OVERLOAD, self)
 
 class PassiveSkillEffect_1(TalentEffect):
     def __init__(self):
@@ -367,7 +368,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_SKILL and event.data['character'] == self.character:
@@ -389,7 +390,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_OVERLOAD, self)
+        get_context().event_engine.subscribe(EventType.AFTER_OVERLOAD, self)
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_OVERLOAD and event.data['elementalReaction'].source != self.character:
@@ -405,7 +406,7 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
         
     def handle_event(self, event: GameEvent):
         if (event.event_type == EventType.AFTER_DAMAGE and event.data['damage'].damageType == DamageType.SKILL and 
@@ -425,9 +426,9 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
                     self.character,
                     event.data['target'],
                     explosion_damage,
-                    GetCurrentTime()
+                    get_current_time()
                 )
-                EventBus.publish(explosion_event)
+                get_context().event_engine.publish(explosion_event)
    
     def update(self, target):
         if self.cooldown > 0:
@@ -537,7 +538,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
         # 在HealingFieldEffect添加12秒后全队治疗
         original_remove = HealingFieldEffect.remove
         def new_remove(self):
@@ -548,8 +549,8 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
                 for c in Team.team:
                     heal = Healing(10, HealingType.SKILL,name='终结罪恶的追缉')
                     heal.base_value = '生命值'
-                    heal_event = HealEvent(self.character, c, heal, GetCurrentTime())
-                    EventBus.publish(heal_event)
+                    heal_event = HealEvent(self.character, c, heal, get_current_time())
+                    get_context().event_engine.publish(heal_event)
         HealingFieldEffect.remove = new_remove
             
     def handle_event(self, event: GameEvent):
@@ -589,8 +590,8 @@ class CHEVREUSE(Fontaine):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self, hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
-            EventBus.publish(skillEvent)
+            skillEvent = ElementalSkillEvent(self,get_current_time())
+            get_context().event_engine.publish(skillEvent)
 
 
 chevreuse_table = {
@@ -606,3 +607,4 @@ chevreuse_table = {
     'skill': {'释放时间':['长按','点按']},
     'burst': {}
 }
+

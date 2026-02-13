@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType
+from core.event import EventType
 from core.action.damage import DamageType
 
 @register_artifact_set("深林的记忆")
@@ -12,9 +13,10 @@ class DeepwoodMemories(BaseArtifactSet):
         pass
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_DAMAGE:
             if event.data["character"] == self.character and event.data["damage"].damage_type in [DamageType.SKILL, DamageType.BURST]:
                 ResistanceDebuffEffect("深林的记忆", self.character, event.data["damage"].target, ["草"], 30, 8*60).apply()
+

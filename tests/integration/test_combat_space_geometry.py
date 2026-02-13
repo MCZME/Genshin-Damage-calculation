@@ -4,7 +4,7 @@ from core.target import Target
 from core.action.damage import Damage, DamageType
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 from core.entities.base_entity import Faction
 
 class TestCombatSpaceGeometry:
@@ -34,7 +34,7 @@ class TestCombatSpaceGeometry:
 
         dmg = Damage(100.0, (Element.PHYSICAL, 0), DamageType.NORMAL, "圆擦边")
         dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 5.0})
-        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker, data={'character': attacker, 'damage': dmg}))
+        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker, data={'character': attacker, 'damage': dmg}))
 
         assert dmg.target == enemy
 
@@ -48,7 +48,7 @@ class TestCombatSpaceGeometry:
 
         dmg = Damage(100.0, (Element.PHYSICAL, 0), DamageType.NORMAL, "矩形命中")
         dmg.data.update({'aoe_shape': 'BOX', 'length': 5.0, 'width': 2.0})
-        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker, data={'character': attacker, 'damage': dmg}))
+        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker, data={'character': attacker, 'damage': dmg}))
 
         assert dmg.target == enemy
 
@@ -62,7 +62,7 @@ class TestCombatSpaceGeometry:
 
         dmg = Damage(100.0, (Element.PHYSICAL, 0), DamageType.NORMAL, "扇形命中")
         dmg.data.update({'aoe_shape': 'SECTOR', 'radius': 5.0, 'fan_angle': 90.0})
-        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker, data={'character': attacker, 'damage': dmg}))
+        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker, data={'character': attacker, 'damage': dmg}))
 
         assert dmg.target == enemy
 
@@ -78,6 +78,6 @@ class TestCombatSpaceGeometry:
         dmg = Damage(100.0, (Element.PHYSICAL, 0), DamageType.NORMAL, "偏移攻击")
         dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 1.0, 'offset': (5.0, 0.0)})
 
-        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker, data={'character': attacker, 'damage': dmg}))
+        sim_ctx.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker, data={'character': attacker, 'damage': dmg}))
 
         assert dmg.target == enemy

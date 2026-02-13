@@ -1,117 +1,183 @@
-from typing import Any
+from typing import Any, Dict, List, Optional
+
 from core.skills.base import SkillBase, EnergySkill
-from core.skills.common import ChargedAttackSkill
-from core.action.damage import Damage, DamageType
-from core.action.action_data import ActionFrameData
-from core.event import EventHandler, EventType, GameEvent, DamageEvent
-from core.tool import GetCurrentTime
-from core.team import Team
-from character.FONTAINE.furina.entities import Usher, Chevalmarin, Crabaletta, Singer
-from character.FONTAINE.furina.talents import UniversalExaltationEffect
+from core.skills.common import NormalAttackSkill, ChargedAttackSkill, PlungingAttackSkill
+from core.action.action_data import ActionFrameData, AttackConfig, HitboxConfig, AOEShape
+from core.action.damage import Damage
+from core.event import GameEvent, EventType
+from core.tool import get_current_time
+from character.FONTAINE.furina.data import (
+    ACTION_FRAME_DATA, ATTACK_DATA, MECHANISM_CONFIG,
+    NORMAL_ATTACK_DATA, ELEMENTAL_SKILL_DATA, ELEMENTAL_BURST_DATA
+)
+from character.FONTAINE.furina.entities import SalonMember, SingerOfManyWaters
+from character.FONTAINE.furina.effects import FurinaFanfareEffect
 
-class SalonSolitaire(SkillBase):
-    """孤心沙龙 (E技能)"""
-    def __init__(self, lv: int):
-        super().__init__("孤心沙龙", 56, 20*60, lv, ('水', 1))
-        self.hit_frame = 18
-        self.damage_multipliers = [7.86, 8.45, 9.04, 9.83, 10.42, 11.01, 11.8, 12.58, 13.37, 14.16, 14.94, 15.73, 16.71, 17.69, 18.68]
 
-    def to_action_data(self) -> ActionFrameData:
-        data = ActionFrameData(name="elemental_skill", total_frames=self.total_frames, hit_frames=[self.hit_frame])
-        setattr(data, "runtime_skill_obj", self)
-        return data
+class FurinaNormalAttack(NormalAttackSkill):
+    """普通攻击：独舞之邀。"""
 
-    def on_execute_hit(self, target: Any, hit_index: int):
-        # 1. 造成瞬间伤害
-        multiplier = self.damage_multipliers[self.lv - 1]
-        damage = Damage(multiplier, ('水', 1), DamageType.SKILL, self.name)
-        damage.set_scaling_stat('生命值')
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+    def __init__(self, lv: int, caster: Any) -> None:
+        super().__init__(lv, caster)
+        self.action_frame_data = ACTION_FRAME_DATA
+        self.attack_data = ATTACK_DATA
+        self.multiplier_data = NORMAL_ATTACK_DATA
+        self.label_map = {
+            "NORMAL_1": "普通攻击1",
+            "NORMAL_2": "普通攻击2",
+            "NORMAL_3": "普通攻击3",
+            "NORMAL_4": "普通攻击4"
+        }
 
-        # 2. 召唤实体 (根据当前荒芒性)
-        if self.caster.arkhe == '芒性':
-            Singer(self.caster, 30*60).apply()
-        else:
-            Usher(self.caster, 30*60).apply()
-            Chevalmarin(self.caster, 30*60).apply()
-            Crabaletta(self.caster, 30*60).apply()
-
-class UniversalRevelry(EnergySkill, EventHandler):
-    """万众狂欢 (Q技能)"""
-    def __init__(self, lv: int):
-        super().__init__("万众狂欢", 113, 15*60, lv, ('水', 1))
-        self.hit_frame = 98
-        self.damage_multipliers = [11.41, 12.26, 13.12, 14.26, 15.11, 15.97, 17.11, 18.25, 19.39, 20.53, 21.67, 22.81, 24.24, 25.66, 27.09]
-        
-        # 气氛值状态
-        self.fanfare_points = 0
-        self.fanfare_max = 300
-        self.fanfare_initial = 0
-        self.fanfare_gain_ratio = 1.0 # 2命会修改此值
-
-    def to_action_data(self) -> ActionFrameData:
-        data = ActionFrameData(name="elemental_burst", total_frames=self.total_frames, hit_frames=[self.hit_frame])
-        setattr(data, "runtime_skill_obj", self)
-        return data
-
-    def on_execute_hit(self, target: Any, hit_index: int):
-        # 1. 初始爆发伤害
-        mult = self.damage_multipliers[self.lv - 1]
-        damage = Damage(mult, ('水', 1), DamageType.BURST, self.name)
-        damage.set_scaling_stat('生命值')
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
-
-        # 2. 开启气氛值收集
-        self.fanfare_points = self.fanfare_initial
-        self.caster.event_engine.subscribe(EventType.AFTER_HEALTH_CHANGE, self)
-        
-        # 3. 应用全队增益效果
-        for member in Team.team:
-            UniversalExaltationEffect(member, self.caster, self).apply()
-
-    def handle_event(self, event: GameEvent):
-        """气氛值增加逻辑"""
-        if event.event_type == EventType.AFTER_HEALTH_CHANGE:
-            # 变化百分比 (1% = 1点)
-            change_pct = abs(event.amount) / event.source.max_hp * 100
-            self.fanfare_points = min(self.fanfare_max, self.fanfare_points + change_pct * self.fanfare_gain_ratio)
-
-    def reset_fanfare(self):
-        self.fanfare_points = 0
-        self.caster.event_engine.unsubscribe(EventType.AFTER_HEALTH_CHANGE, self)
 
 class FurinaChargedAttack(ChargedAttackSkill):
-    """芙宁娜重击：切换始基力"""
-    def __init__(self, lv: int):
-        super().__init__(lv, total_frames=47)
-        self.hit_frame = 32
-        self.damage_multiplier_list = [74.22, 80.26, 86.3, 94.93, 100.97, 107.88, 117.37, 126.86, 136.35, 146.71, 157.07, 167.42, 177.78, 188.13, 198.49]
+    """重击：切换始基力。"""
 
-    def on_execute_hit(self, target: Any, hit_index: int):
-        # 1. 物理伤害
-        mult = self.damage_multiplier_list[self.lv - 1]
-        damage = Damage(mult, ('物理', 0), DamageType.CHARGED, "重击")
-        self.caster.event_engine.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+    def __init__(self, lv: int, caster: Any) -> None:
+        super().__init__(lv, caster)
+        self.action_frame_data = ACTION_FRAME_DATA
+        self.attack_data = ATTACK_DATA
+        self.multiplier_data = NORMAL_ATTACK_DATA
 
-        # 2. 切换始基力
-        old_arkhe = self.caster.arkhe
-        self.caster.arkhe = '芒性' if old_arkhe == '荒性' else '荒性'
+    def on_execute_hit(self, target: Any, hit_index: int) -> None:
+        """命中后执行始基力切换。"""
+        super().on_execute_hit(target, hit_index)
         
-        # 3. 继承召唤物时间并替换
-        self._replace_summons()
+        # 始基力切换逻辑
+        instance = self.caster.action_manager.current_action
+        if instance and instance.elapsed_frames >= MECHANISM_CONFIG["ARKHE_SWITCH_FRAME"]:
+            self.caster.arkhe_mode = "芒" if self.caster.arkhe_mode == "荒" else "荒"
+            self.caster.arkhe = f"{self.caster.arkhe_mode}性"
+            # 同步战技召唤物
+            if "skill" in self.caster.skills:
+                self.caster.skills["skill"].sync_summons()
 
-    def _replace_summons(self):
-        summons = [obj for obj in Team.active_objects if isinstance(obj, (Usher, Chevalmarin, Crabaletta, Singer))]
-        if not summons: return
+
+class FurinaPlungingAttack(PlungingAttackSkill):
+    """下落攻击。"""
+
+    def __init__(self, lv: int, caster: Any) -> None:
+        super().__init__(lv, caster)
+        self.action_frame_data = ACTION_FRAME_DATA
+        self.attack_data = ATTACK_DATA
+        self.multiplier_data = NORMAL_ATTACK_DATA
+
+
+class FurinaElementalSkill(SkillBase):
+    """元素战技：孤心沙龙。"""
+
+    def __init__(self, lv: int, caster: Any) -> None:
+        super().__init__(lv, caster)
+        self.active_summons: List[Any] = []
+        self.remaining_frames = 0
+
+    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+        mode = self.caster.arkhe_mode
+        frame_key = "SKILL_OUSIA" if mode == "荒" else "SKILL_PNEUMA"
+        f = ACTION_FRAME_DATA[frame_key]
         
-        # 继承剩余时间
-        remaining = summons[0].life_frame - summons[0].current_frame
-        for s in summons: s.remove() # 移除旧的
-        
-        # 创建新的
-        if self.caster.arkhe == '芒性':
-            Singer(self.caster, remaining).apply()
+        mult = 0.0
+        attack_cfg = None
+        if mode == "荒":
+            mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
+            p = ATTACK_DATA["元素战技"]
+            attack_cfg = AttackConfig(
+                attack_tag=p["attack_tag"],
+                icd_tag=p["icd_tag"],
+                icd_group=p["icd_group"],
+                hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=p["radius"])
+            )
+
+        return ActionFrameData(
+            name="元素战技",
+            action_type="elemental_skill",
+            total_frames=f["total_frames"],
+            hit_frames=f["hit_frames"],
+            interrupt_frames=f["interrupt_frames"],
+            damage_multiplier=mult,
+            scaling_stat="生命值",
+            attack_config=attack_cfg,
+            origin_skill=self
+        )
+
+    def on_execute_hit(self, target: Any, hit_index: int) -> None:
+        if self.caster.action_manager.current_action.data.attack_config:
+            dmg_obj = Damage(
+                element=("水", 1.0),
+                damage_multiplier=self.caster.action_manager.current_action.data.damage_multiplier,
+                scaling_stat="生命值",
+                config=self.caster.action_manager.current_action.data.attack_config,
+                name="荒性泡沫伤害"
+            )
+            dmg_obj.set_element("水", ATTACK_DATA["元素战技"]["element_u"])
+            self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
+                                                      source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
+
+        self.remaining_frames = 1800
+        self.sync_summons()
+
+    def sync_summons(self) -> None:
+        for s in self.active_summons: s.finish()
+        self.active_summons.clear()
+
+        if self.remaining_frames <= 0: return
+
+        mode = self.caster.arkhe_mode
+        if mode == "荒":
+            for name in ["乌瑟勋爵伤害", "海薇玛夫人伤害", "谢贝蕾妲小姐伤害"]:
+                m = SalonMember(name.replace("伤害", ""), self.caster, self.caster.ctx, name)
+                m.life_frame = self.remaining_frames
+                self.caster.ctx.space.register(m)
+                self.active_summons.append(m)
         else:
-            Usher(self.caster, remaining).apply()
-            Chevalmarin(self.caster, remaining).apply()
-            Crabaletta(self.caster, remaining).apply()
+            s = SingerOfManyWaters(self.caster, self.caster.ctx)
+            s.life_frame = self.remaining_frames
+            self.caster.ctx.space.register(s)
+            self.active_summons.append(s)
+
+    def on_frame_update(self) -> None:
+        if self.remaining_frames > 0:
+            self.remaining_frames -= 1
+
+
+class FurinaElementalBurst(EnergySkill):
+    """元素爆发：万众狂欢。"""
+
+    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+        f = ACTION_FRAME_DATA["ELEMENTAL_BURST"]
+        p = ATTACK_DATA["元素爆发"]
+        mult = ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1]
+
+        return ActionFrameData(
+            name="元素爆发",
+            action_type="elemental_burst",
+            total_frames=f["total_frames"],
+            hit_frames=f["hit_frames"],
+            interrupt_frames=f["interrupt_frames"],
+            damage_multiplier=mult,
+            scaling_stat="生命值",
+            attack_config=AttackConfig(
+                attack_tag=p["attack_tag"],
+                icd_tag=p["icd_tag"],
+                icd_group=p["icd_group"],
+                hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=p["radius"])
+            ),
+            origin_skill=self
+        )
+
+    def on_execute_hit(self, target: Any, hit_index: int) -> None:
+        dmg_obj = Damage(
+            element=("水", 1.0),
+            damage_multiplier=ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],
+            scaling_stat="生命值",
+            config=self.caster.action_manager.current_action.data.attack_config,
+            name="万众狂欢伤害"
+        )
+        dmg_obj.set_element("水", ATTACK_DATA["元素爆发"]["element_u"])
+        self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
+                                                  source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
+
+        window = MECHANISM_CONFIG["BURST_FANFARE_WINDOW"]
+        duration = window[1] - window[0]
+        eff = FurinaFanfareEffect(self.caster, duration=duration)
+        eff.apply()

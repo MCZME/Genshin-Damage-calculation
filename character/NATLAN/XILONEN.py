@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.NATLAN.natlan import Natlan
 from core.base_class import DashSkill, ElementalEnergy, EnergySkill, JumpSkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import DefenseBoostEffect, Effect, ResistanceDebuffEffect
 from core.action.damage import Damage, DamageType
-from core.event import DamageEvent, EventBus, EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
+from core.event import DamageEvent EventHandler, EventType, GameEvent, HealEvent, NormalAttackEvent
 from core.action.healing import Healing, HealingType
 from core.logger import get_emulation_logger
 from core.tool import GetCurrentTime, summon_energy
@@ -31,13 +32,13 @@ class BladeRollerEffect(Effect,EventHandler):
 
         self._update_samplers()
 
-        EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
-        EventBus.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
         self.character.romve_NightSoulBlessing()
     
     def _update_samplers(self):
@@ -119,7 +120,7 @@ class XilonenNormalAttack(NormalAttackSkill):
 
     def _apply_segment_effect(self, target):
         if self.caster.Nightsoul_Blessing:
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             # 计算是否应该附着元素
             should_attach = False
             
@@ -159,18 +160,18 @@ class XilonenNormalAttack(NormalAttackSkill):
                 name=f'{self.name} 第{self.current_segment+1}段'
             )
             
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击事件
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
         )
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
 class ElementalSkill(SkillBase):
     """元素战技：音火锻淬"""
@@ -217,8 +218,8 @@ class ElementalSkill(SkillBase):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
             
             summon_energy(4, self.caster,('岩',2))
         self.caster.movement += 5.27
@@ -255,7 +256,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
             return
             
         self.current_character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def change_character(self, character):
         self.current_character.remove_effect(self)
@@ -272,7 +273,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
 
     def update(self, target):
         super().update(target)
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_trigger_time >= self.interval:
             self.last_trigger_time = current_time
             lv = self.character.skill_params[2] - 1
@@ -286,7 +287,7 @@ class JoyfulRhythmEffect(Effect, EventHandler):
                 heal,
                 current_time
             )
-            EventBus.publish(heal_event)
+            get_context().event_engine.publish(heal_event)
             get_emulation_logger().log_effect("🎶 欢兴律动治疗触发")
 
 class FierceRhythmEffect(Effect):
@@ -329,8 +330,8 @@ class FierceRhythmEffect(Effect):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.character, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.character, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
             print(f"🥁 燥烈律动第{self.beat_count}次节拍伤害")
             if self.beat_count == self.max_beats:
                 self.remove()
@@ -365,8 +366,8 @@ class ElementalBurst(EnergySkill):
             damage.baseValue = "防御力"
             damage.setDamageData('夜魂伤害', True)
             
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
             
             # 根据源音采样类型触发不同效果
             converted_count = sum(1 for s in self.caster.samplers if s['element'] != '岩')
@@ -390,9 +391,9 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
-        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
 
     def handle_event(self, event):
         if not self.character.Nightsoul_Blessing:
@@ -403,7 +404,7 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
             
         # 检查是否为普攻或下落攻击伤害
         if event.event_type in [EventType.AFTER_NORMAL_ATTACK, EventType.BEFORE_PLUNGING_ATTACK]:
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if current_time - self.last_trigger_time < self.trigger_interval:
                 return
 
@@ -426,8 +427,8 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.NightsoulBurst, self)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.NightsoulBurst, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
@@ -436,10 +437,10 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
         elif event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE:
             if (event.data['character'] == self.character and
                 event.data['amount'] == -90 and 
-                GetCurrentTime() - self.last_trigger_time > self.colddown):
+                get_current_time() - self.last_trigger_time > self.colddown):
                 get_emulation_logger().log_effect('希诺宁 便携铠装护层 触发夜魂迸发')
                 NightsoulBurstEvent = GameEvent(EventType.NightsoulBurst, event.frame,character=event.data['character'])
-                EventBus.publish(NightsoulBurstEvent)
+                get_context().event_engine.publish(NightsoulBurstEvent)
     
 # todo
 # 希诺宁的夜魂加持状态具有如下限制：处于夜魂加持状态下时，希诺宁的夜魂值有9秒的时间限制，超过时间限制后，希诺宁的夜魂值将立刻耗竭。
@@ -477,3 +478,4 @@ Xilonen_table = {
     'dash': {},
     'jump': {},
 }
+

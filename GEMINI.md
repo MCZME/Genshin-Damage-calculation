@@ -1,96 +1,83 @@
 # 原神伤害计算器 (Genshin Damage Calculation) - 项目概览
 
 ## 项目简介
-本项目是一款为《原神》设计的深度伤害计算器与战斗仿真引擎。它采用 **“场景中心化 (Scene-Centric)”** 与 **“事件驱动 (Event-Driven)”** 的架构，能够高保真地模拟物理位置、动作时间轴以及复杂的状态机交互。项目已全面进化至 V2 架构，具备基于 **NiceGUI** 的 Web 图形界面和基于 **SQLite** 的高性能仿真数据回溯系统。
+本项目是一款为《原神》设计的深度伤害计算器与战斗仿真引擎。它采用 **“场景中心化 (Scene-Centric)”** 与 **“意图驱动 (Intent-Driven)”** 的架构，能够高保真地模拟物理位置、动作时间轴以及复杂的状态机交互。项目已全面进化至 **V2.4 架构**，具备基于原生数据的自动化装配能力与全流程伤害审计系统。
 
 ## 核心技术栈
 *   **编程语言:** Python 3.13+
-*   **GUI 框架:** NiceGUI (基于 Web 的响应式框架，原生支持 Asyncio) - *已替代 PySide6*
-*   **系统架构:** 事件驱动 (`EventBus`)、组件化系统 (`core/systems`)、场景中心化 (`CombatSpace`)。
-*   **数据持久化:** SQLite (嵌入式数据库)，用于存储配置信息及全帧仿真状态记录。
-*   **并发与异步:** `asyncio` (用于 UI 与 I/O)、`multiprocessing` (用于大规模无头仿真)。
-*   **测试框架:** `pytest` (配合 `pytest-asyncio` 与 `pytest-trio`)。
+*   **GUI 框架:** Flet (基于 Flutter 的跨平台响应式框架，原生支持 Asyncio)
+*   **审计系统**: DamageAuditSystem (基于审计链的伤害追溯机制)
+*   **系统架构:** 局部事件引擎 (`EventEngine`)、组件化系统 (`core/systems`)、场景中心化 (`CombatSpace`)。
+*   **数据持久化:** 
+    *   **静态库 (MySQL)**: 存储角色、武器、圣遗物等基础资产数据。
+    *   **运行库 (SQLite)**: 存储全帧仿真状态记录，支持秒级回溯分析。
+*   **并发与异步:** `asyncio` (用于 UI 与 I/O 驱动)、`multiprocessing` (用于大规模并行仿真)。
 
-## 架构概览 (V2)
-项目采用四层解耦架构：
+## 架构概览 (V2.4.1)
+项目采用四层解耦架构，强调 **Context 隔离** 与 **计算即审计**：
 
 ### 1. 基础设施层 (Infrastructure)
-*   **`SimulationContext`**: “真理之源”。持有 `CombatSpace`、`EventEngine` 和所有实体的引用，通过 `ContextVar` 实现逻辑隔离。
-*   **`EventEngine`**: 神经中枢。负责跨系统的逻辑解耦与通信。
-*   **`Registry`**: 自动发现与加载机制。负责扫描并注册角色、武器、圣遗物和各种效果。
+*   **`SimulationContext`**: “真理之源”。持有 `CombatSpace`、`EventEngine` 和 `SystemManager`。
+*   **`DamageAudit`**: 每一笔伤害都携带完整的 `audit_trail`（包含面板、转换、Buff 及修正的详细来源声明）。
+*   **`Registry`**: 自动发现机制。基于装饰器（如 `@register_character`）实现组件的自动装配。
 
 ### 2. 物理与场景层 (Scene & Physics)
-*   **`CombatSpace`**: 核心空间管理器。负责维护实体坐标 (X, Z) 与朝向，执行高精度几何碰撞检测（圆柱、长方体、扇形）。
-*   **`CombatEntity`**: 所有战斗实体（角色、怪物、部署物）的基类。管理生命周期、元素附着（Aura）和 ICD。
+*   **`CombatSpace`**: 场景管理器。负责几何碰撞检测，支持空间广播模式。
+*   **`Height-Aware Physics`**: 角色拥有 3D 坐标 (X, Y, Z)，下落攻击判定由触地物理瞬间 (Y <= 0) 触发。
+*   **`CombatEntity`**: 战斗实体基类。管理生命周期、元素附着（Aura）、ICD 以及护盾列表。
 
-### 3. 动作与控制层 (Action & ASM)
-*   **`ActionManager (ASM)`**: 动作状态机。控制实体的动作时间轴，处理判定帧、动作取消窗口 (Cancel Window) 以及技能流转。
-*   **`Skill System`**: 模块化技能实现。支持参数化触发（点按、长按、多段触发）。
+### 3. 动作与技能层 (Action & Skill)
+*   **`ActionManager (ASM)`**: 动作状态机。管理自动连击段位、判定帧及根据动作类型（dash/jump）的中断优先级。
+*   **`Stateless Factories`**: 技能类被重构为无状态工厂。通过注入 `data.py` 的原生数据实现 0 翻译的物理与时序装配。
 
 ### 4. 业务子系统层 (Systems)
-*   **`DamageSystem`**: 伤害流水线 (`DamagePipeline`) 驱动者。处理快照、广播、受击响应、反应结算及数值合并。
-*   **`ReactionSystem`**: 元素反应中枢。基于附着论处理元素的叠加、消耗与反应触发。
-*   **`ResultDatabase`**: 异步流式持久化。将每一帧的实体状态抓取并写入 SQLite。
+*   **`DamageSystem`**: 伤害流水线。通过 `add_modifier` 规范接口强制执行审计注入，涵盖基础快照、反应结算及数值合算。
+*   **`ReactionSystem`**: 反应分发中心。实装了等级系数、EM 增益审计及受击 ICD。
+*   **`Shield & Health Systems`**: 处理生存屏障与最终生命值扣除，支持无视护盾（侵蚀）伤害。
+
+## UI 架构: 模块化工作台 (Flet Workbench)
+
+项目 UI 采用模块化设计，实现了“配置即所得”的交互体验：
+
+### 1. 视图划分 (Views)
+*   **战略视图 (Strategic View)**: 负责编队管理、角色/武器/圣遗物面板配置。
+*   **战术编排 (Tactical View)**: 提供树形或列表式的动作序列编辑器。
+*   **可视化看板 (Visual Pane)**: 基于场景快照渲染实时的实体位置与状态关系。
+
+### 2. 元数据驱动 (Metadata-Driven Inspector)
+*   **Discovery 机制**: 角色类实现类方法 `get_action_metadata()`。
+*   **动态渲染**: UI 根据 Metadata 自动生成属性调节器（如“点按/长按”下拉框、蓄力段数滑块），无需为每个角色手动编写 UI 代码。
 
 ## 工作流: 配置 -> 仿真 -> 分析
 
-1.  **配置 (UI):** 用户在 NiceGUI 前端定义角色、敌人及动作序列。
-2.  **仿真 (Headless):** `Simulator` 在独立线程/进程中全速运行逻辑，并将全帧状态（通过 `export_state`）流式写入 SQLite。
-3.  **分析 (UI):** 分析仪表盘通过查询 SQLite 实现“任意帧回溯”，展示 DPS 曲线、时间轴及详细的事件记录。
+1.  **配置 (Flet UI):** 在工作台定义队伍、目标及意图参数。
+2.  **仿真 (Core):** `Simulator` 驱动 `CombatSpace` 进行物理模拟，每一帧状态流式写入 SQLite。
+3.  **分析 (Analysis):** 通过回溯 SQLite 数据生成 DPS 曲线、元素附着时间轴及详尽的计算审计报告。
 
 ## 构建与运行
 
-### 前置要求
-*   Python 3.13.3+
-*   虚拟环境: `genshin_damage_calculation` (必须使用此环境运行)
-*   依赖库: `nicegui`, `aiosqlite`, `pandas`, `plotly`, `pytest` (详见 `requirements.txt`)
-*   终端建议: PowerShell
-
-### 安装步骤
-1.  克隆仓库。
-2.  创建虚拟环境并安装依赖:
-    ```bash
-    # 使用 virtualenv 创建名为 genshin_damage_calculation 的环境
-    pip install -r requirements.txt
+### 快速启动
+1.  **安装依赖**: `pip install -r requirements.txt`
+2.  **启动应用**: 
+    ```powershell
+    python main.py
     ```
+    (推荐在 `genshin_damage_calculation` 虚拟环境下启动)
 
-### 启动应用
-**必须**在虚拟环境下执行以下命令启动 Web UI:
-```powershell
-.\genshin_damage_calculation\Scripts\python.exe main.py
-```
-系统将初始化配置，启动 NiceGUI 服务器并自动打开默认浏览器。
-
-### 运行测试
-**必须**使用虚拟环境中的 Python 运行测试，以确保依赖与路径正确:
-```powershell
-# 运行全量测试 (PowerShell)
-.\genshin_damage_calculation\Scripts\python.exe -m pytest
-
-# 运行特定模块
-.\genshin_damage_calculation\Scripts\python.exe -m pytest tests/unit/mechanics/test_aura_theory.py -v
-```
-
-## 开发规范与注意事项
-
-*   **初始化顺序:** 在 `main.py` 中，`Config()` **必须**在导入任何 UI 或数据库模块之前初始化，否则会导致配置项读取失败。
-*   **事件驱动伤害:** **严禁**在技能逻辑中直接调用 `broadcast_damage`。必须发布 `BEFORE_DAMAGE` 事件，由 `DamageSystem` 统一接管后续流水线。
-*   **数据契约:**
-    *   **实体状态:** 所有实体必须实现 `export_state()`，返回一个扁平化的、可序列化的字典。
-    *   **字段命名:** 基础属性使用 `base_xxx` (如 `base_hp`)。
-*   **命名约定:**
-    *   在 Action 类中使用 **`scaling_stat`** 代替 `base_value`，以避免与“基础伤害倍率”产生歧义。
-*   **异步测试:** 涉及数据库或 UI 组件的测试必须使用 `@pytest.mark.asyncio` 以确保与 `aiosqlite` 的兼容性。
+### 开发规范
+*   **计算即审计**: 严禁直接修改 `stats` 字典，所有增益必须通过 `ctx.add_modifier` 注入审计链。
+*   **零翻译录入**: `data.py` 中的物理参数保持原生中文描述（如“球”、“默认”），在装配阶段映射。
+*   **无硬编码**: 严禁在 `skills.py` 中写死帧数或物理参数，必须从 `ACTION_FRAME_DATA` 等字典索引。
+*   **严格类型**: 所有 `core` 方法必须包含类型标注。
+*   **卫语句**: 优先处理异常分支，减少代码嵌套。
+*   **无 print**: 严禁直接 `print`，统一使用 `get_emulation_logger().log_info/debug`。
 
 ## 目录结构
-*   `artifact/`, `character/`, `weapon/`: 实体逻辑实现。
-*   `core/`: 核心引擎组件。
-    *   `action/`: ASM 与动作定义。
-    *   `data/`: 数据库仓储与 Schema。
-    *   `entities/`: 实体基类。
-    *   `mechanics/`: 附着、ICD、附魔逻辑。
-    *   `systems/`: 逻辑管理器 (伤害、反应、能量)。
-*   `data/`: 运行时数据存储。
-*   `docs/`: 详细的架构与开发文档。
-*   `ui/`: NiceGUI 页面与组件。
-    *   `pages/`: 应用视图 (配置、分析)。
+*   `character/`, `weapon/`, `artifact/`: 业务逻辑模块包。
+*   `core/`: 仿真引擎核心。
+    *   `action/`: 动作与契约定义。
+    *   `factory/`: 组装器与实体工厂。
+    *   `mechanics/`: 附着论与 ICD。
+    *   `systems/`: 局部子系统实现。
+*   `ui/`: Flet 组件与视图逻辑。
+*   `docs/`: 结构化开发文档。

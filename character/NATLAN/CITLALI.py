@@ -1,10 +1,11 @@
+from core.context import get_context
 from character.NATLAN.natlan import Natlan
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, 
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.effect.BaseEffect import ElementalDamageBoostEffect, ResistanceDebuffEffect, Effect
 from core.BaseObject import ShieldObject, baseObject
 from core.action.damage import Damage, DamageType
-from core.event import DamageEvent, EventBus, NormalAttackEvent, ShieldEvent, EventHandler, EventType
+from core.event import DamageEvent NormalAttackEvent, ShieldEvent, EventHandler, EventType
 from core.action.shield import Shield
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -31,18 +32,18 @@ class NormalAttack(NormalAttackSkill,Infusion):
         )
         
         # 发布伤害事件
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击事件
         normal_attack_event = NormalAttackEvent(
             self.caster, 
-            frame=GetCurrentTime(), 
+            frame=get_current_time(), 
             before=False,
             damage=damage,
             segment=self.current_segment+1
         )
-        EventBus.publish(normal_attack_event)
+        get_context().event_engine.publish(normal_attack_event)
 
 class ChargedAttack(ChargedAttackSkill):
     ...
@@ -77,7 +78,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
             self.current_character.attributePanel['元素精通'] += 250
             get_emulation_logger().log_skill_use(f"❄️ {self.current_character.name} 获得 250 元素精通") 
 
-            EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+            get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_CHARACTER_SWITCH and self.character.constellation >= 2:
@@ -95,7 +96,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
             get_emulation_logger().log_skill_use("❄️ 伊兹帕帕进入白燧状态")
             
         # 白燧状态下每秒造成伤害并消耗夜魂值
-        current_frame = GetCurrentTime()
+        current_frame = get_current_time()
         if self.in_white_flint:
             if current_frame - self.last_damage_frame >= self.damage_interval:
                 # 造成霜陨风暴伤害(包含元素精通加成)
@@ -108,7 +109,7 @@ class ItzpapalotlObject(baseObject,EventHandler):
                 )
                 damage.setDamageData('夜魂伤害', True)
                 event = DamageEvent(self.character, target, damage, current_frame)
-                EventBus.publish(event)
+                get_context().event_engine.publish(event)
                 
                 self.last_damage_frame = current_frame
                 
@@ -176,8 +177,8 @@ class ElementalSkill(SkillBase):
                 '霜昼黑星'
             )
             damage.setDamageData('夜魂伤害', True)
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
             # 获得24点夜魂值并进入加持状态
             self.caster.gain_night_soul(24)
             if not self.caster.Nightsoul_Blessing:
@@ -187,8 +188,8 @@ class ElementalSkill(SkillBase):
             shield_value = (self.shield_em[self.lv-1] * self.caster.attributePanel['元素精通'] / 100
                           + self.shield_base[self.lv-1]) 
             shield = Shield(shield_value)
-            event = ShieldEvent(self.caster, shield, GetCurrentTime())
-            EventBus.publish(event)
+            event = ShieldEvent(self.caster, shield, get_current_time())
+            get_context().event_engine.publish(event)
             shield = ShieldObject(
                 character=self.caster,
                 name="白曜护盾",
@@ -231,8 +232,8 @@ class SkeletonSpiritObject(baseObject):
             '宿灵之髑爆炸'
         )
         damage.setDamageData('夜魂伤害', True)
-        event = DamageEvent(self.character, target, damage, GetCurrentTime())
-        EventBus.publish(event)
+        event = DamageEvent(self.character, target, damage, get_current_time())
+        get_context().event_engine.publish(event)
         
         # 恢复3点夜魂值
         self.character.gain_night_soul(3)
@@ -271,8 +272,8 @@ class ElementalBurst(EnergySkill):
                 '诸曜饬令·冰风暴'
             )
             damage.setDamageData('夜魂伤害', True)
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
             
             # 恢复24点夜魂值
             self.caster.gain_night_soul(24)
@@ -291,8 +292,8 @@ class PassiveSkillEffect_1(TalentEffect,EventHandler):
         self.last_recovery_time = -9999
         self.recovery_interval = 8*60  # 8秒冷却
 
-        EventBus.subscribe(EventType.AFTER_MELT, self)
-        EventBus.subscribe(EventType.AFTER_FREEZE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_MELT, self)
+        get_context().event_engine.subscribe(EventType.AFTER_FREEZE, self)
 
     def handle_event(self, event):
         if event.event_type in (EventType.AFTER_MELT, EventType.AFTER_FREEZE):
@@ -313,8 +314,8 @@ class PassiveSkillEffect_2(TalentEffect,EventHandler):
     
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.NightsoulBurst, self)
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.NightsoulBurst, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
@@ -355,9 +356,9 @@ class WhiteStarDressEffect(Effect,EventHandler):
         self.star_blade_stacks = 10
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
-        EventBus.subscribe(EventType.AFTER_MELT, self)
-        EventBus.subscribe(EventType.AFTER_FREEZE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_MELT, self)
+        get_context().event_engine.subscribe(EventType.AFTER_FREEZE, self)
         
     def remove(self):
         super().remove()
@@ -387,7 +388,7 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
         
     def handle_event(self, event):
         # 元素战技施放时触发
@@ -424,8 +425,8 @@ class ConstellationEffect_4(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_DAMAGE and \
@@ -450,7 +451,7 @@ class SkeletonSpiritObsidianObject(SkeletonSpiritObject):
     def _attack(self, target):
         damage = Damage(0,('冰',1),DamageType.SKILL,self.name)
         damage.setDamageData('夜魂伤害',True)
-        EventBus.publish(DamageEvent(self.character, target, damage,GetCurrentTime()))
+        get_context().event_engine.publish(DamageEvent(self.character, target, damage,get_current_time()))
 
         self.character.gain_night_soul(16)
         summon_energy(1, self.character, ('无', 8), True, True, 0)
@@ -470,7 +471,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_NIGHT_SOUL_CHANGE and \
@@ -502,8 +503,8 @@ class PyroAndHydroDmgBonus(ElementalDamageBoostEffect,EventHandler):
         self._update_dmg_bonus()
         self.setEffect()
         self.current_character.add_effect(self)
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
-        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.OBJECT_DESTROY, self)
         get_emulation_logger().log_effect(f'{self.current_character.name}获得了{self.name}')
 
     def setEffect(self):
@@ -528,8 +529,8 @@ class PyroAndHydroDmgBonus(ElementalDamageBoostEffect,EventHandler):
     def remove(self):
         super().remove()
         self.point = 0
-        EventBus.unsubscribe(EventType.AFTER_SKILL, self)   
-        EventBus.unsubscribe(EventType.OBJECT_DESTROY, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_SKILL, self)   
+        get_context().event_engine.unsubscribe(EventType.OBJECT_DESTROY, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_SKILL and \
@@ -580,3 +581,4 @@ citlali_table = {
     'skill':{},
     'burst':{},
 }
+

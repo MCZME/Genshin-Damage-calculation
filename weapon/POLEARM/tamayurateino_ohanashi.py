@@ -1,5 +1,6 @@
+from core.context import get_context
 from weapon.weapon import Weapon
-from core.event import EventBus, EventType, EventHandler
+from core.event import EventType, EventHandler
 from core.effect.stat_modifier import AttackBoostEffect
 from core.registry import register_weapon
 
@@ -10,7 +11,7 @@ class TamayurateinoOhanashi(Weapon, EventHandler):
         super().__init__(character, TamayurateinoOhanashi.ID, level, lv)
         self.attack_boost = [20,25,30,35,40]
 
-        EventBus.subscribe(EventType.BEFORE_SKILL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_SKILL, self)
 
     def handle_event(self, event):
         if event.data["character"] == self.character:
@@ -22,3 +23,4 @@ class TamayurateinoOhanashi(Weapon, EventHandler):
                 duration=10*60
             )
             effect.apply()
+

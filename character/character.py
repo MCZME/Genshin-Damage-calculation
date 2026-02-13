@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-import core.tool as T
 from core.action.action_data import ActionFrameData
 from core.action.action_manager import ActionManager
 from core.context import get_context
@@ -11,6 +10,7 @@ from core.event import (
     EventType,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
+from core.tool import get_current_time
 
 
 class Character(CombatEntity, ABC):
@@ -89,6 +89,7 @@ class Character(CombatEntity, ABC):
         self.apply_effects()
         
         self.current_hp = 0.0
+        self._last_max_hp = 0.0 # 用于追踪最大生命值变动
 
     @abstractmethod
     def _setup_character_components(self) -> None:
@@ -122,8 +123,11 @@ class Character(CombatEntity, ABC):
         if self.artifact_manager:
             self.artifact_manager.apply_static_stats()
             self.artifact_manager.set_effect()
+        
         from core.systems.utils import AttributeCalculator
-        self.current_hp = AttributeCalculator.get_hp(self)
+        max_hp = AttributeCalculator.get_hp(self)
+        self.current_hp = max_hp
+        self._last_max_hp = max_hp
 
     # -----------------------------------------------------
     # 统一驱动接口
@@ -135,10 +139,19 @@ class Character(CombatEntity, ABC):
         """
         super().on_frame_update()
         
+        # 1. 检测最大生命值变动并同比缩放当前血量
+        from core.systems.utils import AttributeCalculator
+        current_max_hp = AttributeCalculator.get_hp(self)
+        if current_max_hp != self._last_max_hp and self._last_max_hp > 0:
+            # 同比缩放公式: (变动前的当前生命值/变动前的最大生命值) * 变动后的最大生命值
+            ratio = self.current_hp / self._last_max_hp
+            self.current_hp = ratio * current_max_hp
+            self._last_max_hp = current_max_hp
+        
         if self.weapon and hasattr(self.weapon, "on_frame_update"): 
             self.weapon.on_frame_update()
             
-        self.action_manager.on_frame_update() # ActionManager 内部也应同步改为此命名
+        self.action_manager.on_frame_update()
         
         # 驱动技能逻辑
         for skill in self.skills.values():
@@ -168,13 +181,17 @@ class Character(CombatEntity, ABC):
         if skill_obj: data.origin_skill = skill_obj
         return data
 
-    def elemental_skill(self) -> None:
-        if self._request_action("elemental_skill"):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, T.GetCurrentTime(), self, "elemental_skill"))
+    def elemental_skill(self, params: Any = None) -> bool:
+        if self._request_action("elemental_skill", params):
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, get_current_time(), self, "elemental_skill"))
+            return True
+        return False
 
-    def elemental_burst(self) -> None:
-        if self._request_action("elemental_burst"):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, T.GetCurrentTime(), self, "elemental_burst"))
+    def elemental_burst(self, params: Any = None) -> bool:
+        if self._request_action("elemental_burst", params):
+            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, get_current_time(), self, "elemental_burst"))
+            return True
+        return False
 
     def _request_action(self, name: str, params: Any = None) -> bool:
         action_data = self._get_action_data(name, params)
@@ -192,8 +209,14 @@ class Character(CombatEntity, ABC):
         results = self.apply_elemental_aura(damage)
         damage.data['reaction_results'] = results
 
-    def heal(self, amount: float) -> None: pass
-    def hurt(self, amount: float) -> None: pass
+    def heal(self, amount: float) -> None:
+        from core.systems.utils import AttributeCalculator
+        max_hp = AttributeCalculator.get_hp(self)
+        self.current_hp = min(max_hp, self.current_hp + amount)
+
+    def hurt(self, amount: float) -> None:
+        self.current_hp = max(0.0, self.current_hp - amount)
+
     def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
     def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
     def add_shield(self, shield: Any) -> None: self.shield_effects.append(shield)
@@ -216,3 +239,27 @@ class Character(CombatEntity, ABC):
         })
 
         return base
+
+    @classmethod
+    def get_action_metadata(cls) -> Dict[str, Any]:
+        """
+        [V2.3] 获取动作参数元数据（类方法）。
+        UI 可以在不实例化角色的情况下获取参数 Schema。
+        
+        示例返回格式:
+        {
+            "elemental_skill": {
+                "label": "元素战技",
+                "params": [
+                    {
+                        "key": "type", 
+                        "label": "施放方式", 
+                        "type": "select", 
+                        "options": {"Press": "点按", "Hold": "长按"}, # {内部值: 显示标签}
+                        "default": "Press"
+                    }
+                ]
+            }
+        }
+        """
+        return {}

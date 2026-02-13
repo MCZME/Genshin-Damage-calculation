@@ -1,9 +1,10 @@
+from core.context import get_context
 from character.LIYUE.liyue import Liyue
 from core.base_class import ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, SkillBase, TalentEffect
 from core.effect.BaseEffect import AttackBoostEffect, Effect, ResistanceDebuffEffect
 from core.BaseObject import baseObject
 from core.action.damage import Damage, DamageType
-from core.event import DamageEvent, EventBus
+from core.event import DamageEvent
 from core.tool import GetCurrentTime, summon_energy
 from core.team import Team
 
@@ -24,8 +25,8 @@ class GuobaObject(baseObject):
             self.last_attack_time = self.current_frame
 
     def _attack(self, target):
-        event = DamageEvent(self.caster, target, self.damage, GetCurrentTime())
-        EventBus.publish(event)
+        event = DamageEvent(self.caster, target, self.damage, get_current_time())
+        get_context().event_engine.publish(event)
 
         summon_energy(1, self.caster, ('火', 2))
 
@@ -113,8 +114,8 @@ class PyronadoObject(baseObject):
             damageType=DamageType.BURST,
             name='旋火轮 旋转伤害'
         )
-        event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(event)
+        event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(event)
 
     def on_finish(self, target):
         del self.caster
@@ -152,8 +153,8 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=f'{self.name} {damage_type}'
             )
-            event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(event)
+            event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(event)
 
         # 在最后一帧召唤旋火轮
         if self.current_frame == 56:
@@ -203,9 +204,9 @@ class ExplosionEffect(Effect):
                     self.character,
                     target,
                     self.damage,
-                    GetCurrentTime()
+                    get_current_time()
                 )
-                EventBus.publish(event)
+                get_context().event_engine.publish(event)
                 self.remove()
                 print("💥 内爆效果触发！")
 
@@ -384,3 +385,4 @@ xiangling_table  = {
     'skill': {},
     'burst': {}
 }
+

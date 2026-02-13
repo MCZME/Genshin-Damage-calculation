@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType
+from core.event import EventType
 from core.effect.artifact.songs_of_days_past import ThirstEffect
 
 @register_artifact_set("昔时之歌")
@@ -13,7 +14,7 @@ class SongOfDaysPast(BaseArtifactSet):
         character.attribute_panel["治疗加成"] += 15
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.AFTER_HEAL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_HEAL, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.AFTER_HEAL and event.data["character"] == self.character:
@@ -25,3 +26,4 @@ class SongOfDaysPast(BaseArtifactSet):
                 thirst.apply()
             # 记录治疗量
             thirst.add_heal(event.data["healing"].final_value)
+

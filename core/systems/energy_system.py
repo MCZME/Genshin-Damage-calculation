@@ -34,13 +34,13 @@ class EnergySystem(GameSystem):
                                character.elemental_energy.elemental_energy[1] - 
                                character.elemental_energy.current_energy)
             character.elemental_energy.current_energy += energy_value
-            get_emulation_logger().log_energy(f"{character.name} 获得了固定值能量", energy_value)
+            get_emulation_logger().log_energy(character, energy_value, source_type="固定值")
         else:
             # 这里的 amount 必须是 tuple (element, count)
             rate = self.get_rate(character, amount[0], team_obj)
             energy_value = amount[1] * rate
             character.elemental_energy.current_energy += energy_value
-            get_emulation_logger().log_energy(f"{character.name} 获得了微粒", energy_value)
+            get_emulation_logger().log_energy(character, energy_value, source_type=f"{amount[0]}元素微粒")
 
     def get_rate(self, character, particle_element, team_obj):
         """计算微粒获取系数"""

@@ -1,128 +1,171 @@
 from typing import Any
-from core.base_entity import BaseEntity
-from core.event import DamageEvent, HealEvent, HurtEvent, EventType, EventHandler
-from core.tool import GetCurrentTime, summon_energy
-from core.action.damage import Damage, DamageType
-from core.action.healing import Healing, HealingType
-from core.team import Team
 
-class SalonMember(BaseEntity, EventHandler):
-    """沙龙成员基类"""
-    last_energy_time = -9999
+from core.entities.base_entity import CombatEntity, Faction
+from core.action.action_data import AttackConfig, HitboxConfig, AOEShape, StrikeType
+from core.action.damage import Damage
+from core.event import GameEvent, EventType
+from core.tool import get_current_time
+from character.FONTAINE.furina.data import (
+    ATTACK_DATA, ELEMENTAL_SKILL_DATA, MECHANISM_CONFIG
+)
 
-    def __init__(self, name: str, character: Any, life_frame: int):
-        super().__init__(name, life_frame)
-        self.character = character
-        self.hp_consumption = 0 # 消耗生命值百分比
-        self.attack_interval = 60
-        self.last_attack_time = 0
-        self.damage_multiplier_list = []
 
-    def apply(self):
-        super().apply()
-        # 订阅独立伤害加成事件 (芙宁娜特色：消耗全队血量换取增伤)
-        self.event_engine.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE, self)
+class FurinaSummonBase(CombatEntity):
+    """芙宁娜召唤物基类。"""
 
-    def on_finish(self, target: Any):
-        super().on_finish(target)
-        self.event_engine.unsubscribe(EventType.BEFORE_INDEPENDENT_DAMAGE, self)
-
-    def on_frame_update(self, target: Any):
-        if self.current_frame - self.last_attack_time >= self.attack_interval:
-            self.last_attack_time = self.current_frame
-            self._trigger_attack(target)
-
-    def _trigger_attack(self, target: Any):
-        # 1. 创建基础伤害
-        multiplier = self.damage_multiplier_list[self.character.Skill.lv - 1]
-        damage = Damage(
-            damage_multiplier=multiplier,
-            element=('水', 1),
-            damage_type=DamageType.SKILL,
-            name=self.name
+    def __init__(self, name: str, owner: Any, context: Any) -> None:
+        super().__init__(
+            name=name,
+            faction=Faction.PLAYER,
+            life_frame=1800,  # 30s
+            context=context
         )
-        damage.setBaseValue('生命值') # 基于生命值上限
+        self.owner = owner
+        self.skill_lv = owner.skill_params[1]
+
+    # 这又是什么
+    def get_owner_attr(self, attr_name: str) -> float:
+        return self.owner.attribute_panel.get(attr_name, 0.0)
+
+    def _build_attack_config(self, name: str) -> AttackConfig:
+        """从原生数据构建物理契约。"""
+        p = ATTACK_DATA[name]
         
-        # 2. 发布伤害 (触发 BEFORE_INDEPENDENT_DAMAGE 钩子)
-        self.event_engine.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+        # 映射形状 (原生中文 -> Enum)
+        shape_map = {"球": AOEShape.SPHERE, "圆柱": AOEShape.CYLINDER, "长方体": AOEShape.BOX, "单体": AOEShape.SINGLE}
+        # 映射打击类型
+        strike_map = {"默认": StrikeType.DEFAULT, "突刺": StrikeType.THRUST, "切割": StrikeType.SLASH, "钝击": StrikeType.BLUNT, "穿刺": StrikeType.PIERCE}
         
-        # 3. 尝试产球
-        self._summon_energy()
-
-    def _summon_energy(self):
-        now = GetCurrentTime()
-        if now - SalonMember.last_energy_time >= 2.5 * 60:
-            summon_energy(1, self.character, ('水', 2))
-            SalonMember.last_energy_time = now
-
-    def handle_event(self, event: Any):
-        """处理独立增伤逻辑"""
-        if event.source == self.character and event.data['damage'].name == self.name:
-            # 消耗生命值并统计人数
-            count = 0
-            for c in Team.team:
-                if c.current_hp / c.max_hp > 0.5:
-                    # 发布 HurtEvent (扣除全队血量)
-                    consumption = self.hp_consumption * c.max_hp / 100
-                    self.event_engine.publish(HurtEvent(self.character, c, consumption, GetCurrentTime()))
-                    count += 1
-            
-            # 独立增伤比例：100/110/120/130/140%
-            boost = [100, 110, 120, 130, 140][count]
-            event.data['damage'].setPanel('独立伤害加成', boost)
-
-class Usher(SalonMember):
-    """乌瑟勋爵 (章鱼)"""
-    def __init__(self, character, life_frame):
-        super().__init__("乌瑟勋爵", character, life_frame)
-        self.damage_multiplier_list = [5.96, 6.41, 6.85, 7.45, 7.9, 8.34, 8.94, 9.54, 10.13, 10.73, 11.32, 11.92, 12.67, 13.41, 14.16]
-        self.hp_consumption = 2.4
-        self.attack_interval = 200
-        self.last_attack_time = -self.attack_interval + 72
-
-class Chevalmarin(SalonMember):
-    """海薇玛夫人 (海马)"""
-    def __init__(self, character, life_frame):
-        super().__init__("海薇玛夫人", character, life_frame)
-        self.damage_multiplier_list = [3.23, 3.47, 3.72, 4.04, 4.28, 4.52, 4.85, 5.17, 5.49, 5.82, 6.14, 6.46, 6.87, 7.27, 7.68]
-        self.hp_consumption = 1.6
-        self.attack_interval = 97
-        self.last_attack_time = -self.attack_interval + 72
-
-class Crabaletta(SalonMember):
-    """谢贝蕾妲小姐 (重甲蟹)"""
-    def __init__(self, character, life_frame):
-        super().__init__("谢贝蕾妲小姐", character, life_frame)
-        self.damage_multiplier_list = [8.29, 8.91, 9.53, 10.36, 10.98, 11.6, 12.43, 13.26, 14.09, 14.92, 15.75, 16.58, 17.61, 18.65, 19.68]
-        self.hp_consumption = 3.6
-        self.attack_interval = 314
-        self.last_attack_time = -self.attack_interval + 30
-
-class Singer(BaseEntity):
-    """众水的歌者 (治疗)"""
-    def __init__(self, character, life_frame):
-        super().__init__("众水的歌者", life_frame)
-        self.character = character
-        self.heal_interval = 124
-        self.last_heal_time = -37
-        self.multipliers = [(4.8, 462.23), (5.16, 508.45), (5.52, 558.54), (6, 612.47), (6.36, 670.26), 
-                           (6.72, 731.89), (7.2, 797.39), (7.68, 866.73), (8.16, 939.92), (8.64, 1016.97), 
-                           (9.12, 1097.87), (9.6, 1182.63), (10.2, 1271.23), (10.8, 1363.69), (11.4, 1460)]
-
-    def apply(self):
-        super().apply()
-        # 天赋2：基于生命值上限缩短治疗间隔 (最多缩短16%)
-        if self.character.level > 60:
-            reduction = min((self.character.max_hp // 1000) * 0.004, 0.16)
-            self.heal_interval *= (1 - reduction)
-
-    def on_frame_update(self, target: Any):
-        if self.current_frame - self.last_heal_time >= self.heal_interval:
-            self.last_heal_time = self.current_frame
-            heal = Healing(
-                base_multiplier=self.multipliers[self.character.Skill.lv - 1],
-                healing_type=HealingType.SKILL,
-                name=self.name
+        return AttackConfig(
+            attack_tag=p["attack_tag"],
+            extra_attack_tags=p.get("extra_attack_tags", []),
+            icd_tag=p["icd_tag"],
+            icd_group=p["icd_group"],
+            strike_type=strike_map.get(p["strike_type"], StrikeType.DEFAULT),
+            is_ranged=p["is_ranged"],
+            hitbox=HitboxConfig(
+                shape=shape_map.get(p["shape"], AOEShape.SINGLE),
+                radius=p.get("radius", 0.0),
+                width=p.get("width", 0.0),
+                height=p.get("height", 0.0),
+                length=p.get("length", 0.0),
+                offset=p.get("offset", (0.0, 0.0, 0.0))
             )
-            heal.base_value = '生命值'
-            self.event_engine.publish(HealEvent(self.character, Team.current_character, heal, GetCurrentTime()))
+        )
+
+
+class SalonMember(FurinaSummonBase):
+    """孤心沙龙成员 (荒性)。"""
+
+    def __init__(self, name: str, owner: Any, context: Any, attack_name: str) -> None:
+        super().__init__(name, owner, context)
+        self.attack_name = attack_name # 对应 ATTACK_DATA 的 Key (如 "乌瑟勋爵伤害")
+        self.timer = 0
+        
+        # 获取机制常量中的间隔
+        interval_key = {
+            "乌瑟勋爵伤害": "SKILL_USHER_INTERVAL",
+            "海薇玛夫人伤害": "SKILL_CHEVALMARIN_INTERVAL",
+            "谢贝蕾妲小姐伤害": "SKILL_CRABALETTA_INTERVAL"
+        }[attack_name]
+        self.interval = MECHANISM_CONFIG[interval_key]
+        
+        # 预载配置
+        self.attack_config = self._build_attack_config(attack_name)
+
+    def on_frame_update(self) -> None:
+        self.timer += 1
+        if self.timer >= self.interval:
+            self.execute_attack()
+            self.timer = 0
+
+    def execute_attack(self) -> None:
+        bonus = self._process_hp_consumption()
+        
+        # 获取倍率
+        multiplier = ELEMENTAL_SKILL_DATA[self.attack_name][1][self.skill_lv - 1]
+        
+        # 构造伤害对象，Key 即是 Name
+        dmg_obj = Damage(
+            element=("水", 1.0),
+            damage_multiplier=multiplier * bonus,
+            scaling_stat="生命值",
+            config=self.attack_config,
+            name=self.attack_name
+        )
+        
+        # 注入 element_u (从原生数据读取)
+        dmg_obj.set_element("水", ATTACK_DATA[self.attack_name]["element_u"])
+        
+        self.ctx.event_engine.publish(GameEvent(
+            EventType.BEFORE_DAMAGE,
+            get_current_time(),
+            source=self.owner,
+            data={"character": self.owner, "damage": dmg_obj}
+        ))
+
+    def _process_hp_consumption(self) -> float:
+        if not self.ctx.team: return 1.0
+        
+        healthy_count = 0
+        consume_key = self.attack_name.replace("伤害", "消耗生命值")
+        ratio = ELEMENTAL_SKILL_DATA[consume_key][1][0] / 100.0
+        
+        for m in self.ctx.team.get_members():
+            max_hp = m.attribute_panel.get("生命值", 1.0)
+            if m.current_hp / max_hp > 0.5:
+                healthy_count += 1
+                consume_val = max_hp * ratio
+                self.ctx.event_engine.publish(GameEvent(
+                    EventType.BEFORE_HURT,
+                    get_current_time(),
+                    source=self.owner,
+                    data={"character": self.owner, "target": m, "amount": consume_val, "ignore_shield": True}
+                ))
+                
+        return 1.0 + min(4, healthy_count) * 0.1
+
+
+class SingerOfManyWaters(FurinaSummonBase):
+    """众水的歌者 (芒性)。"""
+
+    def __init__(self, owner: Any, context: Any) -> None:
+        super().__init__("众水的歌者", owner, context)
+        self.first_heal = MECHANISM_CONFIG["SKILL_FIRST_HEAL_FRAME"]
+        self.current_interval = MECHANISM_CONFIG["SKILL_HEAL_INTERVAL"]
+        self.timer = 0
+        self.has_first_healed = False
+
+    def on_frame_update(self) -> None:
+        if not self.has_first_healed:
+            if self.current_frame >= self.first_heal:
+                self.execute_healing()
+                self.has_first_healed = True
+                self.timer = 0
+            return
+
+        self.timer += 1
+        if self.timer >= self.current_interval:
+            self.execute_healing()
+            self.timer = 0
+
+    def execute_healing(self) -> None:
+        if not self.ctx.team: return
+        
+        # 动态更新间隔 (天赋二驱动)
+        self.current_interval = getattr(self.owner, "singer_interval_override", MECHANISM_CONFIG["SKILL_HEAL_INTERVAL"])
+
+        mult_info = ELEMENTAL_SKILL_DATA["众水的歌者治疗量"]
+        perc, flat = mult_info[1][self.skill_lv - 1]
+        
+        # 构造规范治疗
+        from core.action.healing import Healing, HealingType
+        heal_obj = Healing(base_multiplier=(perc, flat), healing_type=HealingType.SKILL, name="众水的歌者治疗")
+        heal_obj.set_scaling_stat("生命值")
+        
+        active_char = self.ctx.team.current_character
+        if active_char:
+            self.ctx.event_engine.publish(GameEvent(
+                EventType.BEFORE_HEAL, get_current_time(),
+                source=self.owner, data={"character": self.owner, "target": active_char, "healing": heal_obj}
+            ))

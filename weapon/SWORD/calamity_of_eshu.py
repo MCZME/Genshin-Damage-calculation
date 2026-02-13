@@ -1,6 +1,7 @@
+from core.context import get_context
 from core.action.damage import DamageType
 
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 import core.tool as T
 from weapon.weapon import Weapon
 from core.registry import register_weapon
@@ -14,8 +15,8 @@ class CalamityOfEshu(Weapon,EventHandler):
         self.critical_bonus = [8,10,12,14,16]
 
     def skill(self):
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL, self)
 
     def handle_event(self, event):
         if event.data["character"] == self.character:
@@ -30,3 +31,4 @@ class CalamityOfEshu(Weapon,EventHandler):
             elif event.event_type == EventType.BEFORE_CRITICAL:
                 damage.panel["暴击率"] += self.critical_bonus[self.lv - 1]
                 damage.setDamageData("厄水之祸_暴击率", self.critical_bonus[self.lv - 1])
+

@@ -1,3 +1,4 @@
+from core.context import get_context
 import types
 from character.NATLAN.natlan import Natlan
 from character.character import CharacterState
@@ -5,7 +6,7 @@ from core.base_class import ChargedAttackSkill, ConstellationEffect, DashSkill, 
 from core.effect.BaseEffect import AttackBoostEffect, DefenseDebuffEffect, Effect
 from core.BaseObject import baseObject
 from core.action.damage import Damage, DamageType
-from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
+from core.event import ChargedAttackEvent, DamageEvent, ElementalSkillEvent EventHandler, EventType, GameEvent, NightSoulBlessingEvent, NormalAttackEvent
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
 from core.logger import get_emulation_logger
@@ -33,8 +34,8 @@ class RingOfSearingRadianceObject(baseObject):
                 damageType=DamageType.SKILL,
                 name='焚曜之环'
             )
-            damageEvent = DamageEvent(source=self.character, target=target, damage=damage, frame=GetCurrentTime())
-            EventBus.publish(damageEvent)
+            damageEvent = DamageEvent(source=self.character, target=target, damage=damage, frame=get_current_time())
+            get_context().event_engine.publish(damageEvent)
     
         if self.character.constellation >= 2:
             effect = DefenseDebuffEffect(self.character,target, 20, 2,'灰烬的代价-焚曜之环')
@@ -51,7 +52,7 @@ class ElementalSkill(SkillBase, EventHandler):
         self.damageMultipiler ={'伤害':[74.4, 79.98, 85.56, 93, 98.58, 104.16, 111.6, 119.04, 
                                       126.48, 133.92, 141.36, 148.8, 158.1, 167.4, 176.7, ]}
 
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def start(self, caster, hold=False):
         if caster.Nightsoul_Blessing:
@@ -75,8 +76,8 @@ class ElementalSkill(SkillBase, EventHandler):
                             element=('火',1), 
                             damageType=DamageType.SKILL,
                             name=self.name)
-            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
-            EventBus.publish(damageEvent)
+            damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=get_current_time())
+            get_context().event_engine.publish(damageEvent)
             summon_energy(5, self.caster, ('火', 2))
            
     def handle_event(self, event):
@@ -112,17 +113,17 @@ class FurnaceEffect(Effect, EventHandler):
             existing.duration = self.duration  # 刷新持续时间
             return
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
 
         
     def remove(self):
         get_emulation_logger().log_effect('死生之炉结束')
         super().remove()
-        EventBus.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
-        EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
-        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
     
     def handle_event(self, event: GameEvent):
         # 阻止夜魂消耗
@@ -168,8 +169,8 @@ class ElementalBurst(SkillBase, EventHandler):
         self.ttt = 0 # 控制日志打印
         
         # 订阅事件
-        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHT_SOUL_CHANGE, self)
 
     def start(self, caster):
         if self.battle_will < 50:
@@ -194,8 +195,8 @@ class ElementalBurst(SkillBase, EventHandler):
         damage.setDamageData('死生之炉提升', self.consumed_will*self.damageMultipiler['坠日斩伤害提升'][self.lv-1])
         damage.setDamageData('夜魂伤害', True)
         damage.setDamageData('不可覆盖', True)
-        damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=GetCurrentTime())
-        EventBus.publish(damageEvent)
+        damageEvent = DamageEvent(source=self.caster, target=target, damage=damage, frame=get_current_time())
+        get_context().event_engine.publish(damageEvent)
 
     def handle_event(self, event: GameEvent):
         # 普通攻击获得战意
@@ -309,12 +310,12 @@ class MavuikaNormalAttackSkill(NormalAttackSkill):
             damageType=DamageType.NORMAL,
             name="驰轮车" if self.caster.mode == '驰轮车' else "普通攻击",
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
         # 发布普通攻击后事件（保持原有逻辑）
-        normal_attack_event = NormalAttackEvent(self.caster, GetCurrentTime(),False, self.current_segment+1)
-        EventBus.publish(normal_attack_event)
+        normal_attack_event = NormalAttackEvent(self.caster, get_current_time(),False, self.current_segment+1)
+        get_context().event_engine.publish(normal_attack_event)
 
 class MavuikaChargedAttackSkill(ChargedAttackSkill):
     def __init__(self, lv):
@@ -382,8 +383,8 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
 
     def _apply_spin_damage(self, target):
         """应用旋转伤害"""
-        event = ChargedAttackEvent(self.caster, GetCurrentTime())
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, get_current_time())
+        get_context().event_engine.publish(event)
         # 获取当前元素量
         element_value = self.element_sequence[self.sequence_index % 3]
         element = ('火', element_value)
@@ -399,11 +400,11 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
         )
         damage.setDamageData("夜魂伤害",True)
         damage.setDamageData('不可覆盖',True)
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, GetCurrentTime(), before=False)
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, get_current_time(), before=False)
+        get_context().event_engine.publish(event)
 
     def _apply_finish_damage(self, target):
         """应用终结伤害"""
@@ -416,8 +417,8 @@ class MavuikaChargedAttackSkill(ChargedAttackSkill):
         )
         damage.setDamageData("夜魂伤害",True)
         damage.setDamageData('不可覆盖',True)
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
     def on_finish(self):
         super().on_finish()
@@ -457,8 +458,8 @@ class MavuikaDashSkill(DashSkill):
                 name='驰轮车冲刺伤害'
             )
             damage.setDamageData("夜魂伤害",True)
-            damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-            EventBus.publish(damage_event)
+            damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+            get_context().event_engine.publish(damage_event)
             self.caster.consume_night_soul(10)
         super().on_frame_update(target)
 
@@ -473,7 +474,7 @@ class TwoPhaseDamageBoostEffect(Effect, EventHandler):
         self.total_duration = fixed_duration + decay_duration
         self.decay_rate = self.max_boost / decay_duration
         self.current_holder = None
-        EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+        get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
 
     def apply(self):
         super().apply()
@@ -528,7 +529,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_BURST, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_BURST, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_BURST and event.data['character'] == self.character:
@@ -550,7 +551,7 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.NightsoulBurst, self)
+        get_context().event_engine.subscribe(EventType.NightsoulBurst, self)
     
     def handle_event(self, event):
         if event.event_type == EventType.NightsoulBurst:
@@ -584,9 +585,9 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
     
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
-        EventBus.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NIGHTSOUL_BLESSING, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_MULTIPLIER, self)
 
     def handle_event(self, event):
         if event.data['character'] != self.character:
@@ -651,19 +652,19 @@ class MAVUIKA(Natlan):
         # 已处于技能状态时切换形态
         if self.Skill.start(self,hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self, frame=GetCurrentTime())
-            EventBus.publish(skillEvent)
+            skillEvent = ElementalSkillEvent(self, frame=get_current_time())
+            get_context().event_engine.publish(skillEvent)
 
     def chargeNightsoulBlessing(self):
         if self.Nightsoul_Blessing:
-            self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime(), before=False)
-            EventBus.publish(self.after_nightsoulBlessingevent)
+            self.after_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=get_current_time(), before=False)
+            get_context().event_engine.publish(self.after_nightsoulBlessingevent)
             self.Nightsoul_Blessing = False
             self.switch_to_mode('正常模式')
             get_emulation_logger().log("INFO", f"{self.name} 夜魂加持结束")
         else:
-            self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=GetCurrentTime())
-            EventBus.publish(self.before_nightsoulBlessingevent)
+            self.before_nightsoulBlessingevent = NightSoulBlessingEvent(self, frame=get_current_time())
+            get_context().event_engine.publish(self.before_nightsoulBlessingevent)
             self.Nightsoul_Blessing = True
             get_emulation_logger().log("INFO", "夜魂加持")
     
@@ -721,3 +722,4 @@ mavuika_table = {
     'burst':{},
     'dash':{},
 }
+

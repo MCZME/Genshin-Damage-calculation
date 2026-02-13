@@ -1,9 +1,10 @@
+from core.context import get_context
 import random
 from character.FONTAINE.fontaine import Fontaine
 from core.base_class import (ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, 
                             PolearmChargedAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import ArkheObject, baseObject
-from core.event import DamageEvent, EventBus, EventHandler, EventType, HealEvent, ObjectEvent
+from core.event import DamageEvent EventHandler, EventType, HealEvent, ObjectEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -61,7 +62,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 '低温烹饪'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             
             # 召唤厨艺机关
             kitchen_appliance = KitchenApplianceObject(
@@ -74,7 +75,7 @@ class ElementalSkill(SkillBase):
             summon_energy(4, self.caster, ('冰',2))
 
             # 始基力：荒性效果
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if current_time - self.last_arkhe_time >= self.arkhe_cooldown:
                 arkhe_damage = Damage(
                     self.arkhe_damage[self.lv-1],
@@ -115,19 +116,19 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
             return
         Team.add_object(self)
         self.is_active = True
-        EventBus.publish(ObjectEvent(self, GetCurrentTime()))
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.publish(ObjectEvent(self, get_current_time()))
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
         
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
         
     def handle_event(self, event):
         if (self.character.constellation >= 6 and 
             event.data['character'] == Team.current_character and
             event.data['damage'].damageType in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]):
             
-            current_time = GetCurrentTime()
+            current_time = get_current_time()
             if (current_time - self.last_c6_time >= 30 and  # 0.5秒冷却
                 self.c6_triggers < 6):  # 最多6次
                 
@@ -137,7 +138,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
                     DamageType.SKILL,
                     '特级冻霜芭菲'
                 )
-                EventBus.publish(DamageEvent(self.character, event.data['target'], damage, current_time))
+                get_context().event_engine.publish(DamageEvent(self.character, event.data['target'], damage, current_time))
                 
                 self.c6_triggers += 1
                 self.last_c6_time = current_time
@@ -152,7 +153,7 @@ class KitchenApplianceObject(baseObject,Infusion,EventHandler):
                 DamageType.SKILL,
                 '冻霜芭菲'
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
             self.last_attack_time = current_time
 
 class ElementalBurst(EnergySkill):
@@ -182,7 +183,7 @@ class ElementalBurst(EnergySkill):
                 DamageType.BURST,
                 '花刀技法'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
             # 全队治疗
             healing = Healing(
@@ -197,9 +198,9 @@ class ElementalBurst(EnergySkill):
                     self.caster,
                     char,
                     healing,
-                    GetCurrentTime()
+                    get_current_time()
                 )
-                EventBus.publish(heal_event)
+                get_context().event_engine.publish(heal_event)
 
     def on_finish(self):
         super().on_finish()
@@ -228,7 +229,7 @@ class RecoveryDietEffect(Effect):
         get_emulation_logger().log_effect(f"{self.character.name}失去康复食疗效果")
         
     def update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_heal_time >= 60:  # 每秒治疗一次
             healing = Healing(
                 self.healing_rate,
@@ -255,7 +256,7 @@ class RecoveryDietEffect(Effect):
                 healing,
                 current_time
             )
-            EventBus.publish(heal_event)
+            get_context().event_engine.publish(heal_event)
             self.last_heal_time = current_time
             
         super().update(target)
@@ -266,7 +267,7 @@ class PassiveSkillEffect_1(TalentEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
 
     def handle_event(self, event):
         if not event.data['character'] == self.character:
@@ -280,7 +281,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         if not event.data['character'] == self.character:
@@ -331,11 +332,11 @@ class MealDanceEffect(Effect, EventHandler):
             existing.duration = self.duration
         super().apply()
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
 
     def remove(self):
-        EventBus.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_CRITICAL_BRACKET, self)
         super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}失去{self.name}效果")
 
@@ -351,8 +352,8 @@ class ConstellationEffect_1(ConstellationEffect, EventHandler):
     def apply(self, character):
         super().apply(character)
         # 订阅技能和爆发释放事件
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
-        EventBus.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
 
     def handle_event(self, event):
         if not event.data['character'] == self.character:
@@ -396,11 +397,11 @@ class FreshDelicacyEffect(Effect, EventHandler):
             existing.cold_brew_stacks = 5
         super().apply()
         self.character.add_effect(self)
-        EventBus.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_FIXED_DAMAGE, self)
         get_emulation_logger().log_effect(f"{self.character.name}获得{self.name}效果")
 
     def remove(self):
-        EventBus.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_FIXED_DAMAGE, self)
         super().remove()
         get_emulation_logger().log_effect(f"{self.character.name}失去{self.name}效果")
 
@@ -429,7 +430,7 @@ class ConstellationEffect_2(ConstellationEffect, EventHandler):
     def apply(self, character):
         super().apply(character)
         # 订阅元素战技事件
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
 
     def handle_event(self, event):
         if (event.data['character'] == self.character):
@@ -502,3 +503,4 @@ Escoffier_table = {
     'skill': {},
     'burst': {}
 }
+

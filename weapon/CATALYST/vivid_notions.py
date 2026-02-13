@@ -1,5 +1,6 @@
+from core.context import get_context
 
-from core.event import EventBus, EventHandler, EventType
+from core.event import EventHandler, EventType
 from weapon.weapon import Weapon
 from core.registry import register_weapon
 
@@ -16,9 +17,9 @@ class VividNotions(Weapon, EventHandler):
         self.remove_timer = 0       # 效果移除计时器
         
         # 订阅事件
-        EventBus.subscribe(EventType.BEFORE_SKILL, self)
-        EventBus.subscribe(EventType.BEFORE_BURST, self)
-        EventBus.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_SKILL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_BURST, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_PLUNGING_ATTACK, self)
 
     def handle_event(self, event):
         if event.data["character"] != self.character:
@@ -32,3 +33,4 @@ class VividNotions(Weapon, EventHandler):
         elif event.event_type == EventType.BEFORE_PLUNGING_ATTACK:
             self.morning_effect.duration = 900  # 重置持续时间
             self.morning_effect.apply()
+

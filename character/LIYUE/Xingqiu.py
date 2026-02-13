@@ -1,8 +1,9 @@
+from core.context import get_context
 from character.LIYUE.liyue import Liyue
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy,
                             EnergySkill, Infusion, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.event import ChargedAttackEvent, DamageEvent, EventBus, EventHandler, EventType, HealEvent
+from core.event import ChargedAttackEvent, DamageEvent EventHandler, EventType, HealEvent
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -41,8 +42,8 @@ class ChargedAttack(ChargedAttackSkill):
 
     def _apply_attack(self, target, segment):
         """应用重击伤害"""
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime())
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time())
+        get_context().event_engine.publish(event)
 
         damage = Damage(
             damageMultipiler=self.damageMultipiler[segment][self.lv-1],
@@ -50,11 +51,11 @@ class ChargedAttack(ChargedAttackSkill):
             damageType=DamageType.CHARGED,
             name=f'重击第{segment+1}段'
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
-        event = ChargedAttackEvent(self.caster, frame=GetCurrentTime(), before=False)
-        EventBus.publish(event)
+        event = ChargedAttackEvent(self.caster, frame=get_current_time(), before=False)
+        get_context().event_engine.publish(event)
 
 class PlungingAttack(PlungingAttackSkill):
     ...
@@ -67,7 +68,7 @@ class RainSwordObject(baseObject):
         self.attack_interval = 2*60
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if current_time - self.last_attack_time >= self.attack_interval:
             self.last_attack_time = current_time
             damage = Damage(0, ('水', 1), DamageType.SKILL, '雨帘剑')
@@ -82,9 +83,9 @@ class RainSwordObject(baseObject):
                 self.character,
                 Team.current_character,
                 heal,
-                GetCurrentTime()
+                get_current_time()
             )
-            EventBus.publish(heal_event)
+            get_context().event_engine.publish(heal_event)
         super().on_finish(target)
 
 class ElementalSkill(SkillBase):
@@ -119,8 +120,8 @@ class ElementalSkill(SkillBase):
             damageType=DamageType.SKILL,
             name=f'古华剑·画雨笼山第{segment+1}段'
         )
-        damage_event = DamageEvent(self.caster, target, damage, GetCurrentTime())
-        EventBus.publish(damage_event)
+        damage_event = DamageEvent(self.caster, target, damage, get_current_time())
+        get_context().event_engine.publish(damage_event)
 
 class RainSwordStanceObject(baseObject,EventHandler,Infusion):
     def __init__(self, character, lv):
@@ -148,16 +149,16 @@ class RainSwordStanceObject(baseObject,EventHandler,Infusion):
 
     def apply(self):
         super().apply()
-        EventBus.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
 
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.BEFORE_NORMAL_ATTACK, self)
-        EventBus.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
 
     def on_frame_update(self, target):
-        current_time = GetCurrentTime()
+        current_time = get_current_time()
         if self.attack_active:
             if current_time - self.last_attack_time >= self.attack_interval:
                 self.last_attack_time = current_time
@@ -174,7 +175,7 @@ class RainSwordStanceObject(baseObject,EventHandler,Infusion):
                         damage,
                         current_time
                     )
-                    EventBus.publish(damage_event)
+                    get_context().event_engine.publish(damage_event)
                 self.sequence_pos_n = (self.sequence_pos_n+1) % len(self.sequence_n)
                 if self.character.constellation >= 2:
                     ResistanceDebuffEffect('天青现虹', self.character, target, ['水'],15,4*60).apply()
@@ -244,7 +245,7 @@ class ConstellationEffect_4(ConstellationEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_INDEPENDENT_DAMAGE, self)
 
     def handle_event(self, event):
         if event.data['character'] != self.character:
@@ -299,3 +300,4 @@ xingqiu_table = {
     'skill': {},
     'burst': {}
 }
+

@@ -4,7 +4,7 @@ from core.target import Target
 from core.action.damage import Damage, DamageType
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 from core.entities.base_entity import Faction
 
 class TestCombatSpaceDispatch:
@@ -39,7 +39,7 @@ class TestCombatSpaceDispatch:
         dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "测试火球")
         dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 5.0})
 
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker,
+        event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker,
                           data={'character': attacker, 'damage': dmg})
         sim_ctx.event_engine.publish(event)
 
@@ -66,7 +66,7 @@ class TestCombatSpaceDispatch:
         dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "打不到")
         dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 5.0})
         
-        event = GameEvent(EventType.BEFORE_DAMAGE, GetCurrentTime(), source=attacker,
+        event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker,
                           data={'character': attacker, 'damage': dmg})
         sim_ctx.event_engine.publish(event)
 

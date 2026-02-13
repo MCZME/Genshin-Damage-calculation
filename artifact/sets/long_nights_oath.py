@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType
+from core.event import EventType
 from core.action.damage import DamageType
 from core.effect.artifact.nighttime_whispers import LuminescenceEffect
 
@@ -11,10 +12,10 @@ class LongNightsOath(BaseArtifactSet):
 
     def apply_2_set_effect(self, character: Any) -> None:
         # 下落攻击伤害提升25%
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_DAMAGE_BONUS and event.data["character"] == self.character:
@@ -35,3 +36,4 @@ class LongNightsOath(BaseArtifactSet):
                         else: # CHARGED or SKILL
                             effect = LuminescenceEffect(self.character, damage_type, 2)
                             effect.apply()
+

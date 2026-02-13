@@ -9,7 +9,7 @@ from character.FONTAINE.charlotte.talents import (
     ConstellationEffect_4, ConstellationEffect_5, ConstellationEffect_6
 )
 
-@register_character(74)
+@register_character("夏洛蒂")
 class CHARLOTTE(Fontaine):
     """
     夏洛蒂 - 核心角色类
@@ -19,22 +19,27 @@ class CHARLOTTE(Fontaine):
         super().__init__(id=74, level=level, skill_params=skill_params, constellation=constellation, base_data=base_data)
         self.association = '枫丹'
 
-    def _init_character(self):
-        # 1. 基础属性与资源
+    def _setup_character_components(self):
+        """V2 架构组件初始化"""
         self.arkhe = "芒性"
         self.elemental_energy = ElementalEnergy(self, ('冰', 80))
         
-        # 2. 实例化技能 (适配 ASM)
-        self.NormalAttack = NormalAttack(self.skill_params[0])
-        self.ChargedAttack = ChargedAttack(self.skill_params[0])
-        self.Skill = ElementalSkill(self.skill_params[1])
-        self.Burst = ElementalBurst(self.skill_params[2])
+        # 实例化技能并注册到标准字典
+        self.skills = {
+            "normal_attack": NormalAttack(self.skill_params[0]),
+            "charged_attack": ChargedAttack(self.skill_params[0]),
+            "elemental_skill": ElementalSkill(self.skill_params[1]),
+            "elemental_burst": ElementalBurst(self.skill_params[2])
+        }
+
+    def _setup_effects(self):
+        """V2 架构效果初始化"""
+        self.talents = [
+            PassiveSkillEffect_1(),
+            PassiveSkillEffect_2()
+        ]
         
-        # 3. 实例化天赋与命座
-        self.talent1 = PassiveSkillEffect_1()
-        self.talent2 = PassiveSkillEffect_2()
-        
-        self.constellation_effects = [
+        self.constellations = [
             ConstellationEffect_1(),
             ConstellationEffect_2(),
             ConstellationEffect_3(),
@@ -43,15 +48,23 @@ class CHARLOTTE(Fontaine):
             ConstellationEffect_6()
         ]
 
-    # 注意：基类中的 normal_attack, elemental_skill 等方法现在会自动调用 
-    # self._get_action_data 并通过 ASM 执行，因此子类无需再重写这些方法。
-    
-    def _get_action_data(self, name: str, params: Any) -> Any:
-        """重写动作元数据获取逻辑，支持 Skill 对象的参数化导出"""
-        if name == "elemental_skill":
-            # 夏洛蒂的 E 技能支持长按/点按参数
-            hold = params == "长按" if params else False
-            return self.Skill.to_action_data(hold=hold)
-        
-        # 其他动作使用基类通用逻辑 (自动寻找 self.NormalAttack 等)
-        return super()._get_action_data(name, params)
+    @classmethod
+    def get_action_metadata(cls) -> Dict[str, Any]:
+        """
+        定义夏洛蒂 E 技能的参数 Schema。
+        """
+        return {
+            "elemental_skill": {
+                "label": "取景·冰点构图法",
+                "params": [
+                    {
+                        "key": "type", 
+                        "label": "施放方式", 
+                        "type": "select", 
+                        # 使用 dict 格式: {value: label}
+                        "options": {"Press": "点按", "Hold": "长按"}, 
+                        "default": "Press"
+                    }
+                ]
+            }
+        }

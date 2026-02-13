@@ -26,9 +26,8 @@ class Config:
             raise ValueError(f"配置文件 {config_path} 格式错误")
 
     @classmethod
-    def get(self, key, default=None):
+    def get(cls, key, default=None):
         """获取配置值
-        
         Args:
             key (str): 配置键，支持点分隔符如'project.name'
             default: 默认值，当键不存在时返回
@@ -36,8 +35,17 @@ class Config:
         Returns:
             Any: 配置值或默认值
         """
+        if cls.config is None:
+            # 自动尝试加载默认位置的配置
+            try:
+                Config()
+            except:
+                return default
+        
         keys = key.split('.')
-        value = Config.config
+        value = cls.config
+        if value is None: return default
+        
         for k in keys:
             if isinstance(value, dict) and k in value:
                 value = value[k]

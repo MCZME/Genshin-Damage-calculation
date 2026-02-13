@@ -1,25 +1,33 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
 import random
 
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import GameEvent, DamageEvent, EventType
-from core.action.damage import Damage, DamageType
-from core.action.action_data import AOEShape
+from core.action.damage import Damage
 from core.config import Config
 from core.logger import get_emulation_logger
-from core.tool import GetCurrentTime
-from core.mechanics.aura import Element
-from core.effect.elemental import ElementalInfusionEffect
+from core.tool import get_current_time
+
+
+@dataclass
+class ModifierRecord:
+    """伤害修幅记录条目。"""
+    source: str      # 来源 (如 "芙宁娜-气氛值", "基础攻击力")
+    stat: str        # 属性名 (如 "伤害加成")
+    value: float     # 数值
+    op: str = "ADD"  # 操作: ADD, MULT, SET
+
 
 class DamageContext:
-    """伤害计算上下文"""
+    """伤害计算上下文 (支持全过程审计)。"""
     def __init__(self, damage: Damage, source: Any, target: Optional[Any] = None):
         self.damage = damage
         self.source = source
         self.target = target
-        self.config = damage.config # 快捷访问攻击契约
+        self.config = damage.config
         
         self.stats: Dict[str, float] = {
             "攻击力": 0.0, "生命值": 0.0, "防御力": 0.0, "元素精通": 0.0,
@@ -27,170 +35,107 @@ class DamageContext:
             "防御区系数": 1.0, "抗性区系数": 1.0, "反应基础倍率": 1.0,
             "反应加成系数": 0.0, "独立乘区系数": 1.0,
         }
+        self.audit_trail: List[ModifierRecord] = []
         self.final_result: float = 0.0
         self.is_crit: bool = False
+
+    def add_modifier(self, source: str, stat: str, value: float, op: str = "ADD") -> None:
+        if stat not in self.stats:
+            self.stats[stat] = 0.0 if op == "ADD" else 1.0
+        if op == "ADD": self.stats[stat] += value
+        elif op == "MULT": self.stats[stat] *= value
+        elif op == "SET": self.stats[stat] = value
+        self.audit_trail.append(ModifierRecord(source, stat, value, op))
+
 
 class DamagePipeline:
     def __init__(self, engine: EventEngine):
         self.engine = engine
 
     def run(self, ctx: DamageContext):
-        # 1. 附魔处理 (仅影响普攻/重击/下落)
-        self._handle_infusion(ctx)
-        
-        # 2. 属性快照 (计算攻击力、精通等)
         self._snapshot(ctx)
         
-        # 3. 计算前修正 (供 Buff 监听)
-        self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, GetCurrentTime(), 
+        self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, get_current_time(), 
                                       source=ctx.source, data={"damage_context": ctx}))
         
-        # 4. 空间广播与碰撞判定
         if not ctx.target:
             self._dispatch_broadcast(ctx)
         else:
-            # 如果已有 target，必须手动触发其伤害处理接口以执行 ICD 和元素反应
             ctx.damage.set_target(ctx.target)
             ctx.target.handle_damage(ctx.damage)
         
-        # 如果最终未命中任何目标，终止计算
-        if not ctx.damage.target:
-            return
-
+        if not ctx.damage.target: return
         ctx.target = ctx.damage.target
         
-        # 5. 元素反应处理 (基于广播阶段反馈的 reaction_results)
         self._preprocess_reaction_stats(ctx)
-        
-        # 6. 乘区结算
         self._calculate_def_res(ctx)
+        
         self._calculate(ctx)
         
-        # 7. 更新最终伤害值
         ctx.damage.damage = ctx.final_result
-
-    def _dispatch_broadcast(self, ctx: DamageContext):
-        """对接 CombatSpace 物理引擎"""
-        from core.context import get_context
-        sim_ctx = get_context()
-        if not sim_ctx or not sim_ctx.space:
-            return
-            
-        hb = ctx.config.hitbox
-        
-        # 根据契约中的 hitbox 配置决定广播方式
-        if hb.shape == AOEShape.SINGLE:
-            sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
-        else:
-            # 区域攻击：传递形状与参数
-            sim_ctx.space.broadcast_damage(
-                ctx.source, 
-                ctx.damage, 
-                shape=hb.shape.name, 
-                radius=hb.radius, 
-                height=hb.height,
-                width=hb.width,
-                length=hb.length,
-                offset=hb.offset
-            )
-
-    def _handle_infusion(self, ctx: DamageContext):
-        """处理元素附魔 (基于新架构 Effect 体系)"""
-        dmg = ctx.damage
-        # 仅对普攻系列生效
-        if dmg.damage_type not in [DamageType.NORMAL, DamageType.CHARGED, DamageType.PLUNGING]:
-            return
-            
-        infusions = [e for e in ctx.source.active_effects if isinstance(e, ElementalInfusionEffect)]
-        if not infusions or dmg.data.get('不可覆盖', False):
-            return
-        
-        # 优先级逻辑：不可覆盖附魔优先
-        unoverridable = next((e for e in infusions if e.is_unoverridable), None)
-        if unoverridable:
-            dmg.element = (unoverridable.element_type, unoverridable.should_apply_infusion(dmg.damage_type))
-            return
-        
-        # 元素反应优先级 (火 > 冰 > 水) 或 时间先后
-        elements = [e.element_type for e in infusions]
-        dominant = self._get_dominant_element(elements, infusions)
-        dmg.element = (dominant, max(e.should_apply_infusion(dmg.damage_type) for e in infusions))
-
-    def _get_dominant_element(self, elements, infusions):
-        for e_type in [Element.HYDRO, Element.PYRO, Element.CRYO]:
-            if e_type in elements: return e_type
-        return min(elements, key=lambda x: next(e.apply_time for e in infusions if e.element_type == x))
+        ctx.damage.data["audit_trail"] = ctx.audit_trail
 
     def _snapshot(self, ctx: DamageContext):
         src = ctx.source
-        s = ctx.stats
-        s["攻击力"] = AttributeCalculator.get_attack(src)
-        s["生命值"] = AttributeCalculator.get_hp(src)
-        s["防御力"] = AttributeCalculator.get_defense(src)
-        s["元素精通"] = AttributeCalculator.get_mastery(src)
-        s["暴击率"] = AttributeCalculator.get_crit_rate(src) * 100
-        s["暴击伤害"] = AttributeCalculator.get_crit_damage(src) * 100
+        from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
+        categories = AttackTagResolver.resolve_categories(ctx.config.attack_tag, ctx.config.extra_attack_tags)
         
-        el = ctx.damage.element[0]
-        s["伤害加成"] = AttributeCalculator.get_damage_bonus(src, el.value) * 100
-
-    def _preprocess_reaction_stats(self, ctx: DamageContext):
-        """处理广播后由实体产生的反应结果"""
-        results = ctx.damage.reaction_results
-        from core.action.reaction import ReactionCategory, ElementalReactionType
-        from core.entities.elemental_entities import DendroCoreEntity
+        # 1. 基础面板注入
+        ctx.add_modifier("角色基础面板", "攻击力", AttributeCalculator.get_attack(src), "SET")
+        ctx.add_modifier("角色基础面板", "生命值", AttributeCalculator.get_hp(src), "SET")
+        ctx.add_modifier("角色基础面板", "防御力", AttributeCalculator.get_defense(src), "SET")
+        ctx.add_modifier("角色基础面板", "元素精通", AttributeCalculator.get_mastery(src), "SET")
         
-        for res in results:
-            # 处理增幅反应与激化加成
-            if res.category == ReactionCategory.AMPLIFYING:
-                ctx.stats["反应基础倍率"] = res.multiplier
-                em = ctx.stats["元素精通"]
-                ctx.stats["反应加成系数"] += (2.78 * em) / (em + 1400)
-            elif res.reaction_type in [ElementalReactionType.AGGRAVATE, ElementalReactionType.SPREAD]:
-                from core.tool import get_reaction_multiplier
-                mult = 1.15 if res.reaction_type == ElementalReactionType.AGGRAVATE else 1.25
-                level_coeff = get_reaction_multiplier(ctx.source.level)
-                em = ctx.stats["元素精通"]
-                ctx.stats["固定伤害值加成"] += level_coeff * mult * (1 + (5 * em) / (em + 1200))
+        # 2. 暴击区注入
+        ctx.add_modifier("基础暴击", "暴击率", AttributeCalculator.get_crit_rate(src)*100, "SET")
+        ctx.add_modifier("基础爆伤", "暴击伤害", AttributeCalculator.get_crit_damage(src)*100, "SET")
+        
+        # 3. 动态增伤区注入
+        bonus = AttributeCalculator.get_damage_bonus(src) # 通用全增伤
+        el_name = ctx.damage.element[0]
+        if el_name != "无":
+            el_bonus_key = f"{el_name}元素伤害加成" if el_name != "物理" else "物理伤害加成"
+            bonus += src.attribute_panel.get(el_bonus_key, 0.0) / 100
             
-            # 处理草原核生成 (绽放)
-            elif res.reaction_type == ElementalReactionType.BLOOM:
-                # 检查攻击契约是否允许部署 (或根据游戏规则自动部署)
-                if ctx.config.is_deployable and ctx.target:
-                    # 在目标位置生成草原核
-                    core = DendroCoreEntity(ctx.source, ctx.target.pos)
-                    # 注册到场景
-                    from core.context import get_context
-                    sim_ctx = get_context()
-                    if sim_ctx and sim_ctx.space:
-                        sim_ctx.space.register(core)
+        if AttackCategory.NORMAL in categories: bonus += src.attribute_panel.get("普通攻击伤害加成", 0.0) / 100
+        if AttackCategory.CHARGED in categories: bonus += src.attribute_panel.get("重击伤害加成", 0.0) / 100
+        if AttackCategory.PLUNGING in categories: bonus += src.attribute_panel.get("下落攻击伤害加成", 0.0) / 100
+        if AttackCategory.SKILL in categories: bonus += src.attribute_panel.get("元素战技伤害加成", 0.0) / 100
+        if AttackCategory.BURST in categories: bonus += src.attribute_panel.get("元素爆发伤害加成", 0.0) / 100
+        
+        ctx.add_modifier("总和伤害加成区", "伤害加成", bonus * 100, "SET")
 
     def _calculate_def_res(self, ctx: DamageContext):
         target_def = ctx.target.attribute_panel.get("防御力", 0)
-        attacker_lv = ctx.source.level
-        ctx.stats["防御区系数"] = (5 * attacker_lv + 500) / (target_def + 5 * attacker_lv + 500)
+        coeff_def = (5 * ctx.source.level + 500) / (target_def + 5 * ctx.source.level + 500)
+        ctx.add_modifier("防御减免", "防御区系数", coeff_def, "SET")
         
-        el_name = ctx.damage.element[0].name
+        el_name = ctx.damage.element[0]
         res = ctx.target.attribute_panel.get(f"{el_name}元素抗性", 10.0)
-        
-        if res > 75:
-            ctx.stats["抗性区系数"] = 1 / (1 + 4 * res / 100)
-        elif res < 0:
-            ctx.stats["抗性区系数"] = 1 - res / 2 / 100
-        else:
-            ctx.stats["抗性区系数"] = 1 - res / 100
+        coeff_res = 1.0
+        if res > 75: coeff_res = 1 / (1 + 4 * res / 100)
+        elif res < 0: coeff_res = 1 - res / 2 / 100
+        else: coeff_res = 1 - res / 100
+        ctx.add_modifier(f"{el_name}抗性修正", "抗性区系数", coeff_res, "SET")
 
     def _calculate(self, ctx: DamageContext):
         s = ctx.stats
-        if ctx.damage.damage_type == DamageType.REACTION:
+        from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
+        categories = AttackTagResolver.resolve_categories(ctx.config.attack_tag, ctx.config.extra_attack_tags)
+
+        # 剧变反应结算
+        if AttackCategory.REACTION in categories:
             em_inc = (16 * s["元素精通"]) / (s["元素精通"] + 2000)
             level_coeff = ctx.damage.data.get('等级系数', 0)
             react_base = ctx.damage.data.get('反应系数', 1.0)
             bonus = ctx.damage.data.get('反应伤害提高', 0) 
             ctx.final_result = level_coeff * react_base * (1 + em_inc + bonus) * s["抗性区系数"]
+            ctx.audit_trail.append(ModifierRecord("剧变反应基础", "最终伤害", ctx.final_result, "SET"))
             return
 
-        base = self._get_base_value(ctx) + s["固定伤害值加成"]
+        # 基础增伤区合算
+        base_val = self._get_base_value(ctx)
+        
         bonus_mult = 1 + s["伤害加成"] / 100
         crit_mult = self._get_crit_mult(ctx)
         
@@ -198,21 +143,40 @@ class DamagePipeline:
         if s["反应基础倍率"] > 1.0:
             react_mult = s["反应基础倍率"] * (1 + s["反应加成系数"])
         
-        ctx.final_result = (base * bonus_mult * crit_mult * react_mult * 
-                            s["防御区系数"] * s["抗性区系数"] * s["独立乘区系数"])
+        ctx.final_result = (
+            (base_val + s["固定伤害值加成"]) * 
+            bonus_mult * crit_mult * react_mult * 
+            s["防御区系数"] * s["抗性区系数"] * s["独立乘区系数"]
+        )
 
     def _get_base_value(self, ctx: DamageContext) -> float:
         d = ctx.damage
-        if isinstance(d.damage_multiplier, list):
-            return sum(ctx.stats.get(d.scaling_stat, 0) * (m/100) for m in d.damage_multiplier)
-        return ctx.stats.get(d.scaling_stat, 0) * (d.damage_multiplier / 100)
+        val = ctx.stats.get(d.scaling_stat, 0)
+        multiplier = d.damage_multiplier / 100
+        return val * multiplier
 
     def _get_crit_mult(self, ctx: DamageContext) -> float:
         if Config.get('emulation.open_critical'):
             if random.uniform(0, 100) <= ctx.stats["暴击率"]:
                 ctx.is_crit = True
+                ctx.audit_trail.append(ModifierRecord("暴击判定", "暴击乘数", 1 + ctx.stats["暴击伤害"]/100, "MULT"))
                 return 1 + ctx.stats["暴击伤害"] / 100
         return 1.0
+
+    def _dispatch_broadcast(self, ctx: DamageContext):
+        from core.context import get_context
+        sim_ctx = get_context()
+        hb = ctx.config.hitbox
+        sim_ctx.space.broadcast_damage(
+            ctx.source, ctx.damage, 
+            shape=hb.shape.name, radius=hb.radius, height=hb.height, 
+            width=hb.width, length=hb.length, offset=hb.offset
+        )
+
+    def _preprocess_reaction_stats(self, ctx: DamageContext):
+        for res in ctx.damage.reaction_results:
+            ctx.add_modifier(f"反应:{res.reaction_type.name}", "反应基础倍率", res.multiplier, "SET")
+
 
 class DamageSystem(GameSystem):
     def initialize(self, context):

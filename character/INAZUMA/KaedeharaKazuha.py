@@ -1,10 +1,11 @@
+from core.context import get_context
 from character.INAZUMA.inazuma import Inazuma
 from character.character import CharacterState
 from core.base_class import ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect
 from core.BaseObject import baseObject
 from core.action.damage import Damage, DamageType
 from core.effect.BaseEffect import Effect, ElementalDamageBoostEffect, ElementalInfusionEffect
-from core.event import DamageEvent, ElementalSkillEvent, EventBus, EventHandler, EventType
+from core.event import DamageEvent, ElementalSkillEvent EventHandler, EventType
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -64,7 +65,7 @@ class PlungingAttack(PlungingAttackSkill):
                 DamageType.PLUNGING,
                 f'下落攻击·乱岚拨止-{self.height_type}元素附加'
             )
-            EventBus.publish(DamageEvent(self.caster, target, extra_damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, extra_damage, get_current_time()))
 
         # 基础下落攻击伤害
         damage = Damage(
@@ -73,7 +74,7 @@ class PlungingAttack(PlungingAttackSkill):
             DamageType.PLUNGING,
             f'下落攻击·乱岚拨止-{self.height_type}' if luanlan_effect else f'下落攻击-{self.height_type}'
         )
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
     
 class ElementalSkill(SkillBase):
     def __init__(self, lv):
@@ -151,7 +152,7 @@ class ElementalSkill(SkillBase):
                 DamageType.SKILL,
                 f'千早振-{name}'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
             summon_energy(self.energy_num, self.caster,('风',2))
             
         self.caster.height += self.v
@@ -181,15 +182,15 @@ class LuanlanEffect(Effect,EventHandler):
         get_emulation_logger().log_effect(f"🍃 {self.character.name}获得乱岚拨止效果！")
         self.character.add_effect(self)
 
-        EventBus.subscribe(EventType.AFTER_FALLING, self)
+        get_context().event_engine.subscribe(EventType.AFTER_FALLING, self)
         if self.character.level >= 20:
-            EventBus.subscribe(EventType.BEFORE_SWIRL, self)
+            get_context().event_engine.subscribe(EventType.BEFORE_SWIRL, self)
         
     def remove(self):
         get_emulation_logger().log_effect("🍃 乱岚拨止效果消失")
-        EventBus.unsubscribe(EventType.AFTER_FALLING, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_FALLING, self)
         if self.character.level >= 20:
-            EventBus.unsubscribe(EventType.BEFORE_SWIRL, self)
+            get_context().event_engine.unsubscribe(EventType.BEFORE_SWIRL, self)
         self.character.falling_speed = 5
         super().remove()
 
@@ -251,7 +252,7 @@ class ElementalBurst(EnergySkill):
                 damageType=DamageType.BURST,
                 name=self.name + ' 斩击伤害'
             )
-            EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
 class KazuhaSlashField(baseObject, EventHandler):
     """流风秋野领域"""
@@ -268,9 +269,9 @@ class KazuhaSlashField(baseObject, EventHandler):
         
     def apply(self):
         super().apply()
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
         if self.character.constellation >= 2:
-            EventBus.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+            get_context().event_engine.subscribe(EventType.AFTER_CHARACTER_SWITCH, self)
             self.character.attributePanel['元素精通'] += 200
             self.current_character = self.character
         
@@ -283,7 +284,7 @@ class KazuhaSlashField(baseObject, EventHandler):
                 damageType=DamageType.BURST,
                 name="流风秋野-持续伤害"
             )
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
             if self.swirled_element:
                 # 附加元素转化伤害
                 swirl_damage = Damage(
@@ -292,7 +293,7 @@ class KazuhaSlashField(baseObject, EventHandler):
                     damageType=DamageType.BURST,
                     name=f"流风秋野-{self.swirled_element}附加伤害"
                 )
-                EventBus.publish(DamageEvent(self.character, target, swirl_damage, GetCurrentTime()))
+                get_context().event_engine.publish(DamageEvent(self.character, target, swirl_damage, get_current_time()))
     
     def handle_event(self, event):
         """处理元素转化"""
@@ -313,9 +314,9 @@ class KazuhaSlashField(baseObject, EventHandler):
     
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
         if self.character.constellation >= 2:
-            EventBus.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
+            get_context().event_engine.unsubscribe(EventType.AFTER_CHARACTER_SWITCH, self)
             self.character.attributePanel['元素精通'] -= 200
             if self.current_character != self.character:
                 self.current_character.attributePanel['元素精通'] -= 200
@@ -332,7 +333,7 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
         
     def apply(self,character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_SWIRL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SWIRL, self)
         
     def handle_event(self, event):
         """处理扩散反应事件"""
@@ -365,7 +366,7 @@ class ConstellationEffect_1(ConstellationEffect,EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
 
     def handle_event(self, event):
         if (event.event_type == EventType.AFTER_BURST and event.data['character'] == self.character):
@@ -414,8 +415,8 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.AFTER_SKILL, self)
-        EventBus.subscribe(EventType.AFTER_BURST, self)
+        get_context().event_engine.subscribe(EventType.AFTER_SKILL, self)
+        get_context().event_engine.subscribe(EventType.AFTER_BURST, self)
 
     def handle_event(self, event):
         if (event.event_type in [EventType.AFTER_SKILL, EventType.AFTER_BURST] and 
@@ -429,11 +430,11 @@ class CrimsonMomijiEffect(ElementalInfusionEffect,EventHandler):
 
     def apply(self):
         super().apply()
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def remove(self):
         super().remove()
-        EventBus.unsubscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def handle_event(self, event):
         if (event.event_type == EventType.BEFORE_DAMAGE_BONUS and 
@@ -470,8 +471,8 @@ class KaedeharaKazuha(Inazuma):
     def _elemental_skill_impl(self,hold):
         if self.Skill.start(self, hold):
             self._append_state(CharacterState.SKILL)
-            skillEvent = ElementalSkillEvent(self,GetCurrentTime())
-            EventBus.publish(skillEvent)
+            skillEvent = ElementalSkillEvent(self,get_current_time())
+            get_context().event_engine.publish(skillEvent)
 
 Kaedehara_Kazuha_table = {
     'id': KaedeharaKazuha.ID,
@@ -486,3 +487,4 @@ Kaedehara_Kazuha_table = {
     'skill': {'释放时间':['长按','点按']},
     'burst': {}
 }
+

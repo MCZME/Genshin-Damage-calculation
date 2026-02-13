@@ -10,3 +10,4 @@ config.json
 /memory-bank
 /.clinerules
 simulation_results.db
+.env

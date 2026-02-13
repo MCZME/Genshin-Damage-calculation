@@ -1,9 +1,10 @@
+from core.context import get_context
 import random
 from character.LIYUE.liyue import Liyue
 from core.base_class import (ChargedAttackSkill, ConstellationEffect, ElementalEnergy, EnergySkill, Infusion, 
                             NormalAttackSkill, PlungingAttackSkill, SkillBase, TalentEffect)
 from core.BaseObject import baseObject
-from core.event import DamageEvent, EventBus, EventHandler, EventType
+from core.event import DamageEvent EventHandler, EventType
 from core.logger import get_emulation_logger
 from core.team import Team
 from core.tool import GetCurrentTime, summon_energy
@@ -79,7 +80,7 @@ class ChargedAttack(ChargedAttackSkill):
         )
         damage.setBaseValue(base_value)
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
 class PlungingAttack(PlungingAttackSkill):
     ...
@@ -96,7 +97,7 @@ class ElementalSkill(SkillBase):
         self.stack_count = 1
 
     def start(self, caster):
-        count = int(GetCurrentTime() - self.last_use_time / self.cd)
+        count = int(get_current_time() - self.last_use_time / self.cd)
         if caster.constellation >= 1:
             self.stack_count = min(self.stack_count + count, 2)
         else:
@@ -108,7 +109,7 @@ class ElementalSkill(SkillBase):
         self.stack_count -= 1
         self.caster = caster
         self.current_frame = 0
-        self.last_use_time = GetCurrentTime()
+        self.last_use_time = get_current_time()
         get_emulation_logger().log_skill_use(f"🌀 {caster.name} 开始释放萦络纵命索")
         return True
 
@@ -127,7 +128,7 @@ class ElementalSkill(SkillBase):
 
         summon_energy(4,self.caster, ('水', 2),time=80)
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
         
         # 34%概率触发破局矢
         if random.random() < self.breakthrough_chance:
@@ -157,7 +158,7 @@ class ElementalBurst(EnergySkill):
         )
         damage.setBaseValue('生命值')
         
-        EventBus.publish(DamageEvent(self.caster, target, damage, GetCurrentTime()))
+        get_context().event_engine.publish(DamageEvent(self.caster, target, damage, get_current_time()))
 
         linglong_dice = LinglongDiceObject(self.caster, self.lv)
         linglong_dice.apply()
@@ -179,15 +180,15 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
     def apply(self):
         super().apply()
         get_emulation_logger().log_skill_use("🎲 玄掷玲珑已生效")
-        EventBus.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
-        EventBus.subscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def on_finish(self, target):
         super().on_finish(target)
-        EventBus.unsubscribe(EventType.BEFORE_NORMAL_ATTACK, self)
-        EventBus.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
-        EventBus.unsubscribe(EventType.AFTER_DAMAGE, self)
+        get_context().event_engine.unsubscribe(EventType.BEFORE_NORMAL_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_NORMAL_ATTACK, self)
+        get_context().event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.BEFORE_NORMAL_ATTACK:
@@ -217,7 +218,7 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
             )
             damage.setBaseValue('生命值')
             
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
 
         if self.character.constellation >= 2 and self.current_frame - self.c2_time >= 1.8 * 60:
             damage = Damage(
@@ -229,7 +230,7 @@ class LinglongDiceObject(baseObject, EventHandler, Infusion):
             damage.setBaseValue('生命值')
             self.c2_time = self.current_frame
             
-            EventBus.publish(DamageEvent(self.character, target, damage, GetCurrentTime()))
+            get_context().event_engine.publish(DamageEvent(self.character, target, damage, get_current_time()))
         
 class PassiveSkillEffect_1(TalentEffect):
     def __init__(self):
@@ -239,7 +240,7 @@ class PassiveSkillEffect_1(TalentEffect):
         super().apply(character)
 
     def update(self, target):
-        if GetCurrentTime() == 1:
+        if get_current_time() == 1:
             s = set()
             for char in Team.team:
                 s.add(char.element)
@@ -256,9 +257,9 @@ class PassiveSkillEffect_2(TalentEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.OBJECT_CREATE, self)
-        EventBus.subscribe(EventType.OBJECT_DESTROY, self)
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
+        get_context().event_engine.subscribe(EventType.OBJECT_CREATE, self)
+        get_context().event_engine.subscribe(EventType.OBJECT_DESTROY, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS, self)
 
     def handle_event(self, event):
         if event.event_type == EventType.OBJECT_CREATE:
@@ -323,7 +324,7 @@ class ConstellationEffect_6(ConstellationEffect, EventHandler):
 
     def apply(self, character):
         super().apply(character)
-        EventBus.subscribe(EventType.BEFORE_BURST, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_BURST, self)
 
     def handle_event(self, event):
         if event.data['character'] == self.character:
@@ -350,7 +351,7 @@ class MastermindEffect(Effect, EventHandler):
         super().apply()
         self.character.add_effect(self)
         get_emulation_logger().log_effect(f"✨ {self.character.name} 取胜者，大小通吃：获得{self.breakthrough_arrows}次破局失")
-        EventBus.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
+        get_context().event_engine.subscribe(EventType.BEFORE_DAMAGE_BONUS,self)
 
     def remove(self):
         super().remove()
@@ -403,3 +404,4 @@ yelan_table = {
     'skill': {},
     'burst': {}
 }
+

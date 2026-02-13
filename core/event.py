@@ -69,6 +69,10 @@ class EventType(Enum):
     AFTER_HYPERBLOOM = auto()
     BEFORE_BURGEON = auto()
     AFTER_BURGEON = auto()
+    
+    # 周期性反应 Tick
+    ELECTRO_CHARGED_TICK = auto()
+    BURNING_TICK = auto()
 
     # 生命、防御与状态
     BEFORE_HEALTH_CHANGE = auto()
@@ -214,25 +218,3 @@ class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
         pass
-
-from core.context import get_context
-
-class EventBus:
-    """
-    [Deprecated] 仅作为 Context Engine 的静态代理。
-    """
-    @classmethod
-    def subscribe(cls, event_type: EventType, handler: EventHandler):
-        get_context().event_engine.subscribe(event_type, handler)
-
-    @classmethod
-    def unsubscribe(cls, event_type: EventType, handler: EventHandler):
-        get_context().event_engine.unsubscribe(event_type, handler)
-
-    @classmethod
-    def publish(cls, event: GameEvent):
-        get_context().event_engine.publish(event)
-
-    @classmethod
-    def clear(cls):
-        get_context().event_engine.clear()

@@ -1,7 +1,8 @@
+from core.context import get_context
 from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
-from core.event import EventBus, EventType
+from core.event import EventType
 
 @register_artifact_set("翠绿之影")
 class ViridescentVenerer(BaseArtifactSet):
@@ -11,7 +12,7 @@ class ViridescentVenerer(BaseArtifactSet):
         pass
 
     def apply_4_set_effect(self, character: Any) -> None:
-        EventBus.subscribe(EventType.BEFORE_SWIRL, self)
+        get_context().event_engine.subscribe(EventType.BEFORE_SWIRL, self)
 
     def handle_event(self, event):
         if (event.event_type == EventType.BEFORE_SWIRL and 
@@ -21,3 +22,4 @@ class ViridescentVenerer(BaseArtifactSet):
             effect = ResistanceDebuffEffect(self.name+f"-{element}", self.character, event.data["elementalReaction"].target, 
                                             element, 40, 10*60)
             effect.apply()
+

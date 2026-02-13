@@ -16,7 +16,7 @@
 开发者在处理 Issue 时必须经历的五个阶段：
 
 ### 阶段 0: 启动 (Initiate)
-1.  **认领**: 使用 `gh issue edit <ID> --add-assignee @me`。
+1.  **认领**: 使用 `gh issue edit <ID> --add-assignee "@me"`。
 2.  **打标**: 根据任务性质添加 `type:*` 和 `status:plan-pending`。
 3.  **看板**: 运行 `python .gemini/skills/skill-genshin-dev-flow/scripts/sync_board.py <ID> Todo`。
 
