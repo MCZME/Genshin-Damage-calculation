@@ -14,3 +14,4 @@ config.json
 *.pyd
 .ipynb_checkpoints/
 driver
+.env
