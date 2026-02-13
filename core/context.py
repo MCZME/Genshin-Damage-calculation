@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from core.combat_space import CombatSpace
     from core.systems.manager import SystemManager
     from core.logger import SimulationLogger
+    from core.team import Team
 
 # ---------------------------------------------------------
 # Simulation Context

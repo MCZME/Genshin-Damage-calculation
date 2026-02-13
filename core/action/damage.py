@@ -1,67 +1,48 @@
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
-from core.mechanics.aura import Element
 from core.action.action_data import AttackConfig
-
-class DamageType(Enum):
-    NORMAL = "普通攻击"
-    CHARGED = "重击"
-    SKILL = "元素战技"
-    BURST = "元素爆发"
-    PLUNGING = "下落攻击"
-    REACTION = "剧变反应"
 
 class Damage:
     """
-    伤害/攻击对象。
-    封装了攻击契约 (AttackConfig) 与实时计算结果。
+    伤害行为载体。
+    
+    持有原始倍率、元素属性以及物理契约。
+    数值结算由 DamageSystem 完成。
     """
-    def __init__(self, 
-                 damage_multiplier: Any, 
-                 element: Tuple[Element, float], 
-                 damage_type: DamageType, 
-                 name: str,
-                 config: Optional[AttackConfig] = None,
-                 **kwargs):
-        self.name = name
-        self.damage_multiplier = damage_multiplier
-        self.damage_type = damage_type
-        
-        # 1. 核心契约 (如果未传入，则创建一个默认配置)
-        self.config = config or AttackConfig()
-        
-        # 2. 元素信息 (同步初始 U 值到 config)
-        self.element = element 
-        if element:
-            self.config.element_u = element[1]
 
-        # 3. 运行状态
+    def __init__(
+        self,
+        element: Tuple[str, float] = ("无", 1.0),
+        damage_multiplier: Union[float, List[float]] = 0.0,
+        scaling_stat: str = "攻击力",
+        config: Optional[AttackConfig] = None,
+        name: str = "Unknown Damage"
+    ) -> None:
+        """初始化伤害对象。"""
+        self.element: Tuple[str, float] = element
+        self.damage_multiplier: Union[float, List[float]] = damage_multiplier
+        self.scaling_stat: str = scaling_stat
+        self.config: AttackConfig = config if config else AttackConfig()
+        self.name: str = name
+
+        # 运行时状态
+        self.target: Any = None
         self.damage: float = 0.0
-        self.scaling_stat: Union[str, Tuple[str, str]] = '攻击力'
-        self.data: Dict[str, Any] = kwargs
-        
-        self.source = None
-        self.target = None
-        
-        # 反应相关数据 (由反应系统填充)
+        self.is_crit: bool = False
         self.reaction_results: List[Any] = []
+        self.data: Dict[str, Any] = {}
 
-    def set_source(self, source):
-        self.source = source
-
-    def set_target(self, target):
+    def set_target(self, target: Any) -> None:
+        """设置伤害的命中目标。"""
         self.target = target
 
-    def set_scaling_stat(self, scaling_stat):
+    def set_scaling_stat(self, scaling_stat: str) -> None:
+        """修改伤害计算所依赖的属性名称 (如 '生命值')。"""
         self.scaling_stat = scaling_stat
 
-    def add_data(self, key: str, value: Any):
-        self.data[key] = value
+    def set_element(self, element_name: str, element_u: float = 1.0) -> None:
+        """修改伤害的元素属性。"""
+        self.element = (element_name, element_u)
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "name": self.name,
-            "damage": round(self.damage, 2),
-            "element": self.element[0].name if self.element else "None",
-            "type": self.damage_type.value
-        }
+    def add_data(self, key: str, value: Any) -> None:
+        """向伤害对象注入额外的运行时上下文数据。"""
+        self.data[key] = value

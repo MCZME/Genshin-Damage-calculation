@@ -46,13 +46,16 @@ class AttackConfig:
     攻击行为契约。
     定义了一次攻击的物理与元素本质。
     """
-    element_u: float = 1.0
-    icd_tag: str = "Default"      # 附着规则标签 (决定重置时间与序列)
-    icd_group: str = "Default"    # 共享冷却组 ID (决定谁和谁共用计数器)
+    # [核心] 标签系统
+    attack_tag: str = ""               # 唯一主标签 (如 "普通攻击1")
+    extra_attack_tags: List[str] = field(default_factory=list) # 额外辅助标签
+    
+    icd_tag: str = "Default"           # 附着规则标签
+    icd_group: str = "Default"         # 共享冷却组 ID
     
     strike_type: StrikeType = StrikeType.DEFAULT
-    is_deployable: bool = False  # 是否能触发生成部署物 (如草原核)
-    is_ranged: bool = False      # 是否为远程攻击
+    is_deployable: bool = False        # 是否产生攻击实体，比如弓箭攻击会产生一个箭矢实体
+    is_ranged: bool = False
     
     hitbox: HitboxConfig = field(default_factory=HitboxConfig)
 
@@ -78,6 +81,10 @@ class ActionFrameData:
     """
     name: str
     total_frames: int
+    
+    # [核心] 动作类型与连击索引
+    action_type: str = "normal_attack" # 对应 ActionCommand 的类型
+    combo_index: int = 0               # 0 表示非连招动作，1+ 表示连招段位
     
     # 伤害触发时间点 (帧序列)
     hit_frames: List[int] = field(default_factory=list)

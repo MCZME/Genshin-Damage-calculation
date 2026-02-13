@@ -181,8 +181,8 @@ class CombatEntity(BaseEntity):
         if multiplier <= 0:
             return []
             
-        # 2. 计算最终元素量并应用
-        final_u = damage.config.element_u * multiplier
+        # 2. 计算最终元素量并应用 (使用 Damage 对象自带的元素量)
+        final_u = damage.element[1] * multiplier
         results = self.aura.apply_element(damage.element[0], final_u)
         
         # 3. 反馈至伤害流水线

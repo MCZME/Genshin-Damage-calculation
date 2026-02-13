@@ -1,10 +1,10 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 class DataTransformer:
     """
-    数据转换器 (V2.3.2 精准版)。
-    负责将 API 数据清洗并转化为标准属性、倍率序列及规则描述。
+    数据转换器 (V2.3.3 高精度复合版)。
+    支持复合倍率解析 (百分比+固定值) 及多段伤害拆分。
     """
 
     ELEMENT_MAP = {
@@ -20,7 +20,6 @@ class DataTransformer:
         "WEAPON_CATALYST": "法器"
     }
 
-    # 属性 Key 映射表
     FIGHT_PROP_MAP = {
         "FIGHT_PROP_BASE_HP": "生命值",
         "FIGHT_PROP_BASE_ATTACK": "攻击力",
@@ -44,7 +43,6 @@ class DataTransformer:
     }
 
     def transform(self, char_raw: Dict[str, Any], curve_raw: Dict[str, Any]) -> Dict[str, Any]:
-        """执行完整的数据转换逻辑。"""
         data = char_raw
         special_prop_key = data.get("specialProp", "")
         
@@ -52,8 +50,8 @@ class DataTransformer:
             "metadata": {
                 "id": data.get("id"),
                 "name": data.get("name"),
-                "rarity": data.get("rank"), # 星级
-                "route": data.get("route"), # 英文标识名
+                "rarity": data.get("rank"),
+                "route": data.get("route"),
                 "element": self.ELEMENT_MAP.get(data.get("element"), data.get("element")),
                 "weapon_type": self.WEAPON_MAP.get(data.get("weaponType"), data.get("weaponType")),
                 "breakthrough_prop": self.FIGHT_PROP_MAP.get(special_prop_key, "未知属性")
@@ -66,7 +64,6 @@ class DataTransformer:
         return result
 
     def _clean_text(self, text: str) -> str:
-        """清洗 HTML 标签与转义字符。"""
         if not text: return ""
         text = re.sub(r"<color=[^>]+>", "", text)
         text = re.sub(r"</color>", "", text)
@@ -76,11 +73,9 @@ class DataTransformer:
         return text
 
     def _calculate_all_levels(self, char_raw: Dict[str, Any], curve_raw: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
-        """计算 1-100 级的精准属性。"""
         upgrade = char_raw.get("upgrade", {})
         promote_list = upgrade.get("promote", [])
         dictionary = curve_raw
-        
         prop_configs = {p["propType"]: {"init": p["initValue"], "curve": p["type"]} for p in upgrade.get("prop", [])}
         special_prop_key = char_raw.get("specialProp")
         
@@ -90,14 +85,11 @@ class DataTransformer:
         for level, p_lv in target_levels.items():
             stats = {}
             add_props = promote_list[p_lv].get("addProps", {}) if p_lv < len(promote_list) else {}
-            
             for api_key in ["FIGHT_PROP_BASE_HP", "FIGHT_PROP_BASE_ATTACK", "FIGHT_PROP_BASE_DEFENSE"]:
                 config = prop_configs.get(api_key)
                 if not config: continue
-                
                 coeff_data = dictionary.get(str(level), {}).get("curveInfos", {})
                 coeff = coeff_data.get(config["curve"], 1.0)
-                
                 final_val = config["init"] * coeff + add_props.get(api_key, 0.0)
                 label = self.FIGHT_PROP_MAP.get(api_key, api_key)
                 stats[label] = round(final_val, 2)
@@ -106,12 +98,10 @@ class DataTransformer:
                 val = add_props.get(special_prop_key, 0.0)
                 label = self.FIGHT_PROP_MAP.get(special_prop_key, special_prop_key)
                 stats[label] = round(val * 100, 2)
-                
             results[level] = stats
         return results
 
     def _parse_skills(self, talents: Dict[str, Any]) -> Dict[str, Any]:
-        """解析 1-15 级全倍率。按顺序映射。"""
         results = {}
         valid_keys = sorted([k for k, v in talents.items() if v.get("promote")], key=lambda x: int(x))
         skill_keys = ["normal", "skill", "burst"]
@@ -129,24 +119,36 @@ class DataTransformer:
             for desc in descriptions:
                 if "|" not in desc: continue
                 label, formula = desc.split("|")
-                match = re.search(r"\{param(\d+):", formula)
-                if not match: continue
-                p_idx = int(match.group(1)) - 1
-                is_percent = ":P" in formula or "P}" in formula
                 
+                # [核心修复]：支持捕获所有参数
+                param_matches = re.findall(r"\{param(\d+):([^\}]+)\}", formula)
+                if not param_matches: continue
+                
+                # 识别缩放属性
                 scaling = "攻击力"
                 if any(x in formula for x in ["生命", "HP"]): scaling = "生命值"
                 elif "防御" in formula: scaling = "防御力"
                 elif "精通" in formula: scaling = "元素精通"
                 
-                levels = []
+                # 抓取 1-15 级序列
+                # 每一级存储为一个数值列表（如果有多参数）或单个数值
+                levels_data = []
                 for lv_str in sorted(promote.keys(), key=lambda x: int(x)):
                     p_list = promote[lv_str].get("params", [])
-                    if p_idx < len(p_list):
-                        val = p_list[p_idx]
-                        levels.append(round(val * 100, 2) if is_percent else round(val, 2))
+                    lv_vals = []
+                    for p_match in param_matches:
+                        p_idx = int(p_match[0]) - 1
+                        fmt = p_match[1]
+                        if p_idx < len(p_list):
+                            val = p_list[p_idx]
+                            # 高精度转换
+                            res = val * 100 if "P" in fmt else val
+                            lv_vals.append(round(res, 4)) # 提升到 4 位小数
+                    
+                    # 简化逻辑：如果只有一个参数，不使用列表包裹
+                    levels_data.append(lv_vals[0] if len(lv_vals) == 1 else lv_vals)
                 
-                multipliers[label] = {"scaling": scaling, "levels": levels}
+                multipliers[label] = {"scaling": scaling, "levels": levels_data}
             results[skill_key] = {"name": talent.get("name"), "data": multipliers}
         return results
 

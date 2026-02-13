@@ -1,66 +1,69 @@
-from core.context import get_context
+from typing import Any, Dict, Optional
 from core.skills.base import SkillBase
-from core.event import EventType, GameEvent
-from core.logger import get_emulation_logger
-from core.tool import get_current_time
+from core.action.action_data import ActionFrameData
+
 
 class DashSkill(SkillBase):
-    def __init__(self, total_frames, v=0, caster=None, interruptible=False):
-        super().__init__('冲刺', total_frames, 0, 0, ('无',0), caster, interruptible)
-        self.v = v
+    """
+    通用冲刺/闪避组件 (V2.4 动作工厂版)。
+    主要用于触发位移、打断后摇以及提供动作状态。
+    """
 
-    def start(self, caster):
-        if not super().start(caster):
-            return False
-        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始冲刺")
-        get_context().event_engine.publish(GameEvent(EventType.BEFORE_DASH, get_current_time(), character=self.caster))
-        return True
+    def __init__(self, lv: int = 1, caster: Any = None):
+        super().__init__(lv, caster)
+        # 默认冲刺时序 (若 data.py 未定义则使用此默认值)
+        self.default_frames = {
+            "total_frames": 20,
+            "interrupt_frames": {"any": 20}
+        }
 
-    def on_frame_update(self, target):
-        self.caster.movement += self.v
-    
-    def on_finish(self):
-        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 冲刺结束")
-        get_context().event_engine.publish(GameEvent(EventType.AFTER_DASH, get_current_time(), character=self.caster))
-        return super().on_finish()
-    
-    def on_interrupt(self):
-        return super().on_interrupt()
+    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+        # 尝试从角色数据中获取实测冲刺数据
+        frames = self.default_frames
+        if hasattr(self.caster, "action_frame_data"):
+            frames = self.caster.action_frame_data.get("DASH", self.default_frames)
+
+        return ActionFrameData(
+            name="冲刺",
+            action_type="dash",
+            total_frames=frames["total_frames"],
+            hit_frames=[],
+            interrupt_frames=frames.get("interrupt_frames", {"any": frames["total_frames"]}),
+            origin_skill=self
+        )
+
+    def on_frame_update(self) -> None:
+        """每一帧的位移逻辑。"""
+        # 在此处执行物理位移累加 (暂略)
+        pass
+
 
 class JumpSkill(SkillBase):
-    def __init__(self, total_frames, v, caster=None, interruptible=False):
-        super().__init__('跳跃', total_frames, 0, 0, ('无',0), caster, interruptible)
-        self.v = v
+    """
+    通用跳跃组件 (V2.4 动作工厂版)。
+    """
 
-    def start(self, caster):
-        if not super().start(caster):
-            return False
+    def __init__(self, lv: int = 1, caster: Any = None):
+        super().__init__(lv, caster)
+        self.default_frames = {
+            "total_frames": 31,
+            "interrupt_frames": {"any": 31}
+        }
 
-        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 开始跳跃")
-        get_context().event_engine.publish(GameEvent(EventType.BEFORE_JUMP, get_current_time(), character=self.caster))
-        return True
-    
-    def on_frame_update(self, target):
-        # 跳跃过程持续增加高度
-        self.caster.height += self.v
-        self.caster.movement += self.v
-        
-    def on_finish(self):
-        super().on_finish()
-        # 跳跃结束进入下落状态
-        # 避免循环引用，使用字符串或延迟导入
-        # from character.character import CharacterState
-        # self.caster._append_state(CharacterState.FALL)
-        if hasattr(self.caster, '_append_state'):
-             # 这里假设外部已经处理好了 CharacterState 的导入问题，或者传入的是值
-             # 实际上 CharacterState 是 Enum，比较麻烦。
-             # 暂时用硬编码或反射解决
-             # self.caster._append_state(9) # FALL value?
-             pass 
-             
-        get_emulation_logger().log_skill_use(f"⚡️ {self.caster.name} 跳跃结束")
-        get_context().event_engine.publish(GameEvent(EventType.AFTER_JUMP, get_current_time(), character=self.caster))
+    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+        frames = self.default_frames
+        if hasattr(self.caster, "action_frame_data"):
+            frames = self.caster.action_frame_data.get("JUMP", self.default_frames)
 
-    def on_interrupt(self):
-        return super().on_interrupt()
+        return ActionFrameData(
+            name="跳跃",
+            action_type="jump",
+            total_frames=frames["total_frames"],
+            hit_frames=[],
+            interrupt_frames=frames.get("interrupt_frames", {"any": frames["total_frames"]}),
+            origin_skill=self
+        )
 
+    def on_frame_update(self) -> None:
+        """处理垂直上升逻辑。"""
+        pass
