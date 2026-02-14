@@ -188,12 +188,13 @@ class PlungingAttackSkill(SkillBase):
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
         start_height = self.caster.pos[2]
+        # 内部根据高度自动判定模式
         mode = "高空" if start_height > 2.0 else "低空"
         
         return ActionFrameData(
             name=f"下落攻击-{mode}",
             action_type="plunging_attack",
-            total_frames=240,
+            total_frames=240, # 作为一个长持续动作，靠落地或超时结束
             hit_frames=[],
             interrupt_frames={"any": 240},
             data={"mode": mode, "start_height": start_height},
@@ -203,23 +204,26 @@ class PlungingAttackSkill(SkillBase):
     def on_frame_update(self) -> None:
         if not self.caster: return
         
-        # 1. 下坠
+        # 检查当前是否在执行本技能发起的下落攻击
+        if not hasattr(self.caster, "action_manager"): return
+        instance = self.caster.action_manager.current_action
+        if not instance or instance.data.origin_skill != self: return
+
+        # 1. 下坠物理模拟
         self.caster.pos[2] = max(0.0, self.caster.pos[2] - self.fall_speed)
         
-        # 2. 路径伤害
+        # 2. 路径伤害触发
         self.path_timer += 1
         if self.path_timer >= self.path_damage_interval and self.caster.pos[2] > 0:
             self._trigger_plunge_damage("下落期间伤害")
             self.path_timer = 0
             
-        # 3. 落地
+        # 3. 落地判定
         if self.caster.pos[2] <= 0:
-            instance = self.caster.action_manager.current_action
-            if not instance: return
+            # 直接从动作实例的快照数据中提取 mode，确保前后一致性
             mode = instance.data.data.get("mode", "低空")
             self._trigger_plunge_damage(f"{mode}坠地冲击伤害")
-            if hasattr(self.caster, "action_manager"):
-                self.caster.action_manager._terminate_current("LANDED")
+            self.caster.action_manager._terminate_current("LANDED")
 
     def _trigger_plunge_damage(self, label: str):
         m_data = self.multiplier_data.get(label)
