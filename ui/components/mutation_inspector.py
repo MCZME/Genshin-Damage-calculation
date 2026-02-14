@@ -65,7 +65,7 @@ class MutationInspector(ft.Container):
                 ft.Text(
                     "节点配置 (INSPECTOR)",
                     size=10,
-                    weight="bold",
+                    weight=ft.FontWeight.BOLD,
                     opacity=0.4,
                     color=GenshinTheme.ON_SURFACE,
                 ),
@@ -171,7 +171,7 @@ class MutationInspector(ft.Container):
                         [
                             ft.Text(
                                 rule.label or "变异项",
-                                weight="bold",
+                                weight=ft.FontWeight.BOLD,
                                 size=13,
                                 color=GenshinTheme.ON_SURFACE,
                             ),
@@ -196,7 +196,7 @@ class MutationInspector(ft.Container):
                                 content=ft.Text(
                                     "VALUE",
                                     size=9,
-                                    weight="bold",
+                                    weight=ft.FontWeight.BOLD,
                                     color=GenshinTheme.ON_PRIMARY,
                                 ),
                                 bgcolor=GenshinTheme.PRIMARY,
@@ -206,7 +206,7 @@ class MutationInspector(ft.Container):
                             ft.Text(
                                 str(rule.value),
                                 size=11,
-                                weight="bold",
+                                weight=ft.FontWeight.BOLD,
                                 color=GenshinTheme.ON_SURFACE,
                                 expand=True,
                             ),

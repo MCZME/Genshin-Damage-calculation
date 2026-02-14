@@ -36,7 +36,7 @@ jobs:
     - name: Type check with Mypy
       # 指定具体检查 core 和 tests，避免检查根目录本身
       run: |
-        mypy core tests --ignore-missing-imports || true
+        mypy core tests --explicit-package-bases || true
 
     - name: Run Tests with Pytest
       # 显式设置 PYTHONPATH 为当前目录
