@@ -26,13 +26,10 @@ class NormalAttackSkill(SkillBase):
         self.label_map: Dict[str, str] = {} # "NORMAL_1" -> "一段伤害"
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        """根据意图或连击状态产出动作数据。"""
-        # 1. 确定段位
-        # 如果意图显式指定了索引(如测试用)，则使用意图；否则询问管理器
+        """产出当前连击段位的动作数据。"""
+        # 段位完全由角色的动作管理器 (ASM) 自动控制
         idx = 1
-        if intent and "index" in intent:
-            idx = intent["index"]
-        elif hasattr(self.caster, "action_manager"):
+        if hasattr(self.caster, "action_manager"):
             idx = self.caster.action_manager.combo_counter
             
         key = f"NORMAL_{idx}"

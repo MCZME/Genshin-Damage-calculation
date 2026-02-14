@@ -77,6 +77,7 @@ class Character(CombatEntity, ABC):
         self.artifact_manager: Any = None
         self.shield_effects: List[Any] = []
         self.on_field = False
+        self.max_combo = 5 # 默认最大普攻连招段数
 
         ctx = get_context()
         self.event_engine = ctx.event_engine

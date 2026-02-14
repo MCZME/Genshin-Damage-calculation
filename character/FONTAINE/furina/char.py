@@ -41,6 +41,7 @@ class Furina(Fontaine):
         self.arkhe = "荒性"
         
         self.singer_interval_override: Optional[int] = None
+        self.max_combo = 4 # 芙宁娜普攻为 4 段
 
     def _setup_character_components(self) -> None:
         """实例化并配置全量技能组件。"""
@@ -77,7 +78,7 @@ class Furina(Fontaine):
             "normal_attack": {
                 "label": "普通攻击",
                 "params": [
-                    {"key": "index", "label": "段位", "type": "int", "min": 1, "max": 4, "default": 1}
+                    {"key": "count", "label": "攻击次数", "type": "int", "min": 1, "max": 4, "default": 1}
                 ]
             },
             "charged_attack": {

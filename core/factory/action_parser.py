@@ -21,18 +21,38 @@ class ActionParser:
         """
         解析动作序列配置。
         返回格式: List[ActionCommand]
+        支持指令展开：如 normal_attack 带 count 参数会展开为多条。
         """
         parsed_actions = []
         for action_entry in sequence_config:
-            char_name = action_entry['character_name'] # V2 UI 导出的 key
-            raw_action = action_entry['action_key']    # V2 UI 导出的 key (已经是英文 key，或者需要映射)
+            char_name = action_entry['character_name']
+            raw_action = action_entry['action_key']
             
-            # 兼容旧逻辑：如果传的是中文，尝试映射；如果是英文，直接使用
+            # 兼容逻辑
             method_name = self.ACTION_NAME_MAP.get(raw_action, raw_action)
-            
-            # 获取原始参数字典，不做任何降维处理
             params = action_entry.get('params', {})
             
+            # 指令展开逻辑：仅针对普通攻击处理 count 参数
+            if method_name == "normal_attack" and "count" in params:
+                try:
+                    count = int(params["count"])
+                    # 将一条 count 指令拆分为多条单段指令
+                    for _ in range(count):
+                        # 构造单段指令，移除 count 防止子层混淆
+                        single_params = params.copy()
+                        single_params.pop("count", None)
+                        
+                        cmd = ActionCommand(
+                            character_name=char_name,
+                            action_type=method_name,
+                            params=single_params
+                        )
+                        parsed_actions.append(cmd)
+                    continue # 已处理展开，跳过原始追加
+                except (ValueError, TypeError):
+                    pass # 非法 count 退回到普通处理
+            
+            # 普通处理
             cmd = ActionCommand(
                 character_name=char_name,
                 action_type=method_name,
