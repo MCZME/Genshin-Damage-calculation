@@ -41,16 +41,17 @@ class Furina(Fontaine):
         self.arkhe = "荒性"
         
         self.singer_interval_override: Optional[int] = None
+        self.max_combo = 4 # 芙宁娜普攻为 4 段
 
     def _setup_character_components(self) -> None:
         """实例化并配置全量技能组件。"""
         # 1. 核心战斗技能
         self.skills = {
-            "normal": FurinaNormalAttack(self.skill_params[0], self),
-            "charged": FurinaChargedAttack(self.skill_params[0], self),
-            "plunge": FurinaPlungingAttack(self.skill_params[0], self),
-            "skill": FurinaElementalSkill(self.skill_params[1], self),
-            "burst": FurinaElementalBurst(self.skill_params[2], self)
+            "normal_attack": FurinaNormalAttack(self.skill_params[0], self),
+            "charged_attack": FurinaChargedAttack(self.skill_params[0], self),
+            "plunging_attack": FurinaPlungingAttack(self.skill_params[0], self),
+            "elemental_skill": FurinaElementalSkill(self.skill_params[1], self),
+            "elemental_burst": FurinaElementalBurst(self.skill_params[2], self)
         }
         
         # 2. 通用移动与辅助组件
@@ -77,7 +78,7 @@ class Furina(Fontaine):
             "normal_attack": {
                 "label": "普通攻击",
                 "params": [
-                    {"key": "index", "label": "段位", "type": "int", "min": 1, "max": 4, "default": 1}
+                    {"key": "count", "label": "攻击次数", "type": "int", "min": 1, "max": 4, "default": 1}
                 ]
             },
             "charged_attack": {
@@ -86,9 +87,7 @@ class Furina(Fontaine):
             },
             "plunging_attack": {
                 "label": "下落攻击",
-                "params": [
-                    {"key": "is_high", "label": "高空", "type": "bool", "default": False}
-                ]
+                "params": []
             },
             "elemental_skill": {
                 "label": "元素战技",

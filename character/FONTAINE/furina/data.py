@@ -31,6 +31,9 @@ ELEMENTAL_SKILL_DATA = {
 
 ELEMENTAL_BURST_DATA = {
     "技能伤害": ["生命值", [11.4064, 12.2619, 13.1174, 14.258, 15.1135, 15.969, 17.1096, 18.2502, 19.3909, 20.5315, 21.6722, 22.8128, 24.2386, 25.6644, 27.0902]],
+    "气氛值转化提升伤害比例": ["数值", [0.07, 0.09, 0.11, 0.13, 0.15, 0.17, 0.19, 0.21, 0.23, 0.25, 0.27, 0.29, 0.31, 0.33, 0.35]],
+    "气氛值转化受治疗加成比例": ["数值", [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15]],
+    "气氛值叠层上限": ["数值", [300]*15]
 }
 
 # --- 核心机制常量 (Mechanism Parameters) ---
@@ -46,14 +49,14 @@ MECHANISM_CONFIG = {
 
 # --- 动作时序数据 (Action Timing) ---
 ACTION_FRAME_DATA = {
-    "NORMAL_1": {"hit_frames": [15], "total_frames": 34, "interrupt_frames": {"normal_attack": 31, "any": 34}},
-    "NORMAL_2": {"hit_frames": [12], "total_frames": 28, "interrupt_frames": {"normal_attack": 23, "any": 28}},
-    "NORMAL_3": {"hit_frames": [21], "total_frames": 48, "interrupt_frames": {"normal_attack": 36, "any": 48}},
-    "NORMAL_4": {"hit_frames": [27], "total_frames": 58, "interrupt_frames": {"normal_attack": 53, "any": 58}},
-    "CHARGED": {"hit_frames": [32], "total_frames": 253, "interrupt_frames": {"elemental_skill": 3, "elemental_burst": 3, "dash": 7, "any": 253}},
-    "SKILL_OUSIA": {"hit_frames": [18], "total_frames": 54, "interrupt_frames": {"dash": 18, "any": 54}},
-    "SKILL_PNEUMA": {"hit_frames": [], "total_frames": 57, "interrupt_frames": {"dash": 16, "any": 57}},
-    "ELEMENTAL_BURST": {"hit_frames": [98], "total_frames": 121, "interrupt_frames": {"dash": 115, "any": 121}},
+    "普通攻击1": {"hit_frames": [15], "total_frames": 34, "interrupt_frames": {"normal_attack": 31, "any": 34}},
+    "普通攻击2": {"hit_frames": [12], "total_frames": 28, "interrupt_frames": {"normal_attack": 23, "any": 28}},
+    "普通攻击3": {"hit_frames": [21], "total_frames": 48, "interrupt_frames": {"normal_attack": 36, "any": 48}},
+    "普通攻击4": {"hit_frames": [27], "total_frames": 58, "interrupt_frames": {"normal_attack": 53, "any": 58}},
+    "重击": {"hit_frames": [32], "total_frames": 253, "interrupt_frames": {"elemental_skill": 3, "elemental_burst": 3, "dash": 7, "any": 253}},
+    "元素战技-荒": {"hit_frames": [18], "total_frames": 54, "interrupt_frames": {"dash": 18, "any": 54}},
+    "元素战技-芒": {"hit_frames": [], "total_frames": 57, "interrupt_frames": {"dash": 16, "any": 57}},
+    "元素爆发": {"hit_frames": [98], "total_frames": 121, "interrupt_frames": {"dash": 115, "any": 121}},
 }
 
 # --- 攻击数据 (Attack Data) ---

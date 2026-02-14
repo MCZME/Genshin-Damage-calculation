@@ -1,24 +1,16 @@
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 import random
 
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
 from core.context import EventEngine
-from core.event import GameEvent, DamageEvent, EventType
-from core.action.damage import Damage
+from core.event import GameEvent, EventType
+from core.systems.contract.damage import Damage
+from core.systems.contract.modifier import ModifierRecord
+from core.mechanics.aura import Element
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
-
-
-@dataclass
-class ModifierRecord:
-    """伤害修幅记录条目。"""
-    source: str      # 来源 (如 "芙宁娜-气氛值", "基础攻击力")
-    stat: str        # 属性名 (如 "伤害加成")
-    value: float     # 数值
-    op: str = "ADD"  # 操作: ADD, MULT, SET
 
 
 class DamageContext:
@@ -55,6 +47,9 @@ class DamagePipeline:
     def run(self, ctx: DamageContext):
         self._snapshot(ctx)
         
+        # 建立 source 引用
+        ctx.damage.set_source(ctx.source)
+        
         self.engine.publish(GameEvent(EventType.BEFORE_CALCULATE, get_current_time(), 
                                       source=ctx.source, data={"damage_context": ctx}))
         
@@ -80,38 +75,42 @@ class DamagePipeline:
         from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
         categories = AttackTagResolver.resolve_categories(ctx.config.attack_tag, ctx.config.extra_attack_tags)
         
-        # 1. 基础面板注入
-        ctx.add_modifier("角色基础面板", "攻击力", AttributeCalculator.get_attack(src), "SET")
-        ctx.add_modifier("角色基础面板", "生命值", AttributeCalculator.get_hp(src), "SET")
-        ctx.add_modifier("角色基础面板", "防御力", AttributeCalculator.get_defense(src), "SET")
-        ctx.add_modifier("角色基础面板", "元素精通", AttributeCalculator.get_mastery(src), "SET")
+        # 1. 基础属性注入 (包含动态加成的最终值快照)
+        ctx.add_modifier("角色面板快照", "攻击力", AttributeCalculator.get_attack(src), "SET")
+        ctx.add_modifier("角色面板快照", "生命值", AttributeCalculator.get_hp(src), "SET")
+        ctx.add_modifier("角色面板快照", "防御力", AttributeCalculator.get_defense(src), "SET")
+        ctx.add_modifier("角色面板快照", "元素精通", AttributeCalculator.get_mastery(src), "SET")
         
-        # 2. 暴击区注入
-        ctx.add_modifier("基础暴击", "暴击率", AttributeCalculator.get_crit_rate(src)*100, "SET")
-        ctx.add_modifier("基础爆伤", "暴击伤害", AttributeCalculator.get_crit_damage(src)*100, "SET")
+        # 2. 暴击区快照
+        ctx.add_modifier("角色面板快照", "暴击率", AttributeCalculator.get_crit_rate(src)*100, "SET")
+        ctx.add_modifier("角色面板快照", "暴击伤害", AttributeCalculator.get_crit_damage(src)*100, "SET")
         
         # 3. 动态增伤区注入
         bonus = AttributeCalculator.get_damage_bonus(src) # 通用全增伤
-        el_name = ctx.damage.element[0]
+        el = ctx.damage.element[0]
+        el_name = el.value if isinstance(el, Element) else el
+        
         if el_name != "无":
             el_bonus_key = f"{el_name}元素伤害加成" if el_name != "物理" else "物理伤害加成"
-            bonus += src.attribute_panel.get(el_bonus_key, 0.0) / 100
+            bonus += src.attribute_data.get(el_bonus_key, 0.0) / 100
             
-        if AttackCategory.NORMAL in categories: bonus += src.attribute_panel.get("普通攻击伤害加成", 0.0) / 100
-        if AttackCategory.CHARGED in categories: bonus += src.attribute_panel.get("重击伤害加成", 0.0) / 100
-        if AttackCategory.PLUNGING in categories: bonus += src.attribute_panel.get("下落攻击伤害加成", 0.0) / 100
-        if AttackCategory.SKILL in categories: bonus += src.attribute_panel.get("元素战技伤害加成", 0.0) / 100
-        if AttackCategory.BURST in categories: bonus += src.attribute_panel.get("元素爆发伤害加成", 0.0) / 100
+        if AttackCategory.NORMAL in categories: bonus += src.attribute_data.get("普通攻击伤害加成", 0.0) / 100
+        if AttackCategory.CHARGED in categories: bonus += src.attribute_data.get("重击伤害加成", 0.0) / 100
+        if AttackCategory.PLUNGING in categories: bonus += src.attribute_data.get("下落攻击伤害加成", 0.0) / 100
+        if AttackCategory.SKILL in categories: bonus += src.attribute_data.get("元素战技伤害加成", 0.0) / 100
+        if AttackCategory.BURST in categories: bonus += src.attribute_data.get("元素爆发伤害加成", 0.0) / 100
         
         ctx.add_modifier("总和伤害加成区", "伤害加成", bonus * 100, "SET")
 
     def _calculate_def_res(self, ctx: DamageContext):
-        target_def = ctx.target.attribute_panel.get("防御力", 0)
+        target_def = ctx.target.attribute_data.get("防御力", 0)
         coeff_def = (5 * ctx.source.level + 500) / (target_def + 5 * ctx.source.level + 500)
         ctx.add_modifier("防御减免", "防御区系数", coeff_def, "SET")
         
-        el_name = ctx.damage.element[0]
-        res = ctx.target.attribute_panel.get(f"{el_name}元素抗性", 10.0)
+        el = ctx.damage.element[0]
+        el_name = el.value if isinstance(el, Element) else el
+        
+        res = ctx.target.attribute_data.get(f"{el_name}元素抗性", 10.0)
         coeff_res = 1.0
         if res > 75: coeff_res = 1 / (1 + 4 * res / 100)
         elif res < 0: coeff_res = 1 - res / 2 / 100
@@ -166,12 +165,7 @@ class DamagePipeline:
     def _dispatch_broadcast(self, ctx: DamageContext):
         from core.context import get_context
         sim_ctx = get_context()
-        hb = ctx.config.hitbox
-        sim_ctx.space.broadcast_damage(
-            ctx.source, ctx.damage, 
-            shape=hb.shape.name, radius=hb.radius, height=hb.height, 
-            width=hb.width, length=hb.length, offset=hb.offset
-        )
+        sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
 
     def _preprocess_reaction_stats(self, ctx: DamageContext):
         for res in ctx.damage.reaction_results:
@@ -190,9 +184,15 @@ class DamageSystem(GameSystem):
         if event.event_type == EventType.BEFORE_DAMAGE:
             char = event.data['character']
             dmg = event.data['damage']
-            ctx = DamageContext(dmg, char)
+            target = event.data.get('target')
+            ctx = DamageContext(dmg, char, target)
             self.pipeline.run(ctx)
             
             if dmg.target:
                 get_emulation_logger().log_damage(char, dmg.target, dmg)
-                self.engine.publish(DamageEvent(EventType.AFTER_DAMAGE, event.frame, source=char, target=dmg.target, damage=dmg))
+                self.engine.publish(GameEvent(
+                    event_type=EventType.AFTER_DAMAGE, 
+                    frame=event.frame, 
+                    source=char, 
+                    data={"character": char, "target": dmg.target, "damage": dmg}
+                ))

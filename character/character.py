@@ -6,10 +6,12 @@ from core.action.action_manager import ActionManager
 from core.context import get_context
 from core.entities.base_entity import CombatEntity, Faction
 from core.event import (
-    ActionEvent,
+    GameEvent,
     EventType,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
+from core.mechanics.aura import Element
+from core.mechanics.infusion import InfusionManager
 from core.tool import get_current_time
 
 
@@ -63,8 +65,6 @@ class Character(CombatEntity, ABC):
             self.element = "无"
             self.type = "Unknown"
 
-        self.attribute_panel = self.attribute_data.copy()
-        
         # -----------------------------------------------------
         # 标准化组件
         # -----------------------------------------------------
@@ -79,6 +79,8 @@ class Character(CombatEntity, ABC):
         self.artifact_manager: Any = None
         self.shield_effects: List[Any] = []
         self.on_field = False
+        self.max_combo = 5 # 默认最大普攻连招段数
+        self.infusion_manager = InfusionManager()
 
         ctx = get_context()
         self.event_engine = ctx.event_engine
@@ -116,7 +118,6 @@ class Character(CombatEntity, ABC):
             if c: c.apply(self)
 
     def initialize_gear(self) -> None:
-        self.attribute_panel = self.attribute_data.copy()
         if self.weapon:
             self.weapon.apply_static_stats()
             self.weapon.skill()
@@ -129,15 +130,26 @@ class Character(CombatEntity, ABC):
         self.current_hp = max_hp
         self._last_max_hp = max_hp
 
+    def get_attack_element(self) -> Element:
+        """
+        获取当前普攻/重击的最终生效元素。
+        逻辑：如果是法器角色，基准元素为自身属性；否则为物理。
+        """
+        base = Element.PHYSICAL
+        if self.type == "法器":
+            base = Element(self.element)
+            
+        return self.infusion_manager.get_current_element(base)
+
     # -----------------------------------------------------
     # 统一驱动接口
     # -----------------------------------------------------
 
-    def on_frame_update(self) -> None:
+    def _perform_tick(self) -> None:
         """
         角色每帧逻辑驱动。
         """
-        super().on_frame_update()
+        super()._perform_tick()
         
         # 1. 检测最大生命值变动并同比缩放当前血量
         from core.systems.utils import AttributeCalculator
@@ -168,8 +180,8 @@ class Character(CombatEntity, ABC):
     # -----------------------------------------------------
 
     def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
-        mapping = {"normal_attack":"normal", "elemental_skill":"skill", "elemental_burst":"burst", "charged_attack":"charged", "plunging_attack":"plunging"}
-        skill_obj = self.skills.get(mapping.get(name))
+        # 直接使用 action_id (如 elemental_skill) 作为 Key
+        skill_obj = self.skills.get(name)
         
         # 核心变动：如果技能对象支持 to_action_data，则调用它并传入 params
         if skill_obj and hasattr(skill_obj, "to_action_data"):
@@ -181,28 +193,40 @@ class Character(CombatEntity, ABC):
         if skill_obj: data.origin_skill = skill_obj
         return data
 
-    def elemental_skill(self, params: Any = None) -> bool:
-        if self._request_action("elemental_skill", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_SKILL, get_current_time(), self, "elemental_skill"))
-            return True
-        return False
-
-    def elemental_burst(self, params: Any = None) -> bool:
-        if self._request_action("elemental_burst", params):
-            self.event_engine.publish(ActionEvent(EventType.BEFORE_BURST, get_current_time(), self, "elemental_burst"))
-            return True
-        return False
+    def perform_action(self, name: str, params: Any = None) -> bool:
+        """[V2.4 核心接口] 直接请求执行动作。"""
+        return self._request_action(name, params)
 
     def _request_action(self, name: str, params: Any = None) -> bool:
+        """核心动作请求入口，负责翻译技能数据并发布对应事件。"""
         action_data = self._get_action_data(name, params)
-        return self.action_manager.request_action(action_data)
-
-    def skip(self, n: int) -> None: self._request_action("skip", n)
-    def dash(self) -> None: self._request_action("dash")
-    def jump(self) -> None: self._request_action("jump")
-    def normal_attack(self, n: int) -> None: self._request_action("normal_attack", n)
-    def charged_attack(self) -> None: self._request_action("charged_attack")
-    def plunging_attack(self, is_high: bool = False) -> None: self._request_action("plunging_attack", is_high)
+        
+        # 1. 向动作管理器请求执行
+        if not self.action_manager.request_action(action_data):
+            return False
+            
+        # 2. 根据动作类型发布对应的标准事件 (V2.4 统一事件流)
+        event_map = {
+            "elemental_skill": EventType.BEFORE_SKILL,
+            "elemental_burst": EventType.BEFORE_BURST,
+            "normal_attack": EventType.BEFORE_NORMAL_ATTACK,
+            "charged_attack": EventType.BEFORE_CHARGED_ATTACK,
+            "plunging_attack": EventType.BEFORE_PLUNGING_ATTACK,
+            "dash": EventType.BEFORE_DASH,
+            "jump": EventType.BEFORE_JUMP,
+            "falling": EventType.BEFORE_FALLING
+        }
+        
+        et = event_map.get(name)
+        if et:
+            self.event_engine.publish(GameEvent(
+                event_type=et,
+                frame=get_current_time(),
+                source=self,
+                data={"action_name": name, "params": params}
+            ))
+            
+        return True
 
     def handle_damage(self, damage: Any) -> None:
         damage.set_target(self)

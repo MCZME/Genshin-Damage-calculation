@@ -63,6 +63,7 @@
     python main.py
     ```
     (推荐在 `genshin_damage_calculation` 虚拟环境下启动)
+3.  **注意事项**：powershell中多条命令使用；分隔
 
 ### 开发规范
 *   **计算即审计**: 严禁直接修改 `stats` 字典，所有增益必须通过 `ctx.add_modifier` 注入审计链。

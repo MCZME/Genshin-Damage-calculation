@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 
 from character.character import Character
-from core.event import CharacterSwitchEvent
+from core.event import GameEvent, EventType
 from core.tool import get_current_time
 
 
@@ -80,19 +80,28 @@ class Team:
 
         # 3. 发布事件 (供 CombatSpace 更新物理注册信息)
         if self.ctx and self.ctx.event_engine:
-            self.ctx.event_engine.publish(
-                CharacterSwitchEvent(old_char, new_char, frame=get_current_time())
-            )
+            self.ctx.event_engine.publish(GameEvent(
+                event_type=EventType.AFTER_CHARACTER_SWITCH,
+                frame=get_current_time(),
+                source=new_char,
+                data={"old_character": old_char, "new_character": new_char}
+            ))
             
         get_emulation_logger().log_info(
             f"切换角色: {old_char.name if old_char else 'None'} -> {new_char.name} (坐标同步完成)", 
             sender="Team"
         )
 
-    def update(self) -> None:
-        """驱动编队相关的每帧逻辑。"""
+    def on_frame_update(self) -> None:
+        """驱动编队相关的每帧逻辑，并同步驱动所有队员。"""
+        # 1. 驱动队伍自身状态 (如切换 CD)
         if self.swap_cd_timer > 0:
             self.swap_cd_timer -= 1
+            
+        # 2. 统一驱动所有队员 (场上/场下角色)
+        for char in self.members:
+            # 使用 on_frame_update() 确保基类中的生命周期与帧数自增逻辑被执行
+            char.on_frame_update()
 
     def reset(self) -> None:
         self.swap_cd_timer = 0

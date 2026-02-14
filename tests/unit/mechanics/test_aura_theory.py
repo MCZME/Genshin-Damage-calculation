@@ -1,6 +1,6 @@
 import pytest
 from core.mechanics.aura import AuraManager, Element
-from core.action.reaction import ElementalReactionType, ReactionCategory
+from core.systems.contract.reaction import ElementalReactionType, ReactionCategory
 
 class TestAuraTheoryRigorous:
     """

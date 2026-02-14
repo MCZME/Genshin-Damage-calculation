@@ -50,7 +50,7 @@ class Weapon:
             self.name = "Unknown"
 
     def apply_static_stats(self) -> None:
-        panel = self.character.attribute_panel
+        panel = self.character.attribute_data
         panel["攻击力"] += self.base_atk
         for attr, value in self.static_stats.items():
             if attr in panel:

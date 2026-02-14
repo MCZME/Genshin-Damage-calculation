@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.action.reaction import (
+from core.systems.contract.reaction import (
     REACTION_CLASSIFICATION,
     ElementalReactionType,
     ReactionCategory,
@@ -134,10 +134,15 @@ class AuraManager:
             else:
                 self._apply_burning_tick(owner, dt, is_damage_frame=False)
 
-    def apply_element(self, attack_element: Element, attack_u: float) -> List[ReactionResult]:
+    def apply_element(self, element: Any, attack_u: float) -> List[ReactionResult]:
         """
         应用外部元素攻击。
         """
+        if not isinstance(element, Element):
+            attack_element = Element(element)
+        else:
+            attack_element = element
+
         if attack_element in [Element.PHYSICAL, Element.NONE] or attack_u <= 0:
             return []
 

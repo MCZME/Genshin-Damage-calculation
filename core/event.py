@@ -118,10 +118,14 @@ class EventType(Enum):
     NIGHTSOUL_BURST = auto()
 
 # --------------------------
-# 事件基类
+# 核心事件类
 # --------------------------
 @dataclass
 class GameEvent:
+    """
+    通用游戏事件。
+    V2.4 架构中统一使用此基类，不再使用特定子类。
+    """
     event_type: EventType
     frame: int
     source: Any = None
@@ -134,81 +138,6 @@ class GameEvent:
 
     def cancel(self):
         self.cancelled = True
-
-# --------------------------
-# 结构化事件定义 (Dataclasses)
-# --------------------------
-
-@dataclass
-class DamageEvent(GameEvent):
-    target: Any = None
-    damage: Any = None
-    def __post_init__(self):
-        # 保持与旧 System 的兼容性字段映射
-        self.data.update({"character": self.source, "target": self.target, "damage": self.damage})
-
-@dataclass
-class HealEvent(GameEvent):
-    target: Any = None
-    healing: Any = None
-    def __post_init__(self):
-        self.data.update({"character": self.source, "target": self.target, "healing": self.healing})
-
-@dataclass
-class HealthChangeEvent(GameEvent):
-    """替代原 HealChargeEvent，统一处理 HP 增减"""
-    amount: float = 0.0
-    def __post_init__(self):
-        self.data.update({"character": self.source, "amount": self.amount})
-
-@dataclass
-class EnergyChargeEvent(GameEvent):
-    amount: Any = None
-    is_fixed: bool = False
-    is_alone: bool = False
-    def __post_init__(self):
-        self.data.update({"character": self.source, "amount": self.amount, "is_fixed": self.is_fixed, "is_alone": self.is_alone})
-
-@dataclass
-class CharacterSwitchEvent(GameEvent):
-    old_character: Any = None
-    new_character: Any = None
-    def __post_init__(self):
-        self.data.update({"old_character": self.old_character, "new_character": self.new_character})
-
-@dataclass
-class ElementalReactionEvent(GameEvent):
-    elemental_reaction: Any = None
-    def __post_init__(self):
-        self.data["elementalReaction"] = self.elemental_reaction
-
-@dataclass
-class HurtEvent(GameEvent):
-    target: Any = None
-    amount: float = 0.0
-    def __post_init__(self):
-        self.data.update({"character": self.source, "target": self.target, "amount": self.amount})
-
-@dataclass
-class ShieldEvent(GameEvent):
-    shield: Any = None
-    def __post_init__(self):
-        self.data.update({"character": self.source, "shield": self.shield})
-
-@dataclass
-class ActionEvent(GameEvent):
-    """通用动作事件 (普攻、技能、大招等)"""
-    action_name: str = ""
-    segment: int = 1
-    is_plunging_impact: bool = True
-    def __post_init__(self):
-        self.data.update({"character": self.source, "segment": self.segment, "is_plunging_impact": self.is_plunging_impact})
-
-@dataclass
-class ObjectEvent(GameEvent):
-    object: Any = None
-    def __post_init__(self):
-        self.data["object"] = self.object
 
 # --------------------------
 # 代理与接口

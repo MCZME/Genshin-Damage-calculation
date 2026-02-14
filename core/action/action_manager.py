@@ -33,7 +33,6 @@ class ActionManager:
         
         # 连招状态管理
         self.combo_counter: int = 1
-        self.max_combo: int = 5 # 默认 5 段
         self.combo_reset_frames: int = 120 # 2秒不按普攻重置
         self.idle_timer: int = 0
 
@@ -60,7 +59,9 @@ class ActionManager:
         # 3. 启动动作并推进段位
         self._start_action(action_data)
         if action_data.action_type == "normal_attack":
-            self.combo_counter = (self.combo_counter % self.max_combo) + 1
+            # 动态读取最大连招数，防止初始化顺序导致的配置失效
+            max_combo = getattr(self.character, "max_combo", 5)
+            self.combo_counter = (self.combo_counter % max_combo) + 1
             self.idle_timer = 0
             
         return True

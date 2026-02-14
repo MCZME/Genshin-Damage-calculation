@@ -1,7 +1,7 @@
 import pytest
 from core.context import create_context
-from core.action.damage import Damage, DamageType
-from core.action.reaction import ReactionResult, ElementalReactionType, ReactionCategory
+from core.systems.contract.damage import Damage
+from core.systems.contract.reaction import ReactionResult, ElementalReactionType, ReactionCategory
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType, EventHandler
 from core.tool import get_current_time
@@ -17,7 +17,7 @@ class TestReactionSystemUnit:
 
     def test_transformative_reaction_dispatch(self, reaction_sys, sim_ctx, source_entity, target_entity):
         """测试剧变反应的分发：验证产生了新的伤害事件"""
-        dmg = Damage(0, (Element.ELECTRO, 1.0), DamageType.NORMAL, "雷攻击")
+        # 1. 构造反应结果
         res = ReactionResult(
             reaction_type=ElementalReactionType.OVERLOAD,
             category=ReactionCategory.TRANSFORMATIVE,
@@ -25,8 +25,6 @@ class TestReactionSystemUnit:
             target_element=Element.PYRO,
             gauge_consumed=0.8
         )
-        # 手动注入反应结果
-        dmg.reaction_results = [res]
 
         published_events = []
         class CaptureHandler(EventHandler):
@@ -37,11 +35,16 @@ class TestReactionSystemUnit:
         handler = CaptureHandler()
         sim_ctx.event_engine.subscribe(EventType.BEFORE_DAMAGE, handler)
 
-        # 触发反应处理
-        event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=source_entity,
-                          data={'character': source_entity, 'target': target_entity, 'damage': dmg})
-        reaction_sys.handle_event(event)
+        # 2. 直接发布反应事件，模拟底层产出的反应
+        sim_ctx.event_engine.publish(GameEvent(
+            event_type=EventType.AFTER_ELEMENTAL_REACTION,
+            frame=get_current_time(),
+            source=source_entity,
+            data={
+                "target": target_entity,
+                "elemental_reaction": res
+            }
+        ))
 
-        # 验证是否产生了名为 "超载" 的剧变伤害事件
-        # 注意：产生剧变伤害会再次发布 BEFORE_DAMAGE 
+        # 3. 验证 ReactionSystem 是否截获该事件并发布了名为 "超载" 的剧变伤害事件
         assert any(isinstance(e.data.get('damage'), Damage) and e.data['damage'].name == "超载" for e in published_events)

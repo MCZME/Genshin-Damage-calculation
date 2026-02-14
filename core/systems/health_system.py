@@ -1,8 +1,8 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional
 
-from core.action.healing import Healing
+from core.systems.contract.healing import Healing
 from core.context import EventEngine
-from core.event import EventType, GameEvent, HealEvent, HurtEvent
+from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
 from core.systems.base_system import GameSystem
 from core.systems.utils import AttributeCalculator
@@ -92,14 +92,12 @@ class HealthSystem(GameSystem):
         get_emulation_logger().log_heal(source, target, healing)
         
         # 4. 发布治疗后置事件
-        after_event = HealEvent(
+        self.engine.publish(GameEvent(
             event_type=EventType.AFTER_HEAL,
             frame=event.frame,
             source=source,
-            target=target,
-            healing=healing
-        )
-        self.engine.publish(after_event)
+            data={"character": source, "target": target, "healing": healing}
+        ))
 
     def _handle_hurt(self, event: GameEvent) -> None:
         """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
@@ -124,13 +122,14 @@ class HealthSystem(GameSystem):
         )
 
         # 3. 发布受伤后置事件
-        after_event = HurtEvent(
+        self.engine.publish(GameEvent(
             event_type=EventType.AFTER_HURT,
             frame=event.frame,
             source=source,
-            target=target,
-            amount=amount
-        )
-        # 透传无视护盾标记
-        after_event.data["ignore_shield"] = is_ignore_shield
-        self.engine.publish(after_event)
+            data={
+                "character": source,
+                "target": target,
+                "amount": amount,
+                "ignore_shield": is_ignore_shield
+            }
+        ))

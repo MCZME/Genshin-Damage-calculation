@@ -1,10 +1,11 @@
 from typing import Any
 
 from core.entities.base_entity import CombatEntity, Faction
-from core.action.action_data import AttackConfig, HitboxConfig, AOEShape, StrikeType
-from core.action.damage import Damage
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape, StrikeType
+from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
+from core.mechanics.aura import Element
 from character.FONTAINE.furina.data import (
     ATTACK_DATA, ELEMENTAL_SKILL_DATA, MECHANISM_CONFIG
 )
@@ -25,7 +26,7 @@ class FurinaSummonBase(CombatEntity):
 
     # 这又是什么
     def get_owner_attr(self, attr_name: str) -> float:
-        return self.owner.attribute_panel.get(attr_name, 0.0)
+        return self.owner.attribute_data.get(attr_name, 0.0)
 
     def _build_attack_config(self, name: str) -> AttackConfig:
         """从原生数据构建物理契约。"""
@@ -73,7 +74,7 @@ class SalonMember(FurinaSummonBase):
         # 预载配置
         self.attack_config = self._build_attack_config(attack_name)
 
-    def on_frame_update(self) -> None:
+    def _perform_tick(self) -> None:
         self.timer += 1
         if self.timer >= self.interval:
             self.execute_attack()
@@ -87,7 +88,7 @@ class SalonMember(FurinaSummonBase):
         
         # 构造伤害对象，Key 即是 Name
         dmg_obj = Damage(
-            element=("水", 1.0),
+            element=(Element.HYDRO, 1.0),
             damage_multiplier=multiplier * bonus,
             scaling_stat="生命值",
             config=self.attack_config,
@@ -95,7 +96,7 @@ class SalonMember(FurinaSummonBase):
         )
         
         # 注入 element_u (从原生数据读取)
-        dmg_obj.set_element("水", ATTACK_DATA[self.attack_name]["element_u"])
+        dmg_obj.set_element(Element.HYDRO, ATTACK_DATA[self.attack_name]["element_u"])
         
         self.ctx.event_engine.publish(GameEvent(
             EventType.BEFORE_DAMAGE,
@@ -105,14 +106,14 @@ class SalonMember(FurinaSummonBase):
         ))
 
     def _process_hp_consumption(self) -> float:
-        if not self.ctx.team: return 1.0
+        if not self.ctx.space or not self.ctx.space.team: return 1.0
         
         healthy_count = 0
         consume_key = self.attack_name.replace("伤害", "消耗生命值")
         ratio = ELEMENTAL_SKILL_DATA[consume_key][1][0] / 100.0
         
-        for m in self.ctx.team.get_members():
-            max_hp = m.attribute_panel.get("生命值", 1.0)
+        for m in self.ctx.space.team.get_members():
+            max_hp = m.attribute_data.get("生命值", 1.0)
             if m.current_hp / max_hp > 0.5:
                 healthy_count += 1
                 consume_val = max_hp * ratio
@@ -136,7 +137,7 @@ class SingerOfManyWaters(FurinaSummonBase):
         self.timer = 0
         self.has_first_healed = False
 
-    def on_frame_update(self) -> None:
+    def _perform_tick(self) -> None:
         if not self.has_first_healed:
             if self.current_frame >= self.first_heal:
                 self.execute_healing()
@@ -150,7 +151,7 @@ class SingerOfManyWaters(FurinaSummonBase):
             self.timer = 0
 
     def execute_healing(self) -> None:
-        if not self.ctx.team: return
+        if not self.ctx.space or not self.ctx.space.team: return
         
         # 动态更新间隔 (天赋二驱动)
         self.current_interval = getattr(self.owner, "singer_interval_override", MECHANISM_CONFIG["SKILL_HEAL_INTERVAL"])
@@ -159,11 +160,11 @@ class SingerOfManyWaters(FurinaSummonBase):
         perc, flat = mult_info[1][self.skill_lv - 1]
         
         # 构造规范治疗
-        from core.action.healing import Healing, HealingType
+        from core.systems.contract.healing import Healing, HealingType
         heal_obj = Healing(base_multiplier=(perc, flat), healing_type=HealingType.SKILL, name="众水的歌者治疗")
         heal_obj.set_scaling_stat("生命值")
         
-        active_char = self.ctx.team.current_character
+        active_char = self.ctx.space.team.current_character
         if active_char:
             self.ctx.event_engine.publish(GameEvent(
                 EventType.BEFORE_HEAL, get_current_time(),

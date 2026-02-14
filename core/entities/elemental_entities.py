@@ -1,10 +1,9 @@
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
-from core.action.damage import Damage, DamageType
-from core.action.reaction import ElementalReactionType
-from core.context import get_context
+from core.systems.contract.damage import Damage
+from core.systems.contract.reaction import ElementalReactionType
 from core.entities.base_entity import CombatEntity, Faction
-from core.event import DamageEvent, EventType
+from core.event import GameEvent, EventType
 from core.mechanics.aura import Element
 from core.tool import get_current_time, get_reaction_multiplier
 
@@ -15,6 +14,7 @@ class DendroCoreEntity(CombatEntity):
     
     具备自动爆炸、受火/雷攻击触发烈/超绽放的特性。
     """
+    active_cores: List["DendroCoreEntity"] = []
 
     def __init__(
         self, 
@@ -33,6 +33,12 @@ class DendroCoreEntity(CombatEntity):
         self.creator = creator
         # 记录创建时的等级系数
         self.level_mult = get_reaction_multiplier(creator.level)
+        
+        # 上限管理
+        DendroCoreEntity.active_cores.append(self)
+        if len(DendroCoreEntity.active_cores) > 5:
+            oldest = DendroCoreEntity.active_cores.pop(0)
+            oldest.finish()
 
     def handle_damage(self, damage: "Damage") -> None:
         """
@@ -47,6 +53,9 @@ class DendroCoreEntity(CombatEntity):
 
     def on_finish(self) -> None:
         """生命周期结束逻辑：如果是自然过期或被顶替，触发默认爆炸。"""
+        if self in DendroCoreEntity.active_cores:
+            DendroCoreEntity.active_cores.remove(self)
+            
         if self.state != "DESTROYED":
             self._trigger_bloom_explosion()
 
@@ -81,12 +90,11 @@ class DendroCoreEntity(CombatEntity):
         
         if target:
             dmg = self._create_react_damage("超绽放", 3.0, Element.DENDRO)
-            self.event_engine.publish(DamageEvent(
+            self.event_engine.publish(GameEvent(
                 event_type=EventType.BEFORE_DAMAGE,
                 frame=get_current_time(),
                 source=self.creator,
-                target=target,
-                damage=dmg
+                data={"character": self.creator, "target": target, "damage": dmg}
             ))
         self.state = "FINISHING"
 
@@ -101,9 +109,10 @@ class DendroCoreEntity(CombatEntity):
         """发布范围伤害事件。"""
         dmg = self._create_react_damage(name, multiplier, element)
         # 手动执行一次 AOE 广播
-        from core.action.action_data import AttackConfig, HitboxConfig, AOEShape
+        from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
         dmg.config = AttackConfig(
-            hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=radius)
+            hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=radius),
+            attack_tag="剧变反应"
         )
         
         # 产生伤害 (源仍记为草原核的创建者)
@@ -111,10 +120,11 @@ class DendroCoreEntity(CombatEntity):
 
     def _create_react_damage(self, name: str, mult: float, element: Element) -> Damage:
         """快捷创建剧变伤害对象。"""
+        from core.systems.contract.attack import AttackConfig
         dmg = Damage(
             damage_multiplier=0,
             element=(element, 0.0),
-            damage_type=DamageType.REACTION,
+            config=AttackConfig(attack_tag="剧变反应"),
             name=name
         )
         dmg.add_data("等级系数", self.level_mult)
@@ -166,7 +176,7 @@ class CrystalShardEntity(CombatEntity):
     def _on_picked_up(self, player: Any) -> None:
         """被玩家拾取时的逻辑。"""
         from core.systems.shield_system import ShieldSystem
-        from core.action.shield import ShieldConfig
+        from core.systems.contract.shield import ShieldConfig
         
         shield_sys = self.ctx.get_system(ShieldSystem)
         if shield_sys:

@@ -2,10 +2,12 @@ from typing import Any, Dict, List, Optional
 
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import NormalAttackSkill, ChargedAttackSkill, PlungingAttackSkill
-from core.action.action_data import ActionFrameData, AttackConfig, HitboxConfig, AOEShape
-from core.action.damage import Damage
+from core.action.action_data import ActionFrameData
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
+from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
+from core.mechanics.aura import Element
 from character.FONTAINE.furina.data import (
     ACTION_FRAME_DATA, ATTACK_DATA, MECHANISM_CONFIG,
     NORMAL_ATTACK_DATA, ELEMENTAL_SKILL_DATA, ELEMENTAL_BURST_DATA
@@ -22,11 +24,13 @@ class FurinaNormalAttack(NormalAttackSkill):
         self.action_frame_data = ACTION_FRAME_DATA
         self.attack_data = ATTACK_DATA
         self.multiplier_data = NORMAL_ATTACK_DATA
+        
+        # 内部管理物理名称到倍率标签的映射
         self.label_map = {
-            "NORMAL_1": "普通攻击1",
-            "NORMAL_2": "普通攻击2",
-            "NORMAL_3": "普通攻击3",
-            "NORMAL_4": "普通攻击4"
+            "普通攻击1": "一段伤害",
+            "普通攻击2": "二段伤害",
+            "普通攻击3": "三段伤害",
+            "普通攻击4": "四段伤害"
         }
 
 
@@ -48,9 +52,9 @@ class FurinaChargedAttack(ChargedAttackSkill):
         if instance and instance.elapsed_frames >= MECHANISM_CONFIG["ARKHE_SWITCH_FRAME"]:
             self.caster.arkhe_mode = "芒" if self.caster.arkhe_mode == "荒" else "荒"
             self.caster.arkhe = f"{self.caster.arkhe_mode}性"
-            # 同步战技召唤物
-            if "skill" in self.caster.skills:
-                self.caster.skills["skill"].sync_summons()
+            # 修正：统一使用 elemental_skill 作为键名
+            if "elemental_skill" in self.caster.skills:
+                self.caster.skills["elemental_skill"].sync_summons()
 
 
 class FurinaPlungingAttack(PlungingAttackSkill):
@@ -73,13 +77,12 @@ class FurinaElementalSkill(SkillBase):
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
         mode = self.caster.arkhe_mode
-        frame_key = "SKILL_OUSIA" if mode == "荒" else "SKILL_PNEUMA"
+        # 统一命名规范：使用原生中文 Key
+        frame_key = "元素战技-荒" if mode == "荒" else "元素战技-芒"
         f = ACTION_FRAME_DATA[frame_key]
         
-        mult = 0.0
         attack_cfg = None
         if mode == "荒":
-            mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
             p = ATTACK_DATA["元素战技"]
             attack_cfg = AttackConfig(
                 attack_tag=p["attack_tag"],
@@ -94,22 +97,22 @@ class FurinaElementalSkill(SkillBase):
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
             interrupt_frames=f["interrupt_frames"],
-            damage_multiplier=mult,
-            scaling_stat="生命值",
             attack_config=attack_cfg,
             origin_skill=self
         )
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
-        if self.caster.action_manager.current_action.data.attack_config:
+        mode = self.caster.arkhe_mode
+        if mode == "荒":
+            mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
             dmg_obj = Damage(
-                element=("水", 1.0),
-                damage_multiplier=self.caster.action_manager.current_action.data.damage_multiplier,
+                element=(Element.HYDRO, 1.0),
+                damage_multiplier=mult,
                 scaling_stat="生命值",
                 config=self.caster.action_manager.current_action.data.attack_config,
                 name="荒性泡沫伤害"
             )
-            dmg_obj.set_element("水", ATTACK_DATA["元素战技"]["element_u"])
+            dmg_obj.set_element(Element.HYDRO, ATTACK_DATA["元素战技"]["element_u"])
             self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
                                                       source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
 
@@ -144,9 +147,9 @@ class FurinaElementalBurst(EnergySkill):
     """元素爆发：万众狂欢。"""
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        f = ACTION_FRAME_DATA["ELEMENTAL_BURST"]
+        # 统一命名规范：使用 '元素爆发'
+        f = ACTION_FRAME_DATA["元素爆发"]
         p = ATTACK_DATA["元素爆发"]
-        mult = ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1]
 
         return ActionFrameData(
             name="元素爆发",
@@ -154,8 +157,6 @@ class FurinaElementalBurst(EnergySkill):
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
             interrupt_frames=f["interrupt_frames"],
-            damage_multiplier=mult,
-            scaling_stat="生命值",
             attack_config=AttackConfig(
                 attack_tag=p["attack_tag"],
                 icd_tag=p["icd_tag"],
@@ -167,13 +168,13 @@ class FurinaElementalBurst(EnergySkill):
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         dmg_obj = Damage(
-            element=("水", 1.0),
+            element=(Element.HYDRO, 1.0),
             damage_multiplier=ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],
             scaling_stat="生命值",
             config=self.caster.action_manager.current_action.data.attack_config,
             name="万众狂欢伤害"
         )
-        dmg_obj.set_element("水", ATTACK_DATA["元素爆发"]["element_u"])
+        dmg_obj.set_element(Element.HYDRO, ATTACK_DATA["元素爆发"]["element_u"])
         self.caster.event_engine.publish(GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), 
                                                   source=self.caster, data={"character": self.caster, "damage": dmg_obj}))
 

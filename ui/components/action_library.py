@@ -6,13 +6,14 @@ class ActionLibrary(ft.Column):
     战术阶段左栏：可用动作库 (高辨识度精修版)
     """
     ACTION_META = {
-        "normal": ("普通攻击", "普"),
-        "charged": ("重击", "重"),
-        "skill": ("元素战技", "战"),
-        "burst": ("元素爆发", "爆"),
-        "plunging": ("下落攻击", "下"),
+        "normal_attack": ("普通攻击", "普"),
+        "charged_attack": ("重击", "重"),
+        "elemental_skill": ("元素战技", "战"),
+        "elemental_burst": ("元素爆发", "爆"),
+        "plunging_attack": ("下落攻击", "下"),
         "dash": ("冲刺", "冲"),
-        "jump": ("跳跃", "跳")
+        "jump": ("跳跃", "跳"),
+        "skip": ("等待 (Skip)", "等")
     }
 
     def __init__(self, state):

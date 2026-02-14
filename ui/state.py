@@ -177,17 +177,43 @@ class AppState:
         ctx = config.get("context_config", {})
         self.team = ctx.get("team", [None] * 4)
         while len(self.team) < 4: self.team.append(None)
+        
+        # 槽位定义与默认值模板
+        slots = ["flower", "feather", "sands", "goblet", "circlet"]
+        def_arts = {
+            "flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []}, 
+            "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []}, 
+            "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []}, 
+            "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []}, 
+            "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []}
+        }
+
         for member in self.team:
-            if member and isinstance(member.get("artifacts"), list):
+            if member:
+                # 统一转换为字典格式并补全槽位
+                raw_arts = member.get("artifacts", {})
                 art_dict = {}
-                for art in member["artifacts"]: art_dict[art["slot"]] = art
+                
+                if isinstance(raw_arts, list):
+                    # 从列表转换
+                    for art in raw_arts: art_dict[art["slot"]] = art
+                elif isinstance(raw_arts, dict):
+                    # 保留现有字典
+                    art_dict = raw_arts
+                
+                # 补全缺失槽位
+                for s in slots:
+                    if s not in art_dict:
+                        art_dict[s] = def_arts[s].copy()
+                
                 member["artifacts"] = art_dict
+
         self.targets = ctx.get("targets", [self._create_default_target()])
         self.environment = ctx.get("environment", {"weather": "Clear", "field": "Neutral"})
         self.action_sequence = config.get("action_sequence_raw", [])
         self.selection = None
         self.refresh()
-        get_ui_logger().log_info("External configuration applied to Workbench.")
+        get_ui_logger().log_info("External configuration applied to Workbench (with artifact slot completion).")
 
     # --- 运行逻辑 ---
 
@@ -198,12 +224,29 @@ class AppState:
             arts_list = []
             for slot, data in member["artifacts"].items():
                 if data["set"] != "未装备":
-                    arts_list.append({"slot": slot, "set": data["set"], "main": data["main"], "value": data["value"], "subs": data["subs"]})
-            team_cfg.append({"character": member["character"], "weapon": member["weapon"], "artifacts": arts_list, "position": member["position"]})
-        mapping = {"skill": "elemental_skill", "burst": "elemental_burst", "normal": "normal_attack", "charged": "charged_attack", "plunging": "plunging_attack", "dash": "dash", "jump": "jump"}
+                    # 按照 TeamFactory._apply_artifacts 的预期进行重命名
+                    arts_list.append({
+                        "slot": slot, 
+                        "set_name": data["set"], 
+                        "main_stat": data["main"], 
+                        "value": data["value"], 
+                        "sub_stats": [{"key": s["key"], "value": s["value"]} for s in data.get("subs", [])]
+                    })
+            
+            team_cfg.append({
+                "character": member["character"], 
+                "weapon": member["weapon"], 
+                "artifacts": arts_list, 
+                "position": member["position"]
+            })
+        
         seq_cfg = []
         for act in self.action_sequence:
-            seq_cfg.append({"character_name": act["char_name"], "action_key": mapping.get(act["action_id"], act["action_id"]), "params": act.get("params", {})})
+            seq_cfg.append({
+                "character_name": act["char_name"], 
+                "action_key": act["action_id"], 
+                "params": act.get("params", {})
+            })
         return {"context_config": {"team": team_cfg, "targets": self.targets, "environment": self.environment}, "sequence_config": seq_cfg}
 
     async def run_simulation(self):
@@ -219,8 +262,9 @@ class AppState:
             self.last_metrics = SimulationMetrics(total_damage=total_dmg, dps=dps, simulation_duration=duration)
             self.sim_status = f"FINISHED | DPS: {int(dps)}"; self.sim_progress = 1.0
         except Exception as e:
+            import traceback
             self.sim_status = f"FAILED: {str(e)[:25]}"
-            get_ui_logger().log_error(f"Single Simulation Error: {e}")
+            get_ui_logger().log_error(f"Single Simulation Error: {e}\n{traceback.format_exc()}")
         finally:
             self.is_simulating = False; self.refresh()
 
@@ -240,8 +284,9 @@ class AppState:
             self.sim_status = f"BATCH FINISHED | AVG: {int(summary.avg_dps)}"; self.sim_progress = 1.0
             return summary
         except Exception as e:
+            import traceback
             self.sim_status = f"BATCH FAILED: {str(e)[:20]}"
-            get_ui_logger().log_error(f"Batch Simulation Error: {e}")
+            get_ui_logger().log_error(f"Batch Simulation Error: {e}\n{traceback.format_exc()}")
         finally:
             self.is_simulating = False; self.refresh()
 
@@ -329,7 +374,27 @@ class AppState:
         self.refresh()
     def select_environment(self): self.selection = {"type": "env", "data": self.environment}; self.refresh()
     def _create_default_target(self): return {"id": "target_A", "name": "遗迹守卫", "level": 90, "position": {"x": 0, "z": 5}, "resists": {"火": 10, "水": 10, "雷": 10, "草": 10, "冰": 10, "岩": 10, "风": 10, "物理": 10}}
-    def _create_placeholder_char(self): return {"position": {"x": 0, "z": -2}, "character": {"id": 0, "name": "待选择", "element": "物理", "level": 90, "constellation": 0, "talents": [1, 1, 1], "type": "单手剑"}, "weapon": {"name": "无锋剑", "level": 1, "refinement": 1}, "artifacts": {"flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []}, "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []}, "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []}, "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []}, "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []}}}
+    def _create_placeholder_char(self): 
+        return {
+            "position": {"x": 0, "z": -2}, 
+            "character": {
+                "id": 0, 
+                "name": "待选择", 
+                "element": "物理", 
+                "level": 90, 
+                "constellation": 0, 
+                "talents": [1, 1, 1], 
+                "type": "单手剑"
+            }, 
+            "weapon": {"name": "无锋剑", "level": 1, "refinement": 1}, 
+            "artifacts": {
+                "flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []}, 
+                "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []}, 
+                "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []}, 
+                "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []}, 
+                "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []}
+            }
+        }
     def add_character(self, name: str):
         if self.selection and self.selection["type"] == "empty":
             idx = self.selection["index"]; char_info = self.char_map.get(name)

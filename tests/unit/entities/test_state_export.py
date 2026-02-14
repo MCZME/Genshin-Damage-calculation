@@ -16,7 +16,7 @@ class TestStateExport:
             )
             
             # 注入一些模拟数据
-            entity.attribute_panel = {"攻击力": 1000.0, "生命值": 5000.0}
+            entity.attribute_data = {"攻击力": 1000.0, "生命值": 5000.0}
             entity.aura.apply_element(Element.PYRO, 1.0)
             
             # 执行导出

@@ -1,9 +1,10 @@
 import pytest
 from core.context import create_context
+from core.systems.contract.attack import AttackConfig
 from core.team import Team
 from character.character import Character
 from core.entities.base_entity import Faction
-from core.action.damage import Damage, DamageType
+from core.systems.contract.damage import Damage
 from core.mechanics.aura import Element
 
 class MockChar(Character):
@@ -24,14 +25,15 @@ class TestCharacterEntityization:
         ctx = create_context()
         # 使用适配后的 MockChar
         char = MockChar(base_data={"name": "TestChar", "element": "火", "base_hp": 10000.0})
-        team = Team([char]) 
+        team = Team([char], context=ctx)
+        ctx.space.set_team(team)
         return ctx, char, team
 
     def test_auto_registration(self, setup_team):
-        """验证：角色入队后自动向 CombatSpace 注册"""
+        """验证：角色入队后可通过 CombatSpace 检索到"""
         ctx, char, _ = setup_team
-        entities = ctx.space._entities[Faction.PLAYER]
-        assert char in entities
+        # 现在角色不在私有的 _entities 列表中，而是通过 Team 管理
+        assert char in ctx.space.get_all_entities()
         assert char.name == "TestChar"
 
     def test_synchronized_update(self, setup_team):
@@ -46,8 +48,9 @@ class TestCharacterEntityization:
         """验证：角色能够通过 handle_damage 接收并处理伤害逻辑"""
         ctx, char, _ = setup_team
         
-        # 模拟受到火元素伤害 (1.0U)
-        dmg = Damage(100, (Element.PYRO, 1.0), DamageType.SKILL, "自伤测试")
+        # 修正 Damage 构造函数参数顺序：(element, damage_multiplier, scaling_stat, config, name)
+        dmg_config = AttackConfig(attack_tag="元素战技")
+        dmg = Damage((Element.PYRO, 1.0), 100, "攻击力", dmg_config, "自伤测试")
         char.handle_damage(dmg)
         
         # 验证是否挂上了火元素
