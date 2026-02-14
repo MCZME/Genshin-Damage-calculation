@@ -61,7 +61,7 @@ class CombatSpace:
         for faction_list in self._entities.values():
             for entity in faction_list:
                 if entity.state in [EntityState.ACTIVE, EntityState.FINISHING]:
-                    entity.update()
+                    entity.on_frame_update()
                 
                 if not entity.is_active and entity.state != EntityState.FINISHING:
                     self.unregister(entity)

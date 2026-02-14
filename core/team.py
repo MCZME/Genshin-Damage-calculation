@@ -100,6 +100,7 @@ class Team:
             
         # 2. 统一驱动所有队员 (场上/场下角色)
         for char in self.members:
+            # 使用 on_frame_update() 确保基类中的生命周期与帧数自增逻辑被执行
             char.on_frame_update()
 
     def reset(self) -> None:

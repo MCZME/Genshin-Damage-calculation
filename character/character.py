@@ -131,11 +131,11 @@ class Character(CombatEntity, ABC):
     # 统一驱动接口
     # -----------------------------------------------------
 
-    def on_frame_update(self) -> None:
+    def _perform_tick(self) -> None:
         """
         角色每帧逻辑驱动。
         """
-        super().on_frame_update()
+        super()._perform_tick()
         
         # 1. 检测最大生命值变动并同比缩放当前血量
         from core.systems.utils import AttributeCalculator

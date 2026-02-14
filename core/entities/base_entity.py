@@ -57,8 +57,8 @@ class BaseEntity:
         """判断实体是否处于活跃状态。"""
         return self.state == EntityState.ACTIVE
 
-    def update(self) -> None:
-        """驱动实体每帧逻辑。"""
+    def on_frame_update(self) -> None:
+        """驱动实体每帧逻辑。统一入口，包含生命周期维护与业务逻辑触发。"""
         if self.state == EntityState.FINISHING:
             self.finish()
             return
@@ -71,7 +71,12 @@ class BaseEntity:
             self.finish()
             return
             
-        self.on_frame_update()
+        # 执行具体子类的业务逻辑
+        self._perform_tick()
+
+    def _perform_tick(self) -> None:
+        """[钩子] 实体的具体业务逻辑实现点。子类应重写此方法而非 on_frame_update。"""
+        pass
 
     def finish(self) -> None:
         """终结实体生命周期，执行清理逻辑。"""
@@ -81,8 +86,8 @@ class BaseEntity:
         self.on_finish()
         self.state = EntityState.DESTROYED
 
-    def on_frame_update(self) -> None:
-        """[钩子] 实体每帧的具体业务逻辑实现点。"""
+    def on_finish(self) -> None:
+        """[钩子] 实体销毁前的清理逻辑。"""
         pass
 
     def on_finish(self) -> None:
@@ -222,7 +227,7 @@ class CombatEntity(BaseEntity):
             
         return results
 
-    def on_frame_update(self) -> None:
+    def _perform_tick(self) -> None:
         """驱动战斗实体的每帧逻辑。"""
         self.aura.update(self, 1/60)
         
