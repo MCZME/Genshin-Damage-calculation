@@ -165,8 +165,8 @@ class Character(CombatEntity, ABC):
     # -----------------------------------------------------
 
     def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
-        mapping = {"normal_attack":"normal", "elemental_skill":"skill", "elemental_burst":"burst", "charged_attack":"charged", "plunging_attack":"plunging"}
-        skill_obj = self.skills.get(mapping.get(name))
+        # 直接使用 action_id (如 elemental_skill) 作为 Key
+        skill_obj = self.skills.get(name)
         
         # 核心变动：如果技能对象支持 to_action_data，则调用它并传入 params
         if skill_obj and hasattr(skill_obj, "to_action_data"):

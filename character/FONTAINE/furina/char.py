@@ -46,11 +46,11 @@ class Furina(Fontaine):
         """实例化并配置全量技能组件。"""
         # 1. 核心战斗技能
         self.skills = {
-            "normal": FurinaNormalAttack(self.skill_params[0], self),
-            "charged": FurinaChargedAttack(self.skill_params[0], self),
-            "plunge": FurinaPlungingAttack(self.skill_params[0], self),
-            "skill": FurinaElementalSkill(self.skill_params[1], self),
-            "burst": FurinaElementalBurst(self.skill_params[2], self)
+            "normal_attack": FurinaNormalAttack(self.skill_params[0], self),
+            "charged_attack": FurinaChargedAttack(self.skill_params[0], self),
+            "plunging_attack": FurinaPlungingAttack(self.skill_params[0], self),
+            "elemental_skill": FurinaElementalSkill(self.skill_params[1], self),
+            "elemental_burst": FurinaElementalBurst(self.skill_params[2], self)
         }
         
         # 2. 通用移动与辅助组件
