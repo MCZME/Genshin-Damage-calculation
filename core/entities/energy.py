@@ -5,10 +5,19 @@ from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
 
+
 class EnergyDropsObject(BaseEntity):
     """能量球/微粒实体。"""
-    def __init__(self, character: Any, element_energy: Any, life_frame: int = 60, 
-                 is_fixed: bool = False, is_alone: bool = False, **kwargs: Any):
+
+    def __init__(
+        self,
+        character: Any,
+        element_energy: Any,
+        life_frame: int = 60,
+        is_fixed: bool = False,
+        is_alone: bool = False,
+        **kwargs: Any,
+    ):
         if element_energy[1] == 2:
             name = "元素微粒"
         elif element_energy[1] == 6:
@@ -20,12 +29,14 @@ class EnergyDropsObject(BaseEntity):
         self.element_energy = element_energy
         self.is_fixed = is_fixed
         self.is_alone = is_alone
-    
+
     def on_frame_update(self, target: Any) -> None:
         pass
 
     def on_finish(self, target: Any) -> None:
-        get_emulation_logger().log_object(f"{self.character.name}的 {self.name} 存活时间结束")
+        get_emulation_logger().log_object(
+            f"{self.character.name}的 {self.name} 存活时间结束"
+        )
         energy_event = GameEvent(
             event_type=EventType.BEFORE_ENERGY_CHANGE,
             frame=get_current_time(),
@@ -34,9 +45,8 @@ class EnergyDropsObject(BaseEntity):
                 "character": self.character,
                 "amount": self.element_energy,
                 "is_fixed": self.is_fixed,
-                "is_alone": self.is_alone
-            }
+                "is_alone": self.is_alone,
+            },
         )
         engine = self.event_engine or get_context().event_engine
         engine.publish(energy_event)
-

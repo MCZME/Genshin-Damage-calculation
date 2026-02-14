@@ -32,19 +32,24 @@ class ShieldSystem(GameSystem):
         # 1. 计算护盾强效 (来自创建者)
         shield_strength = 0.0
         if config.creator:
-            shield_strength = getattr(config.creator, "attribute_data", {}).get("护盾强效", 0.0)
-        
+            shield_strength = getattr(config.creator, "attribute_data", {}).get(
+                "护盾强效", 0.0
+            )
+
         # 2. 计算最终吸收量
         final_hp = config.base_hp * (1 + shield_strength / 100.0)
-        
+
         # 3. 创建并应用效果
-        effect = ShieldEffect(target, config.name, config.element, final_hp, config.duration)
+        effect = ShieldEffect(
+            target, config.name, config.element, final_hp, config.duration
+        )
         effect.apply()
-        
+
         from core.logger import get_emulation_logger
+
         get_emulation_logger().log_info(
-            f"{target.name} 获得了护盾: {config.name} (吸收量: {round(final_hp, 1)})", 
-            sender="Shield"
+            f"{target.name} 获得了护盾: {config.name} (吸收量: {round(final_hp, 1)})",
+            sender="Shield",
         )
         return effect
 
@@ -60,31 +65,37 @@ class ShieldSystem(GameSystem):
             return
 
         target = event.data.get("target")
-        if not target or not hasattr(target, "shield_effects") or not target.shield_effects:
+        if (
+            not target
+            or not hasattr(target, "shield_effects")
+            or not target.shield_effects
+        ):
             return
 
         # 这里的 amount 是原始伤害值
         raw_damage = event.data.get("amount", 0.0)
         damage_element = event.data.get("element", Element.NONE)
-        
+
         max_absorbed = 0.0
         active_shields: List[ShieldEffect] = list(target.shield_effects)
 
         for shield in active_shields:
             # 1. 计算针对该伤害元素的吸收倍率
-            absorption_mult = self._get_absorption_multiplier(shield.element, damage_element)
-            
+            absorption_mult = self._get_absorption_multiplier(
+                shield.element, damage_element
+            )
+
             # 2. 计算该护盾实际需要扣除的血量
             # 实际扣除 = 伤害 / 吸收倍率
             to_deduct = raw_damage / absorption_mult
-            
+
             # 3. 记录该护盾能吸收的最大原始伤害量
             absorbed_this_time = min(raw_damage, shield.current_hp * absorption_mult)
             max_absorbed = max(max_absorbed, absorbed_this_time)
-            
+
             # 4. 扣除护盾值
             shield.current_hp -= to_deduct
-            
+
             # 5. 检查破碎
             if shield.current_hp <= 0:
                 shield.remove()
@@ -93,17 +104,20 @@ class ShieldSystem(GameSystem):
         # 剩余伤害 = 原始伤害 - 护盾吸收掉的最高伤害量
         remaining_damage = max(0.0, raw_damage - max_absorbed)
         event.data["amount"] = remaining_damage
-        
+
         if max_absorbed > 0:
             from core.logger import get_emulation_logger
+
             get_emulation_logger().log_info(
-                f"护盾吸收了 {round(max_absorbed, 1)} 点伤害，剩余伤害: {round(remaining_damage, 1)}", 
-                sender="Shield"
+                f"护盾吸收了 {round(max_absorbed, 1)} 点伤害，剩余伤害: {round(remaining_damage, 1)}",
+                sender="Shield",
             )
 
-    def _get_absorption_multiplier(self, shield_el: Element, damage_el: Element) -> float:
+    def _get_absorption_multiplier(
+        self, shield_el: Element, damage_el: Element
+    ) -> float:
         """获取元素吸收倍率。
-        
+
         - 属性匹配 (如冰盾抗冰): 250%
         - 岩盾 (对全元素): 150%
         - 其他情况: 100%

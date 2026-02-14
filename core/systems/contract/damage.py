@@ -2,10 +2,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from core.systems.contract.attack import AttackConfig
 from core.mechanics.aura import Element
 
+
 class Damage:
     """
     伤害行为载体。
-    
+
     持有原始倍率、元素属性以及物理契约。
     数值结算由 DamageSystem 完成。
     """
@@ -16,7 +17,7 @@ class Damage:
         damage_multiplier: Union[float, List[float]] = 0.0,
         scaling_stat: str = "攻击力",
         config: Optional[AttackConfig] = None,
-        name: str = "Unknown Damage"
+        name: str = "Unknown Damage",
     ) -> None:
         """初始化伤害对象。"""
         self.element: Tuple[Element, float] = element

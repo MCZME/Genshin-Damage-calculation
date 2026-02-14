@@ -3,13 +3,14 @@ from enum import Enum, auto
 from typing import Any, Dict
 from dataclasses import dataclass, field
 
+
 # --------------------------
 # 事件类型枚举
 # --------------------------
 class EventType(Enum):
     # 核心循环
     FRAME_END = auto()
-    
+
     # 伤害相关
     BEFORE_DAMAGE = auto()
     AFTER_DAMAGE = auto()
@@ -69,7 +70,7 @@ class EventType(Enum):
     AFTER_HYPERBLOOM = auto()
     BEFORE_BURGEON = auto()
     AFTER_BURGEON = auto()
-    
+
     # 周期性反应 Tick
     ELECTRO_CHARGED_TICK = auto()
     BURNING_TICK = auto()
@@ -117,6 +118,7 @@ class EventType(Enum):
     AFTER_NIGHT_SOUL_CHANGE = auto()
     NIGHTSOUL_BURST = auto()
 
+
 # --------------------------
 # 核心事件类
 # --------------------------
@@ -126,6 +128,7 @@ class GameEvent:
     通用游戏事件。
     V2.4 架构中统一使用此基类，不再使用特定子类。
     """
+
     event_type: EventType
     frame: int
     source: Any = None
@@ -139,9 +142,11 @@ class GameEvent:
     def cancel(self):
         self.cancelled = True
 
+
 # --------------------------
 # 代理与接口
 # --------------------------
+
 
 class EventHandler(ABC):
     @abstractmethod

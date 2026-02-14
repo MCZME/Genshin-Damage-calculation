@@ -1,13 +1,17 @@
-from typing import Any, Optional, Dict, List
+from typing import Any, Dict, List
 from core.effect.base import BaseEffect
 from core.mechanics.aura import Element
+
 
 class ShieldEffect(BaseEffect):
     """
     护盾效果载体。
     本身不具备逻辑，由 ShieldSystem 统一驱动吸收判定。
     """
-    def __init__(self, owner: Any, name: str, element: Element, max_hp: float, duration: int):
+
+    def __init__(
+        self, owner: Any, name: str, element: Element, max_hp: float, duration: int
+    ):
         # 护盾通常是刷新模式 (REFRESH)
         super().__init__(owner, name, duration)
         self.element = element
@@ -29,6 +33,7 @@ class StatModifierEffect(BaseEffect):
     通用属性修改效果。
     在生效期间直接修改 owner 的 attribute_data。
     """
+
     def __init__(self, owner: Any, name: str, stats: Dict[str, float], duration: float):
         super().__init__(owner, name, duration)
         self.stats = stats
@@ -37,20 +42,27 @@ class StatModifierEffect(BaseEffect):
         if not hasattr(self.owner, "attribute_data"):
             return
         for key, value in self.stats.items():
-            self.owner.attribute_data[key] = self.owner.attribute_data.get(key, 0.0) + value
+            self.owner.attribute_data[key] = (
+                self.owner.attribute_data.get(key, 0.0) + value
+            )
 
     def on_remove(self):
         if not hasattr(self.owner, "attribute_data"):
             return
         for key, value in self.stats.items():
-            self.owner.attribute_data[key] = self.owner.attribute_data.get(key, 0.0) - value
+            self.owner.attribute_data[key] = (
+                self.owner.attribute_data.get(key, 0.0) - value
+            )
 
 
 class ResistanceDebuffEffect(StatModifierEffect):
     """
     抗性削减效果 (如超导、钟离减抗)。
     """
-    def __init__(self, owner: Any, name: str, elements: List[str], amount: float, duration: float):
+
+    def __init__(
+        self, owner: Any, name: str, elements: List[str], amount: float, duration: float
+    ):
         # 构造属性字典：{"物理元素抗性": -40.0, ...}
         stats = {f"{el}元素抗性": -amount for el in elements}
         super().__init__(owner, name, stats, duration)
@@ -62,12 +74,13 @@ class TalentEffect:
     固有天赋效果基类。
     unlock_level: 解锁该天赋所需的角色等级 (通常为 20, 60)。
     """
+
     def __init__(self, name: str, unlock_level: int = 1):
         self.name = name
         self.unlock_level = unlock_level
         self.character = None
         self.is_active = False
-        
+
     def apply(self, character: Any):
         self.character = character
         if self.character.level >= self.unlock_level:
@@ -83,11 +96,13 @@ class TalentEffect:
             return
         pass
 
+
 class ConstellationEffect:
     """
     命座效果基类。
     unlock_constellation: 该效果对应的命座层级 (1-6)。
     """
+
     def __init__(self, name: str, unlock_constellation: int = 1):
         self.name = name
         self.unlock_constellation = unlock_constellation

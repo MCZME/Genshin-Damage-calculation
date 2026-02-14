@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, Set
 
 from core.entities.base_entity import Faction
 from core.event import EventType, GameEvent
@@ -16,7 +16,7 @@ class ResonanceSystem(GameSystem):
     def __init__(self) -> None:
         super().__init__()
         self.active_resonances: Set[str] = set()
-        
+
         # 内部计时器与状态追踪
         self._last_electro_particle_time: int = -9999
         self._dendro_resonance_level: int = 0  # 0: 基础, 1: 触发一级, 2: 触发二级
@@ -57,7 +57,7 @@ class ResonanceSystem(GameSystem):
     def _apply_static_effects(self) -> None:
         """应用即时生效的属性加成 (静态注入)。"""
         chars = self.context.space._entities.get(Faction.PLAYER, [])
-        
+
         # 1. 热诚之火 (火): 攻击力提高25%
         if "火" in self.active_resonances:
             for c in chars:
@@ -115,6 +115,7 @@ class ResonanceSystem(GameSystem):
             current_f = get_current_time()
             if current_f - self._last_electro_particle_time >= 300:  # 5秒CD
                 from core.factory.entity_factory import EntityFactory
+
                 # 在攻击者位置产生一个雷元素微粒 (具体数值可根据需求调整)
                 EntityFactory.spawn_energy(1, event.source, ("雷", 1.0), time=40)
                 self._last_electro_particle_time = current_f

@@ -21,9 +21,11 @@ class HealingCalculator:
 
     def _get_base_attr(self) -> float:
         """根据 multiplier_provider 获取基础属性值。"""
-        entity = self.source if self.healing.multiplier_provider == "来源" else self.target
+        entity = (
+            self.source if self.healing.multiplier_provider == "来源" else self.target
+        )
         stat = self.healing.scaling_stat
-        
+
         if stat == "攻击力":
             return AttributeCalculator.get_attack(entity)
         if stat == "生命值":
@@ -36,17 +38,17 @@ class HealingCalculator:
         """执行计算并更新 Healing 对象的 final_value。"""
         base_val = self._get_base_attr()
         m = self.healing.base_multiplier
-        
+
         # 处理倍率 (百分比 + 固定值) 或 仅百分比
         if isinstance(m, (tuple, list)):
             raw_value = (m[0] / 100.0) * base_val + m[1]
         else:
             raw_value = (m / 100.0) * base_val
-            
+
         # 应用治疗加成与受治疗加成
         bonus = AttributeCalculator.get_healing_bonus(self.source)
         received_bonus = AttributeCalculator.get_healed_bonus(self.target)
-        
+
         final_value = raw_value * (1 + bonus) * (1 + received_bonus)
         self.healing.final_value = final_value
         return final_value
@@ -75,6 +77,7 @@ class HealthSystem(GameSystem):
         data = event.data
         source = data.get("character")
         from core.entities.base_entity import CombatEntity
+
         target: Optional[CombatEntity] = data.get("target")
         healing: Healing = data.get("healing")
 
@@ -84,25 +87,28 @@ class HealthSystem(GameSystem):
         # 1. 执行数值计算
         calculator = HealingCalculator(source, target, healing)
         calculator.calculate()
-        
+
         # 2. 调用标准接口执行回复 (不再使用 hasattr)
         target.heal(healing.final_value)
 
         # 3. 记录日志
         get_emulation_logger().log_heal(source, target, healing)
-        
+
         # 4. 发布治疗后置事件
-        self.engine.publish(GameEvent(
-            event_type=EventType.AFTER_HEAL,
-            frame=event.frame,
-            source=source,
-            data={"character": source, "target": target, "healing": healing}
-        ))
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.AFTER_HEAL,
+                frame=event.frame,
+                source=source,
+                data={"character": source, "target": target, "healing": healing},
+            )
+        )
 
     def _handle_hurt(self, event: GameEvent) -> None:
         """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
         data = event.data
         from core.entities.base_entity import CombatEntity
+
         target: Optional[CombatEntity] = data.get("target")
         source = data.get("character")
         amount = data.get("amount", 0.0)
@@ -113,23 +119,25 @@ class HealthSystem(GameSystem):
 
         # 1. 调用标准接口执行扣血 (不再使用 hasattr)
         target.hurt(amount)
-        
+
         # 2. 记录日志 (根据是否无视护盾调整描述)
         msg_prefix = "🩸 [侵蚀]" if is_ignore_shield else "💔"
         get_emulation_logger().log_info(
-            f"{msg_prefix} {target.name} 受到 {round(amount, 1)} 点实际伤害", 
-            sender="Health"
+            f"{msg_prefix} {target.name} 受到 {round(amount, 1)} 点实际伤害",
+            sender="Health",
         )
 
         # 3. 发布受伤后置事件
-        self.engine.publish(GameEvent(
-            event_type=EventType.AFTER_HURT,
-            frame=event.frame,
-            source=source,
-            data={
-                "character": source,
-                "target": target,
-                "amount": amount,
-                "ignore_shield": is_ignore_shield
-            }
-        ))
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.AFTER_HURT,
+                frame=event.frame,
+                source=source,
+                data={
+                    "character": source,
+                    "target": target,
+                    "amount": amount,
+                    "ignore_shield": is_ignore_shield,
+                },
+            )
+        )

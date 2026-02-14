@@ -20,9 +20,9 @@ class CombatSpace:
     def __init__(self) -> None:
         """初始化战场空间。"""
         self._entities: Dict[Faction, List[CombatEntity]] = {
-            Faction.PLAYER: [], # [重构] 此处仅存放召唤物
+            Faction.PLAYER: [],  # [重构] 此处仅存放召唤物
             Faction.ENEMY: [],
-            Faction.NEUTRAL: []
+            Faction.NEUTRAL: [],
         }
         self._remove_queue: List[CombatEntity] = []
         self.team: Optional["Team"] = None
@@ -36,9 +36,10 @@ class CombatSpace:
         if entity not in self._entities[entity.faction]:
             self._entities[entity.faction].append(entity)
             from core.logger import get_emulation_logger
+
             get_emulation_logger().log_info(
-                f"物理实体已注册: {entity.name} (Faction: {entity.faction.name})", 
-                sender="Physics"
+                f"物理实体已注册: {entity.name} (Faction: {entity.faction.name})",
+                sender="Physics",
             )
 
     def unregister(self, entity: CombatEntity) -> None:
@@ -46,13 +47,14 @@ class CombatSpace:
         if entity not in self._remove_queue:
             self._remove_queue.append(entity)
             from core.logger import get_emulation_logger
+
             get_emulation_logger().log_info(
                 f"物理实体已注销: {entity.name}", sender="Physics"
             )
 
     def on_frame_update(self) -> None:
         """每帧驱动逻辑：驱动角色逻辑、物理实体更新并清理非活跃对象。"""
-        
+
         # 1. 驱动所有角色逻辑 (由 Team 统一接管场上/场下驱动)
         if self.team:
             self.team.on_frame_update()
@@ -62,7 +64,7 @@ class CombatSpace:
             for entity in faction_list:
                 if entity.state in [EntityState.ACTIVE, EntityState.FINISHING]:
                     entity.on_frame_update()
-                
+
                 if not entity.is_active and entity.state != EntityState.FINISHING:
                     self.unregister(entity)
 
@@ -80,58 +82,55 @@ class CombatSpace:
     def _get_search_targets(self, faction: Faction) -> List[CombatEntity]:
         """获取检索时的候选实体列表（动态合并场上角色）。"""
         targets = self._entities[faction].copy()
-        
+
         # 如果检索玩家方，自动加入场上角色本体
         if faction == Faction.PLAYER and self.team and self.team.current_character:
             targets.append(self.team.current_character)
-            
+
         return targets
 
     def get_entities_in_range(
-        self, 
-        origin: Tuple[float, float], 
-        radius: float, 
-        faction: Faction
+        self, origin: Tuple[float, float], radius: float, faction: Faction
     ) -> List[CombatEntity]:
         """执行圆柱/球体判定。"""
         ox, oz = origin
         results: List[CombatEntity] = []
-        
+
         search_list = self._get_search_targets(faction)
         for e in search_list:
             ex, ez = e.pos[0], e.pos[1]
-            dist_sq = (ex - ox)**2 + (ez - oz)**2
+            dist_sq = (ex - ox) ** 2 + (ez - oz) ** 2
             total_r = radius + e.hitbox[0]
             if dist_sq <= total_r * total_r:
                 results.append(e)
         return results
 
     def get_entities_in_box(
-        self, 
-        origin: Tuple[float, float], 
-        length: float, 
-        width: float, 
-        facing: float, 
-        faction: Faction
+        self,
+        origin: Tuple[float, float],
+        length: float,
+        width: float,
+        facing: float,
+        faction: Faction,
     ) -> List[CombatEntity]:
         """执行矩形区域判定。"""
         ox, oz = origin
         rad = math.radians(-facing)
         cos_f, sin_f = math.cos(rad), math.sin(rad)
         results: List[CombatEntity] = []
-        
+
         search_list = self._get_search_targets(faction)
         for e in search_list:
             ex, ez = e.pos[0], e.pos[1]
             dx, dz = ex - ox, ez - oz
-            
+
             rx = dx * cos_f - dz * sin_f
             rz = dx * sin_f + dz * cos_f
-            
+
             closest_x = max(0.0, min(rx, length))
             closest_z = max(-width / 2.0, min(rz, width / 2.0))
-            
-            dist_sq = (rx - closest_x)**2 + (rz - closest_z)**2
+
+            dist_sq = (rx - closest_x) ** 2 + (rz - closest_z) ** 2
             if dist_sq <= e.hitbox[0] * e.hitbox[0]:
                 results.append(e)
         return results
@@ -146,24 +145,26 @@ class CombatSpace:
         shape = hb.shape
         radius = hb.radius
         offset = hb.offset
-        
+
         target_factions = [Faction.ENEMY, Faction.NEUTRAL]
         if attacker.faction == Faction.ENEMY:
             target_factions = [Faction.PLAYER, Faction.NEUTRAL]
-            
+
         facing = getattr(attacker, "facing", 0.0)
         rad = math.radians(facing)
         ox = attacker.pos[0] + offset[0] * math.cos(rad) - offset[1] * math.sin(rad)
         oz = attacker.pos[1] + offset[0] * math.sin(rad) + offset[1] * math.cos(rad)
         origin = (ox, oz)
-        
+
         targets: List[CombatEntity] = []
         for faction in target_factions:
             if shape in [AOEShape.SPHERE, AOEShape.CYLINDER]:
                 targets.extend(self.get_entities_in_range(origin, radius, faction))
             elif shape == AOEShape.BOX:
                 targets.extend(
-                    self.get_entities_in_box(origin, hb.length, hb.width, facing, faction)
+                    self.get_entities_in_box(
+                        origin, hb.length, hb.width, facing, faction
+                    )
                 )
             elif shape == AOEShape.SINGLE:
                 if damage.target:
@@ -174,27 +175,28 @@ class CombatSpace:
                         targets.append(closest)
 
         final_targets = self._apply_selection_strategy(targets, damage.data, origin)
-        
+
         if final_targets:
             from core.logger import get_emulation_logger
+
             get_emulation_logger().log_info(
-                f"伤害广播命中 {len(final_targets)} 个目标 (AOE: {shape.name})", 
-                sender="Physics"
+                f"伤害广播命中 {len(final_targets)} 个目标 (AOE: {shape.name})",
+                sender="Physics",
             )
-            
+
         for t in final_targets:
             if not damage.target:
                 damage.set_target(t)
             t.handle_damage(damage)
 
     def broadcast_element(
-        self, 
-        source: CombatEntity, 
-        element: "Element", 
-        u_value: float, 
+        self,
+        source: CombatEntity,
+        element: "Element",
+        u_value: float,
         origin: Tuple[float, float],
         radius: float,
-        exclude_target: Optional[CombatEntity] = None
+        exclude_target: Optional[CombatEntity] = None,
     ) -> None:
         """发起元素广播。"""
         hit_count = 0
@@ -207,29 +209,32 @@ class CombatSpace:
                 hit_count += 1
 
         from core.logger import get_emulation_logger
+
         get_emulation_logger().log_info(
-            f"元素广播: {element.value} ({u_value}U), 半径 {radius}m, 命中 {hit_count} 个目标", 
-            sender="Physics"
+            f"元素广播: {element.value} ({u_value}U), 半径 {radius}m, 命中 {hit_count} 个目标",
+            sender="Physics",
         )
 
-    def _find_closest(self, origin: Tuple[float, float], faction: Faction) -> Optional[CombatEntity]:
+    def _find_closest(
+        self, origin: Tuple[float, float], faction: Faction
+    ) -> Optional[CombatEntity]:
         ox, oz = origin
         best_dist = float("inf")
         best_e: Optional[CombatEntity] = None
-        
+
         search_list = self._get_search_targets(faction)
         for e in search_list:
-            dist_sq = (e.pos[0] - ox)**2 + (e.pos[1] - oz)**2
+            dist_sq = (e.pos[0] - ox) ** 2 + (e.pos[1] - oz) ** 2
             if dist_sq < best_dist:
                 best_dist = dist_sq
                 best_e = e
         return best_e
 
     def _apply_selection_strategy(
-        self, 
-        targets: List[CombatEntity], 
-        data: Dict[str, Any], 
-        origin: Tuple[float, float]
+        self,
+        targets: List[CombatEntity],
+        data: Dict[str, Any],
+        origin: Tuple[float, float],
     ) -> List[CombatEntity]:
         if not targets:
             return []
@@ -238,16 +243,16 @@ class CombatSpace:
         max_targets = data.get("max_targets", 999)
         if select_way == "CLOSEST":
             targets.sort(
-                key=lambda e: (e.pos[0] - origin[0])**2 + (e.pos[1] - origin[1])**2
+                key=lambda e: (e.pos[0] - origin[0]) ** 2 + (e.pos[1] - origin[1]) ** 2
             )
-        return targets[:min(len(targets), max_targets)]
+        return targets[: min(len(targets), max_targets)]
 
     def get_all_entities(self) -> List[CombatEntity]:
         """获取所有物理实体列表（包含场上角色）。"""
         results: List[CombatEntity] = []
         for faction_list in self._entities.values():
             results.extend(faction_list)
-            
+
         if self.team and self.team.current_character:
             if self.team.current_character not in results:
                 results.append(self.team.current_character)

@@ -1,7 +1,9 @@
 from typing import List, Set
 
+
 class AttackCategory:
     """逻辑增伤分类标签。"""
+
     NORMAL = "普通攻击"
     CHARGED = "重击"
     PLUNGING = "下落攻击"
@@ -18,7 +20,7 @@ class AttackTagResolver:
 
     @staticmethod
     def is_normal_attack(tag: str) -> bool:
-        # 匹配: 普通攻击1, 普通攻击2 ... 
+        # 匹配: 普通攻击1, 普通攻击2 ...
         return tag.startswith("普通攻击")
 
     @staticmethod
@@ -36,20 +38,20 @@ class AttackTagResolver:
         """
         categories = set()
         extra = extra_tags or []
-        
+
         # 1. 基础逻辑映射
         if tag.startswith("普通攻击") or "普通攻击" in extra:
             categories.add(AttackCategory.NORMAL)
-        
+
         if tag.startswith("重击") or "重击" in extra:
             categories.add(AttackCategory.CHARGED)
-            
+
         if tag.startswith("下落攻击") or "下落攻击" in extra:
             categories.add(AttackCategory.PLUNGING)
-            
+
         if tag.startswith("元素战技") or "元素战技" in extra:
             categories.add(AttackCategory.SKILL)
-            
+
         if tag.startswith("元素爆发") or "元素爆发" in extra:
             categories.add(AttackCategory.BURST)
 

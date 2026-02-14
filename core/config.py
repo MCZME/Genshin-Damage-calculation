@@ -44,8 +44,9 @@ class Config:
         if cls.config is None:
             try:
                 Config()
-            except:
-                if cls.config is None: cls.config = {}
+            except Exception:
+                if cls.config is None:
+                    cls.config = {}
         
         if not isinstance(cls.config, dict):
             return default
@@ -71,8 +72,9 @@ class Config:
         if cls.config is None:
             try:
                 Config()
-            except:
-                if cls.config is None: cls.config = {}
+            except Exception:
+                if cls.config is None:
+                    cls.config = {}
                 
         keys = key.split('.')
         current = cls.config
@@ -84,9 +86,7 @@ class Config:
 
         for i, k in enumerate(keys[:-1]):
             if not isinstance(current, dict):
-                # 这种路径冲突的情况（中间节点不是字典）强制覆盖为字典
-                # 注意：这可能会覆盖掉原本是非字典的中间值
-                break # 或者抛出异常，这里选择简单修复路径
+                break
             if k not in current or not isinstance(current[k], dict):
                 current[k] = {}
             current = current[k]
@@ -95,7 +95,7 @@ class Config:
             current[keys[-1]] = value
 
     @classmethod
-    def save(self):
+    def save(cls):
         """保存配置到文件"""
         with open('config.json', 'w', encoding='utf-8') as f:
             json.dump(Config.config, f, indent=2, ensure_ascii=False)

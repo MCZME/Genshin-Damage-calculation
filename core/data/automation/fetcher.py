@@ -1,11 +1,12 @@
 import httpx
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 from core.logger import get_emulation_logger
+
 
 class AmberFetcher:
     """
     Project Amber (gi.yatta.moe) API 获取器。
-    
+
     负责获取角色详情及全局成长曲线表。
     """
 
@@ -28,26 +29,33 @@ class AmberFetcher:
                     return data.get("data", {})
                 return None
         except Exception as e:
-            get_emulation_logger().log_error(f"Fetcher 请求失败 [{url}]: {str(e)}", sender="Fetcher")
+            get_emulation_logger().log_error(
+                f"Fetcher 请求失败 [{url}]: {str(e)}", sender="Fetcher"
+            )
             return None
 
     def find_avatar_id(self, name: str) -> Optional[str]:
         """通过名称查找 ID。"""
         get_emulation_logger().log_info(f"正在查找角色 ID: {name}...", sender="Fetcher")
         data = self._get(f"{self.BASE_URL}/avatar")
-        if not data: return None
+        if not data:
+            return None
         items = data.get("items", {})
         for avatar_id, details in items.items():
             if details.get("name") == name:
                 return str(avatar_id)
         return None
 
-    def fetch_avatar_detail(self, avatar_id: str, vh: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def fetch_avatar_detail(
+        self, avatar_id: str, vh: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """获取角色详情。"""
         params = {"vh": vh} if vh else None
         return self._get(f"{self.BASE_URL}/avatar/{avatar_id}", params=params)
 
-    def fetch_growth_curves(self, vh: Optional[str] = "63F3") -> Optional[Dict[str, Any]]:
+    def fetch_growth_curves(
+        self, vh: Optional[str] = "63F3"
+    ) -> Optional[Dict[str, Any]]:
         """获取全量成长曲线表。"""
         params = {"vh": vh} if vh else None
         return self._get(f"{self.STATIC_URL}/avatarCurve", params=params)

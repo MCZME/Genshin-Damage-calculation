@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from core.action.action_data import ActionFrameData
 
@@ -7,7 +7,7 @@ from core.action.action_data import ActionFrameData
 class SkillBase(ABC):
     """
     技能逻辑基类 (V2.3.1 动作工厂版)。
-    
+
     负责管理技能等级与冷却状态，并根据玩家意图 (Intent) 产出物理动作描述。
     物理状态 (帧推进、中断判定) 由 ActionManager 统一负责。
     """
@@ -24,11 +24,13 @@ class SkillBase(ABC):
         self.last_use_frame: int = -9999
 
     @abstractmethod
-    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+    def to_action_data(
+        self, intent: Optional[Dict[str, Any]] = None
+    ) -> ActionFrameData:
         """
         [核心接口] 将逻辑意图转换为物理动作数据。
-        
-        子类应在此处从对应的 data.py 中读取帧数、中断帧 (interrupt_frames) 
+
+        子类应在此处从对应的 data.py 中读取帧数、中断帧 (interrupt_frames)
         以及配置 AttackConfig。
 
         Args:
@@ -50,7 +52,7 @@ class SkillBase(ABC):
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         """
         [回调] 当动作状态机运行到伤害发生帧 (hit_frames) 时触发。
-        
+
         子类可在此处处理伤害之外的副作用 (如回能、叠层)。
 
         Args:
@@ -76,7 +78,7 @@ class EnergySkill(SkillBase):
         """检查能量是否已满。"""
         if not super().can_cast():
             return False
-            
+
         if hasattr(self.caster, "elemental_energy"):
             return self.caster.elemental_energy.is_energy_full()
         return True

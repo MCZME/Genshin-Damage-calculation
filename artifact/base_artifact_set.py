@@ -1,10 +1,12 @@
 from typing import Any
 from core.event import EventHandler
 
+
 class BaseArtifactSet(EventHandler):
     """
     圣遗物套装效果基类。
     """
+
     def __init__(self, name: str = ""):
         self.name = name
 

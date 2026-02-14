@@ -11,17 +11,19 @@ if TYPE_CHECKING:
 
 class EntityState(Enum):
     """实体的生命周期状态。"""
-    INIT = auto()      # 初始化
-    ACTIVE = auto()    # 活跃中
-    FINISHING = auto() # 正在结束
-    DESTROYED = auto() # 已彻底销毁
+
+    INIT = auto()  # 初始化
+    ACTIVE = auto()  # 活跃中
+    FINISHING = auto()  # 正在结束
+    DESTROYED = auto()  # 已彻底销毁
 
 
 class Faction(Enum):
     """实体所属阵营。"""
-    PLAYER = auto()    # 玩家/友方
-    ENEMY = auto()     # 敌人/敌对
-    NEUTRAL = auto()   # 中立/环境物
+
+    PLAYER = auto()  # 玩家/友方
+    ENEMY = auto()  # 敌人/敌对
+    NEUTRAL = auto()  # 中立/环境物
 
 
 class BaseEntity:
@@ -31,10 +33,7 @@ class BaseEntity:
     """
 
     def __init__(
-        self, 
-        name: str, 
-        life_frame: float = float("inf"), 
-        context: Optional[Any] = None
+        self, name: str, life_frame: float = float("inf"), context: Optional[Any] = None
     ) -> None:
         """初始化基础实体。
 
@@ -47,7 +46,7 @@ class BaseEntity:
         self.life_frame: float = life_frame
         self.current_frame: int = 0
         self.state: EntityState = EntityState.ACTIVE
-        
+
         # 上下文与事件引擎绑定
         self.ctx = context if context else get_context()
         self.event_engine = self.ctx.event_engine if self.ctx else None
@@ -62,15 +61,15 @@ class BaseEntity:
         if self.state == EntityState.FINISHING:
             self.finish()
             return
-            
+
         if self.state != EntityState.ACTIVE:
             return
-        
+
         self.current_frame += 1
         if self.current_frame >= self.life_frame:
             self.finish()
             return
-            
+
         # 执行具体子类的业务逻辑
         self._perform_tick()
 
@@ -90,16 +89,12 @@ class BaseEntity:
         """[钩子] 实体销毁前的清理逻辑。"""
         pass
 
-    def on_finish(self) -> None:
-        """[钩子] 实体销毁前的清理逻辑。"""
-        pass
-
     def export_state(self) -> Dict[str, Any]:
         """导出基础状态快照。"""
         return {
             "name": self.name,
             "frame": self.current_frame,
-            "state": self.state.name
+            "state": self.state.name,
         }
 
 
@@ -110,52 +105,58 @@ class CombatEntity(BaseEntity):
     """
 
     def __init__(
-        self, 
-        name: str, 
+        self,
+        name: str,
         faction: Faction = Faction.ENEMY,
         pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
         facing: float = 0.0,
         hitbox: Tuple[float, float] = (0.5, 2.0),
-        life_frame: float = float("inf"), 
-        context: Optional[Any] = None
+        life_frame: float = float("inf"),
+        context: Optional[Any] = None,
     ) -> None:
         """初始化战斗实体。"""
         super().__init__(name, life_frame, context)
-        
+
         self.faction: Faction = faction
         self.pos: List[float] = list(pos)
         self.facing: float = facing
         self.hitbox: Tuple[float, float] = hitbox
-        
+
         # 核心战斗组件
         self.aura: AuraManager = AuraManager()
         self.active_effects: List[Any] = []
         self.shield_effects: List["ShieldEffect"] = []
-        
+
         # ICD 管理器 (用于追踪该实体受到的附着冷却)
         self.icd_manager: ICDManager = ICDManager(self)
-        
+
         # [新] 属性审计链支持
         from core.systems.contract.modifier import ModifierRecord
+
         self.dynamic_modifiers: List[ModifierRecord] = []
         self.attribute_data: Dict[str, float] = {}
 
-    def add_modifier(self, source: str, stat: str, value: float, op: str = "ADD") -> None:
+    def add_modifier(
+        self, source: str, stat: str, value: float, op: str = "ADD"
+    ) -> None:
         """向实体注入一个带来源的属性修饰符。"""
         from core.systems.contract.modifier import ModifierRecord
+
         self.dynamic_modifiers.append(ModifierRecord(source, stat, value, op))
 
     def export_state(self) -> Dict[str, Any]:
         """导出战斗状态快照。"""
         base = super().export_state()
-        base.update({
-            "pos": [round(x, 3) for x in self.pos],
-            "facing": round(self.facing, 2),
-            "faction": self.faction.name,
-            "auras": self.aura.export_state(),
-            "shield_count": len(self.shield_effects),
-            "attributes": self.attribute_data.copy()
-        })
+        base.update(
+            {
+                "pos": [round(x, 3) for x in self.pos],
+                "facing": round(self.facing, 2),
+                "faction": self.faction.name,
+                "auras": self.aura.export_state(),
+                "shield_count": len(self.shield_effects),
+                "attributes": self.attribute_data.copy(),
+            }
+        )
         return base
 
     def set_position(self, x: float, z: float, y: Optional[float] = None) -> None:
@@ -192,45 +193,44 @@ class CombatEntity(BaseEntity):
         # 1. 检查 ICD
         tag = getattr(damage.config, "icd_tag", "Default")
         group = getattr(damage.config, "icd_group", "Default")
-        
+
         # 修正：显式判断 damage.source 是否为 None
         source_ent = getattr(damage, "source", None)
         if source_ent is None:
             source_ent = self
-        
+
         multiplier = self.icd_manager.check_attachment(source_ent, tag, group)
-        
+
         if multiplier <= 0:
             return []
-            
+
         # 2. 应用元素附着
         final_u = damage.element[1] * multiplier
         results = self.aura.apply_element(damage.element[0], final_u)
-        
+
         # 3. 反馈并发布反应事件
         from core.event import GameEvent, EventType
         from core.tool import get_current_time
-        
+
         if hasattr(damage, "reaction_results"):
             damage.reaction_results.extend(results)
-            
+
         for res in results:
-            self.event_engine.publish(GameEvent(
-                event_type=EventType.AFTER_ELEMENTAL_REACTION,
-                frame=get_current_time(),
-                source=source_ent,
-                data={
-                    "target": self,
-                    "elemental_reaction": res
-                }
-            ))
-            
+            self.event_engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_ELEMENTAL_REACTION,
+                    frame=get_current_time(),
+                    source=source_ent,
+                    data={"target": self, "elemental_reaction": res},
+                )
+            )
+
         return results
 
     def _perform_tick(self) -> None:
         """驱动战斗实体的每帧逻辑。"""
-        self.aura.update(self, 1/60)
-        
+        self.aura.update(self, 1 / 60)
+
         for eff in self.active_effects[:]:
             eff.on_frame_update(self)
             self.active_effects.remove(eff)

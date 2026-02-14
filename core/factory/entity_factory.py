@@ -4,12 +4,13 @@ from core.context import get_context
 
 T = TypeVar("T", bound=BaseEntity)
 
+
 class EntityFactory:
     """
     实体工厂。
     统一实体的创建入口，负责自动注入 Context 并处理注册。
     """
-    
+
     # 用于未来的池化管理
     _pool: Dict[str, Any] = {}
 
@@ -17,7 +18,7 @@ class EntityFactory:
     def create_entity(cls: Type[T], *args: Any, **kwargs: Any) -> T:
         """
         创建一个实体并自动应用。
-        
+
         Args:
             cls: 实体类。
             *args, **kwargs: 传递给实体构造函数的参数。
@@ -30,20 +31,27 @@ class EntityFactory:
                 kwargs["context"] = ctx
             except RuntimeError:
                 pass
-        
+
         # 2. 实例化
         instance = cls(*args, **kwargs)
-        
+
         # 3. 自动应用到环境 (加入 Team)
         instance.apply()
-        
+
         return instance
 
     @staticmethod
-    def spawn_energy(num: int, character: Any, element_energy: Any, is_fixed: bool = False, is_alone: bool = False, time: int = 40) -> None:
+    def spawn_energy(
+        num: int,
+        character: Any,
+        element_energy: Any,
+        is_fixed: bool = False,
+        is_alone: bool = False,
+        time: int = 40,
+    ) -> None:
         """
         统一的能量产生接口。
-        
+
         Args:
             num: 产生数量（或球数）。
             character: 目标角色。
@@ -54,11 +62,15 @@ class EntityFactory:
         """
         if time != 0:
             from core.entities.energy import EnergyDropsObject
+
             for _ in range(num):
-                EntityFactory.create_entity(EnergyDropsObject, character, element_energy, life_frame=time)
+                EntityFactory.create_entity(
+                    EnergyDropsObject, character, element_energy, life_frame=time
+                )
         else:
             from core.event import GameEvent, EventType
             from core.tool import get_current_time
+
             ctx = get_context()
             energy_event = GameEvent(
                 event_type=EventType.BEFORE_ENERGY_CHANGE,
@@ -68,7 +80,7 @@ class EntityFactory:
                     "character": character,
                     "amount": element_energy,
                     "is_fixed": is_fixed,
-                    "is_alone": is_alone
-                }
+                    "is_alone": is_alone,
+                },
             )
             ctx.event_engine.publish(energy_event)

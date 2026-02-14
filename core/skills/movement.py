@@ -12,12 +12,11 @@ class DashSkill(SkillBase):
     def __init__(self, lv: int = 1, caster: Any = None):
         super().__init__(lv, caster)
         # 默认冲刺时序 (若 data.py 未定义则使用此默认值)
-        self.default_frames = {
-            "total_frames": 20,
-            "interrupt_frames": {"any": 20}
-        }
+        self.default_frames = {"total_frames": 20, "interrupt_frames": {"any": 20}}
 
-    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+    def to_action_data(
+        self, intent: Optional[Dict[str, Any]] = None
+    ) -> ActionFrameData:
         # 尝试从角色数据中获取实测冲刺数据
         frames = self.default_frames
         if hasattr(self.caster, "action_frame_data"):
@@ -28,8 +27,10 @@ class DashSkill(SkillBase):
             action_type="dash",
             total_frames=frames["total_frames"],
             hit_frames=[],
-            interrupt_frames=frames.get("interrupt_frames", {"any": frames["total_frames"]}),
-            origin_skill=self
+            interrupt_frames=frames.get(
+                "interrupt_frames", {"any": frames["total_frames"]}
+            ),
+            origin_skill=self,
         )
 
     def on_frame_update(self) -> None:
@@ -45,12 +46,11 @@ class JumpSkill(SkillBase):
 
     def __init__(self, lv: int = 1, caster: Any = None):
         super().__init__(lv, caster)
-        self.default_frames = {
-            "total_frames": 31,
-            "interrupt_frames": {"any": 31}
-        }
+        self.default_frames = {"total_frames": 31, "interrupt_frames": {"any": 31}}
 
-    def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
+    def to_action_data(
+        self, intent: Optional[Dict[str, Any]] = None
+    ) -> ActionFrameData:
         frames = self.default_frames
         if hasattr(self.caster, "action_frame_data"):
             frames = self.caster.action_frame_data.get("JUMP", self.default_frames)
@@ -60,8 +60,10 @@ class JumpSkill(SkillBase):
             action_type="jump",
             total_frames=frames["total_frames"],
             hit_frames=[],
-            interrupt_frames=frames.get("interrupt_frames", {"any": frames["total_frames"]}),
-            origin_skill=self
+            interrupt_frames=frames.get(
+                "interrupt_frames", {"any": frames["total_frames"]}
+            ),
+            origin_skill=self,
         )
 
     def on_frame_update(self) -> None:

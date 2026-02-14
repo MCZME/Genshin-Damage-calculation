@@ -64,4 +64,10 @@ class Weapon:
         pass
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"id": self.id, "level": self.level, "lv": self.lv, "name": self.name, "base_atk": self.base_atk}
+        return {
+            "id": self.id,
+            "level": self.level,
+            "lv": self.lv,
+            "name": self.name,
+            "base_atk": self.base_atk,
+        }

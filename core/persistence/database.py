@@ -1,13 +1,15 @@
 import aiosqlite
 import json
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Optional
+
 
 class ResultDatabase:
     """
     仿真结果持久化驱动 (基于 SQLite)。
     采用异步队列模式，实现非阻塞的帧快照存储。
     """
+
     def __init__(self, db_path: str = "simulation_results.db"):
         self.db_path = db_path
         self._queue = asyncio.Queue()
@@ -45,7 +47,7 @@ class ResultDatabase:
         """停止 Worker 并等待队列清空"""
         self._running = False
         if self._worker_task:
-            await self._queue.put(None) # 结束信号
+            await self._queue.put(None)  # 结束信号
             await self._worker_task
 
     def record_snapshot(self, snapshot: dict):
@@ -57,32 +59,34 @@ class ResultDatabase:
         async with aiosqlite.connect(self.db_path) as db:
             # 开启 WAL 模式提高并发读写性能
             await db.execute("PRAGMA journal_mode=WAL")
-            
+
             while True:
                 item = await self._queue.get()
                 if item is None:
                     break
-                
+
                 frame_id = item["frame"]
                 # 序列化为 JSON 存储 (后续若追求性能可换 MsgPack)
                 await db.execute(
                     "INSERT OR REPLACE INTO frames (frame_id, data) VALUES (?, ?)",
-                    (frame_id, json.dumps(item))
+                    (frame_id, json.dumps(item)),
                 )
-                
+
                 # 批量处理该帧发生的事件 (如果有)
                 # 注：此处假设 snapshot 中已包含当前帧事件，或后续通过独立接口 record_event 传入
-                
+
                 if self._queue.empty():
                     await db.commit()
-                
+
                 self._queue.task_done()
-            
+
             await db.commit()
 
     async def get_frame(self, frame_id: int) -> Optional[dict]:
         """[核心功能] 瞬间读取任意帧状态"""
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("SELECT data FROM frames WHERE frame_id = ?", (frame_id,)) as cursor:
+            async with db.execute(
+                "SELECT data FROM frames WHERE frame_id = ?", (frame_id,)
+            ) as cursor:
                 row = await cursor.fetchone()
                 return json.loads(row[0]) if row else None

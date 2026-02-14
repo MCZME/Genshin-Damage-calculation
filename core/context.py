@@ -6,11 +6,11 @@ if TYPE_CHECKING:
     from core.combat_space import CombatSpace
     from core.systems.manager import SystemManager
     from core.logger import SimulationLogger
-    from core.team import Team
 
 # ---------------------------------------------------------
 # Simulation Context
 # ---------------------------------------------------------
+
 
 @dataclass
 class SimulationContext:
@@ -49,6 +49,7 @@ class SimulationContext:
 
         if self.space is None:
             from core.combat_space import CombatSpace
+
             self.space = CombatSpace()
 
     def __enter__(self) -> "SimulationContext":
@@ -89,7 +90,7 @@ class SimulationContext:
         self.global_vertical_dist = 0.0
         if self.event_engine:
             self.event_engine.clear()
-        
+
         # 记录重置日志
         if self.logger:
             self.logger.log_info("Context Reset", sender="Context")
@@ -104,18 +105,19 @@ class SimulationContext:
             "frame": self.current_frame,
             "global": {
                 "move_dist": round(self.global_move_dist, 3),
-                "vertical_dist": round(self.global_vertical_dist, 3)
+                "vertical_dist": round(self.global_vertical_dist, 3),
             },
-            "entities": []
+            "entities": [],
         }
 
         if self.space:
             # 1. 导出物理空间中的实体 (召唤物、敌人等)
             from core.entities.base_entity import Faction
+
             for faction in Faction:
                 for entity in self.space._entities.get(faction, []):
                     snapshot["entities"].append(entity.export_state())
-            
+
             # 2. 额外导出队伍成员 (角色本体，包含后台角色)
             if self.space.team:
                 for member in self.space.team.get_members():
@@ -128,9 +130,10 @@ class SimulationContext:
 # Event Engine (Instance-based)
 # ---------------------------------------------------------
 
+
 class EventEngine:
     """基于实例的事件驱动引擎。
-    
+
     支持在特定的 SimulationContext 内进行事件订阅、取消订阅与发布。
     支持父子引擎链式发布。
     """
@@ -203,6 +206,7 @@ _current_context: ContextVar[Optional[SimulationContext]] = ContextVar(
     "current_simulation_context", default=None
 )
 
+
 def get_context() -> SimulationContext:
     """获取当前活跃的仿真上下文。
 
@@ -217,6 +221,7 @@ def get_context() -> SimulationContext:
         raise RuntimeError("No active SimulationContext found.")
     return ctx
 
+
 def set_context(ctx: SimulationContext) -> None:
     """手动设置当前的活跃上下文。
 
@@ -225,9 +230,10 @@ def set_context(ctx: SimulationContext) -> None:
     """
     _current_context.set(ctx)
 
+
 def create_context() -> SimulationContext:
     """工厂函数：创建一个完整配置的仿真上下文实例。
-    
+
     该函数会自动初始化注册表、日志系统以及挂载所有核心仿真子系统。
 
     Returns:

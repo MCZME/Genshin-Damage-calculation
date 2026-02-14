@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict
 
+
 class DataGenerator:
     """
     代码生成器。
@@ -16,35 +17,38 @@ class DataGenerator:
                 "",
                 "# --- 角色基础信息 ---",
                 f'NAME = "{m["name"]}"',
-                f'ID = {m["id"]}',
-                f'RARITY = {m["rarity"]}',
+                f"ID = {m['id']}",
+                f"RARITY = {m['rarity']}",
                 f'ELEMENT = "{m["element"]}"',
                 f'WEAPON_TYPE = "{m["weapon_type"]}"',
                 f'BREAKTHROUGH_PROP = "{m["breakthrough_prop"]}"',
                 "",
                 "# --- 属性成长表 (1-100级) ---",
-                "BASE_STATS = {"
+                "BASE_STATS = {",
             ]
 
             for lv, stats in data["base_stats"].items():
-                lines.append(f'    {lv}: {stats},')
+                lines.append(f"    {lv}: {stats},")
             lines.append("}")
             lines.append("")
 
             skill_vars = {
                 "normal": "NORMAL_ATTACK_DATA",
                 "skill": "ELEMENTAL_SKILL_DATA",
-                "burst": "ELEMENTAL_BURST_DATA"
+                "burst": "ELEMENTAL_BURST_DATA",
             }
 
             for s_key, var_name in skill_vars.items():
                 s_info = data["skills"].get(s_key)
-                if not s_info: continue
+                if not s_info:
+                    continue
                 lines.append(f"# --- {s_info['name']} ({s_key}) ---")
                 lines.append(f"{var_name} = {{")
                 for label, info in s_info["data"].items():
                     clean_label = label.replace('"', '\\"')
-                    lines.append(f'    "{clean_label}": ["{info["scaling"]}", {info["levels"]}],')
+                    lines.append(
+                        f'    "{clean_label}": ["{info["scaling"]}", {info["levels"]}],'
+                    )
                 lines.append("}")
                 lines.append("")
 
@@ -52,15 +56,17 @@ class DataGenerator:
             lines.append("CONSTELLATIONS = {")
             for i, c in enumerate(data["constellations"]):
                 clean_name = c["name"].replace('"', '\\"')
-                safe_desc = c["desc"].replace('"', '\\"').replace('\n', '\\n')
-                lines.append(f'    {i+1}: {{ "name": "{clean_name}", "desc": "{safe_desc}" }},')
+                safe_desc = c["desc"].replace('"', '\\"').replace("\n", "\\n")
+                lines.append(
+                    f'    {i + 1}: {{ "name": "{clean_name}", "desc": "{safe_desc}" }},'
+                )
             lines.append("}")
             lines.append("")
 
             lines.append("# --- 原始描述文本 (开发参考) ---")
             lines.append("DESCRIPTIONS = {")
             for k, text in data["descriptions"].items():
-                safe_text = text.replace('"', '\\"').replace('\n', '\\n')
+                safe_text = text.replace('"', '\\"').replace("\n", "\\n")
                 lines.append(f'    "{k}": "{safe_text}",')
             lines.append("}")
             lines.append("")

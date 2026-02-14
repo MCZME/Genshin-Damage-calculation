@@ -4,10 +4,12 @@ from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
 from core.entities.base_entity import Faction
 
+
 class NatlanSystem(GameSystem):
     """
     纳塔地区特性系统，处理夜魂迸发等机制。
     """
+
     def __init__(self):
         super().__init__()
         self.last_nightsoul_burst_time = -9999
@@ -21,8 +23,8 @@ class NatlanSystem(GameSystem):
             self._check_nightsoul_burst(event)
 
     def _check_nightsoul_burst(self, event: GameEvent):
-        damage = event.data.get('damage')
-        if not damage or damage.element[0] == '物理':
+        damage = event.data.get("damage")
+        if not damage or damage.element[0] == "物理":
             return
 
         ctx = self.context
@@ -34,17 +36,21 @@ class NatlanSystem(GameSystem):
         player_entities = ctx.space._entities.get(Faction.PLAYER, [])
         for char in player_entities:
             # 假设角色属性中存有 association 字段
-            if getattr(char, 'association', '') == '纳塔':
+            if getattr(char, "association", "") == "纳塔":
                 natlan_character_count += 1
 
         if natlan_character_count > 0:
             # 根据纳塔角色数量确定触发间隔 (18s, 12s, 9s)
             trigger_interval = [18, 12, 9][min(natlan_character_count, 3) - 1] * 60
-            
+
             if event.frame - self.last_nightsoul_burst_time > trigger_interval:
                 self.last_nightsoul_burst_time = event.frame
-                get_emulation_logger().log_effect('触发夜魂迸发')
-                
+                get_emulation_logger().log_effect("触发夜魂迸发")
+
                 # 发布夜魂迸发事件
-                burst_event = GameEvent(EventType.NIGHTSOUL_BURST, event.frame, source=event.data.get('character'))
+                burst_event = GameEvent(
+                    EventType.NIGHTSOUL_BURST,
+                    event.frame,
+                    source=event.data.get("character"),
+                )
                 self.engine.publish(burst_event)

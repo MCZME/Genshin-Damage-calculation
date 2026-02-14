@@ -9,6 +9,7 @@ from core.mechanics.icd import ICDManager
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 
+
 class MockCharacter(CombatEntity):
     def __init__(self, name, element):
         super().__init__(name, Faction.PLAYER)
@@ -26,10 +27,12 @@ class MockCharacter(CombatEntity):
             "防御力": 800,
             "生命值": 20000,
             "固定生命值": 0,
-            "生命值%": 0
+            "生命值%": 0,
         }
 
-    def handle_damage(self, damage): pass
+    def handle_damage(self, damage):
+        pass
+
 
 class MockEnemy(CombatEntity):
     def __init__(self, name):
@@ -41,12 +44,13 @@ class MockEnemy(CombatEntity):
             "火元素抗性": 10,
             "草元素抗性": 10,
             "水元素抗性": 10,
-            "草元素伤害加成": 0 
+            "草元素伤害加成": 0,
         }
 
     def handle_damage(self, damage):
         damage.set_target(self)
         self.apply_elemental_aura(damage)
+
 
 class TestDendroCoreLogic:
     @pytest.fixture
@@ -68,30 +72,36 @@ class TestDendroCoreLogic:
             damage_multiplier=0,
             scaling_stat="攻击力",
             name="挂水",
-            config=AttackConfig(icd_tag="Independent") # 确保挂上
+            config=AttackConfig(icd_tag="Independent"),  # 确保挂上
         )
         hydro_dmg.set_source(player)
         enemy.handle_damage(hydro_dmg)
         assert any(a.element == Element.HYDRO for a in enemy.aura.auras)
-        
-        config = AttackConfig(is_deployable=True, hitbox=HitboxConfig(shape=AOEShape.SINGLE), icd_tag="Independent")
+
+        config = AttackConfig(
+            is_deployable=True,
+            hitbox=HitboxConfig(shape=AOEShape.SINGLE),
+            icd_tag="Independent",
+        )
         dendro_dmg = Damage(
             element=(Element.DENDRO, 1.0),
             damage_multiplier=100.0,
             scaling_stat="攻击力",
             name="草攻击",
-            config=config
+            config=config,
         )
         dendro_dmg.set_source(player)
-        
+
         # 通过事件引擎发布，触发 DamageSystem -> ReactionSystem 的完整链条
-        ctx.event_engine.publish(GameEvent(
-            EventType.BEFORE_DAMAGE, 
-            get_current_time(), 
-            source=player, 
-            data={'character': player, 'target': enemy, 'damage': dendro_dmg}
-        ))
-        
+        ctx.event_engine.publish(
+            GameEvent(
+                EventType.BEFORE_DAMAGE,
+                get_current_time(),
+                source=player,
+                data={"character": player, "target": enemy, "damage": dendro_dmg},
+            )
+        )
+
         neutrals = ctx.space._entities[Faction.NEUTRAL]
         core = next((e for e in neutrals if isinstance(e, DendroCoreEntity)), None)
         assert core is not None
@@ -102,25 +112,29 @@ class TestDendroCoreLogic:
         ctx, player, enemy = setup_scene
         core = DendroCoreEntity(player, (1.0, 0.0, 0.0))
         ctx.space.register(core)
-        
-        fire_config = AttackConfig(hitbox=HitboxConfig(shape=AOEShape.CYLINDER, radius=2.0))
+
+        fire_config = AttackConfig(
+            hitbox=HitboxConfig(shape=AOEShape.CYLINDER, radius=2.0)
+        )
         fire_dmg = Damage(
             element=(Element.PYRO, 1.0),
             damage_multiplier=100.0,
             scaling_stat="攻击力",
             name="火攻击",
-            config=fire_config
+            config=fire_config,
         )
         fire_dmg.set_source(player)
-        
+
         # 使用事件引擎
-        ctx.event_engine.publish(GameEvent(
-            EventType.BEFORE_DAMAGE, 
-            get_current_time(), 
-            source=player, 
-            data={'character': player, 'damage': fire_dmg}
-        ))
-        
+        ctx.event_engine.publish(
+            GameEvent(
+                EventType.BEFORE_DAMAGE,
+                get_current_time(),
+                source=player,
+                data={"character": player, "damage": fire_dmg},
+            )
+        )
+
         ctx.advance_frame()
         # 被销毁的实体应从空间移除
         assert core not in ctx.space._entities[Faction.NEUTRAL]
@@ -131,16 +145,17 @@ class TestDendroCoreLogic:
         # 清理已有核心 (避免干扰)
         ctx.space._entities[Faction.NEUTRAL].clear()
         DendroCoreEntity.active_cores.clear()
-        
+
         cores = []
         for i in range(5):
             c = DendroCoreEntity(player, (float(i), 0, 0))
             ctx.space.register(c)
             cores.append(c)
-            
+
         c6 = DendroCoreEntity(player, (10, 0, 0))
         ctx.space.register(c6)
         ctx.advance_frame()
         # 第 1 个应处于 FINISHING 或 DESTROYED 状态，且不在活跃列表
         from core.entities.base_entity import EntityState
+
         assert cores[0].state in [EntityState.FINISHING, EntityState.DESTROYED]

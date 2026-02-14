@@ -2,10 +2,12 @@ from typing import List, Type, Any, Optional
 from core.context import SimulationContext
 from core.systems.base_system import GameSystem
 
+
 class SystemManager:
     """
     负责管理和自动装配所有的 GameSystem。
     """
+
     def __init__(self, context: SimulationContext):
         self.context = context
         self.systems: List[GameSystem] = []

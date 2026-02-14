@@ -27,12 +27,10 @@ class Character(CombatEntity, ABC):
         skill_params: List[int] = None,
         constellation: int = 0,
         base_data: Dict[str, Any] = None,
-        pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+        pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     ):
         name = base_data.get("name", "Unknown") if base_data else "Unknown"
-        super().__init__(
-            name=name, faction=Faction.PLAYER, pos=pos, hitbox=(0.3, 1.8)
-        )
+        super().__init__(name=name, faction=Faction.PLAYER, pos=pos, hitbox=(0.3, 1.8))
 
         self.id = id
         self.level = level
@@ -40,12 +38,24 @@ class Character(CombatEntity, ABC):
         self.constellation_level = constellation
 
         self.attribute_data = {
-            "生命值": 0.0, "固定生命值": 0.0, "生命值%": 0.0,
-            "攻击力": 0.0, "固定攻击力": 0.0, "攻击力%": 0.0,
-            "防御力": 0.0, "固定防御力": 0.0, "防御力%": 0.0,
-            "元素精通": 0.0, "暴击率": 5.0, "暴击伤害": 50.0, "元素充能效率": 100.0,
-            "治疗加成": 0.0, "受治疗加成": 0.0, "伤害加成": 0.0, "物理伤害加成": 0.0,
-            "护盾强效": 0.0
+            "生命值": 0.0,
+            "固定生命值": 0.0,
+            "生命值%": 0.0,
+            "攻击力": 0.0,
+            "固定攻击力": 0.0,
+            "攻击力%": 0.0,
+            "防御力": 0.0,
+            "固定防御力": 0.0,
+            "防御力%": 0.0,
+            "元素精通": 0.0,
+            "暴击率": 5.0,
+            "暴击伤害": 50.0,
+            "元素充能效率": 100.0,
+            "治疗加成": 0.0,
+            "受治疗加成": 0.0,
+            "伤害加成": 0.0,
+            "物理伤害加成": 0.0,
+            "护盾强效": 0.0,
         }
         for el in ["火", "水", "雷", "草", "冰", "岩", "风"]:
             self.attribute_data[f"{el}元素伤害加成"] = 0.0
@@ -59,7 +69,11 @@ class Character(CombatEntity, ABC):
             bt_name = base_data.get("breakthrough_attribute")
             bt_val = base_data.get("breakthrough_value", 0.0)
             if bt_name:
-                key = bt_name if bt_name != "元素伤害加成" else f"{self.element}元素伤害加成"
+                key = (
+                    bt_name
+                    if bt_name != "元素伤害加成"
+                    else f"{self.element}元素伤害加成"
+                )
                 self.attribute_data[key] = self.attribute_data.get(key, 0.0) + bt_val
         else:
             self.element = "无"
@@ -70,16 +84,16 @@ class Character(CombatEntity, ABC):
         # -----------------------------------------------------
         self.skills: Dict[str, Any] = {}
         self.elemental_energy: Any = None
-        
+
         # [新] 动态天赋与固定命座
-        self.talents: List[TalentEffect] = [] # 动态列表，支持任意数量天赋
+        self.talents: List[TalentEffect] = []  # 动态列表，支持任意数量天赋
         self.constellations: List[Optional[ConstellationEffect]] = [None] * 6
-        
+
         self.weapon: Any = None
         self.artifact_manager: Any = None
         self.shield_effects: List[Any] = []
         self.on_field = False
-        self.max_combo = 5 # 默认最大普攻连招段数
+        self.max_combo = 5  # 默认最大普攻连招段数
         self.infusion_manager = InfusionManager()
 
         ctx = get_context()
@@ -89,9 +103,9 @@ class Character(CombatEntity, ABC):
         self._setup_character_components()
         self._setup_effects()
         self.apply_effects()
-        
+
         self.current_hp = 0.0
-        self._last_max_hp = 0.0 # 用于追踪最大生命值变动
+        self._last_max_hp = 0.0  # 用于追踪最大生命值变动
 
     @abstractmethod
     def _setup_character_components(self) -> None:
@@ -111,11 +125,13 @@ class Character(CombatEntity, ABC):
         """
         # 1. 应用固有天赋
         for t in self.talents:
-            if t: t.apply(self)
-        
+            if t:
+                t.apply(self)
+
         # 2. 应用命座
         for c in self.constellations:
-            if c: c.apply(self)
+            if c:
+                c.apply(self)
 
     def initialize_gear(self) -> None:
         if self.weapon:
@@ -124,8 +140,9 @@ class Character(CombatEntity, ABC):
         if self.artifact_manager:
             self.artifact_manager.apply_static_stats()
             self.artifact_manager.set_effect()
-        
+
         from core.systems.utils import AttributeCalculator
+
         max_hp = AttributeCalculator.get_hp(self)
         self.current_hp = max_hp
         self._last_max_hp = max_hp
@@ -138,7 +155,7 @@ class Character(CombatEntity, ABC):
         base = Element.PHYSICAL
         if self.type == "法器":
             base = Element(self.element)
-            
+
         return self.infusion_manager.get_current_element(base)
 
     # -----------------------------------------------------
@@ -150,30 +167,34 @@ class Character(CombatEntity, ABC):
         角色每帧逻辑驱动。
         """
         super()._perform_tick()
-        
+
         # 1. 检测最大生命值变动并同比缩放当前血量
         from core.systems.utils import AttributeCalculator
+
         current_max_hp = AttributeCalculator.get_hp(self)
         if current_max_hp != self._last_max_hp and self._last_max_hp > 0:
             # 同比缩放公式: (变动前的当前生命值/变动前的最大生命值) * 变动后的最大生命值
             ratio = self.current_hp / self._last_max_hp
             self.current_hp = ratio * current_max_hp
             self._last_max_hp = current_max_hp
-        
-        if self.weapon and hasattr(self.weapon, "on_frame_update"): 
+
+        if self.weapon and hasattr(self.weapon, "on_frame_update"):
             self.weapon.on_frame_update()
-            
+
         self.action_manager.on_frame_update()
-        
+
         # 驱动技能逻辑
         for skill in self.skills.values():
-            if hasattr(skill, "on_frame_update"): skill.on_frame_update()
-            
+            if hasattr(skill, "on_frame_update"):
+                skill.on_frame_update()
+
         # 驱动天赋与命座逻辑
         for t in self.talents:
-            if t: t.on_frame_update()
+            if t:
+                t.on_frame_update()
         for c in self.constellations:
-            if c: c.on_frame_update()
+            if c:
+                c.on_frame_update()
 
     # -----------------------------------------------------
     # 动作与协议 (保持不变，仅重定向内部调用)
@@ -182,15 +203,17 @@ class Character(CombatEntity, ABC):
     def _get_action_data(self, name: str, params: Any) -> ActionFrameData:
         # 直接使用 action_id (如 elemental_skill) 作为 Key
         skill_obj = self.skills.get(name)
-        
+
         # 核心变动：如果技能对象支持 to_action_data，则调用它并传入 params
         if skill_obj and hasattr(skill_obj, "to_action_data"):
             return skill_obj.to_action_data(params)
-            
+
         total_frames = 60
-        if skill_obj and hasattr(skill_obj, "total_frames"): total_frames = skill_obj.total_frames
+        if skill_obj and hasattr(skill_obj, "total_frames"):
+            total_frames = skill_obj.total_frames
         data = ActionFrameData(name=name, total_frames=total_frames, hit_frames=[])
-        if skill_obj: data.origin_skill = skill_obj
+        if skill_obj:
+            data.origin_skill = skill_obj
         return data
 
     def perform_action(self, name: str, params: Any = None) -> bool:
@@ -200,11 +223,11 @@ class Character(CombatEntity, ABC):
     def _request_action(self, name: str, params: Any = None) -> bool:
         """核心动作请求入口，负责翻译技能数据并发布对应事件。"""
         action_data = self._get_action_data(name, params)
-        
+
         # 1. 向动作管理器请求执行
         if not self.action_manager.request_action(action_data):
             return False
-            
+
         # 2. 根据动作类型发布对应的标准事件 (V2.4 统一事件流)
         event_map = {
             "elemental_skill": EventType.BEFORE_SKILL,
@@ -214,53 +237,72 @@ class Character(CombatEntity, ABC):
             "plunging_attack": EventType.BEFORE_PLUNGING_ATTACK,
             "dash": EventType.BEFORE_DASH,
             "jump": EventType.BEFORE_JUMP,
-            "falling": EventType.BEFORE_FALLING
+            "falling": EventType.BEFORE_FALLING,
         }
-        
+
         et = event_map.get(name)
         if et:
-            self.event_engine.publish(GameEvent(
-                event_type=et,
-                frame=get_current_time(),
-                source=self,
-                data={"action_name": name, "params": params}
-            ))
-            
+            self.event_engine.publish(
+                GameEvent(
+                    event_type=et,
+                    frame=get_current_time(),
+                    source=self,
+                    data={"action_name": name, "params": params},
+                )
+            )
+
         return True
 
     def handle_damage(self, damage: Any) -> None:
         damage.set_target(self)
         results = self.apply_elemental_aura(damage)
-        damage.data['reaction_results'] = results
+        damage.data["reaction_results"] = results
 
     def heal(self, amount: float) -> None:
         from core.systems.utils import AttributeCalculator
+
         max_hp = AttributeCalculator.get_hp(self)
         self.current_hp = min(max_hp, self.current_hp + amount)
 
     def hurt(self, amount: float) -> None:
         self.current_hp = max(0.0, self.current_hp - amount)
 
-    def set_artifact(self, artifact: Any) -> None: self.artifact_manager = artifact
-    def set_weapon(self, weapon: Any) -> None: self.weapon = weapon
-    def add_shield(self, shield: Any) -> None: self.shield_effects.append(shield)
+    def set_artifact(self, artifact: Any) -> None:
+        self.artifact_manager = artifact
+
+    def set_weapon(self, weapon: Any) -> None:
+        self.weapon = weapon
+
+    def add_shield(self, shield: Any) -> None:
+        self.shield_effects.append(shield)
+
     def remove_shield(self, shield: Any) -> None:
-        if shield in self.shield_effects: self.shield_effects.remove(shield)
+        if shield in self.shield_effects:
+            self.shield_effects.remove(shield)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"id": self.id, "name": self.name, "level": self.level, "constellation": self.constellation_level}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "level": self.level,
+            "constellation": self.constellation_level,
+        }
 
     def export_state(self) -> dict:
         """导出角色特有状态"""
 
         base = super().export_state()
-        base.update({
-            "level": self.level,
-            "constellation": self.constellation_level,
-            "on_field": self.on_field,
-            "energy": self.elemental_energy.current_energy if self.elemental_energy else 0,
-            "hp": round(self.current_hp, 1)
-        })
+        base.update(
+            {
+                "level": self.level,
+                "constellation": self.constellation_level,
+                "on_field": self.on_field,
+                "energy": self.elemental_energy.current_energy
+                if self.elemental_energy
+                else 0,
+                "hp": round(self.current_hp, 1),
+            }
+        )
 
         return base
 
@@ -269,16 +311,16 @@ class Character(CombatEntity, ABC):
         """
         [V2.3] 获取动作参数元数据（类方法）。
         UI 可以在不实例化角色的情况下获取参数 Schema。
-        
+
         示例返回格式:
         {
             "elemental_skill": {
                 "label": "元素战技",
                 "params": [
                     {
-                        "key": "type", 
-                        "label": "施放方式", 
-                        "type": "select", 
+                        "key": "type",
+                        "label": "施放方式",
+                        "type": "select",
                         "options": {"Press": "点按", "Hold": "长按"}, # {内部值: 显示标签}
                         "default": "Press"
                     }
