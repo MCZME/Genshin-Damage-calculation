@@ -78,10 +78,8 @@ class FurinaElementalSkill(SkillBase):
         frame_key = "SKILL_OUSIA" if mode == "荒" else "SKILL_PNEUMA"
         f = ACTION_FRAME_DATA[frame_key]
         
-        mult = 0.0
         attack_cfg = None
         if mode == "荒":
-            mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
             p = ATTACK_DATA["元素战技"]
             attack_cfg = AttackConfig(
                 attack_tag=p["attack_tag"],
@@ -96,17 +94,17 @@ class FurinaElementalSkill(SkillBase):
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
             interrupt_frames=f["interrupt_frames"],
-            damage_multiplier=mult,
-            scaling_stat="生命值",
             attack_config=attack_cfg,
             origin_skill=self
         )
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
-        if self.caster.action_manager.current_action.data.attack_config:
+        mode = self.caster.arkhe_mode
+        if mode == "荒":
+            mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
             dmg_obj = Damage(
                 element=(Element.HYDRO, 1.0),
-                damage_multiplier=self.caster.action_manager.current_action.data.damage_multiplier,
+                damage_multiplier=mult,
                 scaling_stat="生命值",
                 config=self.caster.action_manager.current_action.data.attack_config,
                 name="荒性泡沫伤害"
@@ -148,7 +146,6 @@ class FurinaElementalBurst(EnergySkill):
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
         f = ACTION_FRAME_DATA["ELEMENTAL_BURST"]
         p = ATTACK_DATA["元素爆发"]
-        mult = ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1]
 
         return ActionFrameData(
             name="元素爆发",
@@ -156,8 +153,6 @@ class FurinaElementalBurst(EnergySkill):
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
             interrupt_frames=f["interrupt_frames"],
-            damage_multiplier=mult,
-            scaling_stat="生命值",
             attack_config=AttackConfig(
                 attack_tag=p["attack_tag"],
                 icd_tag=p["icd_tag"],
