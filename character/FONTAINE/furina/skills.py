@@ -50,9 +50,9 @@ class FurinaChargedAttack(ChargedAttackSkill):
         if instance and instance.elapsed_frames >= MECHANISM_CONFIG["ARKHE_SWITCH_FRAME"]:
             self.caster.arkhe_mode = "芒" if self.caster.arkhe_mode == "荒" else "荒"
             self.caster.arkhe = f"{self.caster.arkhe_mode}性"
-            # 同步战技召唤物
-            if "skill" in self.caster.skills:
-                self.caster.skills["skill"].sync_summons()
+            # 修正：统一使用 elemental_skill 作为键名
+            if "elemental_skill" in self.caster.skills:
+                self.caster.skills["elemental_skill"].sync_summons()
 
 
 class FurinaPlungingAttack(PlungingAttackSkill):

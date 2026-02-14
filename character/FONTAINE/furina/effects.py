@@ -19,14 +19,14 @@ class FurinaFanfareEffect(BaseEffect):
         # owner 是芙宁娜实例
         super().__init__(owner, "普世欢腾", duration=duration, stacking_rule=StackingRule.REFRESH)
         
-        self.points: float = 0.0
-        self.max_points: float = 300.0  # 默认上限
-        self.efficiency: float = 1.0    # 叠层效率 (C2 修改)
-        
-        # 从技能倍率表中提取转化比例 (假设战技等级已同步)
+        # 从技能倍率表中提取转化比例 (假设大招等级已同步)
         self.skill_lv = owner.skill_params[2] # 大招等级
-        self.dmg_ratio = ELEMENTAL_BURST_DATA["气氛值转化提升伤害比例"][1][self.skill_lv-1] / 100.0
-        self.heal_ratio = ELEMENTAL_BURST_DATA["气氛值转化受治疗加成比例"][1][self.skill_lv-1] / 100.0
+        self.dmg_ratio = ELEMENTAL_BURST_DATA["气氛值转化提升伤害比例"][1][self.skill_lv-1]
+        self.heal_ratio = ELEMENTAL_BURST_DATA["气氛值转化受治疗加成比例"][1][self.skill_lv-1]
+        
+        self.points: float = 0.0
+        self.max_points: float = ELEMENTAL_BURST_DATA["气氛值叠层上限"][1][self.skill_lv-1]
+        self.efficiency: float = 1.0    # 叠层效率 (C2 修改)
 
         # C1 处理
         if owner.constellation_level >= 1:
