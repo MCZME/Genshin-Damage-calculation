@@ -6,12 +6,18 @@ class Config:
 
     def __new__(cls, config_path="config.json"):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            Config.config = Config._load_config(config_path)
+            try:
+                loaded_config = Config._load_config(config_path)
+                cls._instance = super().__new__(cls)
+                Config.config = loaded_config
+            except Exception as e:
+                # 如果加载失败，不设置 _instance，以便下次可以重试或回退
+                Config.config = {}
+                raise e
         return cls._instance
 
     @classmethod
-    def _load_config(self,config_path):
+    def _load_config(cls, config_path):
         """加载配置文件
         
         Returns:
@@ -36,15 +42,16 @@ class Config:
             Any: 配置值或默认值
         """
         if cls.config is None:
-            # 自动尝试加载默认位置的配置
             try:
                 Config()
             except:
-                return default
+                if cls.config is None: cls.config = {}
         
+        if not isinstance(cls.config, dict):
+            return default
+            
         keys = key.split('.')
         value = cls.config
-        if value is None: return default
         
         for k in keys:
             if isinstance(value, dict) and k in value:
@@ -65,15 +72,27 @@ class Config:
             try:
                 Config()
             except:
-                cls.config = {}
+                if cls.config is None: cls.config = {}
                 
         keys = key.split('.')
         current = cls.config
+        
+        # 确保 current 是字典
+        if not isinstance(current, dict):
+            cls.config = {}
+            current = cls.config
+
         for i, k in enumerate(keys[:-1]):
-            if k not in current:
+            if not isinstance(current, dict):
+                # 这种路径冲突的情况（中间节点不是字典）强制覆盖为字典
+                # 注意：这可能会覆盖掉原本是非字典的中间值
+                break # 或者抛出异常，这里选择简单修复路径
+            if k not in current or not isinstance(current[k], dict):
                 current[k] = {}
             current = current[k]
-        current[keys[-1]] = value
+        
+        if isinstance(current, dict):
+            current[keys[-1]] = value
 
     @classmethod
     def save(self):
