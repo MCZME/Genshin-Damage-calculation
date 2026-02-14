@@ -36,14 +36,15 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
     threading.Thread(target=result_listener, daemon=True).start()
 
     # 3. 窗口初始配置
-    page.window_width = 1500
-    page.window_height = 950
-    page.window_min_width = 1200
-    page.window_min_height = 800
+    page.window.width = 1500
+    page.window.height = 950
+    page.window.min_width = 1200
+    page.window.min_height = 800
 
     # 4. 实例化布局
     layout = AppLayout(page, state)
-    page.app_layout = layout
+    # 使用 set_attr 或直接动态赋值，但 mypy 会报警，这里保持原样逻辑但适配 V3 属性
+    setattr(page, "app_layout", layout)
     page.add(layout.build())
 
     page.update()

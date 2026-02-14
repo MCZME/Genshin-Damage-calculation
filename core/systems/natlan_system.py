@@ -31,13 +31,13 @@ class NatlanSystem(GameSystem):
         if not ctx or not ctx.space:
             return
 
-        # 计算队伍中纳塔角色的数量 (从 CombatSpace 中获取玩家阵营实体)
+        # 计算队伍中纳塔角色的数量
         natlan_character_count = 0
-        player_entities = ctx.space._entities.get(Faction.PLAYER, [])
-        for char in player_entities:
-            # 假设角色属性中存有 association 字段
-            if getattr(char, "association", "") == "纳塔":
-                natlan_character_count += 1
+        if ctx.space.team:
+            for char in ctx.space.team.get_members():
+                # 假设角色属性中存有 association 字段
+                if getattr(char, "association", "") == "纳塔":
+                    natlan_character_count += 1
 
         if natlan_character_count > 0:
             # 根据纳塔角色数量确定触发间隔 (18s, 12s, 9s)
@@ -45,12 +45,15 @@ class NatlanSystem(GameSystem):
 
             if event.frame - self.last_nightsoul_burst_time > trigger_interval:
                 self.last_nightsoul_burst_time = event.frame
-                get_emulation_logger().log_effect("触发夜魂迸发")
+                # 修正调用，传入必要参数
+                caster = event.data.get("character")
+                get_emulation_logger().log_effect(caster, "夜魂迸发", action="触发")
 
                 # 发布夜魂迸发事件
-                burst_event = GameEvent(
-                    EventType.NIGHTSOUL_BURST,
-                    event.frame,
-                    source=event.data.get("character"),
-                )
-                self.engine.publish(burst_event)
+                if self.engine:
+                    burst_event = GameEvent(
+                        EventType.NIGHTSOUL_BURST,
+                        event.frame,
+                        source=caster,
+                    )
+                    self.engine.publish(burst_event)

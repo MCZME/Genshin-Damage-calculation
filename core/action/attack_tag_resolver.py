@@ -1,67 +1,47 @@
-from typing import List, Set
+from enum import Enum, auto
+from typing import List, Set, Optional, Union
 
-
-class AttackCategory:
-    """逻辑增伤分类标签。"""
-
-    NORMAL = "普通攻击"
-    CHARGED = "重击"
-    PLUNGING = "下落攻击"
-    SKILL = "元素战技"
-    BURST = "元素爆发"
-    REACTION = "剧变反应"
-
+class AttackCategory(Enum):
+    """攻击所属的高级分类。"""
+    NORMAL = auto()
+    CHARGED = auto()
+    PLUNGING = auto()
+    SKILL = auto()
+    BURST = auto()
+    REACTION = auto()
+    ELEMENTAL = auto()  # 只要带元素都算
+    PHYSICAL = auto()   # 纯物理
 
 class AttackTagResolver:
     """
-    攻击标签解析器。
-    负责根据 attack_tag 和 extra_tags 判定其所属的逻辑加成类别。
+    负责解析攻击标签 (attack_tag) 并将其映射到逻辑分类。
     """
-
+    
     @staticmethod
-    def is_normal_attack(tag: str) -> bool:
-        # 匹配: 普通攻击1, 普通攻击2 ...
-        return tag.startswith("普通攻击")
-
-    @staticmethod
-    def is_charged_attack(tag: str) -> bool:
-        return tag.startswith("重击")
-
-    @staticmethod
-    def is_plunging_attack(tag: str) -> bool:
-        return tag.startswith("下落攻击")
-
-    @staticmethod
-    def resolve_categories(tag: str, extra_tags: List[str] = None) -> Set[str]:
+    def resolve_categories(main_tag: Union[str, AttackCategory], extra_tags: Optional[List[Union[str, AttackCategory]]] = None) -> Set[AttackCategory]:
         """
-        解析出该攻击所属的所有逻辑分类。
+        根据标签列表解析出所属的分类集合。
+        支持传入原生字符串标签或已解析的 AttackCategory 枚举。
         """
-        categories = set()
-        extra = extra_tags or []
-
-        # 1. 基础逻辑映射
-        if tag.startswith("普通攻击") or "普通攻击" in extra:
-            categories.add(AttackCategory.NORMAL)
-
-        if tag.startswith("重击") or "重击" in extra:
-            categories.add(AttackCategory.CHARGED)
-
-        if tag.startswith("下落攻击") or "下落攻击" in extra:
-            categories.add(AttackCategory.PLUNGING)
-
-        if tag.startswith("元素战技") or "元素战技" in extra:
-            categories.add(AttackCategory.SKILL)
-
-        if tag.startswith("元素爆发") or "元素爆发" in extra:
-            categories.add(AttackCategory.BURST)
-
-        if tag == "剧变反应" or "剧变反应" in extra:
-            categories.add(AttackCategory.REACTION)
-
-        # 2. 特殊标签映射 (可根据需求扩展)
-        # 某些召唤物可能被归类为战技
-        summons_as_skill = ["乌瑟勋爵", "海薇玛夫人", "谢贝蕾妲小姐"]
-        if any(s in tag for s in summons_as_skill):
-            categories.add(AttackCategory.SKILL)
-
+        raw_tags = [main_tag]
+        if extra_tags:
+            raw_tags.extend(extra_tags)
+            
+        categories: Set[AttackCategory] = set()
+        
+        for tag in raw_tags:
+            if isinstance(tag, AttackCategory):
+                categories.add(tag)
+                continue
+                
+            # 字符串解析逻辑
+            if not isinstance(tag, str):
+                continue
+                
+            if "普通攻击" in tag: categories.add(AttackCategory.NORMAL)
+            if "重击" in tag: categories.add(AttackCategory.CHARGED)
+            if "下落攻击" in tag: categories.add(AttackCategory.PLUNGING)
+            if "元素战技" in tag: categories.add(AttackCategory.SKILL)
+            if "元素爆发" in tag: categories.add(AttackCategory.BURST)
+            
         return categories

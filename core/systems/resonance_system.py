@@ -39,13 +39,16 @@ class ResonanceSystem(GameSystem):
             engine.subscribe(EventType.AFTER_ELEMENTAL_REACTION, self)
 
     def _detect_resonances(self) -> None:
-        """扫描战场上的玩家实体，确定激活的共鸣类型。"""
-        player_entities = self.context.space._entities.get(Faction.PLAYER, [])
-        if len(player_entities) < 4:
+        """扫描全队成员，确定激活的共鸣类型。"""
+        if not self.context or not self.context.space or not self.context.space.team:
+            return
+            
+        members = self.context.space.team.get_members()
+        if len(members) < 4:
             return
 
         element_counts: Dict[str, int] = {}
-        for char in player_entities:
+        for char in members:
             el = getattr(char, "element", "无")
             element_counts[el] = element_counts.get(el, 0) + 1
 
@@ -56,7 +59,10 @@ class ResonanceSystem(GameSystem):
 
     def _apply_static_effects(self) -> None:
         """应用即时生效的属性加成 (静态注入)。"""
-        chars = self.context.space._entities.get(Faction.PLAYER, [])
+        if not self.context or not self.context.space or not self.context.space.team:
+            return
+            
+        chars = self.context.space.team.get_members()
 
         # 1. 热诚之火 (火): 攻击力提高25%
         if "火" in self.active_resonances:
