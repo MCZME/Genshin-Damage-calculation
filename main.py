@@ -1,5 +1,4 @@
-import os
-import sys
+import multiprocessing
 import flet as ft
 
 # 核心导入移至顶部
@@ -21,8 +20,19 @@ def init_all():
     get_ui_logger().log_info("系统初始化完成")
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     # 执行初始化
     init_all()
+
+    # 建立双向通信队列
+    # 1. main_to_branch: 发送初始化配置或指令
+    # 2. branch_to_main: 发送选中的节点配置回主界面
+    main_to_branch = multiprocessing.Queue()
+    branch_to_main = multiprocessing.Queue()
     
-    # 启动 UI
-    ft.app(target=flet_main)
+    # 启动主 UI，注入两个队列
+    ft.run(
+        lambda page: flet_main(page, main_to_branch, branch_to_main), 
+        port=8550, 
+        view=ft.AppView.FLET_APP
+    )
