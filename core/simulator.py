@@ -5,7 +5,6 @@ from core.action.action_data import ActionCommand
 from core.context import SimulationContext
 from core.event import GameEvent, EventType
 from core.logger import get_emulation_logger
-from core.entities.base_entity import Faction
 
 
 class Simulator:
@@ -50,7 +49,7 @@ class Simulator:
             self._prepare_simulation()
 
             while self.is_running:
-                # 1. 推进全局帧
+                # 1. 推进全局帧 (此方法内部会驱动 ctx.space.on_frame_update, 进而驱动 team)
                 self.ctx.advance_frame()
                 
                 # 安全限制
@@ -58,8 +57,8 @@ class Simulator:
                     get_emulation_logger().log_error("仿真超时，强制终止")
                     break
                 
-                # 2. 执行本帧逻辑 (状态机驱动与指令压入)
-                self._update_frame()
+                # 2. 尝试下发指令
+                self._try_enqueue_next_action()
                 
                 # 3. 发布帧结束事件 (驱动各 System 结算)
                 self.ctx.event_engine.publish(
@@ -97,21 +96,6 @@ class Simulator:
 
     def _prepare_simulation(self) -> None:
         """模拟启动前的预处理逻辑。"""
-        # 尝试压入序列中的第一个动作
-        self._try_enqueue_next_action()
-
-    def _update_frame(self) -> None:
-        """每帧驱动逻辑。更新角色状态机并尝试压入后续指令。"""
-        if not self.ctx.space:
-            return
-
-        # V2.3: 直接从 CombatSpace 驱动玩家阵营的所有实体 (角色)
-        player_entities = self.ctx.space._entities.get(Faction.PLAYER, [])
-        for char in player_entities:
-            # 驱动角色每帧逻辑 (ASM, 武器, 技能等)
-            char.on_frame_update()
-        
-        # 尝试压入后续动作指令
         self._try_enqueue_next_action()
 
     def _try_enqueue_next_action(self) -> None:
@@ -121,10 +105,10 @@ class Simulator:
 
         command: ActionCommand = self.actions[self.action_ptr]
         
-        # 修正：优先从 Team 实例中查找角色，这是最权威的来源
+        # 优先从 Team 实例中查找角色 (通过 Space 访问)
         char = None
-        if self.ctx.team:
-            char = self.ctx.team.get_character_by_name(command.character_name)
+        if self.ctx.space and self.ctx.space.team:
+            char = self.ctx.space.team.get_character_by_name(command.character_name)
         
         if not char:
             get_emulation_logger().log_error(
@@ -141,16 +125,16 @@ class Simulator:
         """检查模拟是否达到终止条件。
         
         终止条件：指令序列已全部下发，且当前场上所有角色均处于 IDLE 状态。
-
-        Returns:
-            bool: 是否已完成。
         """
         if self.action_ptr < len(self.actions):
             return False
             
         # 检查所有玩家实体的动作状态
-        player_entities = self.ctx.space._entities.get(Faction.PLAYER, [])
-        for char in player_entities:
-            if char.action_manager.current_action is not None:
-                return False
+        if self.ctx.space and self.ctx.space.team:
+            for char in self.ctx.space.team.get_members():
+                # 兼容性检查：如果 ActionManager 持有正在执行的任务，则认为没结束
+                if getattr(char.action_manager, "current_character_action", None) is not None:
+                    return False
+                if getattr(char.action_manager, "current_action", None) is not None:
+                    return False
         return True

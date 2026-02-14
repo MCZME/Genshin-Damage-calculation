@@ -36,7 +36,6 @@ class SimulationContext:
     # 核心组件
     event_engine: Optional["EventEngine"] = field(default=None)
     space: Optional["CombatSpace"] = None
-    team: Optional["Team"] = None # [新] 逻辑队伍组件
     system_manager: Optional["SystemManager"] = None
     logger: Optional["SimulationLogger"] = None
 
@@ -68,7 +67,7 @@ class SimulationContext:
         """推进全局时间轴一帧，并驱动物理空间更新。"""
         self.current_frame += 1
         if self.space:
-            self.space.update()
+            self.space.on_frame_update()
 
     def get_system(self, cls_or_name: Union[str, Type]) -> Optional[Any]:
         """获取已挂载的仿真系统实例。
@@ -111,11 +110,16 @@ class SimulationContext:
         }
 
         if self.space:
+            # 1. 导出物理空间中的实体 (召唤物、敌人等)
             from core.entities.base_entity import Faction
             for faction in Faction:
-                # 访问 CombatSpace 内部存储的实体列表
                 for entity in self.space._entities.get(faction, []):
                     snapshot["entities"].append(entity.export_state())
+            
+            # 2. 额外导出队伍成员 (角色本体，包含后台角色)
+            if self.space.team:
+                for member in self.space.team.get_members():
+                    snapshot["entities"].append(member.export_state())
 
         return snapshot
 

@@ -92,10 +92,15 @@ class Team:
             sender="Team"
         )
 
-    def update(self) -> None:
-        """驱动编队相关的每帧逻辑。"""
+    def on_frame_update(self) -> None:
+        """驱动编队相关的每帧逻辑，并同步驱动所有队员。"""
+        # 1. 驱动队伍自身状态 (如切换 CD)
         if self.swap_cd_timer > 0:
             self.swap_cd_timer -= 1
+            
+        # 2. 统一驱动所有队员 (场上/场下角色)
+        for char in self.members:
+            char.on_frame_update()
 
     def reset(self) -> None:
         self.swap_cd_timer = 0

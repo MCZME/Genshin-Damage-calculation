@@ -28,19 +28,23 @@ class SimulationAssembler:
         # 1. 初始化上下文环境 (自动激活系统与物理空间)
         ctx = create_context()
         
-        # 2. 组装队伍 (TeamFactory 内部会自动将角色注册到 ctx.space)
+        # 2. 组装队伍
         context_cfg = config.get("context_config", {})
         team_list_cfg = context_cfg.get("team", [])
         
         # 2.1 创建角色对象
         team = self.team_factory.create_team(team_list_cfg)
-        ctx.team = team
+        team.ctx = ctx # 显式关联 Context 以便发布事件
+        
+        # [NEW] 将 Team 注入 CombatSpace，开启物理同步与事件监听
+        if ctx.space:
+            ctx.space.set_team(team)
 
         # 3. 组装受击目标 (Enemy)
         target_cfg_list = context_cfg.get("targets", [])
         for t_cfg in target_cfg_list:
             target = Target(t_cfg)
-            # [NEW] 设置目标初始坐标
+            # 设置目标初始坐标
             pos = t_cfg.get("position", {"x": 0, "y": 0, "z": 0})
             target.set_position(pos.get("x", 0), pos.get("z", 0))
             
