@@ -52,7 +52,7 @@ class BaseEffect(ABC):
         self.owner.remove_effect(self)
         get_emulation_logger().log_effect(self.owner, self.name, action="结束")
 
-    def update(self, target: Any):
+    def on_frame_update(self, target: Any):
         """每一帧的驱动逻辑"""
         if not self.is_active:
             return

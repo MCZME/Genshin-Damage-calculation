@@ -232,7 +232,5 @@ class CombatEntity(BaseEntity):
         self.aura.update(self, 1/60)
         
         for eff in self.active_effects[:]:
-            if hasattr(eff, "on_frame_update"):
-                eff.on_frame_update()
-            if not getattr(eff, "is_active", True):
-                self.active_effects.remove(eff)
+            eff.on_frame_update(self)
+            self.active_effects.remove(eff)
