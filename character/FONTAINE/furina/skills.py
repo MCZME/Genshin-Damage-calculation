@@ -24,11 +24,13 @@ class FurinaNormalAttack(NormalAttackSkill):
         self.action_frame_data = ACTION_FRAME_DATA
         self.attack_data = ATTACK_DATA
         self.multiplier_data = NORMAL_ATTACK_DATA
+        
+        # 内部管理物理名称到倍率标签的映射
         self.label_map = {
-            "NORMAL_1": "普通攻击1",
-            "NORMAL_2": "普通攻击2",
-            "NORMAL_3": "普通攻击3",
-            "NORMAL_4": "普通攻击4"
+            "普通攻击1": "一段伤害",
+            "普通攻击2": "二段伤害",
+            "普通攻击3": "三段伤害",
+            "普通攻击4": "四段伤害"
         }
 
 
@@ -75,7 +77,8 @@ class FurinaElementalSkill(SkillBase):
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
         mode = self.caster.arkhe_mode
-        frame_key = "SKILL_OUSIA" if mode == "荒" else "SKILL_PNEUMA"
+        # 统一命名规范：使用原生中文 Key
+        frame_key = "元素战技-荒" if mode == "荒" else "元素战技-芒"
         f = ACTION_FRAME_DATA[frame_key]
         
         attack_cfg = None
@@ -144,7 +147,8 @@ class FurinaElementalBurst(EnergySkill):
     """元素爆发：万众狂欢。"""
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        f = ACTION_FRAME_DATA["ELEMENTAL_BURST"]
+        # 统一命名规范：使用 '元素爆发'
+        f = ACTION_FRAME_DATA["元素爆发"]
         p = ATTACK_DATA["元素爆发"]
 
         return ActionFrameData(

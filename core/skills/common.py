@@ -32,11 +32,12 @@ class NormalAttackSkill(SkillBase):
         if hasattr(self.caster, "action_manager"):
             idx = self.caster.action_manager.combo_counter
             
-        key = f"NORMAL_{idx}"
+        # 核心规范：直接使用原生中文作为索引 Key
+        action_key = f"普通攻击{idx}"
         
         # 2. 提取配置
-        f = self.action_frame_data.get(key, {"total_frames": 60, "hit_frames": [15], "interrupt_frames": {"any": 60}})
-        name = self.label_map.get(key, f"普通攻击{idx}")
+        f = self.action_frame_data.get(action_key, {"total_frames": 60, "hit_frames": [15], "interrupt_frames": {"any": 60}})
+        name = action_key # 动作名称与索引 Key 保持一致
         p = self.attack_data.get(name, {})
         
         # 原生映射逻辑
@@ -74,9 +75,12 @@ class NormalAttackSkill(SkillBase):
         instance = self.caster.action_manager.current_action
         if not instance: return
         
-        name = instance.data.name
+        # 核心修正：instance.data.name 是 "普通攻击1"，我们需要通过 label_map 找到倍率 Key "一段伤害"
+        action_name = instance.data.name
+        damage_label = self.label_map.get(action_name, action_name)
+        
         # 获取倍率
-        m_data = self.multiplier_data.get(name)
+        m_data = self.multiplier_data.get(damage_label)
         if not m_data: return
         multiplier = m_data[1][self.lv - 1]
         
@@ -87,10 +91,10 @@ class NormalAttackSkill(SkillBase):
             scaling_stat="攻击力",
             config=instance.data.attack_config
         )
-        dmg_obj.name = name
+        dmg_obj.name = damage_label
         
         # 从 data 中获取原生 element_u
-        p = self.attack_data.get(name, {"element_u": 1.0})
+        p = self.attack_data.get(damage_label, {"element_u": 1.0})
         dmg_obj.set_element(self.caster.element, p.get("element_u", 1.0))
         
         self.caster.event_engine.publish(GameEvent(
@@ -110,7 +114,8 @@ class ChargedAttackSkill(SkillBase):
         self.multiplier_data: Dict[str, List[float]] = {}
 
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        f = self.action_frame_data.get("CHARGED", {"total_frames": 60, "hit_frames": [30], "interrupt_frames": {"any": 60}})
+        # 统一命名规范：使用 '重击'
+        f = self.action_frame_data.get("重击", {"total_frames": 60, "hit_frames": [30], "interrupt_frames": {"any": 60}})
         name = "重击"
         p = self.attack_data.get(name, {})
         

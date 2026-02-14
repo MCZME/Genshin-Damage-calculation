@@ -49,14 +49,14 @@ MECHANISM_CONFIG = {
 
 # --- 动作时序数据 (Action Timing) ---
 ACTION_FRAME_DATA = {
-    "NORMAL_1": {"hit_frames": [15], "total_frames": 34, "interrupt_frames": {"normal_attack": 31, "any": 34}},
-    "NORMAL_2": {"hit_frames": [12], "total_frames": 28, "interrupt_frames": {"normal_attack": 23, "any": 28}},
-    "NORMAL_3": {"hit_frames": [21], "total_frames": 48, "interrupt_frames": {"normal_attack": 36, "any": 48}},
-    "NORMAL_4": {"hit_frames": [27], "total_frames": 58, "interrupt_frames": {"normal_attack": 53, "any": 58}},
-    "CHARGED": {"hit_frames": [32], "total_frames": 253, "interrupt_frames": {"elemental_skill": 3, "elemental_burst": 3, "dash": 7, "any": 253}},
-    "SKILL_OUSIA": {"hit_frames": [18], "total_frames": 54, "interrupt_frames": {"dash": 18, "any": 54}},
-    "SKILL_PNEUMA": {"hit_frames": [], "total_frames": 57, "interrupt_frames": {"dash": 16, "any": 57}},
-    "ELEMENTAL_BURST": {"hit_frames": [98], "total_frames": 121, "interrupt_frames": {"dash": 115, "any": 121}},
+    "普通攻击1": {"hit_frames": [15], "total_frames": 34, "interrupt_frames": {"normal_attack": 31, "any": 34}},
+    "普通攻击2": {"hit_frames": [12], "total_frames": 28, "interrupt_frames": {"normal_attack": 23, "any": 28}},
+    "普通攻击3": {"hit_frames": [21], "total_frames": 48, "interrupt_frames": {"normal_attack": 36, "any": 48}},
+    "普通攻击4": {"hit_frames": [27], "total_frames": 58, "interrupt_frames": {"normal_attack": 53, "any": 58}},
+    "重击": {"hit_frames": [32], "total_frames": 253, "interrupt_frames": {"elemental_skill": 3, "elemental_burst": 3, "dash": 7, "any": 253}},
+    "元素战技-荒": {"hit_frames": [18], "total_frames": 54, "interrupt_frames": {"dash": 18, "any": 54}},
+    "元素战技-芒": {"hit_frames": [], "total_frames": 57, "interrupt_frames": {"dash": 16, "any": 57}},
+    "元素爆发": {"hit_frames": [98], "total_frames": 121, "interrupt_frames": {"dash": 115, "any": 121}},
 }
 
 # --- 攻击数据 (Attack Data) ---
