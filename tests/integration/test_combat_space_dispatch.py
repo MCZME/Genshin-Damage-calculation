@@ -1,7 +1,8 @@
 import pytest
 from core.context import create_context
+from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
 from core.target import Target
-from core.systems.contract.damage import Damage, DamageType
+from core.systems.contract.damage import Damage
 from core.mechanics.aura import Element
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
@@ -36,8 +37,11 @@ class TestCombatSpaceDispatch:
                 self.active_effects = []
         attacker = MockChar()
 
-        dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "测试火球")
-        dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 5.0})
+        # 修正：将物理参数放入 HitboxConfig
+        hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=5.0)
+        dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
+        # 修正构造函数顺序: (element, damage_multiplier, scaling_stat, config, name)
+        dmg = Damage((Element.PYRO, 1.0), 100.0, "攻击力", dmg_config, "测试火球")
 
         event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker,
                           data={'character': attacker, 'damage': dmg})
@@ -63,8 +67,10 @@ class TestCombatSpaceDispatch:
                 self.active_effects = []
         attacker = MockChar()
 
-        dmg = Damage(100.0, (Element.PYRO, 1.0), DamageType.NORMAL, "打不到")
-        dmg.data.update({'aoe_shape': 'CIRCLE', 'radius': 5.0})
+        # 修正：将物理参数放入 HitboxConfig
+        hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=5.0)
+        dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
+        dmg = Damage((Element.PYRO, 1.0), 100.0, "攻击力", dmg_config, "打不到")
         
         event = GameEvent(EventType.BEFORE_DAMAGE, get_current_time(), source=attacker,
                           data={'character': attacker, 'damage': dmg})

@@ -1,7 +1,7 @@
 import pytest
 from core.systems.energy_system import EnergySystem
 from core.event import GameEvent, EventType
-from core.tool import GetCurrentTime
+from core.tool import get_current_time
 from core.mechanics.energy import ElementalEnergy
 
 class TestEnergySystemUnit:
