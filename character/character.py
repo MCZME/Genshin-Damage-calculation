@@ -10,6 +10,8 @@ from core.event import (
     EventType,
 )
 from core.effect.common import TalentEffect, ConstellationEffect
+from core.mechanics.aura import Element
+from core.mechanics.infusion import InfusionManager
 from core.tool import get_current_time
 
 
@@ -78,6 +80,7 @@ class Character(CombatEntity, ABC):
         self.shield_effects: List[Any] = []
         self.on_field = False
         self.max_combo = 5 # 默认最大普攻连招段数
+        self.infusion_manager = InfusionManager()
 
         ctx = get_context()
         self.event_engine = ctx.event_engine
@@ -126,6 +129,17 @@ class Character(CombatEntity, ABC):
         max_hp = AttributeCalculator.get_hp(self)
         self.current_hp = max_hp
         self._last_max_hp = max_hp
+
+    def get_attack_element(self) -> Element:
+        """
+        获取当前普攻/重击的最终生效元素。
+        逻辑：如果是法器角色，基准元素为自身属性；否则为物理。
+        """
+        base = Element.PHYSICAL
+        if self.type == "法器":
+            base = Element(self.element)
+            
+        return self.infusion_manager.get_current_element(base)
 
     # -----------------------------------------------------
     # 统一驱动接口

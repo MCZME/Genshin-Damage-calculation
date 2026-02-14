@@ -84,9 +84,12 @@ class NormalAttackSkill(SkillBase):
         if not m_data: return
         multiplier = m_data[1][self.lv - 1]
         
+        # 核心变动：从附魔管理器获取当前生效元素
+        current_element = self.caster.get_attack_element()
+        
         # 构造并发布伤害请求 (空间广播模式)
         dmg_obj = Damage(
-            element=(self.caster.element, 1.0),
+            element=(current_element, 1.0),
             damage_multiplier=multiplier,
             scaling_stat="攻击力",
             config=instance.data.attack_config
@@ -95,7 +98,8 @@ class NormalAttackSkill(SkillBase):
         
         # 从 data 中获取原生 element_u
         p = self.attack_data.get(damage_label, {"element_u": 1.0})
-        dmg_obj.set_element(self.caster.element, p.get("element_u", 1.0))
+        # 修正：必须传入计算出的 current_element 而不是原始的 self.caster.element
+        dmg_obj.set_element(current_element, p.get("element_u", 1.0))
         
         self.caster.event_engine.publish(GameEvent(
             EventType.BEFORE_DAMAGE,
@@ -150,8 +154,11 @@ class ChargedAttackSkill(SkillBase):
         if not m_data: return
         multiplier = m_data[1][self.lv - 1]
         
+        # 核心变动：支持附魔
+        current_element = self.caster.get_attack_element()
+        
         dmg_obj = Damage(
-            element=(self.caster.element, 1.0),
+            element=(current_element, 1.0),
             damage_multiplier=multiplier,
             scaling_stat="攻击力",
             config=instance.data.attack_config
@@ -159,7 +166,8 @@ class ChargedAttackSkill(SkillBase):
         dmg_obj.name = "重击伤害"
         
         p = self.attack_data.get("重击", {"element_u": 1.0})
-        dmg_obj.set_element(self.caster.element, p.get("element_u", 1.0))
+        # 修正：使用当前计算出的元素
+        dmg_obj.set_element(current_element, p.get("element_u", 1.0))
         
         self.caster.event_engine.publish(GameEvent(
             EventType.BEFORE_DAMAGE,
