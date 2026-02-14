@@ -101,12 +101,9 @@ class ActionInspector(ft.Container):
             
             if hasattr(char_cls, "get_action_metadata"):
                 meta = char_cls.get_action_metadata()
-                mapped_id = action_id
-                if action_id == "skill": mapped_id = "elemental_skill"
-                elif action_id == "burst": mapped_id = "elemental_burst"
-                elif action_id == "normal": mapped_id = "normal_attack"
                 
-                action_meta = meta.get(mapped_id, {})
+                # 直接使用动作 ID 匹配元数据 Key
+                action_meta = meta.get(action_id, {})
                 action_label = action_meta.get("label", action_label)
                 params_def = action_meta.get("params", [])
 
@@ -130,6 +127,8 @@ class ActionInspector(ft.Container):
 
     def _build_dynamic_control(self, d, p_values):
         key = d["key"]; label = d["label"]; p_type = d.get("type", "text"); default = d.get("default")
+        v_min = d.get("min"); v_max = d.get("max")
+        
         if key not in p_values: p_values[key] = default
 
         if p_type == "select":
@@ -139,10 +138,25 @@ class ActionInspector(ft.Container):
                 options=[ft.dropdown.Option(key=str(k), text=str(v)) for k, v in options_map.items()],
                 on_select=lambda e: self._update_param(p_values, key, e.control.value)
             )
-        elif p_type == "number":
+        elif p_type in ["number", "int", "float"]:
+            # 特殊优化：对于有范围限制的小整数，使用 Slider
+            if p_type == "int" and v_min is not None and v_max is not None and (v_max - v_min) <= 10:
+                return ft.Column([
+                    ft.Row([
+                        ft.Text(label, size=12, weight=ft.FontWeight.BOLD, opacity=0.7),
+                        ft.Text(str(p_values[key]), size=12, color=GenshinTheme.PRIMARY, weight=ft.FontWeight.BOLD)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Slider(
+                        min=v_min, max=v_max, divisions=int(v_max - v_min),
+                        value=p_values[key], label="{value}",
+                        on_change=lambda e: self._update_param(p_values, key, int(e.control.value), is_slider=True)
+                    )
+                ], spacing=0)
+
             return ft.TextField(
-                label=label, value=str(p_values[key]), dense=True,
-                on_change=lambda e: self._update_param(p_values, key, e.control.value, is_num=True),
+                label=f"{label} ({v_min}-{v_max})" if v_min is not None else label,
+                value=str(p_values[key]), dense=True,
+                on_change=lambda e: self._update_param(p_values, key, e.control.value, is_num=True, v_min=v_min, v_max=v_max),
                 on_blur=lambda _: self.state.refresh(),
                 input_filter=ft.InputFilter(allow=True, regex_string=r"[0-9\.]", replacement_string="")
             )
@@ -150,10 +164,20 @@ class ActionInspector(ft.Container):
             return ft.Switch(label=label, value=bool(p_values[key]), on_change=lambda e: self._update_param(p_values, key, e.control.value))
         return None
 
-    def _update_param(self, params_dict, key, value, is_num=False):
-        if is_num:
-            try: params_dict[key] = float(value) if "." in str(value) else int(value)
+    def _update_param(self, params_dict, key, value, is_num=False, v_min=None, v_max=None, is_slider=False):
+        if is_num or is_slider:
+            try:
+                val = float(value) if "." in str(value) else int(value)
+                # 边界钳位
+                if v_min is not None: val = max(v_min, val)
+                if v_max is not None: val = min(v_max, val)
+                params_dict[key] = val
             except: pass
         else:
             params_dict[key] = value
-        if not is_num: self.state.refresh()
+            
+        # Slider 需要即时刷新数值文本，TextField 等 blur 再刷新全量以防抖动
+        if is_slider:
+            self.refresh()
+        elif not is_num:
+            self.state.refresh()

@@ -7,13 +7,14 @@ class TimelineSequence(ft.Column):
     战术阶段中栏：支持拖拽排序的流式动作序列
     """
     ACTION_META = {
-        "normal": ("普通攻击", "普"),
-        "charged": ("重击", "重"),
-        "skill": ("元素战技", "技"),
-        "burst": ("元素爆发", "爆"),
-        "plunging": ("下落攻击", "坠"),
+        "normal_attack": ("普通攻击", "普"),
+        "charged_attack": ("重击", "重"),
+        "elemental_skill": ("元素战技", "技"),
+        "elemental_burst": ("元素爆发", "爆"),
+        "plunging_attack": ("下落攻击", "坠"),
         "dash": ("冲刺", "闪"),
-        "jump": ("跳跃", "跳")
+        "jump": ("跳跃", "跳"),
+        "skip": ("等待 (Skip)", "等")
     }
 
     def __init__(self, state):
@@ -115,10 +116,23 @@ class TimelineSequence(ft.Column):
                         ft.Text(full_label[1:], size=11, weight=ft.FontWeight.BOLD),
                     ], spacing=-2, expand=True, alignment=ft.MainAxisAlignment.CENTER),
                 ], spacing=8),
+                # 步骤角标
                 ft.Container(
                     content=ft.Text(str(index + 1), size=8, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
                     bgcolor=color if is_selected else ft.Colors.with_opacity(0.4, color),
                     width=16, height=16, border_radius=8, top=-4, left=-4, alignment=ft.Alignment.CENTER
+                ),
+                # 删除按钮 (仅在悬停或选中时更明显，此处设为常驻小图标)
+                ft.Container(
+                    content=ft.IconButton(
+                        icon=ft.Icons.CLOSE,
+                        icon_size=12,
+                        icon_color=ft.Colors.with_opacity(0.3, ft.Colors.WHITE),
+                        on_click=lambda _: self._remove_action(index),
+                        style=ft.ButtonStyle(padding=0),
+                        tooltip="删除动作"
+                    ),
+                    top=0, right=0, width=24, height=24
                 )
             ]),
             on_click=lambda _, idx=index: self._select_action(idx),
@@ -152,6 +166,17 @@ class TimelineSequence(ft.Column):
     def _select_action(self, index):
         self.state.selected_action_index = index
         self.state.refresh()
+
+    def _remove_action(self, index):
+        """删除单个动作"""
+        if 0 <= index < len(self.state.action_sequence):
+            self.state.action_sequence.pop(index)
+            # 调整选中索引
+            if self.state.selected_action_index == index:
+                self.state.selected_action_index = None
+            elif self.state.selected_action_index is not None and self.state.selected_action_index > index:
+                self.state.selected_action_index -= 1
+            self.state.refresh()
 
     def _clear_all(self, _):
         self.state.action_sequence.clear()

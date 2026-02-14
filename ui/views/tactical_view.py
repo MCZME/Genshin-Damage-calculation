@@ -86,7 +86,7 @@ class TacticalView(ft.Row):
             color = GenshinTheme.get_element_color(char["element"])
             
             # 基础动作：E, Q, A
-            for act_label, act_id in [("E", "skill"), ("Q", "burst"), ("A", "normal")]:
+            for act_label, act_id in [("E", "elemental_skill"), ("Q", "elemental_burst"), ("A", "normal_attack")]:
                 self.library_container.controls.append(
                     ft.Container(
                         content=ft.Text(act_label, size=11, weight=ft.FontWeight.BOLD),
