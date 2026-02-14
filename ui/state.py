@@ -177,17 +177,43 @@ class AppState:
         ctx = config.get("context_config", {})
         self.team = ctx.get("team", [None] * 4)
         while len(self.team) < 4: self.team.append(None)
+        
+        # 槽位定义与默认值模板
+        slots = ["flower", "feather", "sands", "goblet", "circlet"]
+        def_arts = {
+            "flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []}, 
+            "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []}, 
+            "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []}, 
+            "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []}, 
+            "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []}
+        }
+
         for member in self.team:
-            if member and isinstance(member.get("artifacts"), list):
+            if member:
+                # 统一转换为字典格式并补全槽位
+                raw_arts = member.get("artifacts", {})
                 art_dict = {}
-                for art in member["artifacts"]: art_dict[art["slot"]] = art
+                
+                if isinstance(raw_arts, list):
+                    # 从列表转换
+                    for art in raw_arts: art_dict[art["slot"]] = art
+                elif isinstance(raw_arts, dict):
+                    # 保留现有字典
+                    art_dict = raw_arts
+                
+                # 补全缺失槽位
+                for s in slots:
+                    if s not in art_dict:
+                        art_dict[s] = def_arts[s].copy()
+                
                 member["artifacts"] = art_dict
+
         self.targets = ctx.get("targets", [self._create_default_target()])
         self.environment = ctx.get("environment", {"weather": "Clear", "field": "Neutral"})
         self.action_sequence = config.get("action_sequence_raw", [])
         self.selection = None
         self.refresh()
-        get_ui_logger().log_info("External configuration applied to Workbench.")
+        get_ui_logger().log_info("External configuration applied to Workbench (with artifact slot completion).")
 
     # --- 运行逻辑 ---
 
