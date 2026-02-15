@@ -198,9 +198,7 @@ class DamagePipeline:
             ctx.final_result = (
                 level_coeff * react_base * (1 + em_inc + bonus) * s["抗性区系数"]
             )
-            ctx.audit_trail.append(
-                ModifierRecord("剧变反应基础", "最终伤害", ctx.final_result, "SET")
-            )
+            ctx.add_modifier("剧变反应基础", "最终伤害", ctx.final_result, "SET")
             return
 
         # 基础增伤区合算
@@ -233,10 +231,8 @@ class DamagePipeline:
         if Config.get("emulation.open_critical"):
             if random.uniform(0, 100) <= ctx.stats["暴击率"]:
                 ctx.is_crit = True
-                ctx.audit_trail.append(
-                    ModifierRecord(
-                        "暴击判定", "暴击乘数", 1 + ctx.stats["暴击伤害"] / 100, "MULT"
-                    )
+                ctx.add_modifier(
+                    "暴击判定", "暴击乘数", 1 + ctx.stats["暴击伤害"] / 100, "MULT"
                 )
                 return 1 + ctx.stats["暴击伤害"] / 100
         return 1.0
