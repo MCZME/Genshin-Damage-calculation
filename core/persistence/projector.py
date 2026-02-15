@@ -20,6 +20,9 @@ class DataProjector:
         # 3. 跳变流增量缓存: {(entity_id, jump_type): value}
         self.last_jump_cache: Dict[Tuple[int, str], float] = {}
         
+        # 3.5 机制指标增量缓存: {(entity_id, metric_key): value}
+        self.last_metrics_cache: Dict[Tuple[int, str], float] = {}
+        
         # 4. 生命周期追踪: {(entity_id, modifier_id): start_frame}
         self.active_modifiers: Set[Tuple[int, int]] = set()
 
@@ -55,8 +58,8 @@ class DataProjector:
                 ))
             elif etype == "CONSTRUCT":
                 commands.append((
-                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, created_frame) VALUES (?, ?, ?)",
-                    (self.session_id, eid, snapshot.get("frame", 0))
+                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, owner_id, created_frame, duration) VALUES (?, ?, ?, ?, ?)",
+                    (self.session_id, eid, meta.get("owner_id"), snapshot.get("frame", 0), meta.get("duration"))
                 ))
             
             self.registered_entities.add(eid)
@@ -103,10 +106,32 @@ class DataProjector:
             
             if auras and not is_empty:
                 commands.append((
-                    "INSERT INTO target_aura_pulses (session_id, frame_id, entity_id, aura_state) VALUES (?, ?, ?, ?)",
+                    "INSERT OR REPLACE INTO target_aura_pulses (session_id, frame_id, entity_id, aura_state) VALUES (?, ?, ?, ?)",
                     (self.session_id, frame_id, eid, json.dumps(auras, cls=GenshinJSONEncoder))
                 ))
                 
+        return commands
+
+    def project_metrics(self, snapshot: dict) -> List[Tuple[str, tuple]]:
+        """处理所有实体的通用机制指标 (Mechanism Metrics)。"""
+        commands = []
+        frame_id = snapshot.get("frame", 0)
+        
+        # 遍历所有实体
+        all_entities = snapshot.get("team", []) + snapshot.get("entities", [])
+        for ent in all_entities:
+            eid = ent.get("entity_id")
+            metrics = ent.get("metrics", {})
+            
+            for m_key, val in metrics.items():
+                cache_key = (eid, m_key)
+                if self.last_metrics_cache.get(cache_key) != val:
+                    commands.append((
+                        "INSERT INTO simulation_mechanism_metrics (session_id, frame_id, entity_id, metric_key, value) VALUES (?, ?, ?, ?, ?)",
+                        (self.session_id, frame_id, eid, m_key, val)
+                    ))
+                    self.last_metrics_cache[cache_key] = val
+                    
         return commands
 
     def project_events(self, snapshot: dict) -> List[Tuple[str, tuple]]:
@@ -168,8 +193,8 @@ class DataProjector:
                 inst_id = getattr(eff, "instance_id", 0)
                 etype_str = "SHIELD" if "Shield" in type(eff).__name__ else "STATUS"
                 commands.append((
-                    "INSERT INTO simulation_effect_lifecycles (session_id, instance_id, entity_id, effect_type, name, start_frame) VALUES (?, ?, ?, ?, ?, ?)",
-                    (self.session_id, inst_id, eid, etype_str, getattr(eff, "name", "Effect"), frame_id)
+                    "INSERT INTO simulation_effect_lifecycles (session_id, instance_id, entity_id, effect_type, name, start_frame, duration) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (self.session_id, inst_id, eid, etype_str, getattr(eff, "name", "Effect"), frame_id, getattr(eff, "max_duration", 0))
                 ))
 
             elif etype == "ON_EFFECT_REMOVED":
@@ -198,10 +223,20 @@ class DataProjector:
                     dmg_obj = payload.get("damage")
                     target = payload.get("target")
                     tid = getattr(target, "entity_id", 0)
+                    
+                    # 修正：从 config 提取 attack_tag，从 reaction_results 提取反应名
+                    attack_tag = "None"
+                    if hasattr(dmg_obj, "config") and dmg_obj.config:
+                        attack_tag = getattr(dmg_obj.config.attack_tag, "name", str(dmg_obj.config.attack_tag))
+                    
+                    reaction_name = None
+                    if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results:
+                        reaction_name = dmg_obj.reaction_results[0].reaction_type.name
+
                     # C. 特化表
                     commands.append((
                         "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction_name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
-                        (tid, getattr(dmg_obj, "damage", 0.0), str(getattr(dmg_obj, "element", "None")), str(getattr(dmg_obj, "attack_tag", "None")), 1 if getattr(dmg_obj, "is_crit", False) else 0, getattr(dmg_obj, "reaction_name", None))
+                        (tid, getattr(dmg_obj, "damage", 0.0), str(getattr(dmg_obj, "element", "None")), attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
                     ))
                     
                     # D. 审计明细表

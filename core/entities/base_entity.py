@@ -114,6 +114,8 @@ class BaseEntity:
             "spawn_z": getattr(self, "pos", [0,0,0])[1],
             "hitbox_radius": self.hitbox[0] if hasattr(self, "hitbox") else 0.5,
             "hitbox_height": self.hitbox[1] if hasattr(self, "hitbox") else 2.0,
+            "duration": self.life_frame if self.life_frame != float('inf') else -1,
+            "owner_id": getattr(self, "owner", None).entity_id if hasattr(self, "owner") and self.owner else None
         }
 
 
@@ -148,6 +150,9 @@ class CombatEntity(BaseEntity):
 
         # ICD 管理器 (用于追踪该实体受到的附着冷却)
         self.icd_manager: ICDManager = ICDManager(self)
+
+        # [新] 通用机制指标 (用于持久化特定机制的动态数值，如：气氛值、层数)
+        self.custom_metrics: Dict[str, float] = {}
 
         # [新] 属性审计链支持
         from core.systems.contract.modifier import ModifierRecord
@@ -209,6 +214,7 @@ class CombatEntity(BaseEntity):
                 "faction": self.faction.name,
                 "auras": self.aura.export_state(),
                 "shield_count": len(self.shield_effects),
+                "metrics": self.custom_metrics.copy(),
                 "attributes": self.attribute_data.copy(),
             }
         )
@@ -308,21 +314,27 @@ class CombatEntity(BaseEntity):
 
     def _perform_tick(self) -> None:
         """驱动战斗实体的每帧逻辑。"""
-        from core.event import GameEvent, EventType
-        from core.tool import get_current_time
-
         self.aura.update(self, 1 / 60)
 
         for eff in self.active_effects[:]:
             eff.on_frame_update(self)
-            # 如果效果在更新后决定自我移除，或此处逻辑强制移除
-            self.active_effects.remove(eff)
-            if self.event_engine:
-                self.event_engine.publish(
-                    GameEvent(
-                        event_type=EventType.ON_EFFECT_REMOVED,
-                        frame=get_current_time(),
-                        source=self,
-                        data={"effect": eff}
-                    )
-                )
+
+    def finish(self) -> None:
+        """战斗实体销毁流程：先结清状态，再执行基类销毁。"""
+        if self.state not in [EntityState.ACTIVE, EntityState.FINISHING]:
+            return
+        
+        # 强制结清所有活跃效果与修饰符
+        self.clear_active_states()
+        
+        super().finish()
+
+    def clear_active_states(self) -> None:
+        """强制结清所有活跃效果与修饰符。"""
+        # 1. 移除效果 (通过调用 eff.remove 驱动完整的逻辑链路)
+        for eff in self.active_effects[:][::-1]:
+            self.remove_effect(eff)
+        
+        # 2. 移除动态修饰符
+        for mod in self.dynamic_modifiers[:][::-1]:
+            self.remove_modifier(mod)
