@@ -15,7 +15,7 @@ def init_all():
     logger_init()
     
     # 3. 日志管理：清理/压缩旧日志
-    manage_log_files(max_files=30)
+    # manage_log_files(max_files=30)
     
     get_ui_logger().log_info("系统初始化完成")
 

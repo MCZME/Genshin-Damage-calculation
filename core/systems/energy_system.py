@@ -53,6 +53,21 @@ class EnergySystem(GameSystem):
             get_emulation_logger().log_energy(
                 character, energy_value, source_type=f"{amount[0]}元素微粒"
             )
+        
+        # 发布能量变动后置事件 (V2.5 投影器必需)
+        from core.tool import get_current_time
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.AFTER_ENERGY_CHANGE,
+                frame=get_current_time(),
+                source=character,
+                data={
+                    "character": character,
+                    "new_energy": character.elemental_energy.current_energy,
+                    "delta": energy_value
+                }
+            )
+        )
 
     def get_rate(self, character, particle_element, team_obj):
         """计算微粒获取系数"""

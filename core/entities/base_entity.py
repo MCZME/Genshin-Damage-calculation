@@ -31,6 +31,7 @@ class BaseEntity:
     仿真世界中的实体基类。
     负责最底层的生命周期管理、上下文绑定与基础驱动。
     """
+    _id_counter = 0
 
     def __init__(
         self, name: str, life_frame: float = float("inf"), context: Optional[Any] = None
@@ -42,6 +43,8 @@ class BaseEntity:
             life_frame: 实体的生存帧数，默认永久。
             context: 绑定的仿真上下文。
         """
+        BaseEntity._id_counter += 1
+        self.entity_id: int = BaseEntity._id_counter
         self.name: str = name
         self.life_frame: float = life_frame
         self.current_frame: int = 0
@@ -92,9 +95,25 @@ class BaseEntity:
     def export_state(self) -> Dict[str, Any]:
         """导出基础状态快照。"""
         return {
+            "entity_id": self.entity_id,
             "name": self.name,
             "frame": self.current_frame,
             "state": self.state.name,
+            "hitbox_radius": self.hitbox[0] if hasattr(self, "hitbox") else 0.5,
+            "hitbox_height": self.hitbox[1] if hasattr(self, "hitbox") else 2.0,
+        }
+
+    def export_static_data(self) -> Dict[str, Any]:
+        """[扩展点] 导出实体的静态登记信息。由子类具体实现。"""
+        return {
+            "entity_id": self.entity_id,
+            "entity_type": "CONSTRUCT",
+            "name": self.name,
+            "spawn_x": getattr(self, "pos", [0,0,0])[0],
+            "spawn_y": getattr(self, "pos", [0,0,0])[2], # y 是高度
+            "spawn_z": getattr(self, "pos", [0,0,0])[1],
+            "hitbox_radius": self.hitbox[0] if hasattr(self, "hitbox") else 0.5,
+            "hitbox_height": self.hitbox[1] if hasattr(self, "hitbox") else 2.0,
         }
 
 
@@ -141,8 +160,44 @@ class CombatEntity(BaseEntity):
     ) -> None:
         """向实体注入一个带来源的属性修饰符。"""
         from core.systems.contract.modifier import ModifierRecord
+        from core.event import GameEvent, EventType
+        from core.tool import get_current_time
 
-        self.dynamic_modifiers.append(ModifierRecord(source, stat, value, op))
+        # 1. 获取唯一 ID
+        m_id = 0
+        if self.ctx:
+            m_id = self.ctx.get_next_modifier_id()
+
+        modifier = ModifierRecord(m_id, source, stat, value, op)
+        self.dynamic_modifiers.append(modifier)
+        
+        # 2. 发布生命周期事件
+        if self.event_engine:
+            self.event_engine.publish(
+                GameEvent(
+                    event_type=EventType.ON_MODIFIER_ADDED,
+                    frame=get_current_time(),
+                    source=self,
+                    data={"modifier": modifier}
+                )
+            )
+
+    def remove_modifier(self, modifier: Any) -> None:
+        """从实体移除一个属性修饰符。"""
+        from core.event import GameEvent, EventType
+        from core.tool import get_current_time
+
+        if modifier in self.dynamic_modifiers:
+            self.dynamic_modifiers.remove(modifier)
+            if self.event_engine:
+                self.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.ON_MODIFIER_REMOVED,
+                        frame=get_current_time(),
+                        source=self,
+                        data={"modifier": modifier}
+                    )
+                )
 
     def export_state(self) -> Dict[str, Any]:
         """导出战斗状态快照。"""
@@ -180,13 +235,37 @@ class CombatEntity(BaseEntity):
 
     def add_effect(self, effect: Any) -> None:
         """[接口] 向实体挂载一个效果。"""
+        from core.event import GameEvent, EventType
+        from core.tool import get_current_time
+
         if effect not in self.active_effects:
             self.active_effects.append(effect)
+            if self.event_engine:
+                self.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.ON_EFFECT_ADDED,
+                        frame=get_current_time(),
+                        source=self,
+                        data={"effect": effect}
+                    )
+                )
 
     def remove_effect(self, effect: Any) -> None:
         """[接口] 从实体移除一个效果。"""
+        from core.event import GameEvent, EventType
+        from core.tool import get_current_time
+
         if effect in self.active_effects:
             self.active_effects.remove(effect)
+            if self.event_engine:
+                self.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.ON_EFFECT_REMOVED,
+                        frame=get_current_time(),
+                        source=self,
+                        data={"effect": effect}
+                    )
+                )
 
     def apply_elemental_aura(self, damage: Any) -> List[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。"""
@@ -229,8 +308,21 @@ class CombatEntity(BaseEntity):
 
     def _perform_tick(self) -> None:
         """驱动战斗实体的每帧逻辑。"""
+        from core.event import GameEvent, EventType
+        from core.tool import get_current_time
+
         self.aura.update(self, 1 / 60)
 
         for eff in self.active_effects[:]:
             eff.on_frame_update(self)
+            # 如果效果在更新后决定自我移除，或此处逻辑强制移除
             self.active_effects.remove(eff)
+            if self.event_engine:
+                self.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.ON_EFFECT_REMOVED,
+                        frame=get_current_time(),
+                        source=self,
+                        data={"effect": eff}
+                    )
+                )

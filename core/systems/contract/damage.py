@@ -53,3 +53,17 @@ class Damage:
     def add_data(self, key: str, value: Any) -> None:
         """向伤害对象注入额外的运行时上下文数据。"""
         self.data[key] = value
+
+    def to_dict(self) -> Dict[str, Any]:
+        """将伤害对象序列化为可持久化的字典。"""
+        return {
+            "name": self.name,
+            "element": [self.element[0].name, self.element[1]],
+            "multiplier": self.damage_multiplier,
+            "scaling_stat": self.scaling_stat,
+            "damage": self.damage,
+            "is_crit": self.is_crit,
+            "source": getattr(self.source, "name", "Unknown"),
+            "target": getattr(self.target, "name", "Unknown"),
+            "data": self.data # 包含审计链
+        }

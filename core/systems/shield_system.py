@@ -43,7 +43,22 @@ class ShieldSystem(GameSystem):
         effect = ShieldEffect(
             target, config.name, config.element, final_hp, config.duration
         )
-        effect.apply()
+        active_instance = effect.apply()
+        
+        # 如果是刷新现有护盾，同步其盾量 (此处可根据业务逻辑微调)
+        if active_instance is not effect:
+            active_instance.current_hp = max(active_instance.current_hp, final_hp)
+
+        # 4. 发布初始盾量变更事件 (使用 active_instance 以确保 ID 在 DB 中已存在)
+        from core.tool import get_current_time
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.ON_SHIELD_CHANGE,
+                frame=get_current_time(),
+                source=target,
+                data={"shield": active_instance, "new_hp": active_instance.current_hp}
+            )
+        )
 
         from core.logger import get_emulation_logger
 
@@ -79,24 +94,32 @@ class ShieldSystem(GameSystem):
         max_absorbed = 0.0
         active_shields: List[ShieldEffect] = list(target.shield_effects)
 
+        # 4. 扣除护盾值
         for shield in active_shields:
             # 1. 计算针对该伤害元素的吸收倍率
             absorption_mult = self._get_absorption_multiplier(
                 shield.element, damage_element
             )
 
-            # 2. 计算该护盾实际需要扣除的血量
-            # 实际扣除 = 伤害 / 吸收倍率
-            to_deduct = raw_damage / absorption_mult
-
-            # 3. 记录该护盾能吸收的最大原始伤害量
+            # 2. 记录该护盾能吸收的最大原始伤害量
             absorbed_this_time = min(raw_damage, shield.current_hp * absorption_mult)
             max_absorbed = max(max_absorbed, absorbed_this_time)
 
-            # 4. 扣除护盾值
+            # 3. 实际扣除护盾值
+            to_deduct = raw_damage / absorption_mult
             shield.current_hp -= to_deduct
+            
+            # 发布盾量变动事件
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.ON_SHIELD_CHANGE,
+                    frame=event.frame,
+                    source=target,
+                    data={"shield": shield, "new_hp": shield.current_hp}
+                )
+            )
 
-            # 5. 检查破碎
+            # 4. 检查破碎
             if shield.current_hp <= 0:
                 shield.remove()
 

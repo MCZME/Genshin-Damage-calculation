@@ -52,7 +52,16 @@ class DamageContext:
             self.stats[stat] *= value
         elif op == "SET":
             self.stats[stat] = value
-        self.audit_trail.append(ModifierRecord(source, stat, value, op))
+            
+        # 从上下文获取唯一 ID
+        from core.context import get_context
+        m_id = 0
+        try:
+            m_id = get_context().get_next_modifier_id()
+        except:
+            pass
+
+        self.audit_trail.append(ModifierRecord(m_id, source, stat, value, op))
 
 
 class DamagePipeline:
@@ -268,6 +277,11 @@ class DamageSystem(GameSystem):
                         event_type=EventType.AFTER_DAMAGE,
                         frame=event.frame,
                         source=char,
-                        data={"character": char, "target": dmg.target, "damage": dmg},
+                        data={
+                            "character": char, 
+                            "target": dmg.target, 
+                            "target_id": getattr(dmg.target, "entity_id", None),
+                            "damage": dmg
+                        },
                     )
                 )

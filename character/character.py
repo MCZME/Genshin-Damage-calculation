@@ -288,6 +288,30 @@ class Character(CombatEntity, ABC):
             "constellation": self.constellation_level,
         }
 
+    def export_static_data(self) -> dict:
+        """导出角色的全量静态配置数据。"""
+        # 1. 基础物理与元数据
+        data = super().export_static_data()
+        data["entity_type"] = "CHARACTER"
+        
+        # 2. 核心计算属性 (V3.0 角色特化列)
+        data.update({
+            "level": self.level,
+            "constellation": self.constellation_level,
+            "base_attributes": self.attribute_data.copy(),
+            "weapon_data": {
+                "name": getattr(self.weapon, "name", "None"),
+                "refinement": getattr(self.weapon, "refinement", 1)
+            },
+            "artifact_sets": getattr(self.artifact_manager, "active_set_names", []),
+            "skill_levels": {
+                "normal": self.skill_params[0],
+                "skill": self.skill_params[1],
+                "burst": self.skill_params[2]
+            }
+        })
+        return data
+
     def export_state(self) -> dict:
         """导出角色特有状态"""
 

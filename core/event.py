@@ -85,6 +85,13 @@ class EventType(Enum):
     BEFORE_SHIELD_CREATION = auto()
     AFTER_SHIELD_CREATION = auto()
 
+    # 生命周期与修饰符
+    ON_MODIFIER_ADDED = auto()
+    ON_MODIFIER_REMOVED = auto()
+    ON_EFFECT_ADDED = auto()
+    ON_EFFECT_REMOVED = auto()
+    ON_SHIELD_CHANGE = auto()
+
     # 对象生命周期
     OBJECT_CREATE = auto()
     OBJECT_DESTROY = auto()
@@ -146,8 +153,6 @@ class GameEvent:
 # --------------------------
 # 代理与接口
 # --------------------------
-
-
 class EventHandler(ABC):
     @abstractmethod
     def handle_event(self, event: GameEvent):
