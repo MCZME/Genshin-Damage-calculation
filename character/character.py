@@ -100,12 +100,10 @@ class Character(CombatEntity, ABC):
         self.event_engine = ctx.event_engine
         self.action_manager = ActionManager(self, ctx)
 
-        self._setup_character_components()
-        self._setup_effects()
-        self.apply_effects()
-
         self.current_hp = 0.0
         self._last_max_hp = 0.0  # 用于追踪最大生命值变动
+
+        self.initialize_gear()
 
     @abstractmethod
     def _setup_character_components(self) -> None:
@@ -134,6 +132,13 @@ class Character(CombatEntity, ABC):
                 c.apply(self)
 
     def initialize_gear(self) -> None:
+        """
+        在角色创建后、正式进入战斗前调用，确保属性生效。
+        """
+        self._setup_character_components()
+        self._setup_effects()
+        self.apply_effects()
+
         if self.weapon:
             self.weapon.apply_static_stats()
             self.weapon.skill()
