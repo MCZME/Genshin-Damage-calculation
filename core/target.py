@@ -52,6 +52,30 @@ class Target(CombatEntity):
         # 2. 标记 Damage 对象已命中该目标
         damage.set_target(self)
 
+    def export_static_data(self) -> Dict[str, Any]:
+        """导出目标的静态配置数据。"""
+        data = super().export_static_data()
+        data["entity_type"] = "TARGET"
+        
+        # 提取 8 大平铺抗性
+        res_map = {
+            "res_phys": self.attribute_data.get("物理元素抗性", 10.0),
+            "res_fire": self.attribute_data.get("火元素抗性", 10.0),
+            "res_water": self.attribute_data.get("水元素抗性", 10.0),
+            "res_wind": self.attribute_data.get("风元素抗性", 10.0),
+            "res_elec": self.attribute_data.get("雷元素抗性", 10.0),
+            "res_grass": self.attribute_data.get("草元素抗性", 10.0),
+            "res_ice": self.attribute_data.get("冰元素抗性", 10.0),
+            "res_rock": self.attribute_data.get("岩元素抗性", 10.0),
+        }
+        
+        data.update({
+            "level": self.level,
+            "base_defense": self.attribute_data.get("防御力", 500.0),
+            **res_map
+        })
+        return data
+
     def export_state(self) -> Dict[str, Any]:
         """导出目标的实时仿真状态快照。
 

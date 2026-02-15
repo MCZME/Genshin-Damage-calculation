@@ -39,8 +39,21 @@ class SimulationContext:
     system_manager: Optional["SystemManager"] = None
     logger: Optional["SimulationLogger"] = None
 
-    # 上下文管理器状态
+    # 内部状态管理
+    _modifier_id_counter: int = field(default=0, init=False)
+    _instance_id_counter: int = field(default=0, init=False)
+    _seen_entities: set = field(default_factory=set, init=False)
     _token: Optional[Any] = field(default=None, init=False, repr=False)
+
+    def get_next_modifier_id(self) -> int:
+        """获取下一个全局唯一的修饰符 ID。"""
+        self._modifier_id_counter += 1
+        return self._modifier_id_counter
+
+    def get_next_instance_id(self) -> int:
+        """获取下一个全局唯一的效果实例 ID。"""
+        self._instance_id_counter += 1
+        return self._instance_id_counter
 
     def __post_init__(self) -> None:
         """完成上下文组件的自动初始化。"""
@@ -49,7 +62,6 @@ class SimulationContext:
 
         if self.space is None:
             from core.combat_space import CombatSpace
-
             self.space = CombatSpace()
 
     def __enter__(self) -> "SimulationContext":
@@ -65,7 +77,12 @@ class SimulationContext:
         self.reset()
 
     def advance_frame(self) -> None:
-        """推进全局时间轴一帧，并驱动物理空间更新。"""
+        """推进全局时间轴一帧，并驱动物理空间更新。
+        在推进前会清空上一帧的业务事件缓冲区。
+        """
+        if self.event_engine:
+            self.event_engine.clear_frame_events()
+            
         self.current_frame += 1
         if self.space:
             self.space.on_frame_update()
@@ -88,6 +105,7 @@ class SimulationContext:
         self.current_frame = 0
         self.global_move_dist = 0.0
         self.global_vertical_dist = 0.0
+        self._seen_entities.clear()
         if self.event_engine:
             self.event_engine.clear()
 
@@ -96,32 +114,54 @@ class SimulationContext:
             self.logger.log_info("Context Reset", sender="Context")
 
     def take_snapshot(self) -> Dict[str, Any]:
-        """抓取当前仿真场景的全量状态快照。
-
-        Returns:
-            Dict[str, Any]: 包含帧数、全局变量及所有实体状态的字典。
-        """
+        """抓取当前仿真场景的全量状态快照 (V3.0 自动化登记增强版)。"""
         snapshot = {
             "frame": self.current_frame,
             "global": {
                 "move_dist": round(self.global_move_dist, 3),
                 "vertical_dist": round(self.global_vertical_dist, 3),
             },
+            "team": [],
             "entities": [],
+            "events": [],
+            "entities_meta": [] # 存放首次发现的实体静态数据
         }
 
         if self.space:
-            # 1. 导出物理空间中的实体 (召唤物、敌人等)
             from core.entities.base_entity import Faction
-
-            for faction in Faction:
-                for entity in self.space._entities.get(faction, []):
-                    snapshot["entities"].append(entity.export_state())
-
-            # 2. 额外导出队伍成员 (角色本体，包含后台角色)
+            
+            # 统一处理所有实体
+            all_current_entities = []
             if self.space.team:
-                for member in self.space.team.get_members():
-                    snapshot["entities"].append(member.export_state())
+                all_current_entities.extend(self.space.team.get_members())
+            
+            for faction in Faction:
+                all_current_entities.extend(self.space._entities.get(faction, []))
+
+            for entity in all_current_entities:
+                # 1. 发现新实体，导出元数据进行登记
+                is_new = entity.entity_id not in self._seen_entities
+                meta = None
+                if is_new:
+                    meta = entity.export_static_data()
+                    snapshot["entities_meta"].append(meta)
+                    self._seen_entities.add(entity.entity_id)
+
+                # 2. 导出状态
+                state = entity.export_state()
+                
+                # 判定实体类型 (优先从 meta 获取，否则兜底)
+                etype = meta["entity_type"] if meta else getattr(entity, "_db_entity_type", "UNKNOWN")
+                if is_new:
+                    entity._db_entity_type = etype # 缓存类型避免重复导出 meta
+
+                if etype == "CHARACTER":
+                    snapshot["team"].append(state)
+                else:
+                    snapshot["entities"].append(state)
+
+        if self.event_engine:
+            snapshot["events"] = list(self.event_engine.current_frame_events)
 
         return snapshot
 
@@ -135,7 +175,7 @@ class EventEngine:
     """基于实例的事件驱动引擎。
 
     支持在特定的 SimulationContext 内进行事件订阅、取消订阅与发布。
-    支持父子引擎链式发布。
+    支持业务事件的帧内缓冲，以便于战果复盘持久化。
     """
 
     def __init__(self, parent: Optional["EventEngine"] = None):
@@ -146,6 +186,8 @@ class EventEngine:
         """
         self._handlers: Dict[Any, List[Any]] = {}
         self.parent = parent
+        # 缓存当前帧的关键业务事件，供快照导出使用
+        self.current_frame_events: List[Dict[str, Any]] = []
 
     def subscribe(self, event_type: Any, handler: Any) -> None:
         """订阅特定类型的事件。
@@ -169,15 +211,34 @@ class EventEngine:
         if event_type in self._handlers:
             if handler in self._handlers[event_type]:
                 self._handlers[event_type].remove(handler)
-            if not self._handlers[event_type]:
-                del self._handlers[event_type]
 
     def publish(self, event: Any) -> None:
         """发布一个事件，触发所有对应的处理程序。
-
-        Args:
-            event: 事件对象。需具备 event_type 属性。
+        具有“审计价值”的事件将被自动拦截并存入帧缓冲区。
         """
+        # 拦截关键业务事件 (V2.5 增强版：包含生命周期与跳变事件)
+        from core.event import EventType
+        review_targets = {
+            EventType.AFTER_DAMAGE, 
+            EventType.AFTER_ELEMENTAL_REACTION, 
+            EventType.AFTER_HEAL,
+            EventType.AFTER_ENERGY_CHANGE,
+            EventType.AFTER_HEALTH_CHANGE,
+            EventType.ON_MODIFIER_ADDED,
+            EventType.ON_MODIFIER_REMOVED,
+            EventType.ON_EFFECT_ADDED,
+            EventType.ON_EFFECT_REMOVED
+        }
+        
+        if hasattr(event, "event_type") and event.event_type in review_targets:
+            self.current_frame_events.append({
+                "type": event.event_type.name,
+                "frame": event.frame,
+                "source_id": getattr(event.source, "entity_id", None),
+                "source_name": getattr(event.source, "name", "Unknown"),
+                "payload": event.data 
+            })
+
         if hasattr(event, "event_type"):
             # 使用快照迭代以防止处理过程中订阅列表发生变化
             handlers = self._handlers.get(event.event_type, []).copy()
@@ -193,9 +254,14 @@ class EventEngine:
         if self.parent:
             self.parent.publish(event)
 
+    def clear_frame_events(self) -> None:
+        """清空当前帧的事件缓冲区。"""
+        self.current_frame_events.clear()
+
     def clear(self) -> None:
-        """清除所有订阅记录。"""
+        """清除所有订阅记录与事件缓冲。"""
         self._handlers.clear()
+        self.current_frame_events.clear()
 
 
 # ---------------------------------------------------------

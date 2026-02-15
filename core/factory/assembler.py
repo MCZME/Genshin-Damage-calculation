@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from core.context import create_context
 from core.factory.team_factory import TeamFactory
 from core.target import Target
@@ -17,12 +17,13 @@ class SimulationAssembler:
         self.repository = repository
         self.team_factory = TeamFactory(repository)
 
-    def assemble(self, config: Dict[str, Any]) -> Simulator:
+    def assemble(self, config: Dict[str, Any], persistence_db: Optional[Any] = None) -> Simulator:
         """
         从配置包组装仿真实例。
 
         Args:
             config: 包含 context_config 和 sequence_config 的字典。
+            persistence_db: 可选的持久化数据库接口。
 
         Returns:
             Simulator: 已挂载完整 Context 和动作序列的模拟器实例。
@@ -58,15 +59,15 @@ class SimulationAssembler:
         parser = ActionParser()
         action_sequence = parser.parse_sequence(sequence_cfg)
 
-        # 5. 构建模拟器
-        simulator = Simulator(ctx, action_sequence)
+        # 5. 构建模拟器 (注入持久化接口)
+        simulator = Simulator(ctx, action_sequence, persistence_db=persistence_db)
 
         return simulator
 
 
 def create_simulator_from_config(
-    config: Dict[str, Any], repository: DataRepository
+    config: Dict[str, Any], repository: DataRepository, persistence_db: Optional[Any] = None
 ) -> Simulator:
     """快捷工厂函数"""
     assembler = SimulationAssembler(repository)
-    return assembler.assemble(config)
+    return assembler.assemble(config, persistence_db=persistence_db)

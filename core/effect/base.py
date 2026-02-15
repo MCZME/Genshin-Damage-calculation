@@ -31,18 +31,24 @@ class BaseEffect(ABC):
         self.stacking_rule = stacking_rule
         self.is_active = False
         self.start_frame = 0
+        self.instance_id: int = 0 # 唯一实例 ID
 
-    def apply(self):
-        """应用效果的入口逻辑"""
+    def apply(self) -> "BaseEffect":
+        """应用效果的入口逻辑，返回生效的实例。"""
+        # 1. 分配唯一 ID
+        if hasattr(self.owner, "ctx") and self.owner.ctx:
+            self.instance_id = self.owner.ctx.get_next_instance_id()
+
         # 处理堆叠逻辑
         existing = self._find_existing()
         if existing:
             if self.stacking_rule == StackingRule.REFRESH:
                 existing.duration = max(existing.duration, self.duration)
-                return
+                # 如果是护盾，刷新时可能需要同步最大盾量，此处由子类扩展或在 System 处理
+                return existing
             elif self.stacking_rule == StackingRule.ADD:
                 existing.on_stack_added(self)
-                return
+                return existing
             # INDEPENDENT 模式下继续执行新增
 
         self.is_active = True
@@ -50,6 +56,7 @@ class BaseEffect(ABC):
         self.owner.add_effect(self)
         self.on_apply()
         get_emulation_logger().log_effect(self.owner, self.name, action="获得")
+        return self
 
     def remove(self):
         """移除效果"""

@@ -47,7 +47,7 @@ class HealingCalculator:
 
         # 应用治疗加成与受治疗加成
         bonus = AttributeCalculator.get_healing_bonus(self.source)
-        received_bonus = AttributeCalculator.get_healed_bonus(self.target)
+        received_bonus = AttributeCalculator.get_incoming_healing_bonus(self.target)
 
         final_value = raw_value * (1 + bonus) * (1 + received_bonus)
         self.healing.final_value = final_value
@@ -103,6 +103,15 @@ class HealthSystem(GameSystem):
                 data={"character": source, "target": target, "healing": healing},
             )
         )
+        # 5. 发布生命值变动事件 (V2.5 投影器必需)
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.AFTER_HEALTH_CHANGE,
+                frame=event.frame,
+                source=target,
+                data={"character": target, "new_hp": target.current_hp}
+            )
+        )
 
     def _handle_hurt(self, event: GameEvent) -> None:
         """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
@@ -139,5 +148,14 @@ class HealthSystem(GameSystem):
                     "amount": amount,
                     "ignore_shield": is_ignore_shield,
                 },
+            )
+        )
+        # 4. 发布生命值变动事件 (V2.5 投影器必需)
+        self.engine.publish(
+            GameEvent(
+                event_type=EventType.AFTER_HEALTH_CHANGE,
+                frame=event.frame,
+                source=target,
+                data={"character": target, "new_hp": target.current_hp}
             )
         )

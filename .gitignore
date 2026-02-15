@@ -9,5 +9,5 @@ config.json
 .clineignore
 /memory-bank
 /.clinerules
-simulation_results.db
+simulation_audit.db
 .env
