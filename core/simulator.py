@@ -87,6 +87,27 @@ class Simulator:
             raise
         finally:
             self.is_running = False
+            
+            # --- 强制结清阶段 (Mandatory Settlement) ---
+            if self.ctx.space:
+                # 1. 先清除上一帧残留的业务事件 (如最后一击产生的伤害)，防止在终结快照中重复记录
+                if self.ctx.event_engine:
+                    self.ctx.event_engine.clear_frame_events()
+
+                from core.entities.base_entity import Faction
+                all_entities = []
+                if self.ctx.space.team:
+                    all_entities.extend(self.ctx.space.team.get_members())
+                for faction in Faction:
+                    all_entities.extend(self.ctx.space._entities.get(faction, []))
+                
+                # 2. 统一触发实体销毁 (会自动闭合 DB 中的 end_frame)
+                for ent in all_entities:
+                    ent.finish()
+                
+                # 3. 记录最后的结清快照
+                if self.db:
+                    self.db.record_snapshot(self.ctx.take_snapshot())
 
         # 仿真结束后确保最后一次进度同步
         if self.on_progress:

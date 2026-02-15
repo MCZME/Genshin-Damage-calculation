@@ -241,6 +241,7 @@ class ResultDatabase:
                     name TEXT NOT NULL,
                     start_frame INTEGER NOT NULL,
                     end_frame INTEGER,
+                    duration INTEGER, -- 预期持续时间
                     PRIMARY KEY (session_id, instance_id),
                     FOREIGN KEY (session_id) REFERENCES simulation_sessions(id) ON DELETE CASCADE
                 )
@@ -270,12 +271,26 @@ class ResultDatabase:
                 )
             """)
 
+            # 16. 通用机制指标跳变表 (如：气氛值、层数、特殊能量)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS simulation_mechanism_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER,
+                    frame_id INTEGER NOT NULL,
+                    entity_id INTEGER NOT NULL,
+                    metric_key TEXT NOT NULL,
+                    value REAL NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES simulation_sessions(id) ON DELETE CASCADE
+                )
+            """)
+
             # 索引优化
             await db.execute("CREATE INDEX IF NOT EXISTS idx_char_pulse_lookup ON character_pulses(session_id, frame_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_modifier_lookup ON modifier_lifecycles(session_id, entity_id, start_frame)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_event_log_lookup ON simulation_event_log(session_id, frame_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_state_jump_lookup ON simulation_state_jumps(session_id, entity_id, frame_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_effect_lookup ON simulation_effect_lifecycles(session_id, entity_id, start_frame)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_metric_jump_lookup ON simulation_mechanism_metrics(session_id, entity_id, metric_key)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_audit_trail_lookup ON event_audit_trail(event_id)")
 
             await db.commit()
@@ -345,6 +360,7 @@ class ResultDatabase:
                 commands = []
                 commands.extend(self.projector.project_static_meta(item))
                 commands.extend(self.projector.project_pulse(item))
+                commands.extend(self.projector.project_metrics(item))
                 commands.extend(self.projector.project_events(item))
                 
                 # 2. 批量执行指令集 (在同一个原子操作中)
