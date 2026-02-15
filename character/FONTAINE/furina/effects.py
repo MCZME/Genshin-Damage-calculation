@@ -78,8 +78,11 @@ class FurinaFanfareEffect(BaseEffect):
                 event.data["fanfare_heal_bonus"] = bonus
 
     def _process_hp_change(self, event: GameEvent):
-        target = event.target
+        target = event.data.get("target")
         amount = 0.0
+
+        if not target:
+            return
 
         if event.event_type == EventType.AFTER_HURT:
             amount = event.data.get("amount", 0.0)
@@ -115,6 +118,9 @@ class FurinaFanfareEffect(BaseEffect):
             self.points,
             1000.0 if self.owner.constellation_level >= 2 else self.max_points,
         )
+
+        # 同步到通用指标轨道
+        self.owner.custom_metrics["气氛值"] = round(self.points, 1)
 
         if int(self.points) != int(old_points):
             get_emulation_logger().log_effect(
