@@ -26,6 +26,13 @@ class DataProjector:
         # 4. 生命周期追踪: {(entity_id, modifier_id): start_frame}
         self.active_modifiers: Set[Tuple[int, int]] = set()
 
+        # 5. 全局汇总指标 (用于 Session 结算)
+        self.total_damage: float = 0.0
+        self.max_frame: int = 0
+        self.peak_dps: float = 0.0
+        self._damage_in_last_window: float = 0.0
+        self._last_dps_calc_frame: int = 0
+
     def project_static_meta(self, snapshot: dict) -> List[Tuple[str, tuple]]:
         """处理实体登记元数据。"""
         commands = []
@@ -70,6 +77,7 @@ class DataProjector:
         """处理角色位移与动作轨道 (增量存储逻辑) 以及目标附着快照。"""
         commands = []
         frame_id = snapshot.get("frame", 0)
+        self.max_frame = max(self.max_frame, frame_id)
         
         for char in snapshot.get("team", []):
             eid = char["entity_id"]
@@ -80,7 +88,7 @@ class DataProjector:
             last = self.last_pulse_cache.get(eid)
             changed = True
             if last:
-                dist_sq = (pos[0]-last[0])**2 + (pos[2]-last[1])**2 + (pos[1]-last[2])**2
+                dist_sq = (pos[0]-last[0])**2 + (pos[1]-last[1])**2 + (pos[2]-last[2])**2
                 if dist_sq < 0.0001 and action_id == last[3] and on_field == last[4]:
                     changed = False
             
@@ -91,18 +99,11 @@ class DataProjector:
                 ))
                 self.last_pulse_cache[eid] = (pos[0], pos[1], pos[2], action_id, on_field)
         
-        # 目标元素附着脉搏 (仅在有附着时记录)
+        # 目标元素附着脉搏
         for ent in snapshot.get("entities", []):
             eid = ent.get("entity_id")
             auras = ent.get("auras", {})
-            
-            # 逻辑空判定: {"regular": [], "frozen": null, "quicken": null, "states": []}
-            is_empty = (
-                not auras.get("regular") and 
-                auras.get("frozen") is None and 
-                auras.get("quicken") is None and 
-                not auras.get("states")
-            )
+            is_empty = (not auras.get("regular") and auras.get("frozen") is None and auras.get("quicken") is None and not auras.get("states"))
             
             if auras and not is_empty:
                 commands.append((
@@ -117,12 +118,10 @@ class DataProjector:
         commands = []
         frame_id = snapshot.get("frame", 0)
         
-        # 遍历所有实体
         all_entities = snapshot.get("team", []) + snapshot.get("entities", [])
         for ent in all_entities:
             eid = ent.get("entity_id")
             metrics = ent.get("metrics", {})
-            
             for m_key, val in metrics.items():
                 cache_key = (eid, m_key)
                 if self.last_metrics_cache.get(cache_key) != val:
@@ -131,16 +130,13 @@ class DataProjector:
                         (self.session_id, frame_id, eid, m_key, val)
                     ))
                     self.last_metrics_cache[cache_key] = val
-                    
         return commands
 
     def project_events(self, snapshot: dict) -> List[Tuple[str, tuple]]:
-        """
-        处理离散事件及其相关的 Jump、Lifecycle 和 审计明细。
-        实现“骨干+特化+审计+负载”的分流。
-        """
+        """处理离散事件及其相关的 Jump、Lifecycle 和 审计明细。"""
         commands = []
         frame_id = snapshot.get("frame", 0)
+        self.max_frame = max(self.max_frame, frame_id)
         events = snapshot.get("events", [])
         
         for evt in events:
@@ -148,7 +144,6 @@ class DataProjector:
             payload = evt.get("payload", {})
             eid = evt.get("source_id")
             
-            # --- 1. Jump 轨道 (资源与护盾跳变) ---
             if etype in ("AFTER_ENERGY_CHANGE", "AFTER_HEALTH_CHANGE"):
                 vtype = "ENERGY" if "ENERGY" in etype else "HP"
                 new_val = payload.get("new_energy") if vtype == "ENERGY" else payload.get("new_hp")
@@ -171,7 +166,6 @@ class DataProjector:
                         (self.session_id, inst_id, frame_id, payload.get("new_hp", 0.0))
                     ))
 
-            # --- 2. Lifecycle 轨道 (修饰符与效果) ---
             elif etype == "ON_MODIFIER_ADDED":
                 mod = payload.get("modifier")
                 mid = getattr(mod, "modifier_id", 0)
@@ -194,7 +188,7 @@ class DataProjector:
                 etype_str = "SHIELD" if "Shield" in type(eff).__name__ else "STATUS"
                 commands.append((
                     "INSERT INTO simulation_effect_lifecycles (session_id, instance_id, entity_id, effect_type, name, start_frame, duration) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (self.session_id, inst_id, eid, etype_str, getattr(eff, "name", "Effect"), frame_id, getattr(eff, "max_duration", 0))
+                    (self.session_id, inst_id, eid, etype_str, getattr(eff, "name", "Effect"), frame_id, getattr(eff, "duration", 0))
                 ))
 
             elif etype == "ON_EFFECT_REMOVED":
@@ -205,15 +199,11 @@ class DataProjector:
                     (frame_id, self.session_id, inst_id)
                 ))
 
-            # --- 3. 离散流四级联写 (Event Track) ---
             if etype in ("AFTER_DAMAGE", "AFTER_REACTION", "AFTER_HEAL"):
-                # A. 骨干表
                 commands.append((
                     "INSERT INTO simulation_event_log (session_id, frame_id, event_type, source_id) VALUES (?, ?, ?, ?)",
                     (self.session_id, frame_id, etype, eid)
                 ))
-                
-                # B. 负载表 (使用稳定的 MAX(event_id))
                 commands.append((
                     "INSERT INTO event_payloads (event_id, payload_json) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?)",
                     (json.dumps(payload, cls=GenshinJSONEncoder),)
@@ -223,28 +213,30 @@ class DataProjector:
                     dmg_obj = payload.get("damage")
                     target = payload.get("target")
                     tid = getattr(target, "entity_id", 0)
+                    dmg_val = getattr(dmg_obj, "damage", 0.0)
+                    self.total_damage += dmg_val
+                    self._damage_in_last_window += dmg_val
                     
-                    # 修正：从 config 提取 attack_tag，从 reaction_results 提取反应名
                     attack_tag = "None"
                     if hasattr(dmg_obj, "config") and dmg_obj.config:
                         attack_tag = getattr(dmg_obj.config.attack_tag, "name", str(dmg_obj.config.attack_tag))
-                    
-                    reaction_name = None
-                    if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results:
-                        reaction_name = dmg_obj.reaction_results[0].reaction_type.name
+                    reaction_name = dmg_obj.reaction_results[0].reaction_type.name if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results else None
 
-                    # C. 特化表
                     commands.append((
                         "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction_name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
-                        (tid, getattr(dmg_obj, "damage", 0.0), str(getattr(dmg_obj, "element", "None")), attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
+                        (tid, dmg_val, str(getattr(dmg_obj, "element", "None")), attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
                     ))
                     
-                    # D. 审计明细表
                     audit_trail = getattr(dmg_obj, "data", {}).get("audit_trail", [])
                     for step in audit_trail:
                         commands.append((
                             "INSERT INTO event_audit_trail (event_id, modifier_id, source_name, stat_type, value, op_type) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?)",
                             (getattr(step, "modifier_id", None), getattr(step, "source", ""), getattr(step, "stat", ""), getattr(step, "value", 0.0), getattr(step, "op", "ADD"))
                         ))
+
+        if frame_id - self._last_dps_calc_frame >= 60:
+            self.peak_dps = max(self.peak_dps, self._damage_in_last_window)
+            self._damage_in_last_window = 0.0
+            self._last_dps_calc_frame = frame_id
 
         return commands
