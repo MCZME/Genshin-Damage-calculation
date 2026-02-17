@@ -381,7 +381,15 @@ class ResultDatabase:
                 
                 self._queue.task_done()
 
-            await db.commit()
+            # --- 4. 仿真结束，执行 Session 汇总回写 ---
+            if self.projector:
+                proj = self.projector
+                avg_dps = proj.total_damage / (proj.max_frame / 60.0) if proj.max_frame > 0 else 0
+                await db.execute(
+                    "UPDATE simulation_sessions SET total_damage=?, duration_frames=?, avg_dps=?, peak_dps=? WHERE id=?",
+                    (proj.total_damage, proj.max_frame, avg_dps, proj.peak_dps, self.session_id)
+                )
+                await db.commit()
 
     async def get_frame(self, frame_id: int) -> Optional[dict]:
         """按帧 ID 获取快照数据 (重定向到外部适配器)"""
