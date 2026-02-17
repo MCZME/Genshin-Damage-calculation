@@ -49,6 +49,7 @@ class AppState:
         self.sim_progress = 0.0
         self.sim_status = "IDLE"
         self.last_metrics: Optional[SimulationMetrics] = None
+        self.last_session_id: Optional[int] = None
 
     def register_page(self, page: ft.Page):
         self.page = page
@@ -285,10 +286,28 @@ class AppState:
         self.is_simulating = True
         self.sim_status = "RUNNING..."
         self.refresh()
+        
+        from core.persistence.database import ResultDatabase
+        import time
+        db = ResultDatabase()
+        
         try:
+            # 1. 持久化层准备
+            await db.initialize()
+            # 创建会话并捕获 ID
+            config_name = f"仿真_{int(time.time())}"
+            self.last_session_id = await db.create_session(config_name, config_snapshot=self.export_config())
+            await db.start_session()
+            
+            # 2. 仿真引擎实例化与运行
             config = self.export_config()
-            simulator = create_simulator_from_config(config, self.repo)
+            # 将持久化接口注入模拟器
+            simulator = create_simulator_from_config(config, self.repo, persistence_db=db)
             await simulator.run()
+            
+            # 3. 数据收尾：确保所有帧数据刷入磁盘
+            await db.stop_session()
+            
             total_dmg = getattr(simulator.ctx, "total_damage", 0.0)
             duration = simulator.ctx.current_frame
             dps = (total_dmg / duration * 60) if duration > 0 else 0.0
@@ -297,7 +316,10 @@ class AppState:
             self.sim_progress = 1.0
         except Exception as e:
             import traceback
-
+            # 异常发生时也尝试停止 db 以防文件锁死
+            try: await db.stop_session()
+            except: pass
+            
             self.sim_status = f"FAILED: {str(e)[:25]}"
             get_ui_logger().log_error(f"Single Simulation Error: {e}\n{traceback.format_exc()}")
         finally:

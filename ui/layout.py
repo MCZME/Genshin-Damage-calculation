@@ -8,6 +8,7 @@ from ui.components.visual_pane import VisualPane
 from ui.components.action_library import ActionLibrary
 from ui.components.timeline_sequence import TimelineSequence
 from ui.components.action_inspector import ActionInspector
+from ui.views.analysis_view import AnalysisView
 
 
 class AppLayout:
@@ -29,6 +30,7 @@ class AppLayout:
         self.action_library = ActionLibrary(state)
         self.timeline_sequence = TimelineSequence(state)
         self.action_inspector = ActionInspector(state)
+        self.analysis_view = AnalysisView(state)
 
         # 2. 动画切换器
         self.left_switcher = ft.AnimatedSwitcher(content=self.entity_pool, expand=True)
@@ -36,6 +38,9 @@ class AppLayout:
             content=self.property_editor, expand=True
         )
         self.right_switcher = ft.AnimatedSwitcher(content=self.visual_pane, expand=True)
+
+        # 2.5 阶段专用工具容器 (用于注入复盘页的布局切换等按钮)
+        self.phase_tools = ft.Container(animate=ft.Animation(300, ft.AnimationCurve.DECELERATE))
 
         self.header = self._build_header()
         self.footer = self._build_footer()
@@ -135,6 +140,14 @@ class AppLayout:
         if self.current_phase == phase_id:
             return
         self.current_phase = phase_id
+        
+        # 1. 基础布局复位
+        self.left_pane_container.visible = True
+        self.right_pane_container.visible = True
+        self.middle_pane.variant = ft.CardVariant.ELEVATED
+        self.middle_pane.content.padding = 24
+        self.phase_tools.content = None
+
         if phase_id == "strategic":
             self.left_switcher.content = self.entity_pool
             self.middle_switcher.content = self.property_editor
@@ -143,6 +156,21 @@ class AppLayout:
             self.left_switcher.content = self.action_library
             self.middle_switcher.content = self.timeline_sequence
             self.right_switcher.content = self.action_inspector
+        elif phase_id == "review":
+            # 复盘模式：隐藏左右窄栏，沉浸式展示工作台
+            self.left_pane_container.visible = False
+            self.right_pane_container.visible = False
+            # 移除外层 Card 装饰，让 AnalysisView 自行管理边距
+            self.middle_pane.variant = ft.CardVariant.ELEVATED
+            self.middle_pane.content.padding = 0
+            
+            self.middle_switcher.content = self.analysis_view
+            # 注入复盘工具按钮到 Header
+            self.phase_tools.content = self.analysis_view.get_header_tools()
+            
+            # 加载分析数据
+            self.page.run_task(self.analysis_view.load_data)
+
         self.header.content.controls[1].content.controls = [
             self._build_nav_item(text, pid, icon) for text, pid, icon in self.nav_items
         ]
@@ -191,6 +219,8 @@ class AppLayout:
                     ),
                     ft.Row(
                         [
+                            self.phase_tools,
+                            ft.VerticalDivider(width=1, color="rgba(255,255,255,0.1)"),
                             ft.IconButton(
                                 ft.Icons.SAVE_OUTLINED,
                                 on_click=self._handle_save_dialog,
@@ -394,7 +424,8 @@ class AppLayout:
 
 
 async def main(page: ft.Page):
-    state = AppState(page)
+    state = AppState()
+    state.register_page(page)
     layout = AppLayout(page, state)
     page.add(layout.build())
 
