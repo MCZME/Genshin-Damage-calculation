@@ -9,8 +9,6 @@ from core.registry import CharacterClassMap, WeaponClassMap, ArtifactSetMap
 from core.batch.models import SimulationNode, SimulationMetrics, ModifierRule
 from core.factory.assembler import create_simulator_from_config
 from core.batch.generator import ConfigGenerator
-
-
 from ui.services.event_bus import UIEventBus
 
 
@@ -76,6 +74,8 @@ class AppState:
                 self.page.update()
             except Exception:
                 pass
+
+    def _load_metadata(self):
         try:
             char_list = self.repo.get_all_characters()
             self.char_map = {
@@ -112,13 +112,6 @@ class AppState:
             }
         except Exception as e:
             get_ui_logger().log_error(f"AppState: Metadata load failed: {e}")
-
-    def refresh(self):
-        if self.page:
-            try:
-                self.page.update()
-            except Exception:
-                pass
 
     # --- 变异树操作 (规则驱动版) ---
 
