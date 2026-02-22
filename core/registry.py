@@ -16,7 +16,7 @@ def register_character(name: str) -> Callable[[Type[Any]], Type[Any]]:
         return cls
     return wrapper
 
-def register_weapon(name: str) -> Callable[[Type[Any]], Type[Any]]:
+def register_weapon(name: str, weapon_type: Optional[str] = None) -> Callable[[Type[Any]], Type[Any]]:
     """注册武器类到全局映射。"""
     def wrapper(cls: Type[Any]) -> Type[Any]:
         WeaponClassMap[name] = cls

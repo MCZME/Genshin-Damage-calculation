@@ -2,13 +2,10 @@ import flet as ft
 from ui.state import AppState
 from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
-from ui.components.entity_pool import EntityPool
-from ui.components.property_editor import PropertyEditor
-from ui.components.visual_pane import VisualPane
-from ui.components.action_library import ActionLibrary
-from ui.components.timeline_sequence import TimelineSequence
-from ui.components.action_inspector import ActionInspector
 from ui.views.analysis_view import AnalysisView
+from ui.views.strategic_view import StrategicView
+from ui.views.tactical_view import TacticalView
+from ui.views.scene_view import SceneView
 
 
 class AppLayout:
@@ -19,25 +16,22 @@ class AppLayout:
     def __init__(self, page: ft.Page, state: AppState):
         self.page = page
         self.state = state
-        self.current_phase = "strategic"
+        self.current_phase = None
 
         GenshinTheme.apply_page_settings(self.page)
 
-        # 1. 实例化业务组件
-        self.entity_pool = EntityPool(state)
-        self.property_editor = PropertyEditor(state)
-        self.visual_pane = VisualPane(state)
-        self.action_library = ActionLibrary(state)
-        self.timeline_sequence = TimelineSequence(state)
-        self.action_inspector = ActionInspector(state)
-        self.analysis_view = AnalysisView(state)
+        # 1.5 实例化重构版组件 (类名已去Reboot化)
+        self.strategic_reboot = StrategicView(self.state)
+        self.scene_reboot = SceneView(self.state)
+        self.tactical_reboot = TacticalView(self.state)
+        self.analysis_reboot = AnalysisView()
 
-        # 2. 动画切换器
-        self.left_switcher = ft.AnimatedSwitcher(content=self.entity_pool, expand=True)
+        # 旧版切换器已弃用，重构版通过全屏 Middle Pane 切换
+        self.left_switcher = ft.Container()
         self.middle_switcher = ft.AnimatedSwitcher(
-            content=self.property_editor, expand=True
+            content=self.strategic_reboot, expand=True
         )
-        self.right_switcher = ft.AnimatedSwitcher(content=self.visual_pane, expand=True)
+        self.right_switcher = ft.Container()
 
         # 2.5 阶段专用工具容器 (用于注入复盘页的布局切换等按钮)
         self.phase_tools = ft.Container(animate=ft.Animation(300, ft.AnimationCurve.DECELERATE))
@@ -77,6 +71,9 @@ class AppLayout:
 
         self._setup_state_bridge()
         self.page.on_resize = self._handle_resize
+        
+        # 4. 启动即进入重构版战略视图 (同步调用)
+        self.handle_nav_click("strategic")
 
     def _handle_resize(self, e):
         width = float(e.width)
@@ -99,7 +96,6 @@ class AppLayout:
             is_r = self.state.visual_collapsed
             self.left_pane_container.width = 80 if is_l else 300
             self.right_pane_container.width = 60 if is_r else 380
-            self.visual_pane.update_size(self.right_pane_container.width - 48, 400)
 
             try:
                 self.left_pane_container.content.content.padding = (
@@ -120,17 +116,20 @@ class AppLayout:
                 pass
 
             # 3. 内部组件刷新
-            self.entity_pool.is_compact = is_l
-            self.visual_pane.is_compact = is_r
-
-            if self.current_phase == "strategic":
-                self.entity_pool.refresh()
-                self.property_editor.refresh()
-                self.visual_pane.refresh()
-            else:
-                self.action_library.refresh()
-                self.timeline_sequence.refresh()
-                self.action_inspector.refresh()
+            try:
+                if self.current_phase == "strategic":
+                    self.strategic_reboot.update()
+                elif self.current_phase == "scene":
+                    self.scene_reboot.update()
+                elif self.current_phase == "tactical":
+                    # 战术视图可能需要重新构建指令面板 (如果编队变了)
+                    self.tactical_reboot._build_ui()
+                    self.tactical_reboot.update()
+                elif self.current_phase == "review":
+                    self.analysis_reboot.refresh_data()
+            except Exception:
+                # 忽略组件未挂载时的更新尝试
+                pass
 
             original_refresh()
 
@@ -149,27 +148,40 @@ class AppLayout:
         self.phase_tools.content = None
 
         if phase_id == "strategic":
-            self.left_switcher.content = self.entity_pool
-            self.middle_switcher.content = self.property_editor
-            self.right_switcher.content = self.visual_pane
-        elif phase_id == "tactical":
-            self.left_switcher.content = self.action_library
-            self.middle_switcher.content = self.timeline_sequence
-            self.right_switcher.content = self.action_inspector
-        elif phase_id == "review":
-            # 复盘模式：隐藏左右窄栏，沉浸式展示工作台
+            # 重构版：隐藏左右栏，全屏展示
             self.left_pane_container.visible = False
             self.right_pane_container.visible = False
-            # 移除外层 Card 装饰，让 AnalysisView 自行管理边距
-            self.middle_pane.variant = ft.CardVariant.ELEVATED
+            self.middle_pane.variant = ft.CardVariant.FILLED
+            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
+            self.middle_pane.content.padding = 0
+            self.middle_switcher.content = self.strategic_reboot
+        elif phase_id == "scene":
+            # 场景视图：全屏展示
+            self.left_pane_container.visible = False
+            self.right_pane_container.visible = False
+            self.middle_pane.variant = ft.CardVariant.FILLED
+            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
+            self.middle_pane.content.padding = 0
+            self.middle_switcher.content = self.scene_reboot
+        elif phase_id == "tactical":
+            # 重构版战术：全屏展示
+            self.left_pane_container.visible = False
+            self.right_pane_container.visible = False
+            self.middle_pane.variant = ft.CardVariant.FILLED
+            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
+            self.middle_pane.content.padding = 0
+            self.middle_switcher.content = self.tactical_reboot
+        elif phase_id == "review":
+            # 重构版分析：全屏展示
+            self.left_pane_container.visible = False
+            self.right_pane_container.visible = False
+            self.middle_pane.variant = ft.CardVariant.FILLED
+            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             
-            self.middle_switcher.content = self.analysis_view
-            # 注入复盘工具按钮到 Header
-            self.phase_tools.content = self.analysis_view.get_header_tools()
-            
-            # 加载分析数据
-            self.page.run_task(self.analysis_view.load_data)
+            self.middle_switcher.content = self.analysis_reboot
+            # 这里的工具按钮后续可以适配新的 AnalysisViewReboot
+            self.phase_tools.content = None
 
         self.header.content.controls[1].content.controls = [
             self._build_nav_item(text, pid, icon) for text, pid, icon in self.nav_items
@@ -179,6 +191,7 @@ class AppLayout:
     def _build_header(self):
         self.nav_items = [
             ("战略", "strategic", ft.Icons.SETTINGS_INPUT_COMPONENT),
+            ("场景", "scene", ft.Icons.PUBLIC),
             ("战术", "tactical", ft.Icons.TIMELINE),
             ("复盘", "review", ft.Icons.ANALYTICS),
         ]
@@ -277,28 +290,48 @@ class AppLayout:
 
     def _build_nav_item(self, text, phase_id, icon):
         is_active = self.current_phase == phase_id
+        active_color = ft.Colors.PRIMARY
+        idle_color = "rgba(255,255,255,0.55)"
+
+        # 底部指示线：激活时高度 3px，非激活时 0px，带动画
+        indicator = ft.Container(
+            width=36,
+            height=3 if is_active else 0,
+            bgcolor=active_color,
+            border_radius=2,
+            animate=ft.Animation(300, ft.AnimationCurve.DECELERATE),
+        )
+
+        label_row = ft.Row(
+            [
+                ft.Icon(
+                    icon,
+                    size=18 if is_active else 15,
+                    color=active_color if is_active else idle_color,
+                ),
+                ft.Text(
+                    text,
+                    size=13 if is_active else 12,
+                    weight=ft.FontWeight.W_900 if is_active else ft.FontWeight.W_400,
+                    color=active_color if is_active else idle_color,
+                ),
+            ],
+            spacing=7,
+            alignment=ft.MainAxisAlignment.CENTER,
+        )
+
         return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Icon(
-                        icon,
-                        size=16,
-                        color=ft.Colors.PRIMARY if is_active else ft.Colors.WHITE,
-                    ),
-                    ft.Text(
-                        text,
-                        size=12,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.PRIMARY if is_active else ft.Colors.WHITE,
-                    ),
-                ],
-                spacing=8,
+            content=ft.Column(
+                [label_row, indicator],
+                spacing=4,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 alignment=ft.MainAxisAlignment.CENTER,
             ),
             width=100,
-            height=36,
-            bgcolor="rgba(209, 162, 255, 0.15)" if is_active else "transparent",
+            height=42,
+            bgcolor="rgba(209, 162, 255, 0.12)" if is_active else "transparent",
             border_radius=20,
+            padding=ft.padding.only(top=4, bottom=4),
             on_click=lambda _: self.handle_nav_click(phase_id),
             animate=ft.Animation(300, ft.AnimationCurve.DECELERATE),
         )
@@ -364,11 +397,11 @@ class AppLayout:
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            padding=ft.padding.symmetric(horizontal=40, vertical=8),
+            padding=ft.Padding(40, 4, 40, 4),
             bgcolor=GenshinTheme.FOOTER_BG,
             blur=ft.Blur(20, 20),
             border=ft.border.only(top=ft.BorderSide(1, GenshinTheme.GLASS_BORDER)),
-            height=64,
+            height=50,
         )
 
     def _launch_universe(self, e):
@@ -403,7 +436,7 @@ class AppLayout:
             expand=True,
             vertical_alignment=ft.CrossAxisAlignment.STRETCH,
         )
-        content_area = ft.Container(content=content_row, padding=12, expand=True)
+        content_area = ft.Container(content=content_row, padding=ft.Padding(6, 6, 6, 6), expand=True)
 
         def on_connect(e):
             self._handle_resize(

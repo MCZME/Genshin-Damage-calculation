@@ -5,6 +5,7 @@ import flet as ft
 from typing import List, Dict, Any, Optional
 from core.data.repository import MySQLDataRepository
 from core.logger import get_ui_logger
+from core.registry import CharacterClassMap, WeaponClassMap, ArtifactSetMap
 from core.batch.models import SimulationNode, SimulationMetrics, ModifierRule
 from core.factory.assembler import create_simulator_from_config
 from core.batch.generator import ConfigGenerator
@@ -23,8 +24,15 @@ class AppState:
 
         # 1. 基础元数据
         self.char_map = {}
+        self.weapon_map: Dict[str, List[Dict[str, Any]]] = {}
         self.target_map = {}
         self.artifact_sets = []
+        
+        # 已实装名单 (代码层面已注册)
+        self.implemented_chars = set()
+        self.implemented_weapons = set()
+        self.implemented_artifacts = set()
+        
         self._load_metadata()
 
         # 2. UI 流程状态
@@ -32,12 +40,12 @@ class AppState:
         self.visual_collapsed = False
         self.selection: Optional[Dict] = None
 
-        # 3. 核心配置数据 (工作台当前状态)
-        self.team: List[Optional[Dict]] = [None] * 4
-        self.targets: List[Dict] = [self._create_default_target()]
-        self.environment: Dict = {"weather": "Clear", "field": "Neutral"}
-        self.action_sequence: List[Dict] = []
-        self.selected_action_index: Optional[int] = None
+        # 3. 核心配置数据 (工作台当前状态 - 融入重构框架)
+        from ui.reboot.state import StrategicState
+        from ui.reboot.tactical_state import TacticalState
+        self.strategic_state = StrategicState()
+        self.tactical_state = TacticalState()
+        self.tactical_state.sequence.clear() # 清空 Mock 动作
 
         # 4. 分支宇宙状态
         self.root_config: Optional[Dict] = None  # 存储从工作台传入的基准配置
@@ -58,10 +66,23 @@ class AppState:
         try:
             char_list = self.repo.get_all_characters()
             self.char_map = {
-                c["name"]: {"id": c["id"], "element": c["element"], "type": c["type"]}
+                c["name"]: {"id": c["id"], "element": c["element"], "type": c["type"], "rarity": c.get("rarity", 5)}
                 for c in char_list
             }
+            
+            # 预加载所有武器并缓存
+            weapon_types = ["单手剑", "双手剑", "长柄武器", "法器", "弓"]
+            for wt in weapon_types:
+                self.weapon_map[wt] = self.repo.get_weapons_by_type(wt)
+                
             self.artifact_sets = self.repo.get_all_artifact_sets()
+
+            # 刷新已实装列表
+            self.implemented_chars = set(CharacterClassMap.keys())
+            self.implemented_weapons = set(WeaponClassMap.keys())
+            self.implemented_artifacts = set(ArtifactSetMap.keys())
+            
+            get_ui_logger().log_info(f"Implemented assets: {len(self.implemented_chars)} chars, {len(self.implemented_weapons)} weapons")
             self.target_map = {
                 "遗迹守卫": {
                     "level": 90,
@@ -191,92 +212,154 @@ class AppState:
     def launch_commander(self):
         if self.main_to_branch:
             config = self.export_config()
-            config["action_sequence_raw"] = self.action_sequence
+            # 导出配置中已包含 sequence_config，不再需要 raw 引用
             # 将初始化配置存为子进程的 root_config
             msg = {"type": "INIT_UNIVERSE", "config": config}
+
             self.main_to_branch.put(msg)
 
     async def apply_external_config(self, config: Dict):
         ctx = config.get("context_config", {})
-        self.team = ctx.get("team", [None] * 4)
-        while len(self.team) < 4:
-            self.team.append(None)
+        
+        # 恢复 team_data
+        loaded_team = ctx.get("team", [])
+        for i in range(4):
+            if i < len(loaded_team) and loaded_team[i] is not None:
+                member_cfg = loaded_team[i]
+                # 解析字典重组为 strategic_state.team_data 期望的格式
+                base_member = self.strategic_state._create_empty_member()
+                base_member.update({
+                    "id": member_cfg["character"]["id"],
+                    "name": member_cfg["character"]["name"],
+                    "element": member_cfg["character"]["element"],
+                    "level": str(member_cfg["character"].get("level", 90)),
+                    "type": member_cfg["character"].get("type", "Unknown")
+                })
+                base_member["weapon"].update({
+                    "id": member_cfg["weapon"].get("name"),
+                    "level": str(member_cfg["weapon"].get("level", 90)),
+                    "refinement": str(member_cfg["weapon"].get("refinement", 1))
+                })
+                # 解析圣遗物
+                for art in member_cfg.get("artifacts", []):
+                    slot = art["slot"].capitalize()
+                    if slot in base_member["artifacts"]:
+                        base_member["artifacts"][slot]["name"] = art["set_name"]
+                        base_member["artifacts"][slot]["main"] = art["main_stat"]
+                        base_member["artifacts"][slot]["main_val"] = str(art["value"])
+                        base_member["artifacts"][slot]["subs"] = [[s["key"], str(s["value"])] for s in art.get("sub_stats", [])]
+                
+                self.strategic_state.team_data[i] = base_member
+            else:
+                self.strategic_state.team_data[i] = self.strategic_state._create_empty_member()
 
-        # 槽位定义与默认值模板
-        slots = ["flower", "feather", "sands", "goblet", "circlet"]
-        def_arts = {
-            "flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []},
-            "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []},
-            "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []},
-            "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []},
-            "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []},
-        }
+        # 恢复 targets
+        loaded_targets = ctx.get("targets", [])
+        if loaded_targets:
+            self.strategic_state.targets = loaded_targets
+        else:
+            self.strategic_state.targets = [self.strategic_state._create_target_instance("target_A", "遗迹守卫")]
 
-        for member in self.team:
-            if member:
-                # 统一转换为字典格式并补全槽位
-                raw_arts = member.get("artifacts", {})
-                art_dict = {}
+        # 恢复 scene_data
+        if "environment" in ctx:
+            self.strategic_state.scene_data = ctx["environment"]
 
-                if isinstance(raw_arts, list):
-                    # 从列表转换
-                    for art in raw_arts:
-                        art_dict[art["slot"]] = art
-                elif isinstance(raw_arts, dict):
-                    # 保留现有字典
-                    art_dict = raw_arts
+        # 恢复 tactical 序列
+        loaded_seq = config.get("sequence_config", [])
+        self.tactical_state.sequence.clear()
+        
+        for act in loaded_seq:
+            from ui.reboot.tactical_state import ActionUnit
+            
+            # reverse mapping for char_name to char_id
+            char_id = "unknown"
+            for m in self.strategic_state.team_data:
+                if m.get("name") == act["character_name"]:
+                    char_id = m.get("id")
+                    break
+                    
+            unit = ActionUnit(
+                char_id=char_id,
+                action_type=act["action_key"]
+            )
+            unit.params = act.get("params", {})
+            self.tactical_state.add_action(unit)
 
-                # 补全缺失槽位
-                for s in slots:
-                    if s not in art_dict:
-                        art_dict[s] = def_arts[s].copy()
-
-                member["artifacts"] = art_dict
-
-        self.targets = ctx.get("targets", [self._create_default_target()])
-        self.environment = ctx.get("environment", {"weather": "Clear", "field": "Neutral"})
-        self.action_sequence = config.get("action_sequence_raw", [])
         self.selection = None
         self.refresh()
-        get_ui_logger().log_info("External configuration applied to Workbench (with artifact slot completion).")
+        get_ui_logger().log_info("External configuration applied to Reboot Workbench.")
 
     # --- 运行逻辑 ---
 
     def export_config(self) -> Dict[str, Any]:
         team_cfg = []
-        for member in self.team:
-            if member is None:
+        for member in self.strategic_state.team_data:
+            if member.get("id") is None:
                 continue
             arts_list = []
             for slot, data in member["artifacts"].items():
-                if data["set"] != "未装备":
-                    # 按照 TeamFactory._apply_artifacts 的预期进行重命名
+                if data["name"] and data["name"] != "未装备":
                     arts_list.append(
                         {
-                            "slot": slot,
-                            "set_name": data["set"],
+                            "slot": slot.lower(),
+                            "set_name": data["name"],
                             "main_stat": data["main"],
-                            "value": data["value"],
-                            "sub_stats": [{"key": s["key"], "value": s["value"]} for s in data.get("subs", [])],
+                            "value": float(data.get("main_val", 0)),
+                            "sub_stats": [{"key": s[0], "value": float(s[1])} for s in data.get("subs", []) if len(s) >= 2],
                         }
                     )
 
             team_cfg.append(
                 {
-                    "character": member["character"],
-                    "weapon": member["weapon"],
+                    "character": {
+                        "id": member["id"],
+                        "name": member["name"],
+                        "element": member["element"],
+                        "level": int(member["level"]),
+                        "constellation": int(member.get("constellation", 0)),
+                        "talents": [int(member['talents']['na']), int(member['talents']['e']), int(member['talents']['q'])],
+                        "type": member.get("type", "Unknown")
+                    },
+                    "weapon": {
+                        "name": member["weapon"]["id"] if member["weapon"]["id"] else "未装备",
+                        "level": int(member["weapon"].get("level", 90)),
+                        "refinement": int(member["weapon"].get("refinement", 1))
+                    },
                     "artifacts": arts_list,
-                    "position": member["position"],
+                    "position": {"x": 0, "z": -2},
                 }
             )
 
+        target_cfg = []
+        for t in self.strategic_state.targets:
+            pos = self.strategic_state.spatial_data["target_positions"].get(t["id"], {"x": 0.0, "z": 5.0})
+            target_cfg.append({
+                "id": t["id"],
+                "name": t["name"],
+                "level": int(t.get("level", 90)),
+                "position": pos,
+                "resists": {k: float(v) for k, v in t["resists"].items()},
+            })
+
         seq_cfg = []
-        for act in self.action_sequence:
+        for act in self.tactical_state.sequence:
+            # 解析对应角色的名字
+            char_name = act.char_id
+            for member in self.strategic_state.team_data:
+                if member.get("id") == act.char_id:
+                    char_name = member["name"]
+                    break
+            
             seq_cfg.append(
-                {"character_name": act["char_name"], "action_key": act["action_id"], "params": act.get("params", {})}
+                {
+                    "character_name": char_name,
+                    "action_key": act.action_type,
+                    "params": act.params
+                }
             )
+            
         return {
-            "context_config": {"team": team_cfg, "targets": self.targets, "environment": self.environment},
+            "context_config": {"team": team_cfg, "targets": target_cfg, "environment": self.strategic_state.scene_data},
             "sequence_config": seq_cfg,
         }
 
@@ -361,15 +444,85 @@ class AppState:
             self.is_simulating = False
             self.refresh()
 
-    def save_config(self, filename: str):
+    def save_config(self, filename: str, data: Dict = None):
+        """保存配置到文件。如果未提供 data，则导出当前全量配置。"""
         if not filename.endswith(".json"):
             filename += ".json"
-        os.makedirs("data/configs", exist_ok=True)
-        config_data = self.export_config()
-        config_data["action_sequence_raw"] = self.action_sequence
-        with open(os.path.join("data/configs", filename), "w", encoding="utf-8") as f:
+        
+        # 如果是绝对路径则直接使用，否则存入默认目录
+        if os.path.isabs(filename):
+            save_path = filename
+        else:
+            os.makedirs("data/configs", exist_ok=True)
+            save_path = os.path.join("data/configs", filename)
+            
+        config_data = data if data is not None else self.export_config()
+        with open(save_path, "w", encoding="utf-8") as f:
             json.dump(config_data, f, ensure_ascii=False, indent=4)
-        get_ui_logger().log_info(f"Config saved to {filename}")
+        get_ui_logger().log_info(f"Config saved to {save_path}")
+
+    def export_character_template(self, index: int) -> Dict[str, Any]:
+        """将指定槽位的角色完整数据导出为模版"""
+        member = self.strategic_state.team_data[index]
+        if member.get("id") is None:
+            return {}
+            
+        return {
+            "version": "V2.4",
+            "type": "character_template",
+            "name": member.get("name"),
+            "data": {
+                "base": {
+                    "id": member.get("id"),
+                    "name": member.get("name"),
+                    "level": member.get("level"),
+                    "constellation": member.get("constellation"),
+                    "talents": member.get("talents"),
+                    "element": member.get("element"),
+                    "type": member.get("type")
+                },
+                "weapon": member.get("weapon"),
+                "artifacts": member.get("artifacts")
+            }
+        }
+
+    def apply_character_template(self, index: int, template: Dict[str, Any]):
+        """从模版应用角色配置到指定槽位"""
+        if template.get("type") != "character_template":
+            return
+            
+        data = template.get("data", {})
+        base = data.get("base", {})
+        
+        # 获取目标槽位并覆盖数据
+        target = self.strategic_state.team_data[index]
+        target.update(base)
+        target["weapon"] = data.get("weapon", {"id": None, "level": "90", "refinement": "1"})
+        target["artifacts"] = data.get("artifacts", {s: {"id": None, "main_stat": None, "sub_stats": []} for s in ["Flower", "Plume", "Sands", "Goblet", "Circlet"]})
+        
+        # 触发 UI 同步更新可通过 refresh 逻辑
+        get_ui_logger().log_info(f"Template applied to slot {index}: {base.get('name')}")
+
+    def export_artifact_set(self, index: int) -> Dict[str, Any]:
+        """导出指定槽位的圣遗物五件套"""
+        member = self.strategic_state.team_data[index]
+        return {
+            "version": "V2.4",
+            "type": "artifact_set",
+            "char_name": member.get("name"),
+            "artifacts": member.get("artifacts")
+        }
+
+    def apply_artifact_set(self, index: int, template: Dict[str, Any]):
+        """应用圣遗物五件套"""
+        if template.get("type") != "artifact_set":
+            return
+            
+        target = self.strategic_state.team_data[index]
+        target["artifacts"] = template.get("artifacts", {})
+        get_ui_logger().log_info(f"Artifact set applied to slot {index}")
+
+
 
     async def load_config(self, filename: str):
         path = os.path.join("data/configs", filename)
@@ -443,79 +596,6 @@ class AppState:
 
     def list_configs(self):
         return [f for f in os.listdir("data/configs") if f.endswith(".json")] if os.path.exists("data/configs") else []
-
-    def select_overview(self):
-        self.selection = None
-        self.refresh()
-
-    def select_character(self, index: int):
-        char_data = self.team[index]
-        self.selection = (
-            {"type": "character", "index": index, "data": char_data} if char_data else {"type": "empty", "index": index}
-        )
-        self.refresh()
-
-    def select_target(self, index: int):
-        if 0 <= index < len(self.targets):
-            self.selection = {"type": "target", "index": index, "data": self.targets[index]}
-        self.refresh()
-
-    def select_environment(self):
-        self.selection = {"type": "env", "data": self.environment}
-        self.refresh()
-
-    def _create_default_target(self):
-        return {
-            "id": "target_A",
-            "name": "遗迹守卫",
-            "level": 90,
-            "position": {"x": 0, "z": 5},
-            "resists": {"火": 10, "水": 10, "雷": 10, "草": 10, "冰": 10, "岩": 10, "风": 10, "物理": 10},
-        }
-
-    def _create_placeholder_char(self):
-        return {
-            "position": {"x": 0, "z": -2},
-            "character": {"id": 0, "name": "待选择", "element": "物理", "level": 90, "constellation": 0, "talents": [1, 1, 1], "type": "单手剑"},
-            "weapon": {"name": "无锋剑", "level": 1, "refinement": 1},
-            "artifacts": {
-                "flower": {"set": "未装备", "main": "生命值", "value": 0.0, "subs": []},
-                "feather": {"set": "未装备", "main": "攻击力", "value": 0.0, "subs": []},
-                "sands": {"set": "未装备", "main": "攻击力%", "value": 0.0, "subs": []},
-                "goblet": {"set": "未装备", "main": "属性伤害%", "value": 0.0, "subs": []},
-                "circlet": {"set": "未装备", "main": "暴击率%", "value": 0.0, "subs": []},
-            },
-        }
-
-    def add_character(self, name: str):
-        if self.selection and self.selection["type"] == "empty":
-            idx = self.selection["index"]
-            char_info = self.char_map.get(name)
-            if char_info:
-                new_m = self._create_placeholder_char()
-                new_m["character"].update(
-                    {"id": char_info["id"], "name": name, "element": char_info["element"], "type": char_info["type"]}
-                )
-                self.team[idx] = new_m
-                self.select_character(idx)
-
-    def remove_character(self, index: int):
-        self.team[index] = None
-        self.select_overview()
-
-    def add_target(self):
-        new_t = self._create_default_target()
-        new_t["id"] = f"target_{len(self.targets)}"
-        self.targets.append(new_t)
-        self.select_target(len(self.targets) - 1)
-
-    def remove_target(self, index: int):
-        if 0 <= index < len(self.targets):
-            self.targets.pop(index)
-            self.select_overview()
-
-    def get_weapons(self, t):
-        return self.repo.get_weapons_by_type(t)
 
     def save_character_template(self, d, n):
         pass

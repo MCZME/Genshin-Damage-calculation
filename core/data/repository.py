@@ -21,12 +21,12 @@ class DataRepository(ABC):
 
     @abstractmethod
     def get_all_characters(self) -> List[Dict[str, Any]]:
-        """获取所有可用角色的简要信息 (ID, Name, Element, Type)"""
+        """获取所有可用角色的简要信息 (ID, Name, Element, Type, Rarity)"""
         pass
 
     @abstractmethod
-    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
-        """获取特定类型的所有武器名称"""
+    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
+        """获取特定类型的所有武器名称与稀有度"""
         pass
 
     @abstractmethod
@@ -50,19 +50,19 @@ class MySQLDataRepository(DataRepository):
         self.level_cols = ["1", "20", "40", "50", "60", "70", "80", "90", "95", "100"]
 
     def get_all_characters(self) -> List[Dict[str, Any]]:
-        """获取所有角色的 ID, Name, Element, Type"""
-        rows = self.db.execute_query("SELECT ID, Name, Element, Type FROM `character`")
+        """获取所有角色的 ID, Name, Element, Type, Rarity"""
+        rows = self.db.execute_query("SELECT ID, Name, Element, Type, Rarity FROM `character`")
         return [
-            {"id": row[0], "name": row[1], "element": row[2], "type": row[3]}
+            {"id": row[0], "name": row[1], "element": row[2], "type": row[3], "rarity": int(row[4])}
             for row in rows
         ]
 
-    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
-        """获取特定类型的所有武器名称"""
+    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
+        """获取特定类型的所有武器名称与稀有度"""
         rows = self.db.execute_query(
-            f"SELECT Name FROM `weapon` WHERE Type = '{weapon_type}'"
+            f"SELECT Name, Rarity FROM `weapon` WHERE Type = '{weapon_type}'"
         )
-        return [row[0] for row in rows]
+        return [{"name": row[0], "rarity": int(row[1])} for row in rows]
 
     def get_all_artifact_sets(self) -> List[str]:
         """从数据库获取所有圣遗物套装名称"""
@@ -174,7 +174,7 @@ class MockDataRepository(DataRepository):
     def get_all_characters(self) -> List[Dict[str, Any]]:
         return []
 
-    def get_weapons_by_type(self, weapon_type: str) -> List[str]:
+    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
         return []
 
     def get_all_artifact_sets(self) -> List[str]:

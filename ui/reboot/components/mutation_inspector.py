@@ -124,7 +124,7 @@ class MutationInspector(ft.Container):
                         color=GenshinTheme.ON_SURFACE,
                     ),
                     padding=ft.Padding(0, 10, 0, 10),
-                    alignment=ft.alignment.Alignment.CENTER,
+                    alignment=ft.Alignment.CENTER,
                 )
             )
             btn_text = "添加变异规则"
