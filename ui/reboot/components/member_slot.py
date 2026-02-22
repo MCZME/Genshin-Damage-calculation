@@ -1,5 +1,6 @@
 import flet as ft
 from ui.theme import GenshinTheme
+from ui.services.ui_formatter import UIFormatter
 
 class MemberSlot(ft.Container):
     """
@@ -52,7 +53,7 @@ class MemberSlot(ft.Container):
         weapon_id = weapon.get('id')
         weapon_text = weapon_id.upper() if weapon_id else "未装备"
         weapon_ref = weapon.get('refinement', '1')
-        artifact_sets = self._get_artifact_sets(self.member)
+        artifact_sets = UIFormatter.format_artifact_sets(self.member)
 
         # ── 视觉参数 ──────────────────────────────────
         bg_opacity   = 0.28 if self.is_selected else 0.10
@@ -183,21 +184,6 @@ class MemberSlot(ft.Container):
         e.control.page = self.page # 确保 e 有 page 属性（Flet 事件冒泡处理）
         if self.on_remove_callback:
             self.on_remove_callback(self.index)
-
-    @staticmethod
-    def _get_artifact_sets(member: dict) -> str:
-        artifacts = member.get('artifacts', {})
-        counts: dict[str, int] = {}
-        for slot_data in artifacts.values():
-            name = slot_data.get('name', '').strip()
-            if name:
-                counts[name] = counts.get(name, 0) + 1
-
-        sets = sorted([(n, c) for n, c in counts.items() if c >= 2], key=lambda x: -x[1])
-        if not sets:
-            return ""
-        parts = [f"{n[:4]}·{c}件" for n, c in sets[:2]]
-        return "  ".join(parts)
 
     def _build_mini_talent_chip(self, label: str, val):
         return ft.Container(

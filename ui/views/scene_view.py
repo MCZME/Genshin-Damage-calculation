@@ -1,6 +1,6 @@
 import flet as ft
-import math
 from ui.theme import GenshinTheme
+from ui.services.ui_formatter import UIFormatter
 from ui.reboot.components.stat_input import StatInputField
 from ui.reboot.components.asset_grid import AssetGrid
 from ui.reboot.components.spatial_radar import SpatialRadar
@@ -111,7 +111,7 @@ class SceneView(ft.Container):
             ft.Row([
                 ft.Chip(label=ft.Text("重置位置", size=10), on_click=lambda _: self._handle_reset_pos()),
                 ft.Chip(label=ft.Text("标准抗性", size=10), on_click=lambda _: self._handle_reset_resists()),
-                ft.Text(f"当前直线距离: {dist:.1f}m", size=11, italic=True, color=ft.Colors.PRIMARY)
+                ft.Text(f"当前直线距离: {UIFormatter.format_distance(pos)}", size=11, italic=True, color=ft.Colors.PRIMARY)
             ], spacing=10)
         ], expand=True, spacing=15)
 
@@ -137,11 +137,6 @@ class SceneView(ft.Container):
             "火": "Pyro", "水": "Hydro", "草": "Dendro", "雷": "Electro",
             "风": "Anemo", "冰": "Cryo", "岩": "Geo", "物理": "Neutral"
         }
-        elem_icons = {
-            "火": ft.Icons.WHATSHOT, "水": ft.Icons.WATER_DROP, "草": ft.Icons.GRASS, 
-            "雷": ft.Icons.FLASH_ON, "风": ft.Icons.AIR, "冰": ft.Icons.AC_UNIT, 
-            "岩": ft.Icons.LANDSCAPE, "物理": ft.Icons.SHIELD
-        }
         
         res_row = ft.Row(
             controls=[
@@ -151,7 +146,7 @@ class SceneView(ft.Container):
                     suffix="%", 
                     width=140,
                     element=elem_map.get(k, "Neutral"),
-                    icon=elem_icons.get(k),
+                    icon=UIFormatter.get_element_icon(elem_map.get(k, "Neutral")),
                     on_change=lambda v, key=k: self._handle_res_change(key, v)
                 ) for k in res_keys
             ],

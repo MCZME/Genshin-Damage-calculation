@@ -1,5 +1,6 @@
 import flet as ft
 from ui.theme import GenshinTheme
+from ui.services.ui_formatter import UIFormatter
 
 class TacticalActionBtn(ft.Container):
     """
@@ -18,8 +19,8 @@ class TacticalActionBtn(ft.Container):
     def _build_ui(self):
         elem_color = GenshinTheme.get_element_color(self.element)
         
-        # 简化显示标签 (例如: 普通攻击 -> 普攻)
-        short_label = self.label.replace("普通攻击", "普攻").replace("元素战技", "战技").replace("元素爆发", "爆发")
+        # 简化显示标签
+        short_label = UIFormatter.shorten_action_label(self.label)
         
         self.content = ft.Text(short_label, size=12, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER)
         self.width = 100
