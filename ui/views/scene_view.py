@@ -77,7 +77,6 @@ class SceneView(ft.Container):
         target = self.state.current_target
         target_id = target['id']
         pos = self.state.spatial_data['target_positions'].get(target_id, {"x": 0.0, "z": 0.0})
-        dist = math.sqrt(pos['x']**2 + pos['z']**2)
 
         # --- A. 上半区：一体化概览面板 ---
         input_columns = ft.Column([
@@ -115,7 +114,7 @@ class SceneView(ft.Container):
             ], spacing=10)
         ], expand=True, spacing=15)
 
-        # 空间雷达 (原子组件)
+        # 空间雷达
         self.radar = SpatialRadar(
             self.state.targets, 
             self.state.spatial_data['target_positions'], 
@@ -172,39 +171,40 @@ class SceneView(ft.Container):
     # --- 逻辑处理 ---
     def _handle_target_select(self, index):
         self.state.selected_target_index = index
-        self._refresh_all()
+        self.app_state.events.notify("scene")
 
     def _handle_remove_target(self, index):
         self.state.remove_target(index)
-        self._refresh_all()
+        self.app_state.events.notify("scene")
 
     def _handle_target_name_change(self, new_name):
         self.state.current_target['name'] = new_name
-        self._refresh_sidebar()
+        self.app_state.events.notify("scene")
 
     def _handle_target_stat_change(self, key, val):
         self.state.current_target[key] = val
-        self._refresh_sidebar()
+        self.app_state.events.notify("scene")
 
     def _handle_res_change(self, key, val):
         self.state.current_target['resists'][key] = val
+        # 抗性变动仅更新内部数据，不触发全量重绘以提升性能
 
     def _handle_pos_change(self, axis, val):
         try:
             target_id = self.state.current_target['id']
             self.state.spatial_data['target_positions'][target_id][axis] = float(val or 0)
-            self._refresh_all()
+            self.app_state.events.notify("scene")
         except: pass
 
     def _handle_reset_pos(self):
         target_id = self.state.current_target['id']
         self.state.spatial_data['target_positions'][target_id] = {"x": 0.0, "z": 5.0}
-        self._refresh_all()
+        self.app_state.events.notify("scene")
 
     def _handle_reset_resists(self):
         for k in self.state.current_target['resists']:
             self.state.current_target['resists'][k] = "10"
-        self._refresh_all() 
+        self.app_state.events.notify("scene")
 
     def _refresh_all(self):
         self.workbench_content.controls = self._build_workbench_controls()
@@ -234,7 +234,7 @@ class SceneView(ft.Container):
         def on_monster_select(mid):
             self.state.add_target(mid)
             self.page.pop_dialog()
-            self._refresh_all()
+            self.app_state.events.notify("scene")
             
         picker_grid = AssetGrid(mock_monsters, on_select=on_monster_select, allow_filter_type=False, allow_filter_element=False)
         self.page.show_dialog(ft.AlertDialog(

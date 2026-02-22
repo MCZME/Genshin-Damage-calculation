@@ -17,13 +17,7 @@ class UniverseView(ft.Container):
         self._setup_state_bridge()
 
     def _setup_state_bridge(self):
-        original_refresh = self.state.refresh
-
-        def enhanced_refresh():
-            self.refresh()
-            original_refresh()
-
-        self.state.refresh = enhanced_refresh
+        self.state.events.subscribe("global", self.refresh)
 
     def _build_ui(self):
         self.canvas = UniverseCanvas(self.state)

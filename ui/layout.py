@@ -88,15 +88,13 @@ class AppLayout:
             self.state.refresh()
 
     def _setup_state_bridge(self):
-        original_refresh = self.state.refresh
-
-        def enhanced_refresh():
-            # 1. 物理布局同步
+        # 1. 订阅物理布局变更 (如侧边栏折叠)
+        def update_layout():
             is_l = self.state.sidebar_collapsed
             is_r = self.state.visual_collapsed
             self.left_pane_container.width = 80 if is_l else 300
             self.right_pane_container.width = 60 if is_r else 380
-
+            
             try:
                 self.left_pane_container.content.content.padding = (
                     ft.padding.all(12) if is_l else ft.padding.all(24)
@@ -104,36 +102,43 @@ class AppLayout:
                 self.right_pane_container.content.content.padding = (
                     ft.padding.all(8) if is_r else ft.padding.all(24)
                 )
-            except:
-                pass
+            except: pass
+            self.page.update()
 
-            # 2. 仿真进度同步
+        # 2. 订阅仿真进度变更
+        def update_simulation():
             try:
                 self.status_text.value = self.state.sim_status
                 self.progress_bar.value = self.state.sim_progress
                 self.progress_bar.visible = self.state.is_simulating
-            except:
-                pass
+                self.page.update()
+            except: pass
 
-            # 3. 内部组件刷新
-            try:
-                if self.current_phase == "strategic":
-                    self.strategic_reboot.update()
-                elif self.current_phase == "scene":
-                    self.scene_reboot.update()
-                elif self.current_phase == "tactical":
-                    # 战术视图可能需要重新构建指令面板 (如果编队变了)
-                    self.tactical_reboot._build_ui()
-                    self.tactical_reboot.update()
-                elif self.current_phase == "review":
-                    self.analysis_reboot.refresh_data()
-            except Exception:
-                # 忽略组件未挂载时的更新尝试
-                pass
+        # 3. 订阅各业务模块变更
+        def on_strategic_change():
+            if self.current_phase == "strategic":
+                self.strategic_reboot._refresh_all()
 
-            original_refresh()
+        def on_scene_change():
+            if self.current_phase == "scene":
+                self.scene_reboot._refresh_all()
 
-        self.state.refresh = enhanced_refresh
+        def on_tactical_change():
+            if self.current_phase == "tactical":
+                self.tactical_reboot._refresh_all()
+
+        def on_simulation_finished():
+            # 当仿真状态变为 IDLE 且有 session_id 时，触发分析页加载
+            if self.state.sim_status.startswith("FINISHED"):
+                self.analysis_reboot.refresh_data()
+
+        # 执行订阅
+        self.state.events.subscribe("global", update_layout)
+        self.state.events.subscribe("simulation", update_simulation)
+        self.state.events.subscribe("simulation", on_simulation_finished)
+        self.state.events.subscribe("strategic", on_strategic_change)
+        self.state.events.subscribe("scene", on_scene_change)
+        self.state.events.subscribe("tactical", on_tactical_change)
 
     def handle_nav_click(self, phase_id):
         if self.current_phase == phase_id:
