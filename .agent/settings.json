@@ -7,6 +7,10 @@
   "general": {
     "sessionRetention": {
       "enabled": true
-    }
+    },
+    "defaultApprovalMode": "plan"
+  },
+  "experimental": {
+    "plan": true
   }
 }
