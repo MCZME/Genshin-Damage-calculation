@@ -1,8 +1,8 @@
 import flet as ft
 from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
-from ui.components.universe_canvas import UniverseCanvas
-from ui.components.mutation_inspector import MutationInspector
+from ui.reboot.components.universe_canvas import UniverseCanvas
+from ui.reboot.components.mutation_inspector import MutationInspector
 
 
 class UniverseView(ft.Container):

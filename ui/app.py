@@ -3,7 +3,9 @@ import threading
 import time
 from ui.state import AppState
 from ui.layout import AppLayout
+from ui.services.persistence_manager import PersistenceManager
 from core.logger import get_ui_logger
+
 
 
 def main(page: ft.Page, main_to_branch, branch_to_main):
@@ -13,7 +15,13 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
     state.main_to_branch = main_to_branch
     state.branch_to_main = branch_to_main
 
+    # 1.1 初始化持久化服务
+    persistence = PersistenceManager(page, state)
+    # 将服务注入 Page，方便 View 一键调用
+    setattr(page, "persistence", persistence)
+
     get_ui_logger().log_info("Genshin Workbench main window initialized.")
+
 
     # 2. 监听来自分支宇宙的“回传”指令
     def result_listener():
