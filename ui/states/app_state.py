@@ -47,8 +47,8 @@ class AppState:
         self.selection: Optional[Dict] = None
 
         # 3. 核心配置数据 (工作台当前状态 - 融入重构框架)
-        from ui.reboot.state import StrategicState
-        from ui.reboot.tactical_state import TacticalState
+        from ui.states.strategic_state import StrategicState
+        from ui.states.tactical_state import TacticalState
         self.strategic_state = StrategicState()
         self.tactical_state = TacticalState()
         self.tactical_state.sequence.clear() # 清空 Mock 动作
@@ -282,7 +282,7 @@ class AppState:
         self.tactical_state.sequence.clear()
         
         for act in loaded_seq:
-            from ui.reboot.tactical_state import ActionUnit
+            from ui.states.tactical_state import ActionUnit
             
             # reverse mapping for char_name to char_id
             char_id = "unknown"

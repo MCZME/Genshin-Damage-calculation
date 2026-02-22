@@ -1,6 +1,6 @@
 import flet as ft
 from ui.theme import GenshinTheme
-from ui.reboot.components.stat_input import StatInputField
+from ui.components.stat_input import StatInputField
 from core.registry import ArtifactSetMap
 from core.data.repository import MySQLDataRepository
 

@@ -3,7 +3,7 @@ import threading
 import time
 from ui.theme import GenshinTheme
 from ui.views.universe_view import UniverseView
-from ui.state import AppState
+from ui.states.app_state import AppState
 
 
 def start_universe_process(main_to_branch, branch_to_main):

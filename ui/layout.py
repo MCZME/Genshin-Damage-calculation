@@ -1,5 +1,5 @@
 import flet as ft
-from ui.state import AppState
+from ui.states.app_state import AppState
 from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
 from ui.views.analysis_view import AnalysisView

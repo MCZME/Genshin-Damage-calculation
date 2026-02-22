@@ -1,11 +1,11 @@
 import flet as ft
 from ui.theme import GenshinTheme
 from ui.services.ui_formatter import UIFormatter
-from ui.reboot.components.stat_input import StatInputField
-from ui.reboot.components.asset_grid import AssetGrid
-from ui.reboot.components.spatial_radar import SpatialRadar
-from ui.reboot.components.target_sidebar_slot import TargetSidebarSlot
-from ui.state import AppState
+from ui.components.stat_input import StatInputField
+from ui.components.asset_grid import AssetGrid
+from ui.components.spatial_radar import SpatialRadar
+from ui.components.target_sidebar_slot import TargetSidebarSlot
+from ui.states.app_state import AppState
 
 class SceneView(ft.Container):
     """
