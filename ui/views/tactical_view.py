@@ -301,19 +301,19 @@ class TacticalView(ft.Container):
     def _handle_member_select(self, index):
         self.active_member_index = index
         self._discover_team_metadata()
-        self._refresh_all()
+        self.app_state.events.notify("tactical")
 
     def _handle_add_action(self, char_id, action_type):
         new_unit = ActionUnit(char_id, action_type)
         self.state.add_action(new_unit)
         self.state.selected_index = len(self.state.sequence) - 1
-        self._refresh_all()
+        self.app_state.events.notify("tactical")
 
     def _handle_delete_action(self, index):
         self.state.remove_action(index)
         if self.state.selected_index >= len(self.state.sequence):
             self.state.selected_index = len(self.state.sequence) - 1
-        self._refresh_all()
+        self.app_state.events.notify("tactical")
 
     def _handle_click_action(self, index):
         self.state.selected_index = index
@@ -322,7 +322,7 @@ class TacticalView(ft.Container):
             if m.get("id") == unit.char_id:
                 self.active_member_index = i
                 break
-        self._refresh_all()
+        self.app_state.events.notify("tactical")
 
     def _handle_move_action(self, direction):
         if self.state.selected_index < 0: return
@@ -331,11 +331,12 @@ class TacticalView(ft.Container):
         if 0 <= new_idx < len(self.state.sequence):
             self.state.move_action(old_idx, new_idx)
             self.state.selected_index = new_idx
-            self._refresh_all()
+            self.app_state.events.notify("tactical")
 
     def _handle_param_change(self, key, val):
         if self.state.selected_action:
             self.state.selected_action.params[key] = val
+            # 内部刷新 Inspector 以反映数值变动
             self._refresh_inspector_only()
 
     def _refresh_inspector_only(self):
@@ -347,7 +348,7 @@ class TacticalView(ft.Container):
     def _handle_clear_all(self):
         self.state.sequence.clear()
         self.state.selected_index = -1
-        self._refresh_all()
+        self.app_state.events.notify("tactical")
 
     def _refresh_all(self):
         self.workbench_content.controls = self._build_workbench_controls()

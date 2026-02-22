@@ -11,6 +11,9 @@ from core.factory.assembler import create_simulator_from_config
 from core.batch.generator import ConfigGenerator
 
 
+from ui.services.event_bus import UIEventBus
+
+
 class AppState:
     """
     工作台全量状态管理器 (V3.1 - 规则派生架构)。
@@ -21,6 +24,9 @@ class AppState:
         self.main_to_branch = None
         self.branch_to_main = None
         self.repo = MySQLDataRepository()
+        
+        # 0. UI 事件总线 (解耦后的事件管理)
+        self.events = UIEventBus()
 
         # 1. 基础元数据
         self.char_map = {}
@@ -62,7 +68,14 @@ class AppState:
     def register_page(self, page: ft.Page):
         self.page = page
 
-    def _load_metadata(self):
+    def refresh(self):
+        """传统的全局刷新快捷方式"""
+        self.events.notify("global")
+        if self.page:
+            try:
+                self.page.update()
+            except Exception:
+                pass
         try:
             char_list = self.repo.get_all_characters()
             self.char_map = {
@@ -111,13 +124,13 @@ class AppState:
 
     def select_node(self, node: Optional[SimulationNode]):
         self.selected_node = node
-        self.refresh()
+        self.events.notify("global")
 
     def add_branch(self, parent_node: SimulationNode, name: str = "新分支"):
         new_node = SimulationNode(id=f"node_{os.urandom(4).hex()}", name=name, rule=None)
         parent_node.children.append(new_node)
         self.selected_node = new_node
-        self.refresh()
+        self.events.notify("global")
 
     def apply_range_to_node(
         self, target_node: SimulationNode, target_path: list, start: float, end: float, step: float, label: str
@@ -151,7 +164,7 @@ class AppState:
             get_ui_logger().log_error(f"Range Generation Error: {e}")
 
         self.selected_node = target_node
-        self.refresh()
+        self.events.notify("global")
 
     def remove_node(self, node_id: str):
         def _remove(current):
@@ -181,7 +194,7 @@ class AppState:
         if node_id != "root" and not _is_managed(node_id):
             if _remove(self.universe_root):
                 self.selected_node = self.universe_root
-                self.refresh()
+                self.events.notify("global")
 
     def update_node(self, node_id: str, name: str = None, rule: ModifierRule = None):
         def _find(current):
@@ -199,7 +212,7 @@ class AppState:
                 node.name = name
             if rule is not None:
                 node.rule = rule
-            self.refresh()
+            self.events.notify("global")
 
     def get_selected_node_config(self) -> Optional[Dict]:
         """按需实时解析当前选中节点的配置"""
@@ -286,7 +299,9 @@ class AppState:
             self.tactical_state.add_action(unit)
 
         self.selection = None
-        self.refresh()
+        self.events.notify("strategic")
+        self.events.notify("tactical")
+        self.events.notify("scene")
         get_ui_logger().log_info("External configuration applied to Reboot Workbench.")
 
     # --- 运行逻辑 ---
@@ -326,7 +341,7 @@ class AppState:
                         "refinement": int(member["weapon"].get("refinement", 1))
                     },
                     "artifacts": arts_list,
-                    "position": {"x": 0, "z": -2},
+                    "position": {"x": 0, "z": 0},
                 }
             )
 
@@ -368,7 +383,7 @@ class AppState:
             return
         self.is_simulating = True
         self.sim_status = "RUNNING..."
-        self.refresh()
+        self.events.notify("simulation")
         
         from core.persistence.database import ResultDatabase
         import time
@@ -407,7 +422,7 @@ class AppState:
             get_ui_logger().log_error(f"Single Simulation Error: {e}\n{traceback.format_exc()}")
         finally:
             self.is_simulating = False
-            self.refresh()
+            self.events.notify("simulation")
 
     async def run_batch_simulation(self):
         if self.is_simulating:
@@ -417,7 +432,7 @@ class AppState:
 
         self.is_simulating = True
         self.sim_status = "BATCH PREPARING..."
-        self.refresh()
+        self.events.notify("simulation")
         try:
             from core.batch.runner import BatchRunner
 
@@ -429,7 +444,7 @@ class AppState:
             def update_progress(c, t):
                 self.sim_progress = c / t
                 self.sim_status = f"BATCH RUNNING ({c}/{t})..."
-                self.refresh()
+                self.events.notify("simulation")
 
             summary = await runner.run_batch(configs, on_progress=update_progress)
             self.sim_status = f"BATCH FINISHED | AVG: {int(summary.avg_dps)}"
@@ -442,7 +457,7 @@ class AppState:
             get_ui_logger().log_error(f"Batch Simulation Error: {e}\n{traceback.format_exc()}")
         finally:
             self.is_simulating = False
-            self.refresh()
+            self.events.notify("simulation")
 
     def save_config(self, filename: str, data: Dict = None):
         """保存配置到文件。如果未提供 data，则导出当前全量配置。"""

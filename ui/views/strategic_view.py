@@ -231,11 +231,11 @@ class StrategicView(ft.Container):
 
     def _handle_add_member(self, index: int, char_data: dict):
         self.state.add_member(index, char_data)
-        self._refresh_all()
+        self.app_state.events.notify("strategic")
 
     def _handle_remove_member(self, index: int):
         self.state.remove_member(index)
-        self._refresh_all()
+        self.app_state.events.notify("strategic")
 
     def _refresh_all(self):
         """完全同步的状态刷新"""
@@ -266,24 +266,22 @@ class StrategicView(ft.Container):
 
     def _handle_stat_change(self, key: str, new_val: str):
         self.state.current_member[key] = new_val
-        self._refresh_current_slot()
+        self.app_state.events.notify("strategic")
 
     def _handle_talent_change(self, key: str, new_val: str):
+        """处理天赋等级变更"""
         self.state.current_member['talents'][key] = new_val
-        self._refresh_current_slot()
+        self.app_state.events.notify("strategic")
 
     def _handle_weapon_change(self, weapon_data: dict):
+        # 更新当前成员的武器，触发整体刷新
         self.state.current_member['weapon']['id'] = weapon_data['id']
-        self._refresh_all()
+        self.app_state.events.notify("strategic")
 
     def _handle_weapon_stat_change(self, key: str, val: str):
+        """处理武器等级/精炼变更，同步刷新侧边栏"""
         self.state.current_member['weapon'][key] = val
-        self._refresh_current_slot()
-
-    def _refresh_current_slot(self):
-        """只重建当前选中槽位"""
-        idx = self.state.current_index
-        self.slot_controls[idx].update_state(self.state.team_data[idx], True)
+        self.app_state.events.notify("strategic")
 
     def _show_weapon_picker(self):
         """弹出武器库选择器"""
@@ -325,7 +323,7 @@ class StrategicView(ft.Container):
 
     async def _handle_config_load_click(self, e):
         if await self.page.persistence.load_config():
-            self._refresh_all()
+            self.app_state.events.notify("strategic")
 
     async def _handle_config_save_click(self, e):
         await self.page.persistence.save_config()
@@ -335,11 +333,11 @@ class StrategicView(ft.Container):
 
     async def _handle_char_load_click(self, e):
         if await self.page.persistence.load_character_template(self.state.current_index):
-            self._refresh_all()
+            self.app_state.events.notify("strategic")
 
     async def _handle_arti_save_click(self, e):
         await self.page.persistence.save_artifact_set(self.state.current_index)
 
     async def _handle_arti_load_click(self, e):
         if await self.page.persistence.load_artifact_set(self.state.current_index):
-            self._refresh_all()
+            self.app_state.events.notify("strategic")
