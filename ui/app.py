@@ -1,7 +1,7 @@
 import flet as ft
 import threading
 import time
-from ui.state import AppState
+from ui.states.app_state import AppState
 from ui.layout import AppLayout
 from ui.services.persistence_manager import PersistenceManager
 from core.logger import get_ui_logger

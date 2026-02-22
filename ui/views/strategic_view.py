@@ -1,11 +1,11 @@
 import flet as ft
 from ui.theme import GenshinTheme
-from ui.reboot.components.artifact_slot import ArtifactSlot
-from ui.reboot.components.property_slider import PropertySlider
-from ui.reboot.components.asset_grid import AssetGrid
-from ui.reboot.components.member_slot import MemberSlot
-from ui.reboot.components.weapon_card import WeaponCard
-from ui.state import AppState
+from ui.components.artifact_slot import ArtifactSlot
+from ui.components.property_slider import PropertySlider
+from ui.components.asset_grid import AssetGrid
+from ui.components.member_slot import MemberSlot
+from ui.components.weapon_card import WeaponCard
+from ui.states.app_state import AppState
 
 class StrategicView(ft.Container):
     """

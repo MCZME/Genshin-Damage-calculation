@@ -2,12 +2,12 @@ import flet as ft
 import asyncio
 from typing import Dict, Any, List
 from ui.theme import GenshinTheme
-from ui.reboot.state import StrategicState
-from ui.reboot.tactical_state import TacticalState, ActionUnit
-from ui.reboot.components.action_card import ActionCard
-from ui.reboot.components.tactical_action_btn import TacticalActionBtn
-from ui.reboot.components.tactical_member_slot import TacticalMemberSlot
-from ui.state import AppState
+from ui.states.strategic_state import StrategicState
+from ui.states.tactical_state import TacticalState, ActionUnit
+from ui.components.action_card import ActionCard
+from ui.components.tactical_action_btn import TacticalActionBtn
+from ui.components.tactical_member_slot import TacticalMemberSlot
+from ui.states.app_state import AppState
 
 class TacticalView(ft.Container):
     """
