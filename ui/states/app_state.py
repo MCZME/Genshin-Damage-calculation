@@ -319,6 +319,7 @@ class AppState:
             # 创建会话并捕获 ID
             config_name = f"仿真_{int(time.time())}"
             self.last_session_id = await db.create_session(config_name, config_snapshot=self.export_config())
+            get_ui_logger().log_info(f"AppState: Simulation session created. ID: {self.last_session_id}")
             await db.start_session()
             
             # 2. 仿真引擎实例化与运行
@@ -330,9 +331,10 @@ class AppState:
             # 3. 数据收尾：确保所有帧数据刷入磁盘
             await db.stop_session()
             
-            total_dmg = getattr(simulator.ctx, "total_damage", 0.0)
+            total_dmg = db.projector.total_damage if db.projector else 0.0
             duration = simulator.ctx.current_frame
             dps = (total_dmg / duration * 60) if duration > 0 else 0.0
+            get_ui_logger().log_info(f"AppState: Simulation finished. Frame: {duration}, Total DMG: {total_dmg}")
             self.last_metrics = SimulationMetrics(total_damage=total_dmg, dps=dps, simulation_duration=duration)
             self.sim_status = f"FINISHED | DPS: {int(dps)}"
             self.sim_progress = 1.0

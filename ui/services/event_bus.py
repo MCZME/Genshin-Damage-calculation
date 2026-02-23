@@ -12,6 +12,7 @@ class UIEventBus:
             "tactical": [],
             "scene": [],
             "simulation": [],
+            "analysis": [],
             "global": []
         }
 
