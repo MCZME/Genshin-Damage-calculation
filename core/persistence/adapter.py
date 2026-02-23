@@ -1,5 +1,6 @@
 import aiosqlite
 import json
+import os
 from typing import Optional, List, Dict, Any, Tuple
 
 class ReviewDataAdapter:
@@ -13,17 +14,22 @@ class ReviewDataAdapter:
         self.session_id = session_id
         self._name_map: Dict[int, str] = {} # 实体 ID 到名字的缓存
 
-    async def _get_latest_session(self, db) -> int:
+    async def _get_latest_session(self, db) -> Optional[int]:
         """获取最近一次仿真的 ID (如果未指定 session_id)"""
         if self.session_id:
             return self.session_id
-        async with db.execute("SELECT id FROM simulation_sessions ORDER BY created_at DESC LIMIT 1") as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else 1
+        try:
+            async with db.execute("SELECT id FROM simulation_sessions ORDER BY id DESC LIMIT 1") as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else None
+        except Exception as e:
+            from core.logger import get_ui_logger
+            get_ui_logger().log_error(f"Adapter: Latest session lookup failed: {e}")
+            return None
 
     async def _load_name_map(self, db, sid: int):
         """加载当前会话的实体 ID 到名称的映射"""
-        if self._name_map:
+        if self._name_map or sid is None:
             return
         async with db.execute(
             "SELECT entity_id, name FROM simulation_entity_registry WHERE session_id = ?", (sid,)
@@ -33,49 +39,77 @@ class ReviewDataAdapter:
 
     async def get_summary_stats(self) -> Dict[str, Any]:
         """获取全局统计摘要 (直接查询汇总表)"""
+        from core.logger import get_ui_logger
+        if not os.path.exists(self.db_path):
+            get_ui_logger().log_warning(f"Adapter: Database file not found at {self.db_path}")
+            return {"total_damage": 0, "duration_seconds": 0, "avg_dps": 0, "peak_dps": 0}
+
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None:
+                get_ui_logger().log_warning("Adapter: No session ID found.")
+                return {"total_damage": 0, "duration_seconds": 0, "avg_dps": 0, "peak_dps": 0}
+                
+            get_ui_logger().log_info(f"Adapter: Querying summary for SID {sid}")
             async with db.execute(
                 "SELECT total_damage, duration_frames, avg_dps, peak_dps FROM simulation_sessions WHERE id = ?", (sid,)
             ) as cursor:
                 row = await cursor.fetchone()
                 if row:
+                    get_ui_logger().log_info(f"Adapter: Summary result: DMG={row[0]}, Frames={row[1]}")
                     return {
                         "total_damage": row[0] or 0,
                         "duration_seconds": (row[1] or 0) / 60.0,
                         "avg_dps": row[2] or 0,
                         "peak_dps": row[3] or 0
                     }
+                get_ui_logger().log_warning(f"Adapter: Session {sid} not found in database.")
                 return {"total_damage": 0, "duration_seconds": 0, "avg_dps": 0, "peak_dps": 0}
 
     async def get_dps_data(self) -> List[Dict[str, Any]]:
         """从 event_damage_data 聚合伤害序列，用于绘制曲线"""
+        from core.logger import get_ui_logger
+        if not os.path.exists(self.db_path): return []
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None: return []
             await self._load_name_map(db, sid)
             
+            # 增强查询：关联 character_pulses 获取当时的动作指令
             sql = """
-                SELECT l.frame_id, d.final_damage, l.source_id, d.element_type 
+                SELECT l.frame_id, d.final_damage, l.source_id, d.element_type, l.event_id, p.action_id
                 FROM event_damage_data d
                 JOIN simulation_event_log l ON d.event_id = l.event_id
+                LEFT JOIN character_pulses p ON l.session_id = p.session_id 
+                    AND l.frame_id = p.frame_id 
+                    AND l.source_id = p.entity_id
                 WHERE l.session_id = ? 
                 ORDER BY l.frame_id
             """
-            async with db.execute(sql, (sid,)) as cursor:
-                results = []
-                async for row in cursor:
-                    results.append({
-                        "frame": row[0],
-                        "value": row[1],
-                        "source": self._name_map.get(row[2], f"ID:{row[2]}"),
-                        "element": row[3]
-                    })
-                return results
+            try:
+                async with db.execute(sql, (sid,)) as cursor:
+                    results = []
+                    async for row in cursor:
+                        results.append({
+                            "frame": row[0],
+                            "value": row[1],
+                            "source": self._name_map.get(row[2], f"ID:{row[2]}"),
+                            "element": row[3],
+                            "event_id": row[4],
+                            "action": row[5] or "伤害触发"
+                        })
+                    get_ui_logger().log_info(f"Adapter: Loaded {len(results)} damage events.")
+                    return results
+            except Exception as e:
+                get_ui_logger().log_error(f"Adapter: DPS data query failed: {e}")
+                return []
 
     async def get_energy_data(self) -> Dict[str, List[Tuple[int, float]]]:
         """提取全队能量跳变轨迹"""
+        if not os.path.exists(self.db_path): return {}
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None: return {}
             await self._load_name_map(db, sid)
             trajectories: Dict[str, List[Tuple[int, float]]] = {}
             
@@ -92,8 +126,10 @@ class ReviewDataAdapter:
 
     async def get_mechanism_data(self) -> Dict[str, List[Tuple[int, float]]]:
         """提取通用机制指标 (如气氛值) 的演进轨迹"""
+        if not os.path.exists(self.db_path): return {}
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None: return {}
             await self._load_name_map(db, sid)
             trajectories: Dict[str, List[Tuple[int, float]]] = {}
             
@@ -110,25 +146,38 @@ class ReviewDataAdapter:
                 return trajectories
 
     async def get_reaction_stats(self) -> Dict[str, int]:
-        """统计各类元素反应的触发次数"""
+        """统计各类元素反应的触发次数 (从 payload 解析具体类型)"""
+        if not os.path.exists(self.db_path): return {}
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
-            async with db.execute(
-                "SELECT event_type, COUNT(*) FROM simulation_event_log "
-                "WHERE session_id = ? AND event_type LIKE 'AFTER_%_REACTION' GROUP BY event_type", (sid,)
-            ) as cursor:
-                stats = {}
+            if sid is None: return {}
+            
+            # 从 event_payloads 中解析具体的反应名称
+            sql = """
+                SELECT p.payload_json 
+                FROM event_payloads p
+                JOIN simulation_event_log l ON p.event_id = l.event_id
+                WHERE l.session_id = ? AND l.event_type = 'AFTER_ELEMENTAL_REACTION'
+            """
+            stats = {}
+            async with db.execute(sql, (sid,)) as cursor:
                 async for row in cursor:
-                    parts = row[0].split('_')
-                    if len(parts) >= 2:
-                        rtype = parts[1]
-                        stats[rtype] = row[1]
-                return stats
+                    try:
+                        payload = json.loads(row[0])
+                        reaction = payload.get("elemental_reaction", {})
+                        rtype = reaction.get("reaction_type")
+                        if rtype:
+                            stats[rtype] = stats.get(rtype, 0) + 1
+                    except:
+                        continue
+            return stats
 
     async def get_frame(self, frame_id: int) -> Optional[dict]:
         """[核心逻辑] 重建第 T 帧的全量快照"""
+        if not os.path.exists(self.db_path): return None
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None: return None
             await self._load_name_map(db, sid)
             
             snapshot = {
@@ -259,10 +308,31 @@ class ReviewDataAdapter:
 
             return snapshot
 
-    async def get_full_lifecycles(self) -> List[Dict[str, Any]]:
-        """获取全场所有生命周期记录，用于绘制甘特图"""
+    async def get_aura_pulses(self) -> List[Dict[str, Any]]:
+        """获取目标元素附着脉搏列表"""
+        if not os.path.exists(self.db_path): return []
         async with aiosqlite.connect(self.db_path) as db:
             sid = await self._get_latest_session(db)
+            if sid is None: return []
+            sql = """
+                SELECT frame_id, aura_state FROM target_aura_pulses 
+                WHERE session_id = ? ORDER BY frame_id
+            """
+            async with db.execute(sql, (sid,)) as cursor:
+                pulses = []
+                async for row in cursor:
+                    pulses.append({
+                        "frame": row[0],
+                        "aura": json.loads(row[1])
+                    })
+                return pulses
+
+    async def get_full_lifecycles(self) -> List[Dict[str, Any]]:
+        """获取全场所有生命周期记录，用于绘制甘特图"""
+        if not os.path.exists(self.db_path): return []
+        async with aiosqlite.connect(self.db_path) as db:
+            sid = await self._get_latest_session(db)
+            if sid is None: return []
             results = []
             
             # 1. 获取修饰符
@@ -283,6 +353,7 @@ class ReviewDataAdapter:
 
     async def get_damage_audit(self, event_id: int) -> List[Dict[str, Any]]:
         """获取特定事件的完整计算审计明细"""
+        if not os.path.exists(self.db_path) or event_id is None: return []
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
                 "SELECT modifier_id, source_name, stat_type, value, op_type FROM event_audit_trail "

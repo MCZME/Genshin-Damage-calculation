@@ -199,7 +199,7 @@ class DataProjector:
                     (frame_id, self.session_id, inst_id)
                 ))
 
-            if etype in ("AFTER_DAMAGE", "AFTER_REACTION", "AFTER_HEAL"):
+            if etype in ("AFTER_DAMAGE", "AFTER_ELEMENTAL_REACTION", "AFTER_HEAL"):
                 commands.append((
                     "INSERT INTO simulation_event_log (session_id, frame_id, event_type, source_id) VALUES (?, ?, ?, ?)",
                     (self.session_id, frame_id, etype, eid)
