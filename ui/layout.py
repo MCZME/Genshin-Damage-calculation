@@ -34,11 +34,9 @@ class AppLayout:
         }
 
         # 旧版切换器已弃用，重构版通过全屏 Middle Pane 切换
-        self.left_switcher = ft.Container()
         self.middle_switcher = ft.AnimatedSwitcher(
             content=self.strategic_reboot, expand=True
         )
-        self.right_switcher = ft.Container()
 
         # 2.5 阶段专用工具容器 (用于注入复盘页的布局切换等按钮)
         self.phase_tools = ft.Container(animate=ft.Animation(300, ft.AnimationCurve.DECELERATE))
@@ -46,34 +44,10 @@ class AppLayout:
         self.header = self._build_header()
         self.footer = self._build_footer()
 
-        # 3. 三栏容器
-        self.left_pane_container = ft.Container(
-            content=ft.Card(
-                content=ft.Container(
-                    content=self.left_switcher, padding=ft.padding.all(24), expand=True
-                ),
-                variant=ft.CardVariant.ELEVATED,
-                bgcolor=GenshinTheme.SURFACE,
-            ),
-            width=300,
-            animate=ft.Animation(400, ft.AnimationCurve.DECELERATE),
-        )
-        self.middle_pane = ft.Card(
-            content=ft.Container(content=self.middle_switcher, padding=24, expand=True),
-            variant=ft.CardVariant.ELEVATED,
-            bgcolor=GenshinTheme.SURFACE,
+        # 3. 主视图容器 (全屏)
+        self.middle_pane = ft.Container(
+            content=self.middle_switcher,
             expand=True,
-        )
-        self.right_pane_container = ft.Container(
-            content=ft.Card(
-                content=ft.Container(
-                    content=self.right_switcher, padding=ft.padding.all(24), expand=True
-                ),
-                variant=ft.CardVariant.ELEVATED,
-                bgcolor=GenshinTheme.SURFACE,
-            ),
-            width=380,
-            animate=ft.Animation(400, ft.AnimationCurve.DECELERATE),
         )
 
         self._setup_state_bridge()
@@ -83,36 +57,10 @@ class AppLayout:
         self.handle_nav_click("strategic")
 
     def _handle_resize(self, e):
-        width = float(e.width)
-        new_l = width < 1400
-        new_r = width < 1000
-        if (
-            self.state.sidebar_collapsed != new_l
-            or self.state.visual_collapsed != new_r
-        ):
-            self.state.sidebar_collapsed = new_l
-            self.state.visual_collapsed = new_r
-            self.state.refresh()
+        pass
 
     def _setup_state_bridge(self):
-        # 1. 订阅物理布局变更 (如侧边栏折叠)
-        def update_layout():
-            is_l = self.state.sidebar_collapsed
-            is_r = self.state.visual_collapsed
-            self.left_pane_container.width = 80 if is_l else 300
-            self.right_pane_container.width = 60 if is_r else 380
-            
-            try:
-                self.left_pane_container.content.content.padding = (
-                    ft.padding.all(12) if is_l else ft.padding.all(24)
-                )
-                self.right_pane_container.content.content.padding = (
-                    ft.padding.all(8) if is_r else ft.padding.all(24)
-                )
-            except: pass
-            self.page.update()
-
-        # 2. 订阅仿真进度变更
+        # 1. 订阅仿真进度变更
         def update_simulation():
             try:
                 self.status_text.value = self.state.sim_status
@@ -121,7 +69,7 @@ class AppLayout:
                 self.page.update()
             except: pass
 
-        # 3. 订阅各业务模块变更 (Lazy Refresh 逻辑实现)
+        # 2. 订阅各业务模块变更 (Lazy Refresh 逻辑实现)
         def on_strategic_change():
             if self.current_phase == "strategic":
                 self.strategic_reboot._refresh_all()
@@ -143,10 +91,9 @@ class AppLayout:
         def on_simulation_finished():
             # 当仿真状态变为 IDLE 且有 session_id 时，触发分析页加载
             if self.state.sim_status.startswith("FINISHED"):
-                self.analysis_reboot.trigger_refresh()
+                self.analysis_reboot.refresh_data()
 
         # 执行订阅
-        self.state.events.subscribe("global", update_layout)
         self.state.events.subscribe("simulation", update_simulation)
         self.state.events.subscribe("simulation", on_simulation_finished)
         self.state.events.subscribe("strategic", on_strategic_change)
@@ -159,56 +106,26 @@ class AppLayout:
         self.current_phase = phase_id
         
         # 1. 基础布局复位
-        self.left_pane_container.visible = True
-        self.right_pane_container.visible = True
-        self.middle_pane.variant = ft.CardVariant.ELEVATED
-        self.middle_pane.content.padding = 24
         self.phase_tools.content = None
 
         if phase_id == "strategic":
-            # 重构版：隐藏左右栏，全屏展示
-            self.left_pane_container.visible = False
-            self.right_pane_container.visible = False
-            self.middle_pane.variant = ft.CardVariant.FILLED
-            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
-            self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.strategic_reboot
             # 仅在脏标记为真或首次进入时刷新
             if self._dirty_views.get("strategic", True):
                 self.strategic_reboot._refresh_all()
                 self._dirty_views["strategic"] = False
         elif phase_id == "scene":
-            # 场景视图：全屏展示
-            self.left_pane_container.visible = False
-            self.right_pane_container.visible = False
-            self.middle_pane.variant = ft.CardVariant.FILLED
-            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
-            self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.scene_reboot
             if self._dirty_views.get("scene", True):
                 self.scene_reboot._refresh_all()
                 self._dirty_views["scene"] = False
         elif phase_id == "tactical":
-            # 重构版战术：全屏展示
-            self.left_pane_container.visible = False
-            self.right_pane_container.visible = False
-            self.middle_pane.variant = ft.CardVariant.FILLED
-            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
-            self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.tactical_reboot
             if self._dirty_views.get("tactical", True):
                 self.tactical_reboot._refresh_all()
                 self._dirty_views["tactical"] = False
         elif phase_id == "review":
-            # 重构版分析：全屏展示
-            self.left_pane_container.visible = False
-            self.right_pane_container.visible = False
-            self.middle_pane.variant = ft.CardVariant.FILLED
-            self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
-            self.middle_pane.content.padding = 0
-            
             self.middle_switcher.content = self.analysis_reboot
-            # 这里的工具按钮后续可以适配新的 AnalysisViewReboot
             self.phase_tools.content = None
 
         self.header.content.controls[1].content.controls = [
@@ -424,13 +341,7 @@ class AppLayout:
             get_ui_logger().log_error(f"Failed to launch native window: {ex}")
 
     def build(self):
-        content_row = ft.Row(
-            [self.left_pane_container, self.middle_pane, self.right_pane_container],
-            spacing=10,
-            expand=True,
-            vertical_alignment=ft.CrossAxisAlignment.STRETCH,
-        )
-        content_area = ft.Container(content=content_row, padding=ft.Padding(6, 6, 6, 6), expand=True)
+        content_area = ft.Container(content=self.middle_pane, padding=ft.Padding(6, 6, 6, 6), expand=True)
 
         def on_connect(e):
             self._handle_resize(
