@@ -121,7 +121,7 @@ class StatInputField(ft.Container):
         self.shadow = None
         self.update()
 
-    def update_state(self, new_val: str, new_element: str):
+    def update_state(self, new_val: str, new_element: str, skip_update: bool = False):
         """同步更新数值与元素主题，不重建 UI"""
         self.val = new_val
         self.element = new_element
@@ -140,6 +140,7 @@ class StatInputField(ft.Container):
         else:
             self.border = ft.border.all(1, ft.Colors.with_opacity(0.1, GenshinTheme.ON_SURFACE))
 
-        try: self.update()
-        except: pass
+        if not skip_update:
+            try: self.update()
+            except: pass
 

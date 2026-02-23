@@ -11,3 +11,4 @@ config.json
 /.clinerules
 simulation_audit.db
 .env
+.trae

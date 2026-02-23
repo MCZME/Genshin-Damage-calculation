@@ -73,7 +73,6 @@ class TargetSidebarSlot(ft.Container):
         self.mouse_cursor = ft.MouseCursor.CLICK
 
     def _on_remove_click(self, e):
-        e.control.page = self.page
         if self.on_remove_callback:
             self.on_remove_callback(self.index)
 

@@ -97,7 +97,7 @@ class ArtifactSlot(ft.Container):
 
         # 3. 主词条配置区域 (属性 + 数值)
         self.main_stat_drop = ft.Dropdown(
-            value=self.data['main'],
+            value=self.data.get('main', self.main_stat_options[self.slot_name][0]),
             options=[ft.dropdown.Option(s) for s in self.main_stat_options[self.slot_name]],
             dense=True,
             text_size=12,
@@ -110,7 +110,7 @@ class ArtifactSlot(ft.Container):
         )
         
         self.main_val_input = ft.TextField(
-            value=self.data['main_val'],
+            value=self.data.get('main_val', "0"),
             dense=True,
             text_size=12,
             text_align=ft.TextAlign.RIGHT,
@@ -125,6 +125,7 @@ class ArtifactSlot(ft.Container):
         # 4. 副词条列表
         sub_options = ["生命值", "生命值%", "攻击力", "攻击力%", "防御力", "防御力%", "元素精通", "元素充能效率%", "暴击率%", "暴击伤害%"]
         
+        current_subs = self.data.get('subs', [["暴击率%", "0.0"]] * 4)
         self.substat_inputs = [
             StatInputField(
                 label=sub[0], 
@@ -134,7 +135,7 @@ class ArtifactSlot(ft.Container):
                 label_options=sub_options,
                 on_change=lambda v, i=i: self._handle_sub_change(i, v),
                 on_label_change=lambda l, i=i: self._handle_sub_label_change(i, l)
-            ) for i, sub in enumerate(self.data['subs'])
+            ) for i, sub in enumerate(current_subs)
         ]
 
         # 5. 组装内容
@@ -176,7 +177,7 @@ class ArtifactSlot(ft.Container):
         self.data['subs'][index][0] = label
         if self.on_change_callback: self.on_change_callback()
 
-    def update_state(self, data: dict, element: str):
+    def update_state(self, data: dict, element: str, skip_update: bool = False):
         """精准同步圣遗物数据与元素主题"""
         self.data = data
         self.element = element
@@ -186,17 +187,19 @@ class ArtifactSlot(ft.Container):
         self.name_input.value = self.data.get('name', "")
         self.name_input.focused_border_color = elem_color
         
-        self.main_stat_drop.value = self.data['main']
-        self.main_val_input.value = self.data['main_val']
+        self.main_stat_drop.value = self.data.get('main', self.main_stat_options[self.slot_name][0])
+        self.main_val_input.value = self.data.get('main_val', "0")
         
         # 2. 局部刷新所有部位 header 颜色 (Hack: 直接修改内部 Text)
         self.content.controls[0].controls[0].color = elem_color
         
         # 3. 更新副词条同步
-        for i, sub in enumerate(self.data['subs']):
+        subs = self.data.get('subs', [])
+        for i, sub in enumerate(subs):
             if i < len(self.substat_inputs):
-                self.substat_inputs[i].update_state(sub[1], self.element)
+                self.substat_inputs[i].update_state(sub[1], self.element, skip_update=True)
         
         # 4. 容器视觉更新
-        try: self.update()
-        except: pass
+        if not skip_update:
+            try: self.update()
+            except: pass
