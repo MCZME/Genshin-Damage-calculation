@@ -24,7 +24,7 @@ class AppLayout:
         self.strategic_reboot = StrategicView(self.state)
         self.scene_reboot = SceneView(self.state)
         self.tactical_reboot = TacticalView(self.state)
-        self.analysis_reboot = AnalysisView()
+        self.analysis_reboot = AnalysisView(self.state)
 
         # 旧版切换器已弃用，重构版通过全屏 Middle Pane 切换
         self.left_switcher = ft.Container()
@@ -116,16 +116,13 @@ class AppLayout:
 
         # 3. 订阅各业务模块变更
         def on_strategic_change():
-            if self.current_phase == "strategic":
-                self.strategic_reboot._refresh_all()
+            self.strategic_reboot._refresh_all()
 
         def on_scene_change():
-            if self.current_phase == "scene":
-                self.scene_reboot._refresh_all()
+            self.scene_reboot._refresh_all()
 
         def on_tactical_change():
-            if self.current_phase == "tactical":
-                self.tactical_reboot._refresh_all()
+            self.tactical_reboot._refresh_all()
 
         def on_simulation_finished():
             # 当仿真状态变为 IDLE 且有 session_id 时，触发分析页加载
@@ -160,6 +157,7 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.strategic_reboot
+            self.strategic_reboot._refresh_all()
         elif phase_id == "scene":
             # 场景视图：全屏展示
             self.left_pane_container.visible = False
@@ -168,6 +166,7 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.scene_reboot
+            self.scene_reboot._refresh_all()
         elif phase_id == "tactical":
             # 重构版战术：全屏展示
             self.left_pane_container.visible = False
@@ -176,6 +175,7 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.tactical_reboot
+            self.tactical_reboot._refresh_all()
         elif phase_id == "review":
             # 重构版分析：全屏展示
             self.left_pane_container.visible = False

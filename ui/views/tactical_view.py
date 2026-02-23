@@ -351,6 +351,7 @@ class TacticalView(ft.Container):
         self.app_state.events.notify("tactical")
 
     def _refresh_all(self):
+        self._discover_team_metadata()
         self.workbench_content.controls = self._build_workbench_controls()
         for i in range(4):
             self.sidebar_slots[i].update_state(self.strat_state.team_data[i], (i == self.active_member_index))
