@@ -53,22 +53,26 @@ graph TD
 ## 3. 状态管理 (Domain-Driven State)
 采用分层级的局部状态机，所有状态类均存放在 `ui/states/` 目录下，实现业务领域隔离：
 
-- **`AppState` (`ui/states/app_state.py`)**: 全局调度中心，管理元数据、跨进程通信及持久化中转。
-- **`StrategicState` (`ui/states/strategic_state.py`)**: 维护编队成员的静态资产（等级、命座、武器、圣遗物）。
+- **`AppState` (`ui/states/app_state.py`)**: 全局调度中心，管理元数据、跨进程通信及核心配置中转。
+- **`StrategicState` (`ui/states/strategic_state.py`)**: 维护编队成员的静态资产（等级、命座、武器、圣遗物）及战场环境。
 - **`TacticalState` (`ui/states/tactical_state.py`)**: 维护线性动作序列及招式特定参数。
+- **`UniverseState` (`ui/states/universe_state.py`)**: 分支宇宙管理。负责变异树结构、规则派生及批处理方案的持久化。
 - **`AnalysisState` (`ui/states/analysis_state.py`)**: 映射仿真结果，管理审计追踪 (Audit Trail) 的交互状态。
 
 ## 4. 观察者通知模式 (Observer Pattern)
-通过 **`UIEventBus`** 实现状态与视图的松耦合：
+通过 **`UIEventBus`** 实现状态与视图的松耦合，并引入 **Lazy Refresh (脏标记)** 优化性能：
 - **发布**: 当数据变更时，State 调用 `events.notify("event_type")`。
-- **订阅**: 视图或布局在 `__init__` 中调用 `events.subscribe()` 注册刷新逻辑。
-- **优点**: 避免了直接修改属性后的手动 `refresh` 调用，确保多处 UI 联动时的一致性。
+- **订阅**: 视图或布局注册刷新逻辑。
+- **性能优化 (Lazy Refresh)**: 
+  - 为了避免加载大型配置时 3 个全屏视图同时重绘导致 UI 假死，系统采用了“脏标记”机制。
+  - 仅活跃视图会响应实时通知进行刷新。
+  - 后台视图仅标记为 `dirty`，待用户切换（导航）至该视图时才按需执行重绘。
 
 ## 5. Flet V3 (0.80+) 适配规范
 项目强制执行以下现代 Flet 标准：
 - **Async Return Path**: 所有的 FilePicker 交互必须使用 `await`。
-- **Mounted Check**: 调用 `update()` 前必须确保组件处于挂载状态。
-- **服务注入**: 公共服务（如 `PersistenceManager`, `UIEventBus`）通过 `AppState` 或 `page` 实例注入，实现跨视图调用。
+- **统一持久化服务**: 通过 `PersistenceManager` 统一管理 JSON 导入导出，避免在 View 中直接操作 OS 文件。
+- **服务注入**: 公共服务通过 `AppState` 或 `page` 实例注入，实现跨视图调用。
 
 ## 6. 交互流向 (Workflow)
 1. **Strategic View**: 装配角色与装备 -> 产生 `TeamConfig`。
@@ -78,5 +82,5 @@ graph TD
 5. **Analysis View**: 实时接收 `simulation` 事件，渲染报告。
 
 ---
-*版本: v3.2.0*
-*更新日期: 2026-02-22*
+*版本: v3.3.0*
+*更新日期: 2026-02-23*
