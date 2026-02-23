@@ -54,10 +54,6 @@ class StrategicView(ft.Container):
         # 2. 顶部操作栏
         self.header = ft.Row([
             ft.Text("战略准备工作台", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-            ft.Row([
-                ft.TextButton("读取配置", icon=ft.Icons.FOLDER_OPEN, on_click=self._handle_config_load_click),
-                ft.ElevatedButton("保存当前配置", icon=ft.Icons.SAVE, bgcolor=GenshinTheme.PRIMARY, color=GenshinTheme.ON_PRIMARY, on_click=self._handle_config_save_click),
-            ], spacing=10)
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
         # 3. 左侧编队边栏 (使用原子组件)
@@ -320,13 +316,6 @@ class StrategicView(ft.Container):
             bgcolor=GenshinTheme.SURFACE,
         )
         self.page.show_dialog(dialog)
-
-    async def _handle_config_load_click(self, e):
-        if await self.page.persistence.load_config():
-            self.app_state.events.notify("strategic")
-
-    async def _handle_config_save_click(self, e):
-        await self.page.persistence.save_config()
 
     async def _handle_char_save_click(self, e):
         await self.page.persistence.save_character_template(self.state.current_index)
