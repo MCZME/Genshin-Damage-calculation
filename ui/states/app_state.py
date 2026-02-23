@@ -259,12 +259,30 @@ class AppState:
             else:
                 self.strategic_state.team_data[i] = self.strategic_state._create_empty_member()
 
-        # 恢复 targets
+        # 恢复 targets 与 spatial_data
         loaded_targets = ctx.get("targets", [])
+        self.strategic_state.targets.clear()
+        self.strategic_state.spatial_data["target_positions"].clear()
+
         if loaded_targets:
-            self.strategic_state.targets = loaded_targets
+            for t_cfg in loaded_targets:
+                # 重新映射至 StrategicState 的内部格式 (resists 为字符串)
+                target = {
+                    "id": t_cfg["id"],
+                    "name": t_cfg["name"],
+                    "level": str(t_cfg.get("level", 90)),
+                    "resists": {k: str(v) for k, v in t_cfg.get("resists", {}).items()}
+                }
+                self.strategic_state.targets.append(target)
+                
+                # 恢复位置信息
+                pos = t_cfg.get("position", {"x": 0.0, "z": 5.0})
+                self.strategic_state.spatial_data["target_positions"][target["id"]] = pos
+            
+            self.strategic_state.selected_target_index = 0
         else:
             self.strategic_state.targets = [self.strategic_state._create_target_instance("target_A", "遗迹守卫")]
+            self.strategic_state.selected_target_index = 0
 
         # 恢复 scene_data
         if "environment" in ctx:
