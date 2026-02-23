@@ -23,8 +23,16 @@ class StrategicView(ft.Container):
         # 焦点与缓存管理
         self.all_sliders = []
         self.current_focused = None
-        self.workbench_cache = {} 
         self.slot_controls = []
+
+        # 核心：单工作台持久化引用
+        self.lvl_slider = None
+        self.const_slider = None
+        self.na_slider = None
+        self.e_slider = None
+        self.q_slider = None
+        self.weapon_card = None
+        self.artifact_slots = {} # slot_name -> ArtifactSlot
 
         self._build_ui()
 
@@ -74,12 +82,15 @@ class StrategicView(ft.Container):
             alignment=ft.MainAxisAlignment.START
         )
 
-        # 4. 动态一体化看板内容
-        self.workbench_content = ft.Column(
-            controls=self._build_workbench_controls(),
+        # 4. 静态工作台构建 (仅构建一次)
+        self.workbench_panel = self._init_static_workbench()
+        
+        # 使用 AnimatedSwitcher 处理“空位”与“工作台”切换
+        self.workbench_switcher = ft.AnimatedSwitcher(
+            content=self.workbench_panel,
             expand=True,
-            scroll=ft.ScrollMode.ADAPTIVE,
-            spacing=30 
+            transition=ft.AnimatedSwitcherTransition.FADE,
+            duration=300
         )
 
         # 组装主布局容器
@@ -89,7 +100,7 @@ class StrategicView(ft.Container):
                 ft.Row([
                     ft.Container(content=self.sidebar, width=180),
                     ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.1, GenshinTheme.ON_SURFACE)),
-                    self.workbench_content
+                    ft.Container(content=self.workbench_switcher, expand=True)
                 ], expand=True)
             ], spacing=10),
             padding=15,
@@ -100,25 +111,16 @@ class StrategicView(ft.Container):
             self.ground,
             self.main_layout
         ], expand=True)
-
-    def _build_workbench_controls(self):
-        """构建上半区配置与下半区圣遗物的平铺列表"""
-        self.all_sliders = []
-        member = self.state.current_member
         
-        if member.get("id") is None:
-            return [
-                ft.Container(
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.PERSON_ADD_ALT_1, size=64, color=ft.Colors.WHITE_24),
-                        ft.Text("请在左侧编队中选择或添加一位角色", size=18, weight=ft.FontWeight.W_500, color=ft.Colors.WHITE_54),
-                        ft.Text("角色配置与圣遗物装配面板将在此处显示", size=13, color=ft.Colors.WHITE_24),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
-                    alignment=ft.Alignment.CENTER,
-                    expand=True,
-                    padding=100
-                )
-            ]
+        # 初始化显示
+        self._sync_workbench_data()
+
+    def _init_static_workbench(self) -> ft.Control:
+        """初始化一套永久存在的控件树"""
+        self.all_sliders = []
+        
+        # 使用 StrategicState 提供的标准空模板进行初始化
+        base_mock = self.state._create_empty_member()
         
         def create_managed_slider(label, value, **kwargs):
             s = PropertySlider(
@@ -129,7 +131,21 @@ class StrategicView(ft.Container):
             self.all_sliders.append(s)
             return s
 
-        # --- 上半区：角色与武器核心配置 ---
+        # --- 上半区：角色基础属性 ---
+        self.lvl_slider = create_managed_slider("等级", 90, discrete_values=[1, 20, 40, 50, 60, 70, 80, 90, 95, 100])
+        self.const_slider = create_managed_slider("命之座", 0, min_val=0, max_val=6, divisions=6)
+        
+        self.na_slider = create_managed_slider("普通攻击", 10, min_val=1, max_val=10, divisions=9)
+        self.e_slider = create_managed_slider("元素战技", 10, min_val=1, max_val=10, divisions=9)
+        self.q_slider = create_managed_slider("元素爆发", 10, min_val=1, max_val=10, divisions=9)
+
+        # 绑定事件
+        self.lvl_slider.on_change_callback = lambda v: self._handle_stat_change("level", str(v))
+        self.const_slider.on_change_callback = lambda v: self._handle_stat_change("constellation", str(v))
+        self.na_slider.on_change_callback = lambda v: self._handle_talent_change("na", str(v))
+        self.e_slider.on_change_callback = lambda v: self._handle_talent_change("e", str(v))
+        self.q_slider.on_change_callback = lambda v: self._handle_talent_change("q", str(v))
+
         upper_section = ft.Row([
             ft.Column([
                 ft.Row([
@@ -140,40 +156,30 @@ class StrategicView(ft.Container):
                     ], spacing=0)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
-                ft.Row([
-                    create_managed_slider(
-                        "等级", value=int(member['level']), 
-                        discrete_values=[1, 20, 40, 50, 60, 70, 80, 90, 95, 100],
-                        element=member['element'],
-                        on_change=lambda v: self._handle_stat_change("level", str(v))
-                    ),
-                    create_managed_slider(
-                        "命之座", value=int(member['constellation']), 
-                        min_val=0, max_val=6, divisions=6,
-                        element=member['element'],
-                        on_change=lambda v: self._handle_stat_change("constellation", str(v))
-                    ),
-                ], spacing=20),
+                ft.Row([self.lvl_slider, self.const_slider], spacing=20),
                 ft.Divider(height=10, color="transparent"),
                 ft.Text("天赋等级配置", size=16, weight=ft.FontWeight.BOLD, opacity=0.8),
-                ft.Row([
-                    create_managed_slider("普通攻击", value=int(member['talents']['na']), min_val=1, max_val=10, divisions=9, element=member['element'], on_change=lambda v: self._handle_talent_change("na", str(v))),
-                    create_managed_slider("元素战技", value=int(member['talents']['e']), min_val=1, max_val=10, divisions=9, element=member['element'], on_change=lambda v: self._handle_talent_change("e", str(v))),
-                    create_managed_slider("元素爆发", value=int(member['talents']['q']), min_val=1, max_val=10, divisions=9, element=member['element'], on_change=lambda v: self._handle_talent_change("q", str(v))),
-                ], spacing=15)
+                ft.Row([self.na_slider, self.e_slider, self.q_slider], spacing=15)
             ], expand=True, spacing=10),
             
             ft.VerticalDivider(width=1, color=ft.Colors.WHITE_10),
-            
-            # 武器配置卡 (原子组件)
-            WeaponCard(
-                member, create_managed_slider,
-                on_picker_click=self._show_weapon_picker,
-                on_stat_change=self._handle_weapon_stat_change
-            )
         ], spacing=30, vertical_alignment=ft.CrossAxisAlignment.START)
 
-        # --- 下半区：圣遗物地平线 ---
+        # 武器配置卡
+        self.weapon_card = WeaponCard(
+            base_mock, 
+            create_managed_slider,
+            on_picker_click=self._show_weapon_picker,
+            on_stat_change=self._handle_weapon_stat_change
+        )
+        upper_section.controls.append(self.weapon_card)
+
+        # --- 下半区：圣遗物 ---
+        self.artifact_slots = {
+            slot: ArtifactSlot(slot, base_mock['artifacts'][slot], on_change=lambda: self.app_state.events.notify("strategic"))
+            for slot in ["Flower", "Plume", "Sands", "Goblet", "Circlet"]
+        }
+
         lower_section = ft.Column([
             ft.Row([
                 ft.Text("圣遗物装配中心", size=16, weight=ft.FontWeight.BOLD, opacity=0.8),
@@ -185,18 +191,97 @@ class StrategicView(ft.Container):
             ], spacing=20, alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
 
             ft.Row(
-                [ArtifactSlot(slot, member['artifacts'][slot], element=member['element']) for slot in ["Flower", "Plume", "Sands", "Goblet", "Circlet"]],
+                list(self.artifact_slots.values()),
                 scroll=ft.ScrollMode.ADAPTIVE,
                 spacing=15,
             )
         ], spacing=15)
 
-        return [
-            upper_section, 
-            ft.Divider(height=1, color=ft.Colors.WHITE_10), 
-            lower_section,
-            ft.Container(height=20) 
-        ]
+        return ft.Column(
+            controls=[
+                upper_section, 
+                ft.Divider(height=1, color=ft.Colors.WHITE_10), 
+                lower_section,
+                ft.Container(height=20) 
+            ],
+            expand=True,
+            scroll=ft.ScrollMode.ADAPTIVE,
+            spacing=30 
+        )
+
+    def _sync_workbench_data(self):
+        """核心：将内存状态同步到静态控件（不重建）"""
+        member = self.state.current_member
+        
+        # 处理空状态
+        if member.get("id") is None:
+            self.workbench_switcher.content = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.PERSON_ADD_ALT_1, size=64, color=ft.Colors.WHITE_24),
+                    ft.Text("请在左侧编队中选择或添加一位角色", size=18, weight=ft.FontWeight.W_500, color=ft.Colors.WHITE_54),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
+                alignment=ft.Alignment.CENTER, expand=True
+            )
+            return
+
+        # 切换回正常面板
+        self.workbench_switcher.content = self.workbench_panel
+        
+        # 1. 同步角色滑块
+        elem = member['element']
+        self.lvl_slider.update_state(int(member['level']), elem, skip_update=True)
+        self.const_slider.update_state(int(member['constellation']), elem, skip_update=True)
+        self.na_slider.update_state(int(member['talents']['na']), elem, skip_update=True)
+        self.e_slider.update_state(int(member['talents']['e']), elem, skip_update=True)
+        self.q_slider.update_state(int(member['talents']['q']), elem, skip_update=True)
+        
+        # 2. 同步武器卡
+        self.weapon_card.update_state(member, skip_update=True)
+        
+        # 3. 同步圣遗物槽位
+        for slot_name, slot_ctrl in self.artifact_slots.items():
+            slot_ctrl.update_state(member['artifacts'][slot_name], elem, skip_update=True)
+
+    def _handle_member_select(self, index: int):
+        """同步全局角色选中态与工作台渲染，并精准刷新 UI"""
+        self.state.select_member(index)
+        self.current_element = self.state.current_member.get("element", "Neutral")
+
+        # 1. 批量更新侧边栏 (不刷新)
+        for i in range(4):
+            self.slot_controls[i].update_state(self.state.team_data[i], (i == self.state.current_index), skip_update=True)
+        
+        # 2. 同步工作台数据 (不刷新)
+        self._sync_workbench_data()
+        
+        # 3. 发起一次总重绘
+        try:
+            self.sidebar.update()
+            self.workbench_switcher.update()
+        except: pass
+
+    def _refresh_all(self):
+        """完全同步的状态刷新"""
+        self._handle_member_select(self.state.current_index)
+
+    def _handle_stat_change(self, key: str, new_val: str):
+        self.state.current_member[key] = new_val
+        self.app_state.events.notify("strategic")
+
+    def _handle_talent_change(self, key: str, new_val: str):
+        """处理天赋等级变更"""
+        self.state.current_member['talents'][key] = new_val
+        self.app_state.events.notify("strategic")
+
+    def _handle_weapon_change(self, weapon_data: dict):
+        # 更新当前成员的武器，触发整体刷新
+        self.state.current_member['weapon']['id'] = weapon_data['id']
+        self.app_state.events.notify("strategic")
+
+    def _handle_weapon_stat_change(self, key: str, val: str):
+        """处理武器等级/精炼变更，同步刷新侧边栏"""
+        self.state.current_member['weapon'][key] = val
+        self.app_state.events.notify("strategic")
 
     def _show_character_picker(self, index: int):
         """弹出全角色 AssetGrid 选择器"""
@@ -231,52 +316,6 @@ class StrategicView(ft.Container):
 
     def _handle_remove_member(self, index: int):
         self.state.remove_member(index)
-        self.app_state.events.notify("strategic")
-
-    def _refresh_all(self):
-        """完全同步的状态刷新"""
-        self.workbench_cache.clear()
-        for i in range(4):
-            self.slot_controls[i].update_state(self.state.team_data[i], (i == self.state.current_index))
-        self._handle_member_select(self.state.current_index)
-
-    def _handle_member_select(self, index: int):
-        """同步全局角色选中态与工作台渲染，并精准刷新 UI"""
-        self.state.select_member(index)
-        self.current_element = self.state.current_member.get("element", "Neutral")
-
-        # 局部刷新侧边栏
-        for i in range(4):
-            self.slot_controls[i].update_state(self.state.team_data[i], (i == self.state.current_index))
-        
-        # 切换中央工作台
-        if index not in self.workbench_cache:
-            self.workbench_cache[index] = self._build_workbench_controls()
-            
-        self.workbench_content.controls = self.workbench_cache[index]
-        
-        try:
-            self.sidebar.update()
-            self.workbench_content.update()
-        except: pass
-
-    def _handle_stat_change(self, key: str, new_val: str):
-        self.state.current_member[key] = new_val
-        self.app_state.events.notify("strategic")
-
-    def _handle_talent_change(self, key: str, new_val: str):
-        """处理天赋等级变更"""
-        self.state.current_member['talents'][key] = new_val
-        self.app_state.events.notify("strategic")
-
-    def _handle_weapon_change(self, weapon_data: dict):
-        # 更新当前成员的武器，触发整体刷新
-        self.state.current_member['weapon']['id'] = weapon_data['id']
-        self.app_state.events.notify("strategic")
-
-    def _handle_weapon_stat_change(self, key: str, val: str):
-        """处理武器等级/精炼变更，同步刷新侧边栏"""
-        self.state.current_member['weapon'][key] = val
         self.app_state.events.notify("strategic")
 
     def _show_weapon_picker(self):

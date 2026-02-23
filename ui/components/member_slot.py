@@ -180,8 +180,7 @@ class MemberSlot(ft.Container):
         self.mouse_cursor = ft.MouseCursor.CLICK
 
     def _on_remove_click(self, e):
-        # 阻止冒泡：点击删除按钮时不触发槽位的点击选择
-        e.control.page = self.page # 确保 e 有 page 属性（Flet 事件冒泡处理）
+        # 触发移除回调
         if self.on_remove_callback:
             self.on_remove_callback(self.index)
 
@@ -197,10 +196,11 @@ class MemberSlot(ft.Container):
             border=ft.Border.all(1, ft.Colors.with_opacity(0.15, ft.Colors.WHITE)),
         )
 
-    def update_state(self, member: dict, is_selected: bool):
+    def update_state(self, member: dict, is_selected: bool, skip_update: bool = False):
         """精准同步数据与选中态"""
         self.member = member
         self.is_selected = is_selected
         self._build_ui()
-        try: self.update()
-        except: pass
+        if not skip_update:
+            try: self.update()
+            except: pass
