@@ -26,6 +26,13 @@ class AppLayout:
         self.tactical_reboot = TacticalView(self.state)
         self.analysis_reboot = AnalysisView(self.state)
 
+        # 优化：脏标记系统，用于延迟刷新后台视图以降低配置加载时的瞬间卡顿
+        self._dirty_views = {
+            "strategic": True,
+            "scene": True,
+            "tactical": True
+        }
+
         # 旧版切换器已弃用，重构版通过全屏 Middle Pane 切换
         self.left_switcher = ft.Container()
         self.middle_switcher = ft.AnimatedSwitcher(
@@ -114,20 +121,29 @@ class AppLayout:
                 self.page.update()
             except: pass
 
-        # 3. 订阅各业务模块变更
+        # 3. 订阅各业务模块变更 (Lazy Refresh 逻辑实现)
         def on_strategic_change():
-            self.strategic_reboot._refresh_all()
+            if self.current_phase == "strategic":
+                self.strategic_reboot._refresh_all()
+            else:
+                self._dirty_views["strategic"] = True
 
         def on_scene_change():
-            self.scene_reboot._refresh_all()
+            if self.current_phase == "scene":
+                self.scene_reboot._refresh_all()
+            else:
+                self._dirty_views["scene"] = True
 
         def on_tactical_change():
-            self.tactical_reboot._refresh_all()
+            if self.current_phase == "tactical":
+                self.tactical_reboot._refresh_all()
+            else:
+                self._dirty_views["tactical"] = True
 
         def on_simulation_finished():
             # 当仿真状态变为 IDLE 且有 session_id 时，触发分析页加载
             if self.state.sim_status.startswith("FINISHED"):
-                self.analysis_reboot.refresh_data()
+                self.analysis_reboot.trigger_refresh()
 
         # 执行订阅
         self.state.events.subscribe("global", update_layout)
@@ -157,7 +173,10 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.strategic_reboot
-            self.strategic_reboot._refresh_all()
+            # 仅在脏标记为真或首次进入时刷新
+            if self._dirty_views.get("strategic", True):
+                self.strategic_reboot._refresh_all()
+                self._dirty_views["strategic"] = False
         elif phase_id == "scene":
             # 场景视图：全屏展示
             self.left_pane_container.visible = False
@@ -166,7 +185,9 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.scene_reboot
-            self.scene_reboot._refresh_all()
+            if self._dirty_views.get("scene", True):
+                self.scene_reboot._refresh_all()
+                self._dirty_views["scene"] = False
         elif phase_id == "tactical":
             # 重构版战术：全屏展示
             self.left_pane_container.visible = False
@@ -175,7 +196,9 @@ class AppLayout:
             self.middle_pane.bgcolor = ft.Colors.TRANSPARENT
             self.middle_pane.content.padding = 0
             self.middle_switcher.content = self.tactical_reboot
-            self.tactical_reboot._refresh_all()
+            if self._dirty_views.get("tactical", True):
+                self.tactical_reboot._refresh_all()
+                self._dirty_views["tactical"] = False
         elif phase_id == "review":
             # 重构版分析：全屏展示
             self.left_pane_container.visible = False
