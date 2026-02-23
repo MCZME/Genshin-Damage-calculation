@@ -241,11 +241,11 @@ class AppLayout:
                             ft.VerticalDivider(width=1, color="rgba(255,255,255,0.1)"),
                             ft.IconButton(
                                 ft.Icons.SAVE_OUTLINED,
-                                on_click=self._handle_save_dialog,
+                                on_click=lambda _: self.page.run_task(self.page.persistence.save_config),
                             ),
                             ft.IconButton(
                                 ft.Icons.FOLDER_OPEN_OUTLINED,
-                                on_click=self._handle_load_dialog,
+                                on_click=lambda _: self.page.run_task(self.page.persistence.load_config),
                             ),
                         ],
                         spacing=5,
@@ -257,40 +257,6 @@ class AppLayout:
             bgcolor=GenshinTheme.HEADER_BG,
             blur=ft.Blur(20, 20),
             border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER)),
-        )
-
-    def _handle_save_dialog(self, e):
-        name_f = ft.TextField(label="配置名称", dense=True)
-
-        def confirm(_):
-            if name_f.value:
-                self.state.save_config(name_f.value)
-                self.page.pop_dialog()
-
-        self.page.show_dialog(
-            ft.AlertDialog(
-                title=ft.Text("保存配置"),
-                content=name_f,
-                actions=[ft.ElevatedButton("保存", on_click=confirm)],
-            )
-        )
-
-    def _handle_load_dialog(self, e):
-        configs = self.state.list_configs()
-        lv = ft.ListView(expand=True, spacing=5, height=300)
-
-        def confirm(fname):
-            self.page.run_task(self.state.load_config, fname)
-            self.page.pop_dialog()
-
-        for cfg in configs:
-            lv.controls.append(
-                ft.ListTile(title=ft.Text(cfg), on_click=lambda _, n=cfg: confirm(n))
-            )
-        self.page.show_dialog(
-            ft.AlertDialog(
-                title=ft.Text("读取配置"), content=ft.Container(lv, width=300)
-            )
         )
 
     def _build_nav_item(self, text, phase_id, icon):
