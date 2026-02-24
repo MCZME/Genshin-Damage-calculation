@@ -41,6 +41,7 @@ class GlobalScrubber(ft.Container):
         )
 
         # 使用 Container 包装 Row 以确保在 45px 高度内完美居中
+        self.total_time_text = ft.Text(f"{self._format_time(self.max_frames)}", size=10, opacity=0.4)
         self.content = ft.Row([
             self.time_text,
             
@@ -48,13 +49,23 @@ class GlobalScrubber(ft.Container):
             self.slider,
             
             ft.Container(
-                content=ft.Text(f"{self._format_time(self.max_frames)}", size=10, opacity=0.4),
+                content=self.total_time_text,
                 margin=ft.margin.only(right=10)
             )
         ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _handle_slider_change(self, e):
         self.set_frame(int(e.control.value))
+
+    def update_range(self):
+        """当仿真数据加载后，更新标尺的最大跨度"""
+        self.slider.max = self.max_frames
+        self.total_time_text.value = self._format_time(self.max_frames)
+        try:
+            self.slider.update()
+            self.total_time_text.update()
+        except:
+            pass
 
     def set_frame(self, frame: int, notify: bool = True):
         """外部与内部统一的帧更新方法"""
