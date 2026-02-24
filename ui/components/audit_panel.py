@@ -6,12 +6,24 @@ class AuditPanel(ft.Container):
     扁平化伤害审计面板。
     一次性平铺展示单笔伤害的所有公式乘区与 Buff 来源。
     """
-    def __init__(self, audit_item=None):
+    def __init__(self, audit_item=None, loading=False):
         super().__init__()
         self.item = audit_item
+        self.loading = loading
         self._build_ui()
 
     def _build_ui(self):
+        if self.loading:
+            self.content = ft.Container(
+                content=ft.Column([
+                    ft.ProgressRing(width=40, height=40, stroke_width=3, color=GenshinTheme.PRIMARY),
+                    ft.Text("正在回溯审计链...", size=12, opacity=0.5)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20),
+                alignment=ft.Alignment.CENTER,
+                padding=50
+            )
+            return
+
         if not self.item:
             self.content = ft.Container(
                 content=ft.Text("CLICK A DAMAGE POINT TO VIEW AUDIT", size=12, opacity=0.3),

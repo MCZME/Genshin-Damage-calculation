@@ -61,6 +61,9 @@ class AnalysisState:
 
         self.dps_points = []
         self.aura_track = []
+        self.action_tracks = {} # 角色动作轨道
+        self.trajectories = {} # 全场轨迹
+        self.energy_data = {} # 角色能量轨道
         self.lifecycles = []
         self.reaction_stats = {}
         self.mechanism_trajectories = {}
@@ -106,6 +109,9 @@ class AnalysisState:
 
             # 3. 加载元素与动作轨道
             self.aura_track = await self.adapter.get_aura_pulses()
+            self.action_tracks = await self.adapter.get_action_tracks()
+            self.trajectories = await self.adapter.get_all_pulses()
+            self.energy_data = await self.adapter.get_energy_data()
             self.lifecycles = await self.adapter.get_full_lifecycles()
             self.reaction_stats = await self.adapter.get_reaction_stats()
             self.mechanism_trajectories = await self.adapter.get_mechanism_data()
@@ -149,9 +155,9 @@ class AnalysisState:
         """异步加载审计明细的实际实现"""
         audit_steps = await self.adapter.get_damage_audit(item.event_id)
         item.update_from_audit(audit_steps)
-        # 通知 UI 局部刷新审计面板
+        # 通知 UI 局部刷新审计面板，避免全量重绘
         if self.app_state:
-            self.app_state.events.notify("analysis")
+            self.app_state.events.notify("audit_detail_ready")
 
     @property
     def current_audit(self):

@@ -16,6 +16,10 @@ class GenshinTheme:
     ON_SURFACE = "#E5E1E6"
     TEXT_SECONDARY = "#ABA6B5"
 
+    # --- 艺术装饰色 ---
+    GOLD_LIGHT = "#F2E6C6" # 更亮的金色，用于高光
+    GOLD_DARK = "#D3BC8E"  # 标准原神金
+
     # --- 玻璃拟态参数 ---
     GLASS_BG = "rgba(60, 55, 80, 0.4)"
     GLASS_BORDER = "rgba(200, 180, 255, 0.15)"

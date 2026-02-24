@@ -13,6 +13,7 @@ class UIEventBus:
             "scene": [],
             "simulation": [],
             "analysis": [],
+            "audit_detail_ready": [],
             "global": []
         }
 

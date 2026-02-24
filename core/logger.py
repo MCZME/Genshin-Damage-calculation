@@ -235,6 +235,9 @@ class UILogger:
     def log_info(self, msg: str):
         self.logger.info(msg)
 
+    def log_warning(self, msg: str):
+        self.logger.warning(msg)
+
     def log_error(self, msg: str):
         self.logger.error(msg)
 
