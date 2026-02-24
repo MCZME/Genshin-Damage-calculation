@@ -26,8 +26,19 @@ class AnalysisView(ft.Stack):
         # 1. 核心布局组件
         self.toolbox = AnalysisToolbox(on_tile_toggle=self._handle_tile_toggle)
         self.grid = ft.ResponsiveRow(spacing=20, run_spacing=20)
-        self.scrubber = None
         self.drawer = FloatingDrawer(width=450)
+        
+        # 1.5 初始化标尺 (预设为 0 帧，待数据加载后更新)
+        self.scrubber = GlobalScrubber(max_frames=0, on_change=self._handle_scrub)
+        self.scrubber_container = ft.Container(
+            content=self.scrubber,
+            bottom=0, left=0, right=0, 
+            height=45,
+            bgcolor="#1E1A2A",
+            border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
+            padding=ft.padding.only(left=20, right=30, top=0, bottom=0),
+            alignment=ft.Alignment(0, 0)
+        )
         
         # 2. 聚焦层 (用于最大化显示磁贴)
         self.focus_tile_container = ft.Container(expand=True)
@@ -65,7 +76,8 @@ class AnalysisView(ft.Stack):
 
         # 5. 主内容区域 (用于放置工作空间和固定在底部的标尺)
         self.main_content = ft.Stack([
-            self.workspace
+            self.workspace,
+            self.scrubber_container
         ], expand=True) # 确保 Stack 纵向拉伸
         
         # 6. 整体布局 Row (工具箱 + 主内容区域)
@@ -109,21 +121,11 @@ class AnalysisView(ft.Stack):
                         tile.update_data(self.state.energy_data)
             return
 
-        # 1. 初始化标尺 (获取总帧数)
+        # 1. 更新标尺 (获取总帧数)
         max_f = self.state.summary.get("duration", 0) * 60
-        if not self.scrubber:
-            self.scrubber = GlobalScrubber(max_frames=int(max_f), on_change=self._handle_scrub)
-            # 放置在底部固定位置
-            scrubber_container = ft.Container(
-                content=self.scrubber,
-                bottom=0, left=0, right=0, 
-                height=45,
-                bgcolor="#1E1A2A", # 使用更接近背景的实色
-                border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
-                padding=ft.padding.only(left=20, right=30, top=0, bottom=0),
-                alignment=ft.Alignment(0, 0)
-            )
-            self.main_content.controls.append(scrubber_container)
+        if self.scrubber:
+            self.scrubber.max_frames = int(max_f)
+            self.scrubber.update_range() # 需要在 GlobalScrubber 中增加此方法或确保其属性响应
 
         # 2. 初始化磁贴
         self._assemble_tiles()

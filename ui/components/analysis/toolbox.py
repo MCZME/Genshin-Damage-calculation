@@ -21,44 +21,44 @@ class AnalysisToolbox(ft.Container):
         self._build_ui()
 
     def _build_ui(self):
-        # 1. 顶部菜单按钮
+        # 1. 顶部菜单按钮与标题
         self.toggle_btn = ft.IconButton(
             ft.Icons.MENU_ROUNDED,
             icon_size=20,
             on_click=self._handle_collapse,
             style=ft.ButtonStyle(shape=ft.CircleBorder())
         )
+        self.toggle_label = ft.Container(
+            content=ft.Text("MENU", size=14, weight=ft.FontWeight.W_900, color=ft.Colors.WHITE, style=ft.TextStyle(letter_spacing=2)),
+            opacity=0,
+            animate_opacity=300,
+            margin=ft.margin.only(left=15)
+        )
+        
+        self.header_row = ft.Container(
+            content=ft.Row([
+                ft.Container(self.toggle_btn, width=48, alignment=ft.Alignment.CENTER),
+                self.toggle_label
+            ], spacing=0, tight=True),
+            height=60,
+            padding=ft.padding.only(left=12)
+        )
 
-        # 2. 磁贴项配置 (分组数据)
-        self.groups = [
-            ("分析核心", [
-                ("DPS 曲线", ft.Icons.AUTO_GRAPH_ROUNDED, "dps"),
-                ("全局战报", ft.Icons.DASHBOARD_ROUNDED, "summary"),
-            ]),
-            ("详细轨道", [
-                ("多轨时间轴", ft.Icons.VIEW_TIMELINE_ROUNDED, "timeline"),
-                ("物理重演", ft.Icons.VIDEOGAME_ASSET_ROUNDED, "replay"),
-            ]),
-            ("仿真指标", [
-                ("能量水位", ft.Icons.BOLT_ROUNDED, "energy"),
-            ])
+        # 2. 磁贴项配置 (扁平化列表)
+        self.items_config = [
+            ("DPS 曲线", ft.Icons.AUTO_GRAPH_ROUNDED, "dps"),
+            ("全局战报", ft.Icons.DASHBOARD_ROUNDED, "summary"),
+            ("多轨时间轴", ft.Icons.VIEW_TIMELINE_ROUNDED, "timeline"),
+            ("物理重演", ft.Icons.VIDEOGAME_ASSET_ROUNDED, "replay"),
+            ("能量水位", ft.Icons.BOLT_ROUNDED, "energy"),
         ]
 
         # 构建中间列表
         self.menu_list = ft.Column(spacing=8, scroll=ft.ScrollMode.HIDDEN)
-        for g_title, items in self.groups:
-            # 组标题 (仅在展开时显示)
-            g_label = ft.Container(
-                content=ft.Text(g_title, size=10, weight=ft.FontWeight.BOLD, color=GenshinTheme.PRIMARY, opacity=0),
-                padding=ft.padding.only(left=24, top=10, bottom=5),
-                animate_opacity=300
-            )
-            self.menu_list.controls.append(g_label)
-            
-            for label, icon, tid in items:
-                item = self._build_menu_item(label, icon, tid)
-                self.tool_items[tid] = item
-                self.menu_list.controls.append(item)
+        for label, icon, tid in self.items_config:
+            item = self._build_menu_item(label, icon, tid)
+            self.tool_items[tid] = item
+            self.menu_list.controls.append(item)
 
         # 3. 底部固定项
         self.preset_section = ft.Column([
@@ -68,7 +68,7 @@ class AnalysisToolbox(ft.Container):
         ], spacing=5)
 
         self.content = ft.Column([
-            ft.Container(self.toggle_btn, alignment=ft.Alignment.CENTER, height=60),
+            self.header_row,
             ft.Container(self.menu_list, expand=True, padding=ft.padding.symmetric(horizontal=12)),
             ft.Container(self.preset_section, padding=ft.padding.all(12))
         ], spacing=0)
@@ -99,27 +99,33 @@ class AnalysisToolbox(ft.Container):
     def _handle_item_hover(self, e):
         # 悬停时背景微亮
         e.control.bgcolor = "rgba(255, 255, 255, 0.05)" if e.data == "true" else "transparent"
-        e.control.update()
+        try:
+            e.control.update()
+        except:
+            pass
 
     def _handle_collapse(self, e):
         self.is_expanded = not self.is_expanded
         self.width = 220 if self.is_expanded else 72
         self.toggle_btn.icon = ft.Icons.MENU_OPEN_ROUNDED if self.is_expanded else ft.Icons.MENU_ROUNDED
         
-        # 切换所有文字和标题的可见度
+        # 顶部标签可见度
+        self.toggle_label.opacity = 1 if self.is_expanded else 0
+        
+        # 切换所有文字的可见度 (不再包含组标题逻辑)
         for ctrl in self.menu_list.controls:
-            if isinstance(ctrl, ft.Container) and hasattr(ctrl, "content"):
-                if isinstance(ctrl.content, ft.Text): # 组标题
-                    ctrl.content.opacity = 0.4 if self.is_expanded else 0
-                elif isinstance(ctrl.content, ft.Row): # 菜单项内容
-                    ctrl.content.controls[1].opacity = 1 if self.is_expanded else 0
+            if isinstance(ctrl, ft.Container) and isinstance(ctrl.content, ft.Row):
+                ctrl.content.controls[1].opacity = 1 if self.is_expanded else 0
         
         # 底部项处理
         for item in self.preset_section.controls:
             if isinstance(item, ft.Container) and isinstance(item.content, ft.Row):
                 item.content.controls[1].opacity = 1 if self.is_expanded else 0
 
-        self.update()
+        try:
+            self.update()
+        except:
+            pass
 
     def update_active_states(self, active_ids: list[str]):
         """更新磁贴激活状态的视觉反馈"""
