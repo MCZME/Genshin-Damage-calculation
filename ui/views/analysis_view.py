@@ -1,3 +1,5 @@
+import asyncio
+
 import flet as ft
 from ui.theme import GenshinTheme
 from ui.states.analysis_state import AnalysisState
@@ -88,46 +90,41 @@ class AnalysisView(ft.Stack):
         
         # 订阅分析事件
         if self.app_state:
-            self.app_state.events.subscribe("analysis", self._handle_data_ready)
+            self.app_state.events.subscribe("analysis_session_changed", self._handle_session_change)
             self.app_state.events.subscribe("analysis_history_ready", self._show_history_dialog)
             self.app_state.events.subscribe("audit_detail_ready", self._handle_audit_ready)
 
-    def _handle_data_ready(self):
-        """当 AnalysisState 后台抓取完数据库后触发"""
-        if self.state.loading: return
-        
+    def _handle_session_change(self, session_id: int):
+        """当会话切换时，通知所有激活磁贴自主加载数据"""
         from core.logger import get_ui_logger
-        get_ui_logger().log_info("AnalysisView: Data ready, updating UI...")
+        get_ui_logger().log_info(f"AnalysisView: Session changed to {session_id}, reloading tiles...")
 
-        # 1. 更新标尺 (获取总帧数)
-        max_f = self.state.summary.get("duration", 0) * 60
-        if self.scrubber:
-            self.scrubber.max_frames = int(max_f)
-            self.scrubber.update_range()
+        # 1. 更新标尺范围 (异步获取一次 summary)
+        async def _update_scrubber():
+            stats = await self.state.adapter.get_summary_stats()
+            max_f = stats.get("total_frames", 0)
+            if self.scrubber:
+                self.scrubber.max_frames = int(max_f)
+                self.scrubber.update_range()
+        
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_update_scrubber())
+        except:
+            asyncio.run(_update_scrubber())
 
-        # 2. 如果已经初始化过，执行局部更新
+        # 2. 如果已经初始化过，通知磁贴刷新
         if self.active_tiles:
             for tile in self.active_tiles:
-                if hasattr(tile, "update_data"):
-                    if getattr(tile, "tile_id", "") == "dps":
-                        tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
-                    elif getattr(tile, "tile_id", "") == "summary":
-                        tile.update_data(self.state.summary)
-                    # elif getattr(tile, "tile_id", "") == "timeline":
-                    #    tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
-                    elif getattr(tile, "tile_id", "") == "replay":
-                        tile.update_data(self.state.trajectories)
-                    elif getattr(tile, "tile_id", "") == "energy":
-                        tile.update_data(self.state.energy_data)
+                if hasattr(tile, "load_data"):
+                    tile.load_data(self.state.adapter)
         else:
             # 3. 首次加载，组装磁贴
             self._assemble_tiles()
-        
-        # 4. 统一执行一次更新
-        try: 
-            self.update()
-        except: 
-            pass
+
+    def _handle_data_ready(self):
+        """[弃用] V4.5 已转向自主加载模式"""
+        pass
 
     def _handle_audit_ready(self):
         """当单笔伤害审计明细异步加载完成后触发"""
@@ -162,16 +159,15 @@ class AnalysisView(ft.Stack):
         self.grid.controls.clear()
         self.active_tiles.clear()
 
-        # A. 全局概览磁贴 (占 4/12 宽度)
+        # A. 全局概览磁贴
         summary_tile = SummaryTile()
-        summary_tile.update_data(self.state.summary)
+        summary_tile.load_data(self.state.adapter)
         summary_container = TileContainer(tile=summary_tile, on_close=self._handle_close_tile)
         summary_container.col = {"sm": 12, "md": 4}
         
-        # B. DPS 波动磁贴 (占 8/12 宽度)
+        # B. DPS 波动磁贴
         dps_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-        max_f = self.state.summary.get("duration", 0) * 60
-        dps_tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
+        dps_tile.load_data(self.state.adapter)
         dps_container = TileContainer(tile=dps_tile, on_close=self._handle_close_tile)
         dps_container.col = {"sm": 12, "md": 8}
         
@@ -233,29 +229,22 @@ class AnalysisView(ft.Stack):
 
         if tile_id == "dps":
             new_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-            max_f = self.state.summary.get("duration", 0) * 60
-            new_tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
             col_spec = {"sm": 12, "md": 8}
         elif tile_id == "summary":
             new_tile = SummaryTile()
-            new_tile.update_data(self.state.summary)
             col_spec = {"sm": 12, "md": 4}
-        # elif tile_id == "timeline":
-        #    new_tile = TimelineTile()
-        #    max_f = self.state.summary.get("duration", 0) * 60
-        #    new_tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
-        #    col_spec = {"sm": 12, "md": 12}
         elif tile_id == "replay":
             new_tile = ReplayTile()
-            new_tile.update_data(self.state.trajectories)
             col_spec = {"sm": 12, "md": 6}
         elif tile_id == "energy":
             new_tile = EnergyTile()
-            new_tile.update_data(self.state.energy_data)
             col_spec = {"sm": 12, "md": 6}
         
         if new_tile:
             new_tile.tile_id = tile_id
+            if self.state.adapter:
+                new_tile.load_data(self.state.adapter) # 核心：自主按需加载
+            
             container = TileContainer(
                 tile=new_tile, 
                 on_close=self._handle_close_tile,
