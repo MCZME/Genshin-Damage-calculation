@@ -9,6 +9,7 @@ from ui.components.analysis.summary_tile import SummaryTile
 from ui.components.analysis.timeline_tile import TimelineTile
 from ui.components.analysis.replay_tile import ReplayTile
 from ui.components.analysis.energy_tile import EnergyTile
+from ui.components.analysis.history_dialog import HistoryDialog
 from ui.components.analysis.toolbox import AnalysisToolbox
 from ui.components.audit_panel import AuditPanel
 
@@ -140,52 +141,17 @@ class AnalysisView(ft.Stack):
                     panel.update_item(self.state.current_audit)
 
     def _show_history_dialog(self):
-        """[核心改进] 使用 focus_layer 展示历史仿真记录，确保 100% 显示成功"""
+        """显示历史仿真记录选择对话框 (使用独立组件)"""
         from core.logger import get_ui_logger
-        get_ui_logger().log_info(f"AnalysisView: Rendering history list into focus layer...")
+        get_ui_logger().log_info(f"AnalysisView: Showing history dialog component...")
 
-        def on_select(sid):
-            self.state.load_session(sid)
-            self._exit_focus_mode()
-
-        # 1. 构建列表内容
-        list_items = []
-        for s in self.state.sessions_history:
-            list_items.append(
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.DASHBOARD_ROUNDED, color=GenshinTheme.PRIMARY),
-                    title=ft.Text(f"仿真会话 #{s['id']}", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                    subtitle=ft.Text(f"时间: {s['time']} | 伤害: {s['damage']:,.0f}", color=ft.Colors.WHITE70),
-                    trailing=ft.Text(f"{s['duration']:.1f}s", color=ft.Colors.WHITE38),
-                    on_click=lambda _, sid=s['id']: on_select(sid),
-                    hover_color="rgba(255, 255, 255, 0.05)"
-                )
-            )
-
-        # 2. 包装成精致的卡片
-        history_card = ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.HISTORY_ROUNDED, color=GenshinTheme.PRIMARY),
-                    ft.Text("历史仿真记录", size=20, weight=ft.FontWeight.W_900),
-                ], spacing=15),
-                ft.Divider(height=1, color="rgba(255,255,255,0.1)"),
-                ft.Container(
-                    content=ft.ListView(list_items, expand=True, spacing=5),
-                    expand=True
-                )
-            ], spacing=20),
-            width=600,
-            height=500,
-            bgcolor="#1A1625",
-            padding=30,
-            border_radius=24,
-            border=ft.border.all(1, "rgba(255, 255, 255, 0.1)"),
-            shadow=ft.BoxShadow(blur_radius=50, color="rgba(0,0,0,0.5)")
+        dialog_content = HistoryDialog(
+            sessions=self.state.sessions_history,
+            on_select=lambda sid: [self.state.load_session(sid), self._exit_focus_mode()],
+            on_close=self._exit_focus_mode
         )
 
-        # 3. 塞入聚焦层并展示
-        self.focus_tile_container.content = history_card
+        self.focus_tile_container.content = dialog_content
         self.focus_layer.visible = True
         try:
             self.update()
@@ -320,17 +286,21 @@ class AnalysisView(ft.Stack):
         self.update()
 
     def _exit_focus_mode(self):
-        """退出聚焦模式，还原磁贴"""
-        if not self.maximized_container: return
+        """退出聚焦模式，还原磁贴或关闭浮层"""
+        if self.maximized_container:
+            # 如果是从磁贴最大化退出，执行归还逻辑
+            tile = self.focus_tile_container.content.tile
+            self.maximized_container.content_area.content = tile
+            self.maximized_container.set_maximized(False)
+            self.maximized_container = None
         
-        # 将 tile 归还
-        tile = self.focus_tile_container.content.tile
-        self.maximized_container.content_area.content = tile
-        self.maximized_container.set_maximized(False)
-        
+        # 无论是否有磁贴最大化，都隐藏聚焦层并清空内容
         self.focus_layer.visible = False
-        self.maximized_container = None
-        self.update()
+        self.focus_tile_container.content = ft.Container()
+        try:
+            self.update()
+        except:
+            pass
 
     def _handle_close_tile(self, container):
         self.grid.controls.remove(container)
