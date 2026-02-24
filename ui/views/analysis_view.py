@@ -50,12 +50,7 @@ class AnalysisView(ft.Stack):
                     padding=40,
                     alignment=ft.Alignment.CENTER
                 ),
-                ft.IconButton(
-                    ft.Icons.CLOSE_ROUNDED, 
-                    right=20, top=20, 
-                    icon_size=30, 
-                    on_click=lambda _: self._exit_focus_mode()
-                )
+                # 移除这里的冗余 ft.IconButton
             ]),
             visible=False,
             expand=True
