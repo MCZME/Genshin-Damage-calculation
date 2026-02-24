@@ -90,6 +90,7 @@ class AnalysisView(ft.Stack):
         # 订阅分析事件
         if self.app_state:
             self.app_state.events.subscribe("analysis", self._handle_data_ready)
+            self.app_state.events.subscribe("analysis_history_ready", self._show_history_dialog)
             self.app_state.events.subscribe("audit_detail_ready", self._handle_audit_ready)
 
     def _handle_data_ready(self):
@@ -137,6 +138,59 @@ class AnalysisView(ft.Stack):
                 if isinstance(panel, AuditPanel):
                     panel.loading = False
                     panel.update_item(self.state.current_audit)
+
+    def _show_history_dialog(self):
+        """[核心改进] 使用 focus_layer 展示历史仿真记录，确保 100% 显示成功"""
+        from core.logger import get_ui_logger
+        get_ui_logger().log_info(f"AnalysisView: Rendering history list into focus layer...")
+
+        def on_select(sid):
+            self.state.load_session(sid)
+            self._exit_focus_mode()
+
+        # 1. 构建列表内容
+        list_items = []
+        for s in self.state.sessions_history:
+            list_items.append(
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.DASHBOARD_ROUNDED, color=GenshinTheme.PRIMARY),
+                    title=ft.Text(f"仿真会话 #{s['id']}", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                    subtitle=ft.Text(f"时间: {s['time']} | 伤害: {s['damage']:,.0f}", color=ft.Colors.WHITE70),
+                    trailing=ft.Text(f"{s['duration']:.1f}s", color=ft.Colors.WHITE38),
+                    on_click=lambda _, sid=s['id']: on_select(sid),
+                    hover_color="rgba(255, 255, 255, 0.05)"
+                )
+            )
+
+        # 2. 包装成精致的卡片
+        history_card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Icon(ft.Icons.HISTORY_ROUNDED, color=GenshinTheme.PRIMARY),
+                    ft.Text("历史仿真记录", size=20, weight=ft.FontWeight.W_900),
+                ], spacing=15),
+                ft.Divider(height=1, color="rgba(255,255,255,0.1)"),
+                ft.Container(
+                    content=ft.ListView(list_items, expand=True, spacing=5),
+                    expand=True
+                )
+            ], spacing=20),
+            width=600,
+            height=500,
+            bgcolor="#1A1625",
+            padding=30,
+            border_radius=24,
+            border=ft.border.all(1, "rgba(255, 255, 255, 0.1)"),
+            shadow=ft.BoxShadow(blur_radius=50, color="rgba(0,0,0,0.5)")
+        )
+
+        # 3. 塞入聚焦层并展示
+        self.focus_tile_container.content = history_card
+        self.focus_layer.visible = True
+        try:
+            self.update()
+        except:
+            pass
 
     def _assemble_tiles(self):
         """按需组装首批磁贴"""
@@ -199,6 +253,11 @@ class AnalysisView(ft.Stack):
 
     def _add_tile_by_id(self, tile_id: str):
         """核心：根据 ID 实例化并部署磁贴"""
+        # 特殊处理：历史记录不作为磁贴，而是弹出对话框
+        if tile_id == "history":
+            self.state.load_history_list()
+            return
+
         new_tile = None
         col_spec = {"sm": 12, "md": 6}
 

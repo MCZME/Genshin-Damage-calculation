@@ -69,6 +69,7 @@ class AnalysisState:
         self.mechanism_trajectories = {}
         self.audit_logs: List[DamageAuditItem] = []
         self.selected_audit_index = -1
+        self.sessions_history = [] # 历史会话列表
 
         self.loading = False
         self.adapter: Optional[ReviewDataAdapter] = None
@@ -136,6 +137,26 @@ class AnalysisState:
             # 通知 UI 数据加载完成
             if self.app_state:
                 self.app_state.events.notify("analysis")
+
+    def refresh_data(self):
+        """外部主动触发刷新"""
+        sid = getattr(self.app_state, "last_session_id", None)
+        if sid:
+            self.state.load_session(sid)
+
+    def load_history_list(self):
+        """同步触发加载历史列表"""
+        adapter = ReviewDataAdapter()
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._load_history_async(adapter))
+        except RuntimeError:
+            asyncio.run(self._load_history_async(adapter))
+
+    async def _load_history_async(self, adapter):
+        self.sessions_history = await adapter.get_all_sessions()
+        if self.app_state:
+            self.app_state.events.notify("analysis_history_ready")
 
     def select_audit(self, index: int):
         """同步下钻具体伤害点的审计明细 (内部处理异步)"""
