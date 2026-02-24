@@ -60,6 +60,7 @@ class AnalysisState:
         }
 
         self.dps_points = []
+        self.stacked_dps_data = {} # [V4.0] 分角色堆叠 DPS 数据
         self.aura_track = []
         self.action_tracks = {} # 角色动作轨道
         self.trajectories = {} # 全场轨迹
@@ -91,7 +92,7 @@ class AnalysisState:
     async def _load_session_async(self):
         """异步加载数据的实际实现"""
         from core.logger import get_ui_logger
-        get_ui_logger().log_info(f"AnalysisState: _load_session_async started for SID {self.adapter.session_id}")
+        get_ui_logger().log_info(f"AnalysisState: _load_session_async started for SID {self.adapter.repo.session_id}")
         try:
             # 1. 加载摘要
             stats = await self.adapter.get_summary_stats()
@@ -104,9 +105,9 @@ class AnalysisState:
             get_ui_logger().log_info(f"AnalysisState: Summary loaded. DMG={self.summary['total_dmg']}")
 
             # 2. 加载伤害点 (用于曲线)
-            raw_dps = await self.adapter.get_dps_data()
-            self.dps_points = raw_dps
-            get_ui_logger().log_info(f"AnalysisState: Loaded {len(raw_dps)} DPS points.")
+            self.dps_points = await self.adapter.get_dps_data() # 保留原始点用于下钻
+            self.stacked_dps_data = await self.adapter.get_stacked_dps_data() # 获取平滑堆叠数据
+            get_ui_logger().log_info(f"AnalysisState: Loaded {len(self.dps_points)} raw points and {len(self.stacked_dps_data)} character series.")
 
             # 3. 加载元素与动作轨道
             self.aura_track = await self.adapter.get_aura_pulses()
@@ -126,7 +127,7 @@ class AnalysisState:
                     action=p.get("action", "伤害触发"),
                     total_dmg=p["value"],
                     event_id=p["event_id"]
-                ) for p in raw_dps
+                ) for p in self.dps_points
             ]
         except Exception as e:
             import traceback
