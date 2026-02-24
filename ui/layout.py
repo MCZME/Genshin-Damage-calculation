@@ -366,7 +366,3 @@ async def main(page: ft.Page):
     state.register_page(page)
     layout = AppLayout(page, state)
     page.add(layout.build())
-
-
-if __name__ == "__main__":
-    ft.app(target=main)

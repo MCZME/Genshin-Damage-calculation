@@ -6,7 +6,7 @@ from ui.components.analysis.floating_drawer import FloatingDrawer
 from ui.components.analysis.tile_container import TileContainer
 from ui.components.analysis.dps_tile import DPSChartTile
 from ui.components.analysis.summary_tile import SummaryTile
-from ui.components.analysis.timeline_tile import TimelineTile
+# from ui.components.analysis.timeline_tile import TimelineTile
 from ui.components.analysis.replay_tile import ReplayTile
 from ui.components.analysis.energy_tile import EnergyTile
 from ui.components.analysis.history_dialog import HistoryDialog
@@ -29,15 +29,14 @@ class AnalysisView(ft.Stack):
         self.grid = ft.ResponsiveRow(spacing=20, run_spacing=20)
         self.drawer = FloatingDrawer(width=450)
         
-        # 1.5 初始化标尺 (预设为 0 帧，待数据加载后更新)
+        # 1.5 初始化标尺
         self.scrubber = GlobalScrubber(max_frames=0, on_change=self._handle_scrub)
         self.scrubber_container = ft.Container(
             content=self.scrubber,
-            bottom=0, left=0, right=0, 
             height=45,
             bgcolor="#1E1A2A",
             border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
-            padding=ft.padding.only(left=20, right=30, top=0, bottom=0),
+            padding=ft.padding.only(left=20, right=30),
             alignment=ft.Alignment(0, 0)
         )
         
@@ -45,13 +44,12 @@ class AnalysisView(ft.Stack):
         self.focus_tile_container = ft.Container(expand=True)
         self.focus_layer = ft.Container(
             content=ft.Stack([
-                ft.Container(bgcolor="rgba(0,0,0,0.8)", blur=ft.Blur(20, 20), on_click=lambda _: self._exit_focus_mode()),
+                ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: self._exit_focus_mode()), # 调低透明度，移除 blur
                 ft.Container(
                     content=self.focus_tile_container,
                     padding=40,
                     alignment=ft.Alignment.CENTER
                 ),
-                # 移除这里的冗余 ft.IconButton
             ]),
             visible=False,
             expand=True
@@ -70,17 +68,17 @@ class AnalysisView(ft.Stack):
             expand=True
         )
 
-        # 5. 主内容区域 (用于放置工作空间和固定在底部的标尺)
-        self.main_content = ft.Stack([
+        # 5. 主内容区域 (由 Stack 改为 Column，大幅提升渲染性能)
+        self.main_content = ft.Column([
             self.workspace,
             self.scrubber_container
-        ], expand=True) # 确保 Stack 纵向拉伸
+        ], spacing=0, expand=True) 
         
         # 6. 整体布局 Row (工具箱 + 主内容区域)
         self.layout_row = ft.Row([
             self.toolbox,
             self.main_content
-        ], spacing=0, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH) # 强制子组件纵向拉伸
+        ], spacing=0, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH)
         
         self.controls = [
             self.layout_row,
@@ -99,36 +97,37 @@ class AnalysisView(ft.Stack):
         if self.state.loading: return
         
         from core.logger import get_ui_logger
-        get_ui_logger().log_info("AnalysisView: Data ready, assembling tiles...")
-
-        # 如果已经初始化过，且只是数据刷新，则执行磁贴内部更新而不是重绘网格
-        if self.active_tiles:
-            max_f = self.state.summary.get("duration", 0) * 60
-            for tile in self.active_tiles:
-                if hasattr(tile, "update_data"):
-                    if getattr(tile, "tile_id", "") == "dps":
-                        tile.update_data(self.state.dps_points)
-                    elif getattr(tile, "tile_id", "") == "summary":
-                        tile.update_data(self.state.summary)
-                    elif getattr(tile, "tile_id", "") == "timeline":
-                        tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
-                    elif getattr(tile, "tile_id", "") == "replay":
-                        tile.update_data(self.state.trajectories)
-                    elif getattr(tile, "tile_id", "") == "energy":
-                        tile.update_data(self.state.energy_data)
-            return
+        get_ui_logger().log_info("AnalysisView: Data ready, updating UI...")
 
         # 1. 更新标尺 (获取总帧数)
         max_f = self.state.summary.get("duration", 0) * 60
         if self.scrubber:
             self.scrubber.max_frames = int(max_f)
-            self.scrubber.update_range() # 需要在 GlobalScrubber 中增加此方法或确保其属性响应
+            self.scrubber.update_range()
 
-        # 2. 初始化磁贴
-        self._assemble_tiles()
+        # 2. 如果已经初始化过，执行局部更新
+        if self.active_tiles:
+            for tile in self.active_tiles:
+                if hasattr(tile, "update_data"):
+                    if getattr(tile, "tile_id", "") == "dps":
+                        tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
+                    elif getattr(tile, "tile_id", "") == "summary":
+                        tile.update_data(self.state.summary)
+                    # elif getattr(tile, "tile_id", "") == "timeline":
+                    #    tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
+                    elif getattr(tile, "tile_id", "") == "replay":
+                        tile.update_data(self.state.trajectories)
+                    elif getattr(tile, "tile_id", "") == "energy":
+                        tile.update_data(self.state.energy_data)
+        else:
+            # 3. 首次加载，组装磁贴
+            self._assemble_tiles()
         
-        try: self.update()
-        except: pass
+        # 4. 统一执行一次更新
+        try: 
+            self.update()
+        except: 
+            pass
 
     def _handle_audit_ready(self):
         """当单笔伤害审计明细异步加载完成后触发"""
@@ -171,7 +170,8 @@ class AnalysisView(ft.Stack):
         
         # B. DPS 波动磁贴 (占 8/12 宽度)
         dps_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-        dps_tile.update_data(self.state.dps_points)
+        max_f = self.state.summary.get("duration", 0) * 60
+        dps_tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
         dps_container = TileContainer(tile=dps_tile, on_close=self._handle_close_tile)
         dps_container.col = {"sm": 12, "md": 8}
         
@@ -180,9 +180,13 @@ class AnalysisView(ft.Stack):
         self.active_tiles.extend([summary_tile, dps_tile])
 
     def _handle_scrub(self, frame_id: int):
-        """全局标尺联动回调"""
+        """全局标尺联动回调 (局部精准刷新版)"""
+        # 仅分发信号，由磁贴执行局部 update()
         for tile in self.active_tiles:
-            tile.sync_to_frame(frame_id)
+            try:
+                tile.sync_to_frame(frame_id)
+            except:
+                pass
 
     def _handle_drill_down(self, point_item: dict):
         """点击图表点执行下钻"""
@@ -229,17 +233,18 @@ class AnalysisView(ft.Stack):
 
         if tile_id == "dps":
             new_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-            new_tile.update_data(self.state.dps_points)
+            max_f = self.state.summary.get("duration", 0) * 60
+            new_tile.update_data(self.state.dps_points, self.state.stacked_dps_data, max_f)
             col_spec = {"sm": 12, "md": 8}
         elif tile_id == "summary":
             new_tile = SummaryTile()
             new_tile.update_data(self.state.summary)
             col_spec = {"sm": 12, "md": 4}
-        elif tile_id == "timeline":
-            new_tile = TimelineTile()
-            max_f = self.state.summary.get("duration", 0) * 60
-            new_tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
-            col_spec = {"sm": 12, "md": 12} # 时间轴建议全宽
+        # elif tile_id == "timeline":
+        #    new_tile = TimelineTile()
+        #    max_f = self.state.summary.get("duration", 0) * 60
+        #    new_tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
+        #    col_spec = {"sm": 12, "md": 12}
         elif tile_id == "replay":
             new_tile = ReplayTile()
             new_tile.update_data(self.state.trajectories)
