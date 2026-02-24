@@ -351,6 +351,79 @@ class ReviewDataAdapter:
                     
             return results
 
+    async def get_action_tracks(self) -> Dict[str, List[Dict[str, Any]]]:
+        """提取角色动作指令的时间轴轨道 (聚合为片段)"""
+        if not os.path.exists(self.db_path): return {}
+        async with aiosqlite.connect(self.db_path) as db:
+            sid = await self._get_latest_session(db)
+            if sid is None: return {}
+            await self._load_name_map(db, sid)
+            
+            tracks: Dict[str, List[Dict[str, Any]]] = {}
+            sql = """
+                SELECT frame_id, entity_id, action_id 
+                FROM character_pulses 
+                WHERE session_id = ? 
+                ORDER BY entity_id, frame_id
+            """
+            async with db.execute(sql, (sid,)) as cursor:
+                current_entity = None
+                current_action = None
+                start_frame = 0
+                
+                async for row in cursor:
+                    fid, eid, aid = row
+                    name = self._name_map.get(eid, f"Char_{eid}")
+                    
+                    if eid != current_entity or aid != current_action:
+                        # 结束旧片段
+                        if current_entity is not None and current_action:
+                            if name not in tracks: tracks[name] = []
+                            tracks[name].append({
+                                "start": start_frame,
+                                "end": fid - 1,
+                                "action": current_action
+                            })
+                        # 开始新片段
+                        current_entity = eid
+                        current_action = aid
+                        start_frame = fid
+                
+                # 最后一个片段处理
+                if current_entity is not None and current_action:
+                    name = self._name_map.get(current_entity, f"Char_{current_entity}")
+                    if name not in tracks: tracks[name] = []
+                    tracks[name].append({
+                        "start": start_frame,
+                        "end": start_frame + 1,
+                        "action": current_action
+                    })
+            return tracks
+
+    async def get_all_pulses(self) -> Dict[str, List[Dict[str, Any]]]:
+        """提取全场所有实体的物理轨迹 (用于重演投影)"""
+        if not os.path.exists(self.db_path): return {}
+        async with aiosqlite.connect(self.db_path) as db:
+            sid = await self._get_latest_session(db)
+            if sid is None: return {}
+            await self._load_name_map(db, sid)
+            
+            trajectories = {}
+            # 1. 角色轨迹
+            async with db.execute(
+                "SELECT frame_id, entity_id, x, z, is_on_field FROM character_pulses "
+                "WHERE session_id = ? ORDER BY frame_id", (sid,)
+            ) as cursor:
+                async for row in cursor:
+                    name = self._name_map.get(row[1], f"Char_{row[1]}")
+                    if name not in trajectories: trajectories[name] = []
+                    trajectories[name].append({
+                        "f": row[0], 
+                        "pos": (row[2], row[3]), 
+                        "on": bool(row[4])
+                    })
+            return trajectories
+
     async def get_damage_audit(self, event_id: int) -> List[Dict[str, Any]]:
         """获取特定事件的完整计算审计明细"""
         if not os.path.exists(self.db_path) or event_id is None: return []

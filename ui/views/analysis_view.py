@@ -1,330 +1,290 @@
 import flet as ft
-import flet_charts as fch
 from ui.theme import GenshinTheme
-from ui.services.ui_formatter import UIFormatter
 from ui.states.analysis_state import AnalysisState
+from ui.components.analysis.scrubber import GlobalScrubber
+from ui.components.analysis.floating_drawer import FloatingDrawer
+from ui.components.analysis.tile_container import TileContainer
+from ui.components.analysis.dps_tile import DPSChartTile
+from ui.components.analysis.summary_tile import SummaryTile
+from ui.components.analysis.timeline_tile import TimelineTile
+from ui.components.analysis.replay_tile import ReplayTile
+from ui.components.analysis.energy_tile import EnergyTile
+from ui.components.analysis.toolbox import AnalysisToolbox
 from ui.components.audit_panel import AuditPanel
-from ui.components.analysis_metric_card import AnalysisMetricCard
 
-class AnalysisView(ft.Container):
+class AnalysisView(ft.Stack):
     """
-    分析视图重构版 (Analysis View - Data Insights)
-    核心：可视化曲线 + 扁平化审计面板。
+    分析视图 V3.5 (模块化工作台版)
+    采用磁贴网格布局 + 全局时间同步锚点。
     """
     def __init__(self, app_state=None):
         super().__init__()
         self.app_state = app_state
         self.state = AnalysisState(app_state=app_state)
         self.expand = True
-        self.bgcolor = GenshinTheme.BACKGROUND
-        self.padding = 30
         
-        self.metric_cards = {} 
-        self._has_data = False 
-        self._build_ui()
+        # 1. 核心布局组件
+        self.toolbox = AnalysisToolbox(on_tile_toggle=self._handle_tile_toggle)
+        self.grid = ft.ResponsiveRow(spacing=20, run_spacing=20)
+        self.scrubber = None
+        self.drawer = FloatingDrawer(width=450)
         
-        # 订阅分析事件，以便在后台加载完成后刷新 UI
-        if self.app_state:
-            self.app_state.events.subscribe("analysis", self._handle_data_ready)
-
-    def _handle_data_ready(self):
-        """数据就绪回调"""
-        if not self.state.loading:
-            self._has_data = True
-            self._build_ui()
-            try: self.update()
-            except: pass
-
-    def refresh_data(self):
-        """同步加载数据并刷新 UI"""
-        from core.logger import get_ui_logger
-        sid = getattr(self.app_state, "last_session_id", None)
-        get_ui_logger().log_info(f"AnalysisView: refresh_data called. last_session_id={sid}")
-
-        if self.state.loading:
-            get_ui_logger().log_info("AnalysisView: Already loading, skipping.")
-            return
-
-        self.state.loading = True
-        self._build_ui()
-        try: self.update()
-        except: pass
-        
-        if self.app_state and sid:
-            get_ui_logger().log_info(f"AnalysisView: Triggering state.load_session for SID {sid}")
-            self.state.load_session(sid)
-            self._has_data = True
-            # 注意：load_session 是异步的，后续刷新由 events.notify("simulation") 触发
-        else:
-            get_ui_logger().log_warning("AnalysisView: last_session_id is None, cannot load data.")
-            self.state.loading = False
-            self._build_ui()
-            try: self.update()
-            except: pass
-
-    def did_mount(self):
-        """挂载时如果已有数据则直接渲染，否则加载最新会话"""
-        if self._has_data and self.state.dps_points:
-            self._build_ui()
-            try: self.update()
-            except: pass
-        else:
-            self.refresh_data()
-
-    def _on_chart_event(self, e: fch.LineChartEvent):
-        """处理图表交互：点击数据点触发审计下钻"""
-        # 根据官方文档，e.type 返回事件类型，e.spots 包含交互点列表
-        if e.type == "point_click" or e.type == "chart_point_clicked":
-            for spot in e.spots:
-                # spot_index 是该线上的数据点索引，bar_index 是线的索引
-                point_index = spot.spot_index
-                if point_index != -1:
-                    self.state.select_audit(point_index)
-                    self.audit_panel.update_item(self.state.current_audit)
-                    try: self.update()
-                    except: pass
-
-    def _build_ui(self):
-        if self.state.loading:
-            self.content = ft.Container(
-                content=ft.Column([
-                    ft.ProgressRing(color=GenshinTheme.PRIMARY),
-                    ft.Text("正在抓取仿真审计数据...", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE24)
-                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                expand=True,
-                alignment=ft.Alignment.CENTER
-            )
-            return
-
-        is_empty = not self.state.dps_points
-        
-        if is_empty and not self._has_data:
-             self.content = ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.ANALYTICS_OUTLINED, size=48, color=ft.Colors.WHITE_12),
-                    ft.Text("等待数据初始化...", size=16, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE_24),
-                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                expand=True,
-                alignment=ft.Alignment.CENTER
-            )
-             return
-        
-        # 1. 顶部指标栏 (使用原子组件)
-        self.metric_cards = {
-            "total_dmg": AnalysisMetricCard("总伤害输出", UIFormatter.format_metric_value(self.state.summary['total_dmg']), ft.Colors.AMBER_400),
-            "avg_dps": AnalysisMetricCard("平均 DPS", UIFormatter.format_metric_value(self.state.summary['avg_dps']), GenshinTheme.PRIMARY),
-            "duration": AnalysisMetricCard("战斗持续时间", f"{self.state.summary['duration']:.1f}s", ft.Colors.BLUE_200),
-            "peak_dps": AnalysisMetricCard("峰值 DPS", UIFormatter.format_metric_value(self.state.summary['peak_dps']), ft.Colors.RED_400),
-        }
-        self.metrics_row = ft.Row(list(self.metric_cards.values()), spacing=20)
-
-        # 2. 图表区域处理
-        if is_empty:
-            self.chart_area = self._build_skeleton_chart()
-        else:
-            self.chart_area = self._build_results_chart()
-
-        # 3. 深度审计面板
-        self.audit_panel = AuditPanel(self.state.current_audit)
-
-        # 组装
-        self.content = ft.Column([
-            ft.Row([
-                ft.Text("战后深度数据分析报告", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                ft.Container(expand=True),
-                ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self.refresh_data())
-            ]),
-            self.metrics_row,
-            self.chart_area,
-            ft.Row([
-                ft.Column([
-                    ft.Text("动作与状态时间轴 (Action & Aura Lifecycle)", size=12, weight=ft.FontWeight.BOLD, opacity=0.4),
-                    self._build_timeline_section(),
-                ], expand=2),
-                ft.Column([
-                    ft.Text("反应触发统计 (Reactions)", size=12, weight=ft.FontWeight.BOLD, opacity=0.4),
-                    self._build_reaction_stats_section(),
-                ], expand=1),
-            ], spacing=25, vertical_alignment=ft.CrossAxisAlignment.START),
-            ft.Text("每帧伤害审计日志 (点击上方图表点下钻)", size=12, weight=ft.FontWeight.BOLD, opacity=0.4),
-            self.audit_panel
-        ], spacing=25, scroll=ft.ScrollMode.ADAPTIVE)
-
-    def _build_reaction_stats_section(self):
-        """构建反应统计环形图或列表"""
-        if not self.state.reaction_stats:
-            return ft.Container(
-                content=ft.Text("无反应触发数据", size=12, opacity=0.2),
-                alignment=ft.Alignment.CENTER, height=150, bgcolor=ft.Colors.BLACK12, border_radius=10
-            )
-
-        stats_rows = []
-        for r_type, count in self.state.reaction_stats.items():
-            stats_rows.append(
-                ft.Row([
-                    ft.Text(r_type, size=13, weight=ft.FontWeight.W_600, width=100),
-                    ft.Container(
-                        content=ft.Text(str(count), size=11, weight=ft.FontWeight.BOLD),
-                        bgcolor=GenshinTheme.PRIMARY,
-                        padding=ft.Padding(8, 2, 8, 2),
-                        border_radius=10
-                    )
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            )
-
-        return ft.Container(
-            content=ft.Column(stats_rows, spacing=10),
-            padding=20, bgcolor=ft.Colors.with_opacity(0.03, ft.Colors.WHITE),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            border_radius=15
-        )
-
-    def _build_skeleton_chart(self):
-        """构建骨架屏：带网格与波浪线的占位符"""
-        return ft.Container(
+        # 2. 聚焦层 (用于最大化显示磁贴)
+        self.focus_tile_container = ft.Container(expand=True)
+        self.focus_layer = ft.Container(
             content=ft.Stack([
+                ft.Container(bgcolor="rgba(0,0,0,0.8)", blur=ft.Blur(20, 20), on_click=lambda _: self._exit_focus_mode()),
                 ft.Container(
-                    content=ft.Column([
-                        ft.Divider(height=1, color=ft.Colors.with_opacity(0.05, ft.Colors.WHITE)) for _ in range(6)
-                    ], spacing=40, alignment=ft.MainAxisAlignment.CENTER),
-                    expand=True
+                    content=self.focus_tile_container,
+                    padding=40,
+                    alignment=ft.Alignment.CENTER
                 ),
-                ft.Column([
-                    ft.Icon(ft.Icons.ANALYTICS_OUTLINED, size=48, color=ft.Colors.WHITE_12),
-                    ft.Text("尚未运行仿真", size=16, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE_24),
-                    ft.Text("点击下方 [开始仿真] 按钮生成伤害审计报告与 DPS 曲线", size=12, color=ft.Colors.WHITE_12),
-                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-            ], alignment=ft.Alignment.CENTER),
-            height=320,
-            padding=20,
-            bgcolor=ft.Colors.with_opacity(0.02, ft.Colors.WHITE),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            border_radius=15
+                ft.IconButton(
+                    ft.Icons.CLOSE_ROUNDED, 
+                    right=20, top=20, 
+                    icon_size=30, 
+                    on_click=lambda _: self._exit_focus_mode()
+                )
+            ]),
+            visible=False,
+            expand=True
+        )
+        
+        # 3. 磁贴管理
+        self.active_tiles = []
+        self.maximized_container = None # 记录当前哪个容器在最大化
+        
+        # 4. 组装主工作空间
+        self.workspace = ft.Container(
+            content=ft.Column([
+                ft.Container(self.grid, padding=ft.padding.only(bottom=50)), # 配合 45px 的标尺
+            ], scroll=ft.ScrollMode.ADAPTIVE, expand=True), # 强制 Column 填满垂直空间
+            padding=30,
+            expand=True
         )
 
-    def _build_results_chart(self):
-        """真正的图表渲染区：Flet LineChart"""
-        data_points = self.state.dps_points
-        if not data_points: return self._build_skeleton_chart()
+        # 5. 主内容区域 (用于放置工作空间和固定在底部的标尺)
+        self.main_content = ft.Stack([
+            self.workspace
+        ], expand=True) # 确保 Stack 纵向拉伸
         
-        chart_spots = [
-            fch.LineChartDataPoint(i, p["value"]) 
-            for i, p in enumerate(data_points)
+        # 6. 整体布局 Row (工具箱 + 主内容区域)
+        self.layout_row = ft.Row([
+            self.toolbox,
+            self.main_content
+        ], spacing=0, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH) # 强制子组件纵向拉伸
+        
+        self.controls = [
+            self.layout_row,
+            self.drawer,
+            self.focus_layer
         ]
         
-        chart = fch.LineChart(
-            data_series=[
-                fch.LineChartData(
-                    points=chart_spots,
-                    color=GenshinTheme.PRIMARY,
-                    stroke_width=3,
-                    curved=True,
-                    below_line_bgcolor=ft.Colors.with_opacity(0.1, GenshinTheme.PRIMARY),
-                    below_line_gradient=ft.LinearGradient(
-                        begin=ft.Alignment.TOP_CENTER,
-                        end=ft.Alignment.BOTTOM_CENTER,
-                        colors=[ft.Colors.with_opacity(0.2, GenshinTheme.PRIMARY), ft.Colors.TRANSPARENT]
-                    ),
-                    point=fch.ChartCirclePoint(radius=4, color=ft.Colors.WHITE),
-                )
-            ],
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
-            horizontal_grid_lines=fch.ChartGridLines(interval=max([p["value"] for p in data_points]) / 5, color=ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            vertical_grid_lines=fch.ChartGridLines(interval=max(len(data_points) / 10, 1), color=ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            on_event=self._on_chart_event,
-            interactive=True,
-            expand=True,
-        )
+        # 订阅分析事件
+        if self.app_state:
+            self.app_state.events.subscribe("analysis", self._handle_data_ready)
+            self.app_state.events.subscribe("audit_detail_ready", self._handle_audit_ready)
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.AUTO_GRAPH, size=16, color=GenshinTheme.PRIMARY),
-                    ft.Text("DPS 波动曲线 (点击圆点查看审计)", size=12, weight=ft.FontWeight.BOLD),
-                ], spacing=10),
-                ft.Container(
-                    content=chart,
-                    padding=10,
-                    expand=True
-                )
-            ], spacing=10),
-            height=320,
-            padding=20,
-            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLACK),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, GenshinTheme.PRIMARY)),
-            border_radius=15
-        )
+    def _handle_data_ready(self):
+        """当 AnalysisState 后台抓取完数据库后触发"""
+        if self.state.loading: return
+        
+        from core.logger import get_ui_logger
+        get_ui_logger().log_info("AnalysisView: Data ready, assembling tiles...")
 
-    def _build_timeline_section(self):
-        """构建动作与元素轨道时间轴 (甘特图风格)"""
-        if not self.state.lifecycles and not self.state.aura_track:
-            return ft.Container(
-                content=ft.Text("无生命周期数据", size=12, opacity=0.2),
-                alignment=ft.Alignment.CENTER,
-                height=100,
-                bgcolor=ft.Colors.with_opacity(0.02, ft.Colors.WHITE),
-                border_radius=10
+        # 如果已经初始化过，且只是数据刷新，则执行磁贴内部更新而不是重绘网格
+        if self.active_tiles:
+            max_f = self.state.summary.get("duration", 0) * 60
+            for tile in self.active_tiles:
+                if hasattr(tile, "update_data"):
+                    if getattr(tile, "tile_id", "") == "dps":
+                        tile.update_data(self.state.dps_points)
+                    elif getattr(tile, "tile_id", "") == "summary":
+                        tile.update_data(self.state.summary)
+                    elif getattr(tile, "tile_id", "") == "timeline":
+                        tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
+                    elif getattr(tile, "tile_id", "") == "replay":
+                        tile.update_data(self.state.trajectories)
+                    elif getattr(tile, "tile_id", "") == "energy":
+                        tile.update_data(self.state.energy_data)
+            return
+
+        # 1. 初始化标尺 (获取总帧数)
+        max_f = self.state.summary.get("duration", 0) * 60
+        if not self.scrubber:
+            self.scrubber = GlobalScrubber(max_frames=int(max_f), on_change=self._handle_scrub)
+            # 放置在底部固定位置
+            scrubber_container = ft.Container(
+                content=self.scrubber,
+                bottom=0, left=0, right=0, 
+                height=45,
+                bgcolor="#1E1A2A", # 使用更接近背景的实色
+                border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
+                padding=ft.padding.only(left=20, right=30, top=0, bottom=0),
+                alignment=ft.Alignment(0, 0)
             )
+            self.main_content.controls.append(scrubber_container)
 
-        aura_row = ft.Row(spacing=2, scroll=ft.ScrollMode.ADAPTIVE)
-        for pulse in self.state.aura_track:
-            aura_val = pulse["aura"]
-            aura_text = str(aura_val) if aura_val else "None"
+        # 2. 初始化磁贴
+        self._assemble_tiles()
+        
+        try: self.update()
+        except: pass
+
+    def _handle_audit_ready(self):
+        """当单笔伤害审计明细异步加载完成后触发"""
+        if self.state.current_audit:
+            # 找到抽屉里当前的 AuditPanel 并更新它
+            if self.drawer.detail_area.controls:
+                panel = self.drawer.detail_area.controls[0]
+                if isinstance(panel, AuditPanel):
+                    panel.loading = False
+                    panel.update_item(self.state.current_audit)
+
+    def _assemble_tiles(self):
+        """按需组装首批磁贴"""
+        self.grid.controls.clear()
+        self.active_tiles.clear()
+
+        # A. 全局概览磁贴 (占 4/12 宽度)
+        summary_tile = SummaryTile()
+        summary_tile.update_data(self.state.summary)
+        summary_container = TileContainer(tile=summary_tile, on_close=self._handle_close_tile)
+        summary_container.col = {"sm": 12, "md": 4}
+        
+        # B. DPS 波动磁贴 (占 8/12 宽度)
+        dps_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
+        dps_tile.update_data(self.state.dps_points)
+        dps_container = TileContainer(tile=dps_tile, on_close=self._handle_close_tile)
+        dps_container.col = {"sm": 12, "md": 8}
+        
+        # 添加到网格
+        self.grid.controls.extend([summary_container, dps_container])
+        self.active_tiles.extend([summary_tile, dps_tile])
+
+    def _handle_scrub(self, frame_id: int):
+        """全局标尺联动回调"""
+        for tile in self.active_tiles:
+            tile.sync_to_frame(frame_id)
+
+    def _handle_drill_down(self, point_item: dict):
+        """点击图表点执行下钻"""
+        frame = point_item['frame']
+        event_id = point_item['event_id']
+        
+        # 1. 标尺跳转
+        if self.scrubber:
+            self.scrubber.set_frame(frame, notify=False)
+        
+        # 2. 抽屉滑出审计详情 (先显示加载态)
+        idx = next((i for i, a in enumerate(self.state.audit_logs) if a.event_id == event_id), -1)
+        if idx != -1:
+            audit_item = self.state.audit_logs[idx]
+            # 立即滑出带加载圈的面板
+            panel = AuditPanel(audit_item, loading=True)
+            self.drawer.show(content=panel, title=f"伤害审计 - Frame {frame}")
             
-            # 改进：根据元素名称自动映射主题色
-            color = ft.Colors.WHITE24
-            for elem, hex_color in GenshinTheme.ELEMENT_COLORS.items():
-                if elem in aura_text:
-                    color = hex_color
-                    break
-            
-            aura_row.controls.append(
-                ft.Container(
-                    width=10, height=20, 
-                    bgcolor=color,
-                    border_radius=2,
-                    tooltip=f"Frame {pulse['frame']}: {aura_text}"
-                )
+            # 触发状态加载明细 (后台异步执行)
+            self.state.select_audit(idx)
+
+    def _handle_tile_toggle(self, tile_id: str):
+        """处理工具箱磁贴开关请求"""
+        # 查找该 ID 是否已在 active_tiles
+        existing = next((t for t in self.active_tiles if getattr(t, "tile_id", "") == tile_id), None)
+        
+        if existing:
+            # 如果已存在，则触发对应容器的关闭逻辑
+            container = next((c for c in self.grid.controls if getattr(c, "tile", None) == existing), None)
+            if container: self._handle_close_tile(container)
+        else:
+            # 如果不存在，则创建并添加
+            self._add_tile_by_id(tile_id)
+
+    def _add_tile_by_id(self, tile_id: str):
+        """核心：根据 ID 实例化并部署磁贴"""
+        new_tile = None
+        col_spec = {"sm": 12, "md": 6}
+
+        if tile_id == "dps":
+            new_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
+            new_tile.update_data(self.state.dps_points)
+            col_spec = {"sm": 12, "md": 8}
+        elif tile_id == "summary":
+            new_tile = SummaryTile()
+            new_tile.update_data(self.state.summary)
+            col_spec = {"sm": 12, "md": 4}
+        elif tile_id == "timeline":
+            new_tile = TimelineTile()
+            max_f = self.state.summary.get("duration", 0) * 60
+            new_tile.update_data(self.state.action_tracks, self.state.aura_track, max_f)
+            col_spec = {"sm": 12, "md": 12} # 时间轴建议全宽
+        elif tile_id == "replay":
+            new_tile = ReplayTile()
+            new_tile.update_data(self.state.trajectories)
+            col_spec = {"sm": 12, "md": 6}
+        elif tile_id == "energy":
+            new_tile = EnergyTile()
+            new_tile.update_data(self.state.energy_data)
+            col_spec = {"sm": 12, "md": 6}
+        
+        if new_tile:
+            new_tile.tile_id = tile_id
+            container = TileContainer(
+                tile=new_tile, 
+                on_close=self._handle_close_tile,
+                on_maximize=self._enter_focus_mode
             )
-
-        lifecycle_rows = ft.Column(spacing=10)
-        max_frame = max([l['end'] or 0 for l in self.state.lifecycles]) if self.state.lifecycles else 600
-        if max_frame == 0: max_frame = 600
-        scale = 800 / max_frame
-
-        for lc in self.state.lifecycles:
-            start_px = lc['start'] * scale
-            end_frame = lc['end'] if lc['end'] is not None else max_frame
-            duration_px = (end_frame - lc['start']) * scale
+            container.col = col_spec
             
-            color = ft.Colors.BLUE_400 if lc['type'] == 'MODIFIER' else ft.Colors.GREEN_400
-            if "Shield" in lc['name']: color = ft.Colors.YELLOW_700
+            self.grid.controls.append(container)
+            self.active_tiles.append(new_tile)
+            self._update_toolbox_highlight()
+            self.update()
 
-            lifecycle_rows.controls.append(
-                ft.Row([
-                    ft.Text(lc['name'][:10], size=10, width=80, no_wrap=True),
-                    ft.Stack([
-                        ft.Container(
-                            left=start_px,
-                            width=max(duration_px, 2),
-                            height=12,
-                            bgcolor=ft.Colors.with_opacity(0.3, color),
-                            border=ft.Border.all(1, color),
-                            border_radius=3,
-                        )
-                    ], width=820, height=12)
-                ], spacing=10)
-            )
+    def _update_toolbox_highlight(self):
+        """同步工具箱图标状态"""
+        active_ids = [t.tile_id for t in self.active_tiles if hasattr(t, "tile_id")]
+        self.toolbox.update_active_states(active_ids)
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Text("目标附着状态 (Aura Track)", size=10, opacity=0.5),
-                ft.Container(content=aura_row, padding=10, bgcolor=ft.Colors.BLACK12, border_radius=8),
-                ft.Text("增益与效果覆盖 (Lifecycles)", size=10, opacity=0.5),
-                ft.Container(content=lifecycle_rows, padding=10, bgcolor=ft.Colors.BLACK12, border_radius=8),
-            ], spacing=15),
-            padding=20,
-            bgcolor=ft.Colors.with_opacity(0.03, ft.Colors.WHITE),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            border_radius=15
+    def _enter_focus_mode(self, container):
+        """进入沉浸式聚焦模式"""
+        self.maximized_container = container
+        # 暂时将 tile 从原容器移出，放入聚焦层
+        tile = container.tile
+        container.content_area.content = ft.Container() # 占位
+        
+        self.focus_tile_container.content = TileContainer(
+            tile=tile,
+            on_maximize=lambda _: self._exit_focus_mode(), # 最大化按钮变为退出
+            on_close=lambda _: self._exit_focus_mode(),
+            is_maximized=True
         )
+        
+        self.focus_layer.visible = True
+        self.update()
+
+    def _exit_focus_mode(self):
+        """退出聚焦模式，还原磁贴"""
+        if not self.maximized_container: return
+        
+        # 将 tile 归还
+        tile = self.focus_tile_container.content.tile
+        self.maximized_container.content_area.content = tile
+        self.maximized_container.set_maximized(False)
+        
+        self.focus_layer.visible = False
+        self.maximized_container = None
+        self.update()
+
+    def _handle_close_tile(self, container):
+        self.grid.controls.remove(container)
+        if container.tile in self.active_tiles:
+            self.active_tiles.remove(container.tile)
+        self._update_toolbox_highlight()
+        self.update()
+
+    def refresh_data(self):
+        """外部主动触发刷新"""
+        sid = getattr(self.app_state, "last_session_id", None)
+        if sid:
+            self.state.load_session(sid)
