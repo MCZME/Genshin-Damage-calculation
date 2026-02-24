@@ -37,6 +37,32 @@ class ReviewDataAdapter:
             async for row in cursor:
                 self._name_map[row[0]] = row[1]
 
+    async def get_all_sessions(self) -> List[Dict[str, Any]]:
+        """获取所有历史会话的摘要列表"""
+        if not os.path.exists(self.db_path): return []
+        async with aiosqlite.connect(self.db_path) as db:
+            sql = """
+                SELECT id, created_at, total_damage, duration_frames, avg_dps 
+                FROM simulation_sessions 
+                ORDER BY id DESC
+            """
+            try:
+                async with db.execute(sql) as cursor:
+                    results = []
+                    async for row in cursor:
+                        results.append({
+                            "id": row[0],
+                            "time": row[1],
+                            "damage": row[2] or 0,
+                            "duration": (row[3] or 0) / 60.0,
+                            "dps": row[4] or 0
+                        })
+                    return results
+            except Exception as e:
+                from core.logger import get_ui_logger
+                get_ui_logger().log_error(f"Adapter: Failed to load all sessions: {e}")
+                return []
+
     async def get_summary_stats(self) -> Dict[str, Any]:
         """获取全局统计摘要 (直接查询汇总表)"""
         from core.logger import get_ui_logger

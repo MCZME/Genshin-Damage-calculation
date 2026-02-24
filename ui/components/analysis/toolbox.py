@@ -46,6 +46,7 @@ class AnalysisToolbox(ft.Container):
 
         # 2. 磁贴项配置 (扁平化列表)
         self.items_config = [
+            ("历史记录", ft.Icons.HISTORY_ROUNDED, "history"),
             ("DPS 曲线", ft.Icons.AUTO_GRAPH_ROUNDED, "dps"),
             ("全局战报", ft.Icons.DASHBOARD_ROUNDED, "summary"),
             ("多轨时间轴", ft.Icons.VIEW_TIMELINE_ROUNDED, "timeline"),
