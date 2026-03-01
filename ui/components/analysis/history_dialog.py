@@ -1,31 +1,17 @@
 import flet as ft
 from ui.theme import GenshinTheme
 
-class HistoryDialog(ft.Container):
+class HistoryDialog:
     """
-    仿真历史记录选择组件 (Artifact Prime 风格)。
-    作为一个独立浮窗内容存在，提供仿真记录的浏览与加载。
+    仿真历史记录选择组件 (声明式版)。
     """
     def __init__(self, sessions, on_select, on_close):
-        super().__init__()
         self.sessions = sessions
         self.on_select_callback = on_select
         self.on_close_callback = on_close
-        
-        # 基础视觉配置 (Artifact Prime 外壳)
-        self.width = 650
-        self.height = 550
-        self.padding = 2
-        self.gradient = ft.LinearGradient(
-            begin=ft.Alignment(0, -1),
-            end=ft.Alignment(0, 1),
-            colors=[GenshinTheme.GOLD_LIGHT, GenshinTheme.GOLD_DARK, "#2A2435"]
-        )
-        self.border_radius = ft.BorderRadius.only(top_left=34, bottom_right=34, top_right=8, bottom_left=8)
-        
-        self._build_ui()
 
-    def _build_ui(self):
+    @ft.component
+    def build(self):
         # 1. 构建列表内容
         list_items = []
         for s in self.sessions:
@@ -40,30 +26,24 @@ class HistoryDialog(ft.Container):
                 )
             )
 
-        # 2. 内层包装 (紫色核心)
-        self.content = ft.Container(
+        # 2. 内层核心视图 (紫色核心)
+        inner_content = ft.Container(
             bgcolor="#1A1625",
-            border_radius=ft.BorderRadius.only(top_left=32, bottom_right=32, top_right=6, bottom_left=6),
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            border_radius=ft.BorderRadius.only(top_left=32, bottom_right=32, top_right=6, bottom_left=6),
             content=ft.Stack([
-                # 顶部高光
                 ft.Container(
-                    height=150,
-                    top=0, left=0, right=0,
+                    height=150, top=0, left=0, right=0,
                     gradient=ft.LinearGradient(
-                        begin=ft.Alignment(0, -1),
-                        end=ft.Alignment(0, 1),
+                        begin=ft.Alignment(0, -1), end=ft.Alignment(0, 1),
                         colors=[ft.Colors.with_opacity(0.2, GenshinTheme.GOLD_DARK), ft.Colors.TRANSPARENT]
                     ),
                 ),
-                # 装饰暗纹
                 ft.Container(
                     content=ft.Icon(ft.Icons.AUTO_AWESOME, size=250, color=ft.Colors.with_opacity(0.015, ft.Colors.WHITE)),
                     right=-80, bottom=-80
                 ),
-                # 核心布局
                 ft.Column([
-                    # Header
                     ft.Container(
                         padding=ft.Padding(30, 20, 25, 15),
                         border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE))),
@@ -78,16 +58,27 @@ class HistoryDialog(ft.Container):
                             ft.IconButton(
                                 ft.Icons.CLOSE_ROUNDED, 
                                 icon_color=ft.Colors.RED_ACCENT_200,
+                                tooltip="关闭面板",
                                 on_click=lambda _: self.on_close_callback()
                             )
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                     ),
-                    # 列表区域
                     ft.Container(
-                        content=ft.ListView(list_items, expand=True, spacing=5),
+                        content=ft.ListView(list_items, expand=True, spacing=5, item_extent=70),
                         expand=True,
                         padding=ft.Padding(20, 10, 20, 20)
                     )
                 ], spacing=0)
             ])
+        )
+
+        # 最终外层容器 (外壳)
+        return ft.Container(
+            content=inner_content,
+            width=650, height=550, padding=2,
+            gradient=ft.LinearGradient(
+                begin=ft.Alignment(0, -1), end=ft.Alignment(0, 1),
+                colors=[GenshinTheme.GOLD_LIGHT, GenshinTheme.GOLD_DARK, "#2A2435"]
+            ),
+            border_radius=ft.BorderRadius.only(top_left=34, bottom_right=34, top_right=8, bottom_left=8)
         )
