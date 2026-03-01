@@ -214,7 +214,13 @@ class SimulationLogger:
 class UILogger:
     def __init__(self):
         self.logger = logging.getLogger("Genshin.UI")
-        self.logger.setLevel(logging.INFO)
+        
+        # 根据配置动态设置日志级别
+        if Config.get("logging.UI.debug"):
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+            
         log_dir = Config.get("logging.UI.file_path")
         os.makedirs(log_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -240,6 +246,10 @@ class UILogger:
 
     def log_error(self, msg: str):
         self.logger.error(msg)
+
+    def log_debug(self, msg: str):
+        if Config.get("logging.UI.debug"):
+            self.logger.debug(msg)
 
     def log_window_open(self, name: str):
         self.logger.info(f"打开窗口: {name}")

@@ -132,6 +132,26 @@ class DataProjector:
                     self.last_metrics_cache[cache_key] = val
         return commands
 
+    def _serialize_element(self, element: Any) -> str:
+        """[V3.2] 元素量保留序列化工具：生成 '元素:量' 格式字符串。"""
+        if element is None: return "Neutral:0.0"
+        
+        target_elem = element
+        amount = 0.0
+        
+        # 处理元组形式 (Element.HYDRO, 1.0)
+        if isinstance(element, tuple):
+            if len(element) > 0: target_elem = element[0]
+            if len(element) > 1: amount = float(element[1])
+            
+        # 获取元素名称 (优先取 .value)
+        elem_name = getattr(target_elem, "value", str(target_elem))
+        # 如果是 Enum 实例但没取到 value，取 .name
+        if not isinstance(elem_name, str) and hasattr(target_elem, "name"):
+            elem_name = target_elem.name
+            
+        return f"{elem_name}:{amount}"
+
     def project_events(self, snapshot: dict) -> List[Tuple[str, tuple]]:
         """处理离散事件及其相关的 Jump、Lifecycle 和 审计明细。"""
         commands = []
@@ -222,9 +242,12 @@ class DataProjector:
                         attack_tag = getattr(dmg_obj.config.attack_tag, "name", str(dmg_obj.config.attack_tag))
                     reaction_name = dmg_obj.reaction_results[0].reaction_type.name if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results else None
 
+                    # 使用专门的序列化工具处理元素类型
+                    elem_str = self._serialize_element(getattr(dmg_obj, "element", "Neutral"))
+
                     commands.append((
                         "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction_name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
-                        (tid, dmg_val, str(getattr(dmg_obj, "element", "None")), attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
+                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
                     ))
                     
                     audit_trail = getattr(dmg_obj, "data", {}).get("audit_trail", [])
