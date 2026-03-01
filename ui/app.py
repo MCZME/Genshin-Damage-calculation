@@ -51,8 +51,8 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
 
     # 4. 实例化布局
     layout = AppLayout(page, state)
-    # 使用 set_attr 或直接动态赋值，但 mypy 会报警，这里保持原样逻辑但适配 V3 属性
+    # 将布局实例挂载到 Page 方便访问，但渲染使用声明式方式
     setattr(page, "app_layout", layout)
-    page.add(layout.build())
-
-    page.update()
+    
+    # 建立声明式渲染根节点
+    page.render(layout.build)

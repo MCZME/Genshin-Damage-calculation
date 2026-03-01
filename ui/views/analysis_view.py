@@ -1,310 +1,233 @@
 import asyncio
-
+import uuid
+import math
+import bisect
 import flet as ft
 from ui.theme import GenshinTheme
 from ui.states.analysis_state import AnalysisState
 from ui.components.analysis.scrubber import GlobalScrubber
-from ui.components.analysis.floating_drawer import FloatingDrawer
+# from ui.components.analysis.floating_drawer import FloatingDrawer
 from ui.components.analysis.tile_container import TileContainer
 from ui.components.analysis.dps_tile import DPSChartTile
 from ui.components.analysis.summary_tile import SummaryTile
-# from ui.components.analysis.timeline_tile import TimelineTile
-from ui.components.analysis.replay_tile import ReplayTile
-from ui.components.analysis.energy_tile import EnergyTile
+from ui.components.analysis.damage_dist_tile import DamageDistributionTile
 from ui.components.analysis.history_dialog import HistoryDialog
 from ui.components.analysis.toolbox import AnalysisToolbox
-from ui.components.audit_panel import AuditPanel
+from core.logger import get_ui_logger
 
-class AnalysisView(ft.Stack):
+# --- Grid Configuration [V4.0 Final] ---
+CELL_SIZE = 160
+GUTTER = 16
+
+def calculate_grid_layout(items, available_width):
+    """[Pure Function] 核心网格布局算法"""
+    if not available_width or available_width < 100:
+        return [], 0
+        
+    cols = max(1, int((available_width + GUTTER) / (CELL_SIZE + GUTTER)))
+    occupied = [] 
+    max_y = 0
+    layout_results = []
+
+    for item in items:
+        # 获取 grid_size，默认 1x1
+        orig_w, orig_h = item.get('grid_size', (1, 1))
+        eff_w = min(orig_w, cols) # 自适应压缩
+        
+        phys_w = (eff_w * CELL_SIZE) + ((eff_w - 1) * GUTTER)
+        phys_h = (orig_h * CELL_SIZE) + ((orig_h - 1) * GUTTER)
+        
+        found = False
+        y = 0
+        while not found and y < 1000:
+            for x in range(cols - eff_w + 1):
+                is_free = True
+                for dx in range(eff_w):
+                    for dy in range(orig_h):
+                        if (x + dx, y + dy) in occupied:
+                            is_free = False
+                            break
+                    if not is_free: break
+                
+                if is_free:
+                    for dx in range(eff_w):
+                        for dy in range(orig_h):
+                            occupied.append((x + dx, y + dy))
+                    
+                    layout_results.append({
+                        "item": item,
+                        "left": x * (CELL_SIZE + GUTTER),
+                        "top": y * (CELL_SIZE + GUTTER),
+                        "width": phys_w,
+                        "height": phys_h
+                    })
+                    max_y = max(max_y, y + orig_h)
+                    found = True
+                    break
+            y += 1
+            
+    return layout_results, max_y * (CELL_SIZE + GUTTER)
+
+@ft.component
+def TileWrapper(item, state, set_maximized_tile_id):
+    """磁贴包装器 [V6.0] 仅负责 UI 交互映射"""
+    
+    def handle_close(iid):
+        get_ui_logger().log_debug(f"UI Triggered Closing: {iid}")
+        state.remove_tile(iid)
+
+    return TileContainer(
+        key=item['instance_id'],
+        tile=item['tile'],
+        on_close=handle_close,
+        on_maximize=set_maximized_tile_id,
+        is_maximized=False
+    )
+
+class AnalysisView:
     """
-    分析视图 V3.5 (模块化工作台版)
-    采用磁贴网格布局 + 全局时间同步锚点。
+    分析视图 V6.8 (模块化网格 - 160px 固化版)
     """
-    def __init__(self, app_state=None):
-        super().__init__()
+    def __init__(self, app_state=None, state=None):
         self.app_state = app_state
-        self.state = AnalysisState(app_state=app_state)
-        self.expand = True
+        self.state = state or AnalysisState(app_state=app_state)
+        self.scrubber_ref = ft.Ref[GlobalScrubber]()
+        # self.drawer_comp = FloatingDrawer(width=450)
+
+    @ft.component
+    def build(self):
+        # 1. 订阅核心状态
+        active_tiles = self.state.model.active_tiles 
+        _trigger = self.state.model.update_counter
         
-        # 1. 核心布局组件
-        self.toolbox = AnalysisToolbox(on_tile_toggle=self._handle_tile_toggle)
-        self.grid = ft.ResponsiveRow(spacing=20, run_spacing=20)
-        self.drawer = FloatingDrawer(width=450)
+        # 2. 本地 UI 状态
+        is_history_open, set_is_history_open = ft.use_state(False)
+        maximized_tile_id, set_maximized_tile_id = ft.use_state(None)
         
-        # 1.5 初始化标尺
-        self.scrubber = GlobalScrubber(max_frames=0, on_change=self._handle_scrub)
-        self.scrubber_container = ft.Container(
-            content=self.scrubber,
-            height=45,
-            bgcolor="#1E1A2A",
-            border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
-            padding=ft.padding.only(left=20, right=30),
-            alignment=ft.Alignment(0, 0)
-        )
+        # 强刷钩子与响应式宽度
+        dummy, set_dummy = ft.use_state(0)
+        page_width = self.app_state.page.width if (self.app_state and self.app_state.page) else 1200
+        container_width, set_container_width = ft.use_state(page_width - 140)
         
-        # 2. 聚焦层 (用于最大化显示磁贴)
-        self.focus_tile_container = ft.Container(expand=True)
-        self.focus_layer = ft.Container(
-            content=ft.Stack([
-                ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: self._exit_focus_mode()), # 调低透明度，移除 blur
-                ft.Container(
-                    content=self.focus_tile_container,
-                    padding=40,
-                    alignment=ft.Alignment.CENTER
-                ),
-            ]),
-            visible=False,
-            expand=True
-        )
-        
-        # 3. 磁贴管理
-        self.active_tiles = []
-        self.maximized_container = None # 记录当前哪个容器在最大化
-        
-        # 4. 组装主工作空间
-        self.workspace = ft.Container(
-            content=ft.Column([
-                ft.Container(self.grid, padding=ft.padding.only(bottom=50)), # 配合 45px 的标尺
-            ], scroll=ft.ScrollMode.ADAPTIVE, expand=True), # 强制 Column 填满垂直空间
-            padding=30,
-            expand=True
-        )
+        def on_audit_ready():
+            if self.state.current_audit:
+                self.drawer_comp.update_audit(self.state.current_audit)
 
-        # 5. 主内容区域 (由 Stack 改为 Column，大幅提升渲染性能)
-        self.main_content = ft.Column([
-            self.workspace,
-            self.scrubber_container
-        ], spacing=0, expand=True) 
-        
-        # 6. 整体布局 Row (工具箱 + 主内容区域)
-        self.layout_row = ft.Row([
-            self.toolbox,
-            self.main_content
-        ], spacing=0, expand=True, vertical_alignment=ft.CrossAxisAlignment.STRETCH)
-        
-        self.controls = [
-            self.layout_row,
-            self.drawer,
-            self.focus_layer
-        ]
-        
-        # 订阅分析事件
-        if self.app_state:
-            self.app_state.events.subscribe("analysis_session_changed", self._handle_session_change)
-            self.app_state.events.subscribe("analysis_history_ready", self._show_history_dialog)
-            self.app_state.events.subscribe("audit_detail_ready", self._handle_audit_ready)
+        # 3. 事件绑定
+        def setup_events():
+            subs = []
+            if self.app_state:
+                subs.append(self.app_state.events.subscribe("analysis_history_ready", lambda: set_is_history_open(True)))
+                subs.append(self.app_state.events.subscribe("audit_detail_ready", on_audit_ready))
+            def cleanup():
+                for unsub in subs:
+                    if callable(unsub): 
+                        try: unsub()
+                        except: pass
+            return cleanup
+        ft.use_effect(setup_events, [])
 
-    def _handle_session_change(self, session_id: int):
-        """当会话切换时，通知所有激活磁贴自主加载数据"""
-        from core.logger import get_ui_logger
-        get_ui_logger().log_info(f"AnalysisView: Session changed to {session_id}, reloading tiles...")
+        def on_resize(e):
+            if self.app_state and self.app_state.page:
+                set_container_width(self.app_state.page.width - 140)
+        ft.use_effect(lambda: setattr(self.app_state.page, "on_resize", on_resize), [])
 
-        # 1. 更新标尺范围 (异步获取一次 summary)
-        async def _update_scrubber():
-            stats = await self.state.adapter.get_summary_stats()
-            max_f = stats.get("total_frames", 0)
-            if self.scrubber:
-                self.scrubber.max_frames = int(max_f)
-                self.scrubber.update_range()
-        
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_update_scrubber())
-        except:
-            asyncio.run(_update_scrubber())
+        def on_force_refresh(e):
+            async def _update():
+                set_dummy(lambda d: d + 1)
+                if self.app_state and self.app_state.page:
+                    set_container_width(self.app_state.page.width - 140)
+            if self.app_state and self.app_state.page:
+                self.app_state.page.run_task(_update)
+        ft.use_effect(lambda: self.app_state.page.pubsub.subscribe(on_force_refresh), [])
 
-        # 2. 如果已经初始化过，通知磁贴刷新
-        if self.active_tiles:
-            for tile in self.active_tiles:
-                if hasattr(tile, "load_data"):
-                    tile.load_data(self.state.adapter)
-        else:
-            # 3. 首次加载，组装磁贴
-            self._assemble_tiles()
+        # 4. 业务逻辑绑定
+        def handle_drill_down(point):
+            idx = next((i for i, a in enumerate(self.state.audit_logs) if a.event_id == point['event_id']), -1)
+            if idx != -1:
+                self.drawer_comp.show_loading(f"伤害审计 - Frame {point['frame']}")
+                self.state.select_audit(idx)
 
-    def _handle_data_ready(self):
-        """[弃用] V4.5 已转向自主加载模式"""
-        pass
+        def tile_factory(state_obj, iid):
+            tile_type = iid.rsplit('_', 1)[0]
+            if tile_type == "dps":
+                return DPSChartTile(state_obj, on_drill_down=handle_drill_down), (2, 2)
+            elif tile_type == "damage_dist":
+                return DamageDistributionTile(state_obj), (4, 2)
+            elif tile_type == "summary":
+                return SummaryTile(state_obj), (2, 1)
+            return None, (1, 1)
 
-    def _handle_audit_ready(self):
-        """当单笔伤害审计明细异步加载完成后触发"""
-        if self.state.current_audit:
-            # 找到抽屉里当前的 AuditPanel 并更新它
-            if self.drawer.detail_area.controls:
-                panel = self.drawer.detail_area.controls[0]
-                if isinstance(panel, AuditPanel):
-                    panel.loading = False
-                    panel.update_item(self.state.current_audit)
+        def handle_toolbox_action(tid):
+            if tid == "history": self.state.load_history_list(); return
+            self.state.add_tile(tid, tile_factory)
 
-    def _show_history_dialog(self):
-        """显示历史仿真记录选择对话框 (使用独立组件)"""
-        from core.logger import get_ui_logger
-        get_ui_logger().log_info(f"AnalysisView: Showing history dialog component...")
+        # 5. 计算网格布局
+        visible_tiles = [t for t in active_tiles if t['instance_id'] != maximized_tile_id]
+        layout_items, total_grid_height = calculate_grid_layout(visible_tiles, container_width)
 
-        dialog_content = HistoryDialog(
-            sessions=self.state.sessions_history,
-            on_select=lambda sid: [self.state.load_session(sid), self._exit_focus_mode()],
-            on_close=self._exit_focus_mode
-        )
+        # 6. 聚焦层
+        focus_content = None
+        if is_history_open:
+            focus_content = HistoryDialog(
+                sessions=self.state.model.sessions_history,
+                on_select=lambda sid: [self.state.load_session(sid), set_is_history_open(False)],
+                on_close=lambda: set_is_history_open(False)
+            ).build()
+        elif maximized_tile_id:
+            max_item = next((t for t in active_tiles if t['instance_id'] == maximized_tile_id), None)
+            if max_item:
+                focus_content = TileContainer(
+                    tile=max_item['tile'], 
+                    on_maximize=lambda _: set_maximized_tile_id(None),
+                    on_close=lambda _: set_maximized_tile_id(None), 
+                    is_maximized=True
+                )
 
-        self.focus_tile_container.content = dialog_content
-        self.focus_layer.visible = True
-        try:
-            self.update()
-        except:
-            pass
+        type_counts = {t['type']: 0 for t in active_tiles}
+        for t in active_tiles: type_counts[t['type']] += 1
 
-    def _assemble_tiles(self):
-        """按需组装首批磁贴"""
-        self.grid.controls.clear()
-        self.active_tiles.clear()
-
-        # A. 全局概览磁贴
-        summary_tile = SummaryTile()
-        summary_tile.load_data(self.state.adapter)
-        summary_container = TileContainer(tile=summary_tile, on_close=self._handle_close_tile)
-        summary_container.col = {"sm": 12, "md": 4}
-        
-        # B. DPS 波动磁贴
-        dps_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-        dps_tile.load_data(self.state.adapter)
-        dps_container = TileContainer(tile=dps_tile, on_close=self._handle_close_tile)
-        dps_container.col = {"sm": 12, "md": 8}
-        
-        # 添加到网格
-        self.grid.controls.extend([summary_container, dps_container])
-        self.active_tiles.extend([summary_tile, dps_tile])
-
-    def _handle_scrub(self, frame_id: int):
-        """全局标尺联动回调 (局部精准刷新版)"""
-        # 仅分发信号，由磁贴执行局部 update()
-        for tile in self.active_tiles:
-            try:
-                tile.sync_to_frame(frame_id)
-            except:
-                pass
-
-    def _handle_drill_down(self, point_item: dict):
-        """点击图表点执行下钻"""
-        frame = point_item['frame']
-        event_id = point_item['event_id']
-        
-        # 1. 标尺跳转
-        if self.scrubber:
-            self.scrubber.set_frame(frame, notify=False)
-        
-        # 2. 抽屉滑出审计详情 (先显示加载态)
-        idx = next((i for i, a in enumerate(self.state.audit_logs) if a.event_id == event_id), -1)
-        if idx != -1:
-            audit_item = self.state.audit_logs[idx]
-            # 立即滑出带加载圈的面板
-            panel = AuditPanel(audit_item, loading=True)
-            self.drawer.show(content=panel, title=f"伤害审计 - Frame {frame}")
-            
-            # 触发状态加载明细 (后台异步执行)
-            self.state.select_audit(idx)
-
-    def _handle_tile_toggle(self, tile_id: str):
-        """处理工具箱磁贴开关请求"""
-        # 查找该 ID 是否已在 active_tiles
-        existing = next((t for t in self.active_tiles if getattr(t, "tile_id", "") == tile_id), None)
-        
-        if existing:
-            # 如果已存在，则触发对应容器的关闭逻辑
-            container = next((c for c in self.grid.controls if getattr(c, "tile", None) == existing), None)
-            if container: self._handle_close_tile(container)
-        else:
-            # 如果不存在，则创建并添加
-            self._add_tile_by_id(tile_id)
-
-    def _add_tile_by_id(self, tile_id: str):
-        """核心：根据 ID 实例化并部署磁贴"""
-        # 特殊处理：历史记录不作为磁贴，而是弹出对话框
-        if tile_id == "history":
-            self.state.load_history_list()
-            return
-
-        new_tile = None
-        col_spec = {"sm": 12, "md": 6}
-
-        if tile_id == "dps":
-            new_tile = DPSChartTile(on_drill_down=self._handle_drill_down)
-            col_spec = {"sm": 12, "md": 8}
-        elif tile_id == "summary":
-            new_tile = SummaryTile()
-            col_spec = {"sm": 12, "md": 4}
-        elif tile_id == "replay":
-            new_tile = ReplayTile()
-            col_spec = {"sm": 12, "md": 6}
-        elif tile_id == "energy":
-            new_tile = EnergyTile()
-            col_spec = {"sm": 12, "md": 6}
-        
-        if new_tile:
-            new_tile.tile_id = tile_id
-            if self.state.adapter:
-                new_tile.load_data(self.state.adapter) # 核心：自主按需加载
-            
-            container = TileContainer(
-                tile=new_tile, 
-                on_close=self._handle_close_tile,
-                on_maximize=self._enter_focus_mode
+        return ft.Stack([
+            ft.Row([
+                AnalysisToolbox(active_counts=type_counts, on_tile_action=handle_toolbox_action),
+                ft.Column([
+                    ft.Container(
+                        content=ft.Column([
+                            # 核心网格容器
+                            ft.Stack(
+                                controls=[
+                                    ft.Container(
+                                        key=f"CONT_{res['item']['instance_id']}",
+                                        content=TileWrapper(res['item'], self.state, set_maximized_tile_id),
+                                        left=res['left'],
+                                        top=res['top'],
+                                        width=res['width'],
+                                        height=res['height'],
+                                        animate_position=ft.Animation(600, ft.AnimationCurve.EASE_OUT_EXPO)
+                                    ) for res in layout_items
+                                ],
+                                height=total_grid_height,
+                                expand=False
+                            )
+                        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True),
+                        padding=ft.Padding(30, 20, 30, 80), expand=True
+                    ),
+                    ft.Container(
+                        content=GlobalScrubber(
+                            state=self.state, 
+                            on_change=lambda f: [item['tile'].sync_to_frame(f) for item in active_tiles]
+                        ),
+                        height=45, bgcolor="#1E1A2A", border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
+                        padding=ft.Padding(20, 0, 30, 0), alignment=ft.Alignment(0, 0)
+                    )
+                ], spacing=0, expand=True)
+            ], spacing=0, expand=True),
+            # self.drawer_comp.build(),
+            ft.Container(
+                content=ft.Stack([
+                    ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: [set_is_history_open(False), set_maximized_tile_id(None)]),
+                    ft.Container(content=focus_content, padding=40, alignment=ft.Alignment.CENTER),
+                ]),
+                visible=focus_content is not None, expand=True
             )
-            container.col = col_spec
-            
-            self.grid.controls.append(container)
-            self.active_tiles.append(new_tile)
-            self._update_toolbox_highlight()
-            self.update()
-
-    def _update_toolbox_highlight(self):
-        """同步工具箱图标状态"""
-        active_ids = [t.tile_id for t in self.active_tiles if hasattr(t, "tile_id")]
-        self.toolbox.update_active_states(active_ids)
-
-    def _enter_focus_mode(self, container):
-        """进入沉浸式聚焦模式"""
-        self.maximized_container = container
-        # 暂时将 tile 从原容器移出，放入聚焦层
-        tile = container.tile
-        container.content_area.content = ft.Container() # 占位
-        
-        self.focus_tile_container.content = TileContainer(
-            tile=tile,
-            on_maximize=lambda _: self._exit_focus_mode(), # 最大化按钮变为退出
-            on_close=lambda _: self._exit_focus_mode(),
-            is_maximized=True
-        )
-        
-        self.focus_layer.visible = True
-        self.update()
-
-    def _exit_focus_mode(self):
-        """退出聚焦模式，还原磁贴或关闭浮层"""
-        if self.maximized_container:
-            # 如果是从磁贴最大化退出，执行归还逻辑
-            tile = self.focus_tile_container.content.tile
-            self.maximized_container.content_area.content = tile
-            self.maximized_container.set_maximized(False)
-            self.maximized_container = None
-        
-        # 无论是否有磁贴最大化，都隐藏聚焦层并清空内容
-        self.focus_layer.visible = False
-        self.focus_tile_container.content = ft.Container()
-        try:
-            self.update()
-        except:
-            pass
-
-    def _handle_close_tile(self, container):
-        self.grid.controls.remove(container)
-        if container.tile in self.active_tiles:
-            self.active_tiles.remove(container.tile)
-        self._update_toolbox_highlight()
-        self.update()
-
-    def refresh_data(self):
-        """外部主动触发刷新"""
-        sid = getattr(self.app_state, "last_session_id", None)
-        if sid:
-            self.state.load_session(sid)
+        ], expand=True)

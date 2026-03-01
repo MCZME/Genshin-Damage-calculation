@@ -22,8 +22,10 @@ class UIEventBus:
     def subscribe(self, event_type: str, callback: Callable):
         if event_type in self._observers:
             self._observers[event_type].append(callback)
+            return lambda: self.unsubscribe(event_type, callback)
         else:
             get_ui_logger().log_warning(f"UIEventBus: Attempted to subscribe to unknown event type '{event_type}'")
+            return lambda: None
 
     def unsubscribe(self, event_type: str, callback: Callable):
         if event_type in self._observers:

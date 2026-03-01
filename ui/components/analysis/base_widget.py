@@ -1,43 +1,41 @@
 import flet as ft
 from abc import ABC, abstractmethod
-from typing import Optional
-from core.persistence.adapter import ReviewDataAdapter
+from typing import Optional, TYPE_CHECKING
 
-class AnalysisTile(ft.Container, ABC):
+if TYPE_CHECKING:
+    from ui.states.analysis_state import AnalysisState, DataSlot
+
+class AnalysisTile(ABC):
     """
-    分析磁贴基类。
-    定义了模块化分析组件的标准接口：数据加载与帧同步。
+    分析磁贴基类 (V4.7 订阅制版)
+    所有业务磁贴必须继承此类，通过引用计数机制按需获取数据。
     """
-    def __init__(self, title: str, icon: str):
-        super().__init__()
+    def __init__(self, title: str, icon: str, tile_type: str, state: 'AnalysisState'):
         self.title = title
         self.icon = icon
-        # 移除默认的 self.expand = True，由具体的磁贴控制
-        self.clip_behavior = ft.ClipBehavior.ANTI_ALIAS
-
-    @abstractmethod
-    def load_data(self, adapter: ReviewDataAdapter):
-        """
-        初始化加载：从数据库适配器预取并索引数据。
-        """
-        pass
+        self.tile_type = tile_type
+        self.state = state
+        self.instance_id: Optional[str] = None # 由 View 在创建时分配
+        self.expand = False
 
     @abstractmethod
     def sync_to_frame(self, frame_id: int):
         """
-        时间同步：全局标尺变动时，仅修改现有控件属性，严禁重建 UI。
+        时间同步：全局标尺变动时触发。
         """
         pass
 
-    def get_optimal_size(self) -> tuple[int, int]:
+    async def subscribe_data(self) -> Optional['DataSlot']:
         """
-        返回磁贴推荐的网格尺寸 (col_span, row_span)。
-        默认 1x1。
+        向 DataManager 订阅本磁贴所需的数据切片。
         """
-        return (1, 1)
+        if not self.instance_id:
+            return None
+        return await self.state.data_manager.subscribe(self.tile_type, self.instance_id)
 
-    def on_config_toggle(self):
+    async def unsubscribe_data(self):
         """
-        可选：磁贴内部设置面板切换回调。
+        释放订阅，允许 DataManager 在无引用时清理内存。
         """
-        pass
+        if self.instance_id:
+            await self.state.data_manager.unsubscribe(self.tile_type, self.instance_id)
