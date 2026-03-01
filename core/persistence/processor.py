@@ -123,3 +123,35 @@ class AnalysisDataProcessor:
                 trajectories[m_key] = []
             trajectories[m_key].append((m['f'], m['val']))
         return trajectories
+
+    @staticmethod
+    def process_damage_distribution(raw_events: List[Dict[str, Any]], name_map: Dict[int, str]) -> Dict[str, Any]:
+        """
+        [V6.5] 稀疏聚合：将原始伤害事件按帧分组，用于 Canvas 脉冲图。
+        """
+        frame_map = {}
+        global_peak = 0
+        
+        for ev in raw_events:
+            f = ev['frame']
+            if f not in frame_map:
+                frame_map[f] = {"events": [], "total": 0}
+            
+            # 基础数据封装
+            frame_map[f]["events"].append({
+                "dmg": ev['value'],
+                "element": ev['element'],
+                "is_crit": "!" in ev.get('action', ''),
+                "event_id": ev['event_id'],
+                "source": ev['source']
+            })
+            frame_map[f]["total"] += ev['value']
+            
+            if frame_map[f]["total"] > global_peak:
+                global_peak = frame_map[f]["total"]
+        
+        return {
+            "frame_map": frame_map,
+            "sorted_frames": sorted(frame_map.keys()),
+            "global_peak": max(global_peak, 1)
+        }
