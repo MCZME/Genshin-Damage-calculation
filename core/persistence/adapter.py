@@ -2,17 +2,16 @@ import json
 import os
 from typing import Optional, List, Dict, Any, Tuple
 from core.persistence.repository import SimulationRepository
-from core.persistence.processor import AnalysisDataProcessor
 
 class ReviewDataAdapter:
     """
     [V4.0 入口层] 战果复盘统一数据适配器。
-    作为 Facade 模式，协调 Repository 拉取数据并调用 Processor 进行加工。
+    作为 Facade 模式，负责从 Repository 拉取原始数据流。
+    [解耦说明] 自 V6.6 起，本类不再负责逻辑加工，仅作为 Data Fetcher 使用。
     """
 
     def __init__(self, db_path: str = "simulation_audit.db", session_id: Optional[int] = None):
         self.repo = SimulationRepository(db_path, session_id)
-        self.processor = AnalysisDataProcessor()
         self._name_map: Dict[int, str] = {} # 缓存
 
     async def _ensure_name_map(self, sid: int):
@@ -53,31 +52,23 @@ class ReviewDataAdapter:
             "action": r['action'] or "伤害触发"
         } for r in raw]
 
-    async def get_stacked_dps_data(self) -> Dict[str, List[Dict[str, Any]]]:
-        """[V4.0 新接口] 获取分角色平滑堆叠 DPS 数据"""
+    async def get_raw_damage_events(self) -> List[Dict[str, Any]]:
+        """[V6.6] 获取用于加工的原始伤害事件"""
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        
+        if not sid: return []
         await self._ensure_name_map(sid)
-        summary = await self.get_summary_stats()
-        total_frames = summary.get("total_frames", 0)
-        
-        raw_events = await self.repo.fetch_raw_damage_events(sid)
-        return self.processor.process_dps_series(raw_events, self._name_map, total_frames)
+        return await self.get_dps_data()
 
-    async def get_action_tracks(self) -> Dict[str, List[Dict[str, Any]]]:
+    async def get_stacked_dps_data_raw(self) -> List[Dict[str, Any]]:
+        """获取用于堆叠 DPS 加工的原始事件"""
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        await self._ensure_name_map(sid)
-        raw_pulses = await self.repo.fetch_character_pulses(sid)
-        return self.processor.process_action_segments(raw_pulses, self._name_map)
+        if not sid: return []
+        return await self.repo.fetch_raw_damage_events(sid)
 
-    async def get_all_pulses(self) -> Dict[str, List[Dict[str, Any]]]:
+    async def get_action_tracks_raw(self) -> List[Dict[str, Any]]:
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        await self._ensure_name_map(sid)
-        raw_pulses = await self.repo.fetch_character_pulses(sid)
-        return self.processor.process_trajectories(raw_pulses, self._name_map)
+        if not sid: return []
+        return await self.repo.fetch_character_pulses(sid)
 
     async def get_aura_pulses(self) -> List[Dict[str, Any]]:
         sid = await self.repo.get_latest_session_id()
@@ -85,30 +76,20 @@ class ReviewDataAdapter:
         raw = await self.repo.fetch_aura_pulses(sid)
         return [{"frame": r['f'], "aura": json.loads(r['aura'])} for r in raw]
 
-    async def get_reaction_stats(self) -> Dict[str, int]:
+    async def get_reaction_logs_raw(self) -> List[str]:
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        raw_payloads = await self.repo.fetch_reaction_logs(sid)
-        return self.processor.process_reaction_stats(raw_payloads)
+        if not sid: return []
+        return await self.repo.fetch_reaction_logs(sid)
 
-    async def get_mechanism_data(self) -> Dict[str, List[Tuple[int, float]]]:
+    async def get_mechanism_metrics_raw(self) -> List[Dict[str, Any]]:
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        await self._ensure_name_map(sid)
-        raw_metrics = await self.repo.fetch_mechanism_metrics(sid)
-        return self.processor.process_mechanism_trajectories(raw_metrics, self._name_map)
+        if not sid: return []
+        return await self.repo.fetch_mechanism_metrics(sid)
 
-    async def get_energy_data(self) -> Dict[str, List[Tuple[int, float]]]:
+    async def get_energy_data_raw(self) -> List[Dict[str, Any]]:
         sid = await self.repo.get_latest_session_id()
-        if not sid: return {}
-        await self._ensure_name_map(sid)
-        raw = await self.repo.fetch_energy_jumps(sid)
-        trajectories = {}
-        for r in raw:
-            name = self._name_map.get(r['eid'], f"Entity_{r['eid']}")
-            if name not in trajectories: trajectories[name] = []
-            trajectories[name].append((r['f'], r['val']))
-        return trajectories
+        if not sid: return []
+        return await self.repo.fetch_energy_jumps(sid)
 
     async def get_damage_audit(self, event_id: int) -> List[Dict[str, Any]]:
         raw = await self.repo.fetch_damage_audit_trail(event_id)
@@ -120,7 +101,7 @@ class ReviewDataAdapter:
         if not sid: return None
         await self._ensure_name_map(sid)
         
-        import aiosqlite # 局部导入保持兼容
+        import aiosqlite 
         async with aiosqlite.connect(self.repo.db_path) as db:
             snapshot = {
                 "frame": frame_id,
@@ -129,21 +110,17 @@ class ReviewDataAdapter:
                 "events": []
             }
 
-            # 1. 确定当时存活的实体
             active_entities = await self.repo.fetch_entity_registry(sid)
 
-            # 2. 轨道合成
             for ent in active_entities:
                 eid, name, etype = ent['id'], ent['name'], ent['type']
                 entity_snapshot = {"entity_id": eid, "name": name, "stats": {}, "active_modifiers": []}
 
-                # --- A. 属性与状态 ---
                 if etype == "CHARACTER":
                     async with db.execute("SELECT base_attributes FROM simulation_characters WHERE session_id=? AND entity_id=?", (sid, eid)) as sc:
                         row = await sc.fetchone()
                         if row: entity_snapshot["stats"] = json.loads(row[0])
                     
-                    # 物理脉搏
                     async with db.execute(
                         "SELECT x, y, z, action_id, is_on_field FROM character_pulses "
                         "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
@@ -154,14 +131,12 @@ class ReviewDataAdapter:
                             entity_snapshot.update({"pos": [row[0], row[1], row[2]], "action_id": row[3], "on_field": bool(row[4])})
                             entity_snapshot["stats"].update({"坐标_X": round(row[0], 2), "坐标_Y": round(row[1], 2), "在场": "是" if row[4] else "否"})
 
-                # --- B. 资源与机制 ---
                 async with db.execute(
                     "SELECT jump_type, new_value FROM simulation_state_jumps "
                     "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? GROUP BY jump_type", (sid, eid, frame_id)
                 ) as sc:
                     async for row in sc: entity_snapshot["stats"][row[0]] = round(row[1], 1)
 
-                # --- C. 生命周期 (增益/效果) ---
                 async with db.execute(
                     "SELECT source_name, stat_type, value, op_type FROM modifier_lifecycles "
                     "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)", (sid, eid, frame_id, frame_id)
@@ -171,7 +146,6 @@ class ReviewDataAdapter:
                 if etype == "CHARACTER": snapshot["team"].append(entity_snapshot)
                 else: snapshot["entities"].append(entity_snapshot)
 
-            # 3. 帧内事件记录
             async with db.execute(
                 "SELECT event_id, event_type, source_id FROM simulation_event_log WHERE session_id = ? AND frame_id = ?", (sid, frame_id)
             ) as cursor:
