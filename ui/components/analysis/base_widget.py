@@ -18,12 +18,6 @@ class AnalysisTile(ABC):
         self.instance_id: Optional[str] = None # 由 View 在创建时分配
         self.expand = False
 
-    @abstractmethod
-    def sync_to_frame(self, frame_id: int):
-        """
-        时间同步：全局标尺变动时触发。
-        """
-        pass
 
     async def subscribe_data(self) -> Optional['DataSlot']:
         """

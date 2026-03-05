@@ -233,8 +233,6 @@ class DamageDistributionTile(AnalysisTile):
             expand=True
         )
 
-    def sync_to_frame(self, frame_id: int):
-        pass
 
 @ft.component
 def DamageCursorLayer(state: AnalysisState, canvas_height: int):

@@ -224,7 +224,6 @@ class AnalysisView:
                     ft.Container(
                         content=GlobalScrubber(
                             state=self.state, 
-                            on_change=lambda f: [item['tile'].sync_to_frame(f) for item in active_tiles]
                         ),
                         height=45, bgcolor="#1E1A2A", border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
                         padding=ft.Padding(left=20, top=0, right=30, bottom=0), alignment=ft.Alignment(0, 0)
