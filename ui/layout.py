@@ -109,7 +109,7 @@ class AppLayout:
                     ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, on_click=lambda _: self.page.run_task(self.page.persistence.load_config)),
                 ], spacing=5)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.padding.symmetric(horizontal=32, vertical=12), bgcolor=GenshinTheme.HEADER_BG, blur=20, border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
+            padding=ft.Padding.symmetric(horizontal=32, vertical=12), bgcolor=GenshinTheme.HEADER_BG, blur=20, border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
         )
 
     def _build_footer_declarative(self):

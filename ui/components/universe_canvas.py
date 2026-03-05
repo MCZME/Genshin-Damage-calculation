@@ -20,7 +20,7 @@ class UniverseNodeUI(ft.Container):
                 color=GenshinTheme.ON_PRIMARY,
             ),
             bgcolor=GenshinTheme.PRIMARY,
-            padding=ft.padding.symmetric(horizontal=5, vertical=1),
+            padding=ft.Padding.symmetric(horizontal=5, vertical=1),
             border_radius=ft.border_radius.only(top_left=8, bottom_right=10),
             visible=len(node.children) == 0,
             right=0,

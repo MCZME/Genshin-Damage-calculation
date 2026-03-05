@@ -100,7 +100,7 @@ class MemberSlot(ft.Container):
         weapon_row = ft.Row([self.weapon_icon_ctrl, self.weapon_text_ctrl], spacing=5)
         artifact_row = ft.Row([ft.Icon(ft.Icons.AUTO_AWESOME, size=11, color=ft.Colors.with_opacity(0.45, ft.Colors.WHITE)), self.artifact_text_ctrl], spacing=5)
 
-        divider = ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE), margin=ft.margin.symmetric(vertical=2))
+        divider = ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE), margin=ft.Margin.symmetric(vertical=2))
 
         # ── 组装 ──────────────────────────────────────
         self.body = ft.Container(
