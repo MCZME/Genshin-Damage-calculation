@@ -55,5 +55,3 @@ class SummaryTile(AnalysisTile):
             ], spacing=20, expand=True),
         ], spacing=10, expand=True)
 
-    def sync_to_frame(self, frame_id: int):
-        pass # 汇总数据不随帧同步变动
