@@ -51,32 +51,52 @@ class AttributeCalculator:
         return val
 
     @staticmethod
+    def get_val_by_name(entity: Any, stat_name: str) -> float:
+        """根据属性名字符串动态获取对应实体的实时最终数值。"""
+        mapping = {
+            "攻击力": AttributeCalculator.get_attack,
+            "生命值": AttributeCalculator.get_hp,
+            "防御力": AttributeCalculator.get_defense,
+            "元素精通": AttributeCalculator.get_mastery,
+            "暴击率": lambda e: AttributeCalculator.get_crit_rate(e),
+            "暴击伤害": lambda e: AttributeCalculator.get_crit_damage(e),
+            "元素充能效率": lambda e: AttributeCalculator.get_energy_recharge(e),
+            "治疗加成": lambda e: AttributeCalculator.get_healing_bonus(e),
+            "固定值": lambda e: 1.0,
+        }
+        
+        if stat_name in mapping:
+            return mapping[stat_name](entity)
+        
+        return entity.attribute_data.get(stat_name, 0.0)
+
+    @staticmethod
     def get_shield_strength(entity: Any) -> float:
         val = entity.attribute_data.get('护盾强效', 0.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '护盾强效': val += m.value
-        return val / 100
+        return val
 
     @staticmethod
     def get_energy_recharge(entity: Any) -> float:
         val = entity.attribute_data.get('元素充能效率', 100.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '元素充能效率': val += m.value
-        return val / 100
+        return val
 
     @staticmethod
     def get_healing_bonus(entity: Any) -> float:
         val = entity.attribute_data.get('治疗加成', 0.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '治疗加成': val += m.value
-        return val / 100
+        return val
 
     @staticmethod
     def get_incoming_healing_bonus(entity: Any) -> float:
         val = entity.attribute_data.get('受治疗加成', 0.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '受治疗加成': val += m.value
-        return val / 100
+        return val
 
     @staticmethod
     def get_damage_bonus(entity: Any, element_type: Optional[str] = None) -> float:
@@ -94,18 +114,18 @@ class AttributeCalculator:
             for m in getattr(entity, 'dynamic_modifiers', []):
                 if m.stat == key: bonus += m.value
                 
-        return bonus / 100
+        return bonus
 
     @staticmethod
     def get_crit_rate(entity: Any) -> float:
         val = entity.attribute_data.get('暴击率', 5.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '暴击率': val += m.value
-        return val / 100
+        return val
 
     @staticmethod
     def get_crit_damage(entity: Any) -> float:
         val = entity.attribute_data.get('暴击伤害', 50.0)
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '暴击伤害': val += m.value
-        return val / 100
+        return val

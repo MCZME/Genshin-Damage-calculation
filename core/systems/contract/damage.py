@@ -14,15 +14,16 @@ class Damage:
     def __init__(
         self,
         element: Tuple[Element, float] = (Element.NONE, 1.0),
-        damage_multiplier: Union[float, List[float]] = 0.0,
-        scaling_stat: str = "攻击力",
+        damage_multiplier: Tuple[float, ...] = (0.0,),
+        scaling_stat: Tuple[str, ...] = ("攻击力",),
         config: Optional[AttackConfig] = None,
         name: str = "Unknown Damage",
     ) -> None:
         """初始化伤害对象。"""
         self.element: Tuple[Element, float] = element
-        self.damage_multiplier: Union[float, List[float]] = damage_multiplier
-        self.scaling_stat: str = scaling_stat
+        # 严格赋值
+        self.damage_multiplier = damage_multiplier
+        self.scaling_stat = scaling_stat
         self.config: AttackConfig = config if config else AttackConfig()
         self.name: str = name
 
@@ -42,8 +43,8 @@ class Damage:
         """设置伤害的命中目标。"""
         self.target = target
 
-    def set_scaling_stat(self, scaling_stat: str) -> None:
-        """修改伤害计算所依赖的属性名称 (如 '生命值')。"""
+    def set_scaling_stat(self, scaling_stat: Tuple[str, ...]) -> None:
+        """修改伤害计算所依赖的属性向量。"""
         self.scaling_stat = scaling_stat
 
     def set_element(self, element: Element, element_u: float = 1.0) -> None:
