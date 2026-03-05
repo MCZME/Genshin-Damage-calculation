@@ -114,6 +114,11 @@ class AnalysisStateModel:
     active_tiles: List[Dict[str, Any]] = field(default_factory=list)
     # [V6.1] 强制更新触发器：用于解决复杂嵌套下的重绘失效
     update_counter: int = 0
+    # [V7.0] 抽屉状态
+    drawer_visible: bool = False
+    drawer_side: str = "right"
+    # [V7.2] 选中的伤害事件 (持久化 L2 状态)
+    selected_event: Optional[Dict[str, Any]] = None
 
 class AnalysisState:
     """
@@ -128,6 +133,56 @@ class AnalysisState:
         self.selected_audit_index = -1
         self.current_audit = None
         self.audit_logs = []
+
+    def set_selected_event(self, event: Optional[Dict[str, Any]]):
+        """设置当前选中的伤害事件"""
+        self.model.selected_event = event
+        self._notify_update()
+
+    def open_drawer(self, side: str = "right"):
+        self.model.drawer_side = side
+        self.model.drawer_visible = True
+        self._notify_update()
+
+    def close_drawer(self):
+        self.model.drawer_visible = False
+        self._notify_update()
+
+    async def load_audit_detail(self, event_id: int):
+        """[V7.0] 异步加载 L2 审计详情"""
+        if not self.adapter: return
+        
+        from core.persistence.processors.audit_processor import AuditProcessor
+        
+        slot = self.data_manager.get_slot("audit")
+        slot.loading = True
+        self._notify_update()
+        
+        try:
+            # 1. 查找基础事件信息 (用于判断是否暴击)
+            # 在 damage_dist 槽位中查找
+            dist_slot = self.data_manager.get_slot("damage_dist")
+            is_crit = False
+            if dist_slot and dist_slot.data:
+                for f_data in dist_slot.data.get("frame_map", {}).values():
+                    for ev in f_data.get("events", []):
+                        if ev['event_id'] == event_id:
+                            is_crit = ev.get('is_crit', False)
+                            break
+            
+            # 2. 拉取原始审计链
+            raw_trail = await self.adapter.get_damage_audit(event_id)
+            
+            # 3. 聚合加工
+            processed = AuditProcessor.process_detail(raw_trail, is_crit=is_crit)
+            slot.data = processed
+            
+            get_ui_logger().log_debug(f"Audit: Event {event_id} processed.")
+        except Exception as e:
+            get_ui_logger().log_error(f"Audit Detail Error: {str(e)}")
+        finally:
+            slot.loading = False
+            self._notify_update()
 
     def _notify_update(self):
         """强制触发 Observable 变更通知"""

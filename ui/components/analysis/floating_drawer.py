@@ -1,104 +1,102 @@
 import flet as ft
-from typing import Optional
 from ui.theme import GenshinTheme
+from ui.components.analysis.damage_audit_inspector import DamageAuditInspector
 
-class FloatingDrawer(ft.Container):
+@ft.component
+def FloatingDrawer(state, model, dist_slot, detail_slot, on_fetch_detail, on_close):
     """
-    纯悬浮详情容器。
-    作为 Overlay 存在，不参与网格布局，支持从右侧滑入并带强毛玻璃效果。
+    [V6.0] 极度脱水解耦版抽屉。
+    仅接收纯数据 Slot 和原子回调，切断一切循环引用可能。
     """
-    def __init__(self, width: float = 400):
-        super().__init__()
-        self.drawer_width = width
-        self.is_pinned = False
-        
-        # 核心引用
-        self.pin_btn = None
-        
-        # 初始定位在屏幕右侧外部
-        self.width = self.drawer_width
-        self.right = -self.drawer_width
-        self.top = 20
-        self.bottom = 20
-        self.bgcolor = "rgba(25, 20, 35, 0.7)"
-        self.blur = ft.Blur(30, 30) # 高强度毛玻璃
-        self.border_radius = ft.border_radius.only(top_left=24, bottom_left=24)
-        self.border = ft.border.all(1, "rgba(255, 255, 255, 0.1)")
-        self.shadow = ft.BoxShadow(
-            spread_radius=1,
-            blur_radius=40,
-            color=ft.Colors.with_opacity(0.5, ft.Colors.BLACK),
-            offset=ft.Offset(-10, 0)
-        )
-        self.animate_offset = ft.Animation(400, ft.AnimationCurve.EASE_OUT_BACK)
-        self.animate = ft.Animation(400, ft.AnimationCurve.DECELERATE)
-        
-        self._build_ui()
+    is_pinned, set_is_pinned = ft.use_state(False)
+    
+    visible = model.drawer_visible
+    side = model.drawer_side
+    width = 480
+    selected_event = model.selected_event
 
-    def _build_ui(self):
-        # 头部：标题、固钉、关闭
-        self.pin_btn = ft.IconButton(
-            ft.Icons.PUSH_PIN_OUTLINED, 
-            icon_size=16, 
-            on_click=self._toggle_pin,
-            tooltip="固钉模式 (点击外部不自动收起)"
-        )
+    pos_args = {}
+    # MD3 侧边抽屉标准圆角：非贴边一侧为大圆角 (28px)
+    if side == "right":
+        pos_args["right"] = 0 if visible else -width
+        radius = ft.border_radius.only(top_left=28, bottom_left=28)
+        shadow_offset = ft.Offset(-4, 0)
+    else:
+        pos_args["left"] = 0 if visible else -width
+        radius = ft.border_radius.only(top_right=28, bottom_right=28)
+        shadow_offset = ft.Offset(4, 0)
 
-        self.header = ft.Container(
-            content=ft.Row([
-                ft.Row([
-                    ft.Icon(ft.Icons.INFO_OUTLINED, size=18, color=GenshinTheme.PRIMARY),
-                    ft.Text("详细审计", size=16, weight=ft.FontWeight.BOLD),
-                ], spacing=12),
-                
-                ft.Row([
-                    self.pin_btn,
-                    ft.IconButton(
-                        ft.Icons.CLOSE_ROUNDED, 
-                        icon_size=20, 
-                        on_click=lambda _: self.hide()
-                    ),
-                ], spacing=5)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.padding.symmetric(horizontal=20, vertical=15),
-            border=ft.border.only(bottom=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.05)"))
-        )
+    # 动态页眉逻辑：MD3 风格
+    if selected_event:
+        header_content = ft.Row([
+            ft.IconButton(
+                icon=ft.Icons.ARROW_BACK, 
+                icon_size=24, 
+                icon_color=ft.Colors.ON_SURFACE,
+                tooltip="返回概览",
+                on_click=lambda _: state.set_selected_event(None),
+            ),
+            ft.Column([
+                ft.Text(selected_event.get('source', '审计详情'), size=22, weight=ft.FontWeight.NORMAL, color=ft.Colors.ON_SURFACE), # Headline Small
+                ft.Text(f"#{selected_event.get('event_id', '???')}", size=11, color=ft.Colors.ON_SURFACE_VARIANT, weight=ft.FontWeight.W_500), # Label Small
+            ], spacing=2),
+        ], spacing=16, alignment=ft.MainAxisAlignment.START)
+    else:
+        header_content = ft.Row([
+            ft.Icon(ft.Icons.ANALYTICS, size=24, color=GenshinTheme.PRIMARY),
+            ft.Text("伤害审计系统", size=22, weight=ft.FontWeight.NORMAL, color=ft.Colors.ON_SURFACE), # Headline Small
+        ], spacing=16, alignment=ft.MainAxisAlignment.START)
 
-        # 内容滚动容器
-        self.detail_area = ft.Column(
-            expand=True,
-            scroll=ft.ScrollMode.ADAPTIVE,
-            spacing=20
-        )
+    header = ft.Container(
+        content=ft.Row([
+            header_content,
+            ft.Row([
+                ft.IconButton(
+                    ft.Icons.PUSH_PIN if is_pinned else ft.Icons.PUSH_PIN_OUTLINED, 
+                    icon_size=24, 
+                    icon_color=GenshinTheme.PRIMARY if is_pinned else ft.Colors.ON_SURFACE_VARIANT,
+                    on_click=lambda _: set_is_pinned(not is_pinned),
+                    tooltip="固定面板"
+                ),
+                ft.IconButton(
+                    ft.Icons.CLOSE, 
+                    icon_size=24, 
+                    icon_color=ft.Colors.ON_SURFACE_VARIANT,
+                    on_click=lambda _: on_close(),
+                    tooltip="关闭面板"
+                ),
+            ], spacing=8)
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+        padding=ft.Padding(left=24, top=20, right=24, bottom=20),
+        border=ft.Border.only(bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE)))
+    )
 
-        self.content = ft.Column([
-            self.header,
-            ft.Container(content=self.detail_area, padding=20, expand=True)
-        ], spacing=0, expand=True)
-
-    def show(self, content: Optional[ft.Control] = None, title: str = "详细审计"):
-        """从右侧滑出抽屉"""
-        if content:
-            self.detail_area.controls = [content]
-        self.header.content.controls[0].controls[1].value = title
-        
-        self.right = 0
-        self.update()
-
-    def hide(self):
-        """滑回右侧边缘外"""
-        if self.is_pinned: return # 固钉态下禁止点击外部或关闭按钮触发自动隐藏（可选）
-        self.right = -self.drawer_width
-        self.update()
-
-    def _toggle_pin(self, e):
-        self.is_pinned = not self.is_pinned
-        self.pin_btn.icon = ft.Icons.PUSH_PIN if self.is_pinned else ft.Icons.PUSH_PIN_OUTLINED
-        self.pin_btn.icon_color = GenshinTheme.PRIMARY if self.is_pinned else None
-        
-        # 固钉态视觉反馈：加深边框
-        self.border = ft.border.all(
-            2 if self.is_pinned else 1, 
-            GenshinTheme.PRIMARY if self.is_pinned else "rgba(255, 255, 255, 0.1)"
-        )
-        self.update()
+    return ft.Container(
+        content=ft.Column([
+            header,
+            ft.Container(
+                content=DamageAuditInspector(
+                    state=state, 
+                    model=model, 
+                    dist_slot=dist_slot, 
+                    detail_slot=detail_slot, 
+                    on_fetch_detail=on_fetch_detail
+                ),
+                padding=ft.Padding(left=24, top=16, right=24, bottom=24), # 增加全局内边距
+                expand=True
+            )
+        ], spacing=0, expand=True),
+        width=width, 
+        top=12, bottom=12,
+        bgcolor="#2B2738",
+        border_radius=radius,
+        # 移除边框，使用 Elevation (阴影)
+        shadow=ft.BoxShadow(
+            spread_radius=0,
+            blur_radius=16,
+            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+            offset=shadow_offset
+        ),
+        animate=ft.Animation(500, ft.AnimationCurve.EASE_OUT_CUBIC), # MD3 标准缓动
+        **pos_args
+    )

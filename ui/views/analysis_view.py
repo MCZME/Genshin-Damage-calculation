@@ -6,7 +6,7 @@ import flet as ft
 from ui.theme import GenshinTheme
 from ui.states.analysis_state import AnalysisState
 from ui.components.analysis.scrubber import GlobalScrubber
-# from ui.components.analysis.floating_drawer import FloatingDrawer
+from ui.components.analysis.floating_drawer import FloatingDrawer
 from ui.components.analysis.tile_container import TileContainer
 from ui.components.analysis.dps_tile import DPSChartTile
 from ui.components.analysis.summary_tile import SummaryTile
@@ -109,21 +109,32 @@ class AnalysisView:
         page_width = self.app_state.page.width if (self.app_state and self.app_state.page) else 1200
         container_width, set_container_width = ft.use_state(page_width - 140)
         
-        def on_audit_ready():
-            if self.state.current_audit:
-                self.drawer_comp.update_audit(self.state.current_audit)
-
         # 3. 事件绑定
         def setup_events():
             subs = []
             if self.app_state:
                 subs.append(self.app_state.events.subscribe("analysis_history_ready", lambda: set_is_history_open(True)))
-                subs.append(self.app_state.events.subscribe("audit_detail_ready", on_audit_ready))
+            
+            # PubSub 订阅需要包含清理逻辑，防止订阅累积导致卡死
+            def on_force_refresh(e):
+                async def _update():
+                    set_dummy(lambda d: d + 1)
+                    if self.app_state and self.app_state.page:
+                        set_container_width(self.app_state.page.width - 140)
+                if self.app_state and self.app_state.page:
+                    self.app_state.page.run_task(_update)
+            
+            if self.app_state and self.app_state.page:
+                self.app_state.page.pubsub.subscribe(on_force_refresh)
+
             def cleanup():
                 for unsub in subs:
                     if callable(unsub): 
                         try: unsub()
                         except: pass
+                # 必须显式取消订阅
+                if self.app_state and self.app_state.page:
+                    self.app_state.page.pubsub.unsubscribe(on_force_refresh)
             return cleanup
         ft.use_effect(setup_events, [])
 
@@ -132,28 +143,22 @@ class AnalysisView:
                 set_container_width(self.app_state.page.width - 140)
         ft.use_effect(lambda: setattr(self.app_state.page, "on_resize", on_resize), [])
 
-        def on_force_refresh(e):
-            async def _update():
-                set_dummy(lambda d: d + 1)
-                if self.app_state and self.app_state.page:
-                    set_container_width(self.app_state.page.width - 140)
-            if self.app_state and self.app_state.page:
-                self.app_state.page.run_task(_update)
-        ft.use_effect(lambda: self.app_state.page.pubsub.subscribe(on_force_refresh), [])
-
         # 4. 业务逻辑绑定
         def handle_drill_down(point):
-            idx = next((i for i, a in enumerate(self.state.audit_logs) if a.event_id == point['event_id']), -1)
-            if idx != -1:
-                self.drawer_comp.show_loading(f"伤害审计 - Frame {point['frame']}")
-                self.state.select_audit(idx)
+            """下钻：切换帧并打开审计抽屉"""
+            self.state.set_frame(int(point['frame']))
+            self.state.open_drawer(side="right")
+            if 'event_id' in point:
+                # 异步加载该事件的审计详情
+                asyncio.create_task(self.state.load_audit_detail(point['event_id']))
 
         def tile_factory(state_obj, iid):
             tile_type = iid.rsplit('_', 1)[0]
             if tile_type == "dps":
                 return DPSChartTile(state_obj, on_drill_down=handle_drill_down), (2, 2)
             elif tile_type == "damage_dist":
-                return DamageDistributionTile(state_obj), (4, 2)
+                # 伤害分布图点击也会同步 Frame 并建议打开审计
+                return DamageDistributionTile(state_obj, on_drill_down=handle_drill_down), (4, 2)
             elif tile_type == "summary":
                 return SummaryTile(state_obj), (2, 1)
             return None, (1, 1)
@@ -166,7 +171,7 @@ class AnalysisView:
         visible_tiles = [t for t in active_tiles if t['instance_id'] != maximized_tile_id]
         layout_items, total_grid_height = calculate_grid_layout(visible_tiles, container_width)
 
-        # 6. 聚焦层
+        # 6. 聚焦层 (对话框/全屏磁贴)
         focus_content = None
         if is_history_open:
             focus_content = HistoryDialog(
@@ -186,6 +191,10 @@ class AnalysisView:
 
         type_counts = {t['type']: 0 for t in active_tiles}
         for t in active_tiles: type_counts[t['type']] += 1
+
+        # 7. 获取数据槽位供抽屉使用
+        dist_slot = self.state.data_manager.get_slot("damage_dist")
+        audit_slot = self.state.data_manager.get_slot("audit")
 
         return ft.Stack([
             ft.Row([
@@ -210,7 +219,7 @@ class AnalysisView:
                                 expand=False
                             )
                         ], scroll=ft.ScrollMode.ADAPTIVE, expand=True),
-                        padding=ft.Padding(30, 20, 30, 80), expand=True
+                        padding=ft.Padding(left=30, top=20, right=30, bottom=80), expand=True
                     ),
                     ft.Container(
                         content=GlobalScrubber(
@@ -218,11 +227,21 @@ class AnalysisView:
                             on_change=lambda f: [item['tile'].sync_to_frame(f) for item in active_tiles]
                         ),
                         height=45, bgcolor="#1E1A2A", border=ft.border.only(top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")),
-                        padding=ft.Padding(20, 0, 30, 0), alignment=ft.Alignment(0, 0)
+                        padding=ft.Padding(left=20, top=0, right=30, bottom=0), alignment=ft.Alignment(0, 0)
                     )
                 ], spacing=0, expand=True)
             ], spacing=0, expand=True),
-            # self.drawer_comp.build(),
+            
+            # [V7.0] 侧边审计抽屉
+            FloatingDrawer(
+                state=self.state,
+                model=self.state.model,
+                dist_slot=dist_slot,
+                detail_slot=audit_slot,
+                on_fetch_detail=lambda eid: asyncio.create_task(self.state.load_audit_detail(eid)),
+                on_close=lambda: self.state.close_drawer()
+            ),
+
             ft.Container(
                 content=ft.Stack([
                     ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: [set_is_history_open(False), set_maximized_tile_id(None)]),
