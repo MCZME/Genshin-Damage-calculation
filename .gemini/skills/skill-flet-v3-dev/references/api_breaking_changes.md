@@ -55,7 +55,7 @@
 - **NavigationRailDesctination**: `label_content` 变更为 `label`。
 - **SafeArea**: 属性名变更为 `avoid_intrusions_left/top/right/bottom`。
 - **Badge**: 使用 `label` 代替 `text`。
-- **Padding, Margin**: 强制使用命名参数。例如：`ft.Padding(vertical=0, horizontal=10)`。
+- **Padding, Margin**: 强制使用命名参数。`。
 - **SegmentedButton**: `selected` 类型从 `Set` 变为 `List[str]`。
 - **ft.run(target=main)**: Flet 0.80.x 推荐使用 **`ft.run`** 替代 `ft.app`。
 - **page.push_route()**: 推荐替代 `page.go()`。
@@ -72,6 +72,28 @@
 - **BoxDecoration**: `shadow` -> `shadows` (复数)。
 - **canvas.Text**: `text` -> `value`。
 - **方法命名**: 移除所有方法的 `_async` 后缀。
-- **Icon**: `name` -> `icon`。
-- **Dropdown**: 使用 `on_select` 代替 `on_change`。
-- **Theme**: 移除 `primary_swatch`, `primary_color` 等，改用 `color_scheme_seed` 或 `ColorScheme` 属性。
+*   **Icon**: `name` -> `icon`。
+*   **Dropdown**: 使用 `on_select` 代替 `on_change`。
+*   **Theme**: 移除 `primary_swatch`, `primary_color` 等，改用 `color_scheme_seed` 或 `ColorScheme` 属性。
+
+---
+
+## 🛑 渲染稳定性 (防止“一片灰”崩溃)
+基于实战测试，以下配置必须严格遵守以确保 Flutter 渲染引擎不挂起：
+
+1. **BoxShadow (阴影)**
+   - `Container.shadow` 属性**必须接收一个列表**。
+   - ✅ 正确：`shadow=[ft.BoxShadow(...)]`
+   - ❌ 错误：`shadow=ft.BoxShadow(...)` (可能导致静默挂起)。
+
+2. **Gradient (渐变)**
+   - `colors` 列表必须包含**至少两种**颜色。
+   - 推荐优先使用 **Hex 十六进制代码** (如 `#1A1A1A`)，避免在某些环境下 `rgba()` 解析失败。
+
+3. **ft.Text 样式裁剪**
+   - **已移除**: `letter_spacing`, `shadow`, `padding`, `margin`。
+   - **替代方案**: 使用 `style=ft.TextStyle(letter_spacing=2, shadows=[...])`。
+
+4. **初始化**
+   - **推荐**: 使用 `ft.run(main)` 替代 `ft.app(target=main)`。
+   - **Renderer 报错**: 若遇到 `No current renderer is set`，确保所有组件在 `Renderer.render`的执行流内部实例化。
