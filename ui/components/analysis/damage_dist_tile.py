@@ -129,8 +129,9 @@ def FrequencyHeatmap(data: dict, width: float):
     return ft.Container(content=cv.Canvas(shapes=shapes, height=4), width=width, height=6, bgcolor=ft.Colors.WHITE_10, border_radius=3, margin=ft.margin.only(top=-8, bottom=2))
 
 class DamageDistributionTile(AnalysisTile):
-    def __init__(self, state: AnalysisState):
+    def __init__(self, state: AnalysisState, on_drill_down=None):
         super().__init__("伤害分布脉冲图", ft.Icons.QUERY_STATS_ROUNDED, "damage_dist", state)
+        self.on_drill_down = on_drill_down
         self.expand = True
         self.canvas_height = 240
         self.theme_color = "#6495ED"
@@ -175,7 +176,22 @@ class DamageDistributionTile(AnalysisTile):
             candidates = sorted_f[max(0, idx-1):min(len(sorted_f), idx+1)]
             if candidates:
                 closest = min(candidates, key=lambda f: abs(f - clicked_f))
-                if abs(closest - clicked_f) < (20 / STD_WIDTH) * max(data.get("total_frames", 1), 1): self.state.set_frame(int(closest))
+                if abs(closest - clicked_f) < (20 / STD_WIDTH) * max(data.get("total_frames", 1), 1):
+                    f_int = int(closest)
+                    self.state.set_frame(f_int)
+                    if self.on_drill_down:
+                        # 尝试下钻到该帧最大的伤害事件
+                        f_data = data.get("frame_map", {}).get(f_int, {})
+                        events = f_data.get("events", [])
+                        if events:
+                            max_ev = max(events, key=lambda ev: ev['dmg'])
+                            # 补全 frame 信息
+                            drill_point = max_ev.copy()
+                            drill_point['frame'] = f_int
+                            self.on_drill_down(drill_point)
+                else:
+                    # 仅同步帧
+                    self.state.set_frame(int(clicked_f))
 
         return ft.Container(
             bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
