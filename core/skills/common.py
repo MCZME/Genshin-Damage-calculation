@@ -111,8 +111,7 @@ class NormalAttackSkill(SkillBase):
         # 构造并发布伤害请求 (空间广播模式)
         dmg_obj = Damage(
             element=(current_element, 1.0),
-            damage_multiplier=multiplier,
-            scaling_stat="攻击力",
+            damage_multiplier=(multiplier,),
             config=instance.data.attack_config,
         )
         dmg_obj.name = damage_label
@@ -199,8 +198,7 @@ class ChargedAttackSkill(SkillBase):
 
         dmg_obj = Damage(
             element=(current_element, 1.0),
-            damage_multiplier=multiplier,
-            scaling_stat="攻击力",
+            damage_multiplier=(multiplier,),
             config=instance.data.attack_config,
         )
         dmg_obj.name = "重击伤害"
@@ -293,8 +291,7 @@ class PlungingAttackSkill(SkillBase):
         p = self.attack_data.get(label, {"element_u": 1.0})
         dmg_obj = Damage(
             element=(self.caster.element, p.get("element_u", 1.0)),
-            damage_multiplier=multiplier,
-            scaling_stat="攻击力",
+            damage_multiplier=(multiplier,),
             name=label,
         )
 
