@@ -120,8 +120,8 @@ class FurinaElementalSkill(SkillBase):
             mult = ELEMENTAL_SKILL_DATA["荒性泡沫伤害"][1][self.lv - 1]
             dmg_obj = Damage(
                 element=(Element.HYDRO, 1.0),
-                damage_multiplier=mult,
-                scaling_stat="生命值",
+                damage_multiplier=(mult,),
+                scaling_stat=("生命值",),
                 config=self.caster.action_manager.current_action.data.attack_config,
                 name="荒性泡沫伤害",
             )
@@ -194,8 +194,8 @@ class FurinaElementalBurst(EnergySkill):
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         dmg_obj = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],
-            scaling_stat="生命值",
+            damage_multiplier=(ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],),
+            scaling_stat=("生命值",),
             config=self.caster.action_manager.current_action.data.attack_config,
             name="万众狂欢伤害",
         )

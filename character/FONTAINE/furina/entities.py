@@ -107,8 +107,8 @@ class SalonMember(FurinaSummonBase):
         # 构造伤害对象，Key 即是 Name
         dmg_obj = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=multiplier * bonus,
-            scaling_stat="生命值",
+            damage_multiplier=(multiplier * bonus,),
+            scaling_stat=("生命值",),
             config=self.attack_config,
             name=self.attack_name,
         )
