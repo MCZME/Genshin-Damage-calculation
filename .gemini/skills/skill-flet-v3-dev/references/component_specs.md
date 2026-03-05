@@ -37,7 +37,7 @@
     *   `border_radius` (BorderRadiusValue): 圆角。
     *   `shadow` (BoxShadowValue | list): 投影。
 *   **定位属性**:
-    *   `padding` (PaddingValue): 内边距。必须使用命名参数 `ft.Padding(horizontal=X, vertical=Y)`。
+    *   `padding` (PaddingValue): 内边距。必须使用命名参数。
     *   `alignment` (ft.Alignment): 内容对齐方式。
 *   **注意**: **未列出 `margin` 属性**。
 

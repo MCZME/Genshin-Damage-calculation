@@ -8,7 +8,10 @@
     "sessionRetention": {
       "enabled": true
     },
-    "defaultApprovalMode": "plan"
+    "defaultApprovalMode": "plan",
+    "plan": {
+      "directory": ".gemini/plans"
+    }
   },
   "experimental": {
     "plan": true

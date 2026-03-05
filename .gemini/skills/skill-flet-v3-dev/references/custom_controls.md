@@ -45,8 +45,8 @@ class TaskItem(ft.Row):
 - `will_unmount()`: 在控件从页面移除前调用。执行清理工作（如停止计时器）。
 - `before_update()`: 每次控件更新前调用。**严禁在此方法内调用 `self.update()`**。
 
-## 4. 隔离属性 (`is_isolated`)
-- **原则**：任何在内部类方法中调用 `self.update()` 的自定义控件，其 `is_isolated` 属性**应设置为 `True`**。
+## 4. 隔离方法 (`is_isolated`)
+- **原则**：任何在内部类方法中调用 `self.update()` 的自定义控件，其 `is_isolated` 方法**应返回为 `True`**。
 - **效果**：隔离控件在父级更新时不会重新渲染其子控件树，只有在其显式调用 `self.update()` 时才会推送更新，从而显著提升大型应用的性能。
 
 ## 5. 最佳实践
