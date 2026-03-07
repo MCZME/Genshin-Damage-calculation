@@ -1,9 +1,9 @@
 ---
-name: skill-flet-v3-dev
-description: 专门用于 Flet 0.80.x+ (V3.0) 版本的开发、重构与 Bug 修复。当需要处理 Flet UI 逻辑、适配破坏性更新或解决组件挂载问题时激活。
+name: skill-flet-dev
+description: 专门用于 Flet 0.80.x+ 版本的开发、重构与 Bug 修复。当需要处理 Flet UI 逻辑、适配破坏性更新或解决组件挂载问题时激活。
 ---
 
-# Flet V3 开发指南 (Genshin Damage calculation)
+# Flet 开发指南 (Genshin Damage calculation)
 
 本技能旨在强制执行 Flet 0.81.0+ 版本的最新 API 规范与声明式编程范式，确保 UI 代码的高性能、无障碍与可维护性。
 
