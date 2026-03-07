@@ -1,38 +1,78 @@
-# UI 架构概览 (V6.0+)
+# UI 架构概览 (MVVM V5.0+)
 
-> 本文档描述了原神伤害计算器项目的声明式 UI 架构准则。
-
----
-
-## 核心范式：UI = f(State)
-
-项目全面适配 **Flet V3**，遵循以下核心原则：
-
-### 1. 去中心化视图，中心化状态
-*   **Views**: 不持有业务逻辑，仅持有 `build` 方法。
-*   **States**: 继承自业务基类，持有 `@ft.observable` 模型。
-*   **绑定**: View 通过读取 State 模型属性建立响应式监听。
-
-### 2. 业务驱动的生命周期 (V6.0 重大更新)
-对于复杂的分析磁贴，不再信任 UI 组件的卸载钩子（如 `will_unmount`）。
-*   **旧模式**: `UI销毁 -> 触发清理` (不可靠，易内存泄漏)。
-*   **新模式**: `业务逻辑删除数据 -> UI 响应消失` (可靠，100% 清理)。
-*   **实现**: `AnalysisState` 同步调度 `DataManager` 的引用计数。
-
-### 3. 三层渲染隔离
-为了在高频动画（如标尺拖动、雷达刷新）中保持 60FPS：
-1.  **全局层**: `AnalysisView` 渲染主框架。
-2.  **磁贴层**: `TileContainer` 渲染静态外壳。
-3.  **原子层**: 极其复杂的子组件（如 `DPSCursor`）作为独立函数组件，精准订阅局部状态，避免父级重绘。
+> 本文档描述了原神伤害计算器项目基于 Flet V3 的 **MVVM (Model-View-ViewModel)** 声明式架构准则。
 
 ---
 
-## 技术栈规范 (V3.0+)
+## 1. 核心架构：四层解耦模型
 
-*   **状态模型**: `dataclass` + `@ft.observable`。
-*   **组件定义**: 函数式组件 (`@ft.component def`)。
-*   **持久化**: 在 `AppLayout` 中使用 `ft.use_memo(..., [])` 锁定实例。
-*   **线程安全**: 跨线程更新必须通过 `page.run_task()`。
+项目采用四层数据流向架构，旨在彻底分离“底层仿真数据格式”与“前端 UI 交互逻辑”。
+
+```mermaid
+graph TD
+    Raw[原始数据 Raw Dict] -->|代理| Model[数据模型 Data Model]
+    Model -->|适配| VM[视图模型 ViewModel]
+    VM -->|绑定| View[声明式视图 View]
+```
+
+### 1.1 原始数据层 (Raw Data)
+- **定位**: 纯字典 (`dict`) 或 JSON。
+- **职责**: 负责持久化、序列化以及与仿真引擎的原始兼容。
+- **规范**: 严禁在 View 层直接读写此层数据。
+
+### 1.2 数据模型层 (Data Model)
+- **位置**: `core/data_models/`
+- **定位**: 强类型代理类 (Proxy Wrapper)。
+- **职责**: 包装 Raw Dict，提供强类型 Getter/Setter，处理存储格式转换（如 `str <-> int`）及业务逻辑校验。
+- **特性**: 不依赖 Flet，纯 Python 逻辑。
+
+### 1.3 视图模型层 (ViewModel)
+- **位置**: `ui/view_models/`
+- **定位**: 响应式状态模型 (`@ft.observable`)。
+- **职责**: 持有 Model 引用，负责 UI 格式化（如显示标签、图标路径）并显式调用 `self.notify()` 驱动重绘。
+- **特性**: 使用 **组合模式** (Composition) 管理子系统（如 `CharacterVM` 持有 `WeaponVM`）。
+
+### 1.4 表现层 (View)
+- **位置**: `ui/views/` & `ui/components/`
+- **定位**: 声明式函数组件 (`@ft.component`)。
+- **职责**: 仅负责 UI 声明与绑定。只允许访问 VM 属性，调用 VM 方法。
+- **规范**: 遵循 `UI = f(ViewModel)` 范式。
 
 ---
-*更新日期: 2026-02-27*
+
+## 2. 性能优化：稳定控件树 (Stable Control Tree)
+
+为了解决复杂面板（如战略工作台）切换角色时的卡顿问题，强制执行 **Active Proxy** 模式。
+
+### 2.1 Active Proxy 模式
+- **原理**: 复杂的详情区域绑定到一个唯一的、常驻的代理 VM (`ActiveCharacterProxy`)。
+- **交互**: 切换角色时不销毁 UI 控件，仅调用 `proxy.bind_to(new_character_vm)` 更新内部数据引用。
+- **效果**: Flet 仅执行“手术级”的属性更新（`value` 变更），避免了大规模的 DOM 销毁与重建。
+
+---
+
+## 3. 全局状态与服务集成
+
+### 3.1 AppState 瘦身
+- `AppState` 不再直接操作底层字典 Key。
+- **服务化**: 逻辑抽离至 `MetadataService` (元数据) 和 `SimulationService` (仿真调度)。
+- **生命周期协调**: `AppState` 负责在配置全局重载时，协调各子 State 重建其 ViewModel 树。
+
+### 3.2 刷新机制
+- 废弃旧版 `refresh_count` 强制刷新方案及 `UIEventBus`。
+- **标准做法**: 
+    1. 修改 VM 属性。
+    2. VM 内部调用 `self.notify()`。
+    3. 组件通过直接绑定 VM 实例实现自动重绘。
+
+---
+
+## 4. 技术栈规范
+
+*   **启动入口**: 必须使用 `ft.run(main)`。
+*   **渲染根节点**: 必须使用 `page.render(lambda: RootComponent(vm))`。
+*   **颜色常量**: 统一使用下划线格式 `ft.Colors.BLACK_26`。
+*   **组件通信**: 完全基于 ViewModel 属性绑定。
+
+---
+*更新日期: 2026-03-07 (V5.0 重大重构)*
