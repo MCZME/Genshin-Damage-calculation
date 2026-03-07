@@ -63,6 +63,7 @@ def AnalysisToolbox(active_counts: dict[str, int], on_tile_action=None):
     # 磁贴配置
     items_config = [
         ("历史记录", ft.Icons.HISTORY_ROUNDED, "history"),
+        ("角色面板", ft.Icons.PERSON_SEARCH_ROUNDED, "stats"),
         ("伤害分布", ft.Icons.QUERY_STATS_ROUNDED, "damage_dist"),
         ("DPS 曲线", ft.Icons.AUTO_GRAPH_ROUNDED, "dps"),
         ("全局战报", ft.Icons.DASHBOARD_ROUNDED, "summary"),

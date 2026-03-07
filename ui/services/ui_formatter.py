@@ -49,7 +49,7 @@ class UIFormatter:
             2: ft.Colors.GREEN_400,
             1: ft.Colors.GREY_400
         }
-        return colors.get(rarity, ft.Colors.WHITE24)
+        return colors.get(rarity, ft.Colors.WHITE_24)
 
     @staticmethod
     def get_element_icon(element: str):

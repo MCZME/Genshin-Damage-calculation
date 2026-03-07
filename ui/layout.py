@@ -7,54 +7,41 @@ from ui.views.analysis_view import AnalysisView
 from ui.views.strategic_view import StrategicView
 from ui.views.tactical_view import TacticalView
 from ui.views.scene_view import SceneView
+from ui.view_models.layout_vm import LayoutViewModel
 
 
 class AppLayout:
     """
-    高度响应式布局 (声明式重构版)
+    高度响应式布局 (MVVM 重构版 V5.0)
+    已修复：采用多视图 Stack + Visibility 模式，根治切换后的 RuntimeError。
     """
     def __init__(self, page: ft.Page, state: AppState):
         self.page = page
         self.state = state
         GenshinTheme.apply_page_settings(self.page)
-        
-        self._dirty_views = {"strategic": True, "scene": True, "tactical": True}
 
     @ft.component
-    def build(self):
-        # 1. 局部状态管理 (过渡阶段默认打开分析界面)
-        current_phase, set_current_phase = ft.use_state("review")
-        self.current_phase = current_phase 
+    def build(self, vm: LayoutViewModel):
+        active_phase = vm.current_phase
+        get_ui_logger().log_debug(f"AppLayout build triggered. Active Phase: {active_phase}")
 
-        # 2. 持久化 State 实例 (提取出来，防止被 Component 包装隐藏)
-        analysis_state = ft.use_memo(lambda: AnalysisState(app_state=self.state), [])
-
-        # 3. 持久化 View 实例
-        views = ft.use_memo(lambda: {
-            "strategic": StrategicView(self.state),
-            "scene": SceneView(self.state),
-            "tactical": TacticalView(self.state),
-            "review": AnalysisView(self.state, state=analysis_state) # 注入状态
-        }, [])
+        # 1. 视图实例持久化
+        strat_view = ft.use_memo(lambda: StrategicView(self.state), [])
+        scene_view = ft.use_memo(lambda: SceneView(self.state), [])
+        tact_view = ft.use_memo(lambda: TacticalView(self.state), [])
         
-        self.strategic_reboot = views["strategic"]
-        self.scene_reboot = views["scene"]
-        self.tactical_reboot = views["tactical"]
-        self.analysis_reboot = views["review"]
+        # AnalysisState 专用 (保持动态 build 因为其数据量大且生命周期独立)
+        analysis_state = ft.use_memo(lambda: AnalysisState(app_state=self.state), [])
+        analysis_view = ft.use_memo(lambda: AnalysisView(self.state, state=analysis_state), [])
 
-        # 4. 导航逻辑 (直接操作 analysis_state)
+        # 2. 导航处理逻辑
         def handle_nav(pid):
-            set_current_phase(pid)
-            if pid == "strategic" and self._dirty_views.get("strategic"):
-                self.strategic_reboot._refresh_all(); self._dirty_views["strategic"] = False
-            elif pid == "scene" and self._dirty_views.get("scene"):
-                self.scene_reboot._refresh_all(); self._dirty_views["scene"] = False
-            elif pid == "tactical" and self._dirty_views.get("tactical"):
-                self.tactical_reboot._refresh_all(); self._dirty_views["tactical"] = False
-            elif pid == "review":
-                analysis_state.refresh_data() # 直接调用，修复报错
+            get_ui_logger().log_info(f"Navigating to: {pid}")
+            vm.switch_tab(pid)
+            if pid == "review":
+                analysis_state.refresh_data()
 
-        # 4. 构建声明式组件
+        # 3. 构建导航项
         nav_items_data = [
             ("战略", "strategic", ft.Icons.SETTINGS_INPUT_COMPONENT),
             ("场景", "scene", ft.Icons.PUBLIC),
@@ -63,21 +50,47 @@ class AppLayout:
         ]
         
         nav_controls = [
-            self._build_nav_item_declarative(text, pid, icon, current_phase == pid, handle_nav)
+            self._build_nav_item_declarative(text, pid, icon, active_phase == pid, handle_nav)
             for text, pid, icon in nav_items_data
         ]
+
+        # 4. 核心渲染策略重构：
+        # 使用 Stack + Visibility 模式，确保所有 View 的控件始终在 Page 中注册。
+        # 这样能彻底防止 "Control must be added to the page first" 报错。
+        
+        main_content_stack = ft.Stack([
+            # 战略视图
+            ft.Container(
+                content=strat_view.build(self.state.strategic_state),
+                visible=(active_phase == "strategic"),
+                expand=True
+            ),
+            # 场景视图
+            ft.Container(
+                content=scene_view.build(self.state.strategic_state),
+                visible=(active_phase == "scene"),
+                expand=True
+            ),
+            # 战术视图
+            ft.Container(
+                content=tact_view.build(self.state.tactical_state),
+                visible=(active_phase == "tactical"),
+                expand=True
+            ),
+            # 复盘视图 (动态渲染)
+            ft.Container(
+                content=analysis_view.build() if active_phase == "review" else ft.Container(),
+                visible=(active_phase == "review"),
+                expand=True
+            )
+        ], expand=True)
 
         header = self._build_header_declarative(nav_controls)
         footer = self._build_footer_declarative()
         
-        # 确定当前活动内容
-        active_view = views.get(current_phase, views["strategic"])
-        # 如果是新版声明式类（非 ft.Control），必须显式调用 .build() 获取组件
-        renderable_view = active_view.build() if not isinstance(active_view, ft.Control) else active_view
-
         return ft.Column([
             header,
-            ft.Container(content=renderable_view, padding=6, expand=True),
+            ft.Container(content=main_content_stack, padding=6, expand=True),
             footer
         ], spacing=0, expand=True)
 

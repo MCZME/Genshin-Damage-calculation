@@ -54,5 +54,5 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
     # 将布局实例挂载到 Page 方便访问，但渲染使用声明式方式
     setattr(page, "app_layout", layout)
     
-    # 建立声明式渲染根节点
-    page.render(layout.build)
+    # 建立声明式渲染根节点 (将 layout_vm 作为参数传入以确保响应式追踪)
+    page.render(lambda: layout.build(state.layout_vm))

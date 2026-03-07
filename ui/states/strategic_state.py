@@ -1,107 +1,135 @@
+import flet as ft
+
+from core.data_models.team_data_model import CharacterDataModel
+from core.data_models.scene_data_model import TargetDataModel, SceneDataModel
+from ui.view_models.strategic.character_vm import CharacterViewModel
+from ui.view_models.strategic.active_character_vm import ActiveCharacterProxy
+from ui.view_models.scene.target_vm import TargetViewModel
+
+@ft.observable
 class StrategicState:
     """
     战略视图的状态管理器。
-    负责维护 4 人编队的静态资产配置。
+    负责维护 4 人编队的 DataModel 与 ViewModel 映射。
     """
     def __init__(self):
-        # 1. 成员数据 (4 人编队)
-        self.team_data = [self._create_empty_member() for _ in range(4)]
+        # 1. 成员数据 (DataModel 与 VM 树)
+        self.team_data = [CharacterDataModel.create_empty().raw_data for _ in range(4)]
+        self.team_vms = [CharacterViewModel(CharacterDataModel(d)) for d in self.team_data]
+        
+        # 详情面板常驻代理
+        self.active_character_proxy = ActiveCharacterProxy()
+        self.active_character_proxy.bind_to(self.team_vms[0])
+        
         self.current_index = 0
         self.current_tab = "Character"
         
-        # 2. 目标实体列表 (支持多目标)
-        self.targets = [self._create_target_instance("target_0", "遗迹守卫")]
-        self.selected_target_index = 0 # 当前选中的目标索引
+        # 2. 目标实体列表
+        self.targets_data = [TargetDataModel.create_default("target_0", "遗迹守卫")]
+        self.selected_target_index = 0
         
-        # 3. 战场空间 (坐标单位: 米)
+        # 3. 战场空间
         self.spatial_data = {
             "player_pos": {"x": 0.0, "z": 0.0},
             "target_positions": {
-                "target_0": {"x": 0.0, "z": 5.0} # 默认距离 5 米
+                "target_0": {"x": 0.0, "z": 5.0}
             }
         }
         
-        # 4. 场景与环境共鸣
+        # 初始化目标 VM
+        self.target_vms = [
+            TargetViewModel(TargetDataModel(d, self.spatial_data["target_positions"])) 
+            for d in self.targets_data
+        ]
+        
+        # 4. 场景与环境
         self.scene_data = {
-            "weather": "Clear", # Clear, Rain, etc.
-            "field": "Neutral", # Grass, Water, etc.
-            "manual_buffs": []  # 自定义增益
+            "weather": "Clear",
+            "field": "Neutral",
+            "manual_buffs": []
         }
 
-    def _create_target_instance(self, target_id, name="新目标"):
-        return {
-            "id": target_id,
-            "name": name,
-            "level": "90",
-            "resists": {
-                "火": "10", "水": "10", "草": "10", "雷": "10", 
-                "风": "10", "冰": "10", "岩": "10", "物理": "10"
-            }
-        }
+    def rebind_all_vms(self):
+        """配置重载后强制重建 VM 树"""
+        self.team_vms = [CharacterViewModel(CharacterDataModel(d)) for d in self.team_data]
+        self.target_vms = [
+            TargetViewModel(TargetDataModel(d, self.spatial_data["target_positions"])) 
+            for d in self.targets_data
+        ]
+        self.active_character_proxy.bind_to(self.team_vms[self.current_index])
+        # 核心修复：发送信号告知引用已变
+        self.notify()
 
     def add_target(self, name="遗迹守卫"):
-        new_id = f"target_{len(self.targets)}"
-        new_target = self._create_target_instance(new_id, name)
-        self.targets.append(new_target)
+        new_id = f"target_{len(self.targets_data)}"
+        new_raw = TargetDataModel.create_default(new_id, name)
+        self.targets_data.append(new_raw)
         self.spatial_data["target_positions"][new_id] = {"x": 0.0, "z": 5.0}
-        self.selected_target_index = len(self.targets) - 1
+        
+        new_vm = TargetViewModel(TargetDataModel(new_raw, self.spatial_data["target_positions"]))
+        self.target_vms.append(new_vm)
+        self.selected_target_index = len(self.target_vms) - 1
 
     def remove_target(self, index):
-        if len(self.targets) > 1:
-            target_id = self.targets[index]['id']
-            self.targets.pop(index)
+        if len(self.target_vms) > 1:
+            target_id = self.target_vms[index].id
+            self.targets_data.pop(index)
+            self.target_vms.pop(index)
             if target_id in self.spatial_data["target_positions"]:
                 del self.spatial_data["target_positions"][target_id]
-            self.selected_target_index = min(self.selected_target_index, len(self.targets) - 1)
+            self.selected_target_index = min(self.selected_target_index, len(self.target_vms) - 1)
 
     @property
-    def current_target(self):
-        return self.targets[self.selected_target_index]
-
-    def _create_empty_member(self):
-        return {
-            "id": None,
-            "name": "Empty Slot",
-            "element": "Neutral",
-            "level": "90",
-            "constellation": "0",
-            "talents": {"na": "10", "e": "10", "q": "10"},
-            "weapon": {"id": None, "level": "90", "refinement": "1"},
-            "artifacts": {
-                "Flower": {"name": "", "main": "生命值", "main_val": "4780", "subs": [["暴击率%", "0.0"], ["暴击伤害%", "0.0"], ["攻击力%", "0.0"], ["元素精通", "0"]]},
-                "Plume": {"name": "", "main": "攻击力", "main_val": "311", "subs": [["暴击率%", "0.0"], ["暴击伤害%", "0.0"], ["攻击力%", "0.0"], ["元素精通", "0"]]},
-                "Sands": {"name": "", "main": "攻击力%", "main_val": "46.6", "subs": [["暴击率%", "0.0"], ["暴击伤害%", "0.0"], ["生命值%", "0.0"], ["元素精通", "0"]]},
-                "Goblet": {"name": "", "main": "火元素伤害加成%", "main_val": "46.6", "subs": [["暴击率%", "0.0"], ["暴击伤害%", "0.0"], ["攻击力%", "0.0"], ["元素精通", "0"]]},
-                "Circlet": {"name": "", "main": "暴击率%", "main_val": "31.1", "subs": [["暴击伤害%", "0.0"], ["攻击力%", "0.0"], ["生命值%", "0.0"], ["元素精通", "0"]]},
-            }
-        }
+    def current_target_vm(self) -> TargetViewModel:
+        return self.target_vms[self.selected_target_index]
 
     @property
-    def current_member(self):
-        return self.team_data[self.current_index]
+    def current_member_vm(self) -> CharacterViewModel:
+        return self.team_vms[self.current_index]
 
     def select_member(self, index: int):
         self.current_index = index
+        self.active_character_proxy.bind_to(self.team_vms[index])
 
     def add_member(self, index: int, char_data: dict):
         """初始化并分配成员基础数据"""
-        new_member = self._create_empty_member()
-        new_member.update({
-            "id": char_data['id'],
-            "name": char_data['name'],
-            "element": char_data.get('element', 'Neutral'),
-            "type": char_data.get('type', '单手剑'), # 同步武器类型
+        model = CharacterDataModel.create_empty()
+        model.id = char_data['id']
+        model.name = char_data['name']
+        model.element = char_data.get('element', 'Neutral')
+        model.raw_data.update({
+            "type": char_data.get('type', '单手剑'),
             "rarity": char_data.get('rarity', 5)
         })
-        self.team_data[index] = new_member
+        self.team_data[index] = model.raw_data
+        # 重建该槽位的 VM
+        self.team_vms[index] = CharacterViewModel(model)
+        # 如果是当前槽位，更新代理
+        if self.current_index == index:
+            self.active_character_proxy.bind_to(self.team_vms[index])
 
     def remove_member(self, index: int):
         """清空成员数据"""
-        self.team_data[index] = self._create_empty_member()
+        new_model = CharacterDataModel.create_empty()
+        self.team_data[index] = new_model.raw_data
+        self.team_vms[index] = CharacterViewModel(new_model)
+        if self.current_index == index:
+            self.active_character_proxy.bind_to(self.team_vms[index])
 
-    def update_current_member(self, key: str, value):
-        self.team_data[self.current_index][key] = value
+    @property
+    def current_member(self):
+        """兼容性属性：返回原始字典"""
+        return self.team_data[self.current_index]
+
+    @property
+    def targets(self):
+        """兼容性属性"""
+        return self.targets_data
+
+    @property
+    def current_target(self):
+        """兼容性属性"""
+        return self.targets_data[self.selected_target_index]
 
     def to_config_dict(self):
-        """序列化为标准 Config 对象"""
         return self.team_data
