@@ -1,3 +1,4 @@
+from __future__ import annotations
 import flet as ft
 
 
@@ -17,8 +18,8 @@ class GenshinTheme:
     TEXT_SECONDARY = "#ABA6B5"
 
     # --- 艺术装饰色 ---
-    GOLD_LIGHT = "#F2E6C6" # 更亮的金色，用于高光
-    GOLD_DARK = "#D3BC8E"  # 标准原神金
+    GOLD_LIGHT = "#F2E6C6"  # 更亮的金色，用于高光
+    GOLD_DARK = "#D3BC8E"   # 标准原神金
 
     # --- 玻璃拟态参数 ---
     GLASS_BG = "rgba(60, 55, 80, 0.4)"
@@ -27,7 +28,7 @@ class GenshinTheme:
     FOOTER_BG = "rgba(40, 35, 60, 0.9)"
 
     # --- 元素色映射 (中英文兼容) ---
-    ELEMENT_COLORS = {
+    ELEMENT_COLORS: dict[str, str] = {
         # 英文
         "Pyro": "#FF4D4D",
         "Hydro": "#3399FF",
@@ -50,7 +51,7 @@ class GenshinTheme:
     }
 
     # --- 元素渐变 (用于背景与高亮) ---
-    ELEMENT_GRADIENTS = {
+    ELEMENT_GRADIENTS: dict[str, ft.LinearGradient] = {
         "火": ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1), colors=["#FF4D4D", "#B32424"]),
         "水": ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1), colors=["#3399FF", "#1A5299"]),
         "风": ft.LinearGradient(begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1), colors=["#66FFCC", "#2D997A"]),
@@ -62,7 +63,7 @@ class GenshinTheme:
 
     # --- 元素阴影 (用于呼吸灯效果) ---
     @staticmethod
-    def get_element_glow(element: str, intensity: float = 0.5):
+    def get_element_glow(element: str, intensity: float = 0.5) -> ft.BoxShadow:
         """获取元素阴影效果 (带鲁棒性颜色获取与兼容性样式)"""
         color = GenshinTheme.get_element_color(element)
         return ft.BoxShadow(
@@ -70,11 +71,11 @@ class GenshinTheme:
             blur_radius=15 * intensity,
             color=color or GenshinTheme.ELEMENT_COLORS["Neutral"],
             offset=ft.Offset(0, 0),
-            blur_style="outer",
+            blur_style=ft.BlurStyle.OUTER,
         )
 
     @staticmethod
-    def get_theme():
+    def get_theme() -> ft.Theme:
         return ft.Theme(
             color_scheme=ft.ColorScheme(
                 primary=GenshinTheme.PRIMARY,
@@ -96,7 +97,7 @@ class GenshinTheme:
         page.spacing = 0
 
     @staticmethod
-    def get_element_color(element: str):
+    def get_element_color(element: str | None) -> str:
         """根据元素名称获取对应颜色 (支持中英文，大小写不敏感)"""
         if not element:
             return GenshinTheme.ELEMENT_COLORS["Neutral"]
@@ -114,13 +115,17 @@ class GenshinTheme:
         return GenshinTheme.ELEMENT_COLORS["Neutral"]
 
     @staticmethod
-    def get_weapon_icon(weapon_type: str):
+    def get_weapon_icon(weapon_type: str | None) -> ft.IconData:
         """获取武器类型对应的图标"""
-        mapping = {
-            "单手剑": ft.Icons.SWORDS if hasattr(ft.Icons, "SWORDS") else ft.Icons.HARDWARE,
+        if not weapon_type:
+            return ft.Icons.HARDWARE
+
+        mapping: dict[str, ft.IconData] = {
+            "单手剑": ft.Icons.HARDWARE,
             "双手剑": ft.Icons.CONSTRUCTION,
             "长柄武器": ft.Icons.UPGRADE,
             "弓": ft.Icons.NEAR_ME,
             "法器": ft.Icons.AUTO_STORIES,
         }
         return mapping.get(weapon_type, ft.Icons.HARDWARE)
+

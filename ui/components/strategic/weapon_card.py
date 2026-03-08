@@ -1,5 +1,7 @@
+from __future__ import annotations
 import flet as ft
-from ui.theme import GenshinTheme
+from typing import Any
+from collections.abc import Callable
 from ui.components.strategic.property_slider import PropertySlider
 from ui.view_models.strategic.weapon_vm import WeaponViewModel
 
@@ -7,15 +9,14 @@ from ui.view_models.strategic.weapon_vm import WeaponViewModel
 def WeaponCard(
     vm: WeaponViewModel, 
     element: str = "Neutral",
-    on_picker_click = None,
-    on_slider_focus = None
+    on_picker_click: Callable[[], Any] | None = None,
+    on_slider_focus: Callable[[], Any] | None = None
 ):
     """
     声明式武器配置卡组件 (MVVM V5.0)。
     直接绑定到 WeaponViewModel。
     """
     is_empty = not vm.name
-    elem_color = GenshinTheme.get_element_color(element)
     
     # 1. 武器预览区域
     # TODO: 以后可以从 VM 获取真实的武器图标路径
@@ -23,38 +24,52 @@ def WeaponCard(
     
     weapon_preview = ft.Container(
         content=icon_ctrl,
-        width=80, height=80,
+        width=80, 
+        height=80,
         bgcolor=ft.Colors.BLACK_26,
         border_radius=8,
         border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
-        alignment=ft.Alignment.CENTER,
+        alignment=ft.Alignment(0, 0),
         on_click=lambda _: on_picker_click() if on_picker_click else None,
     )
 
     # 2. 布局组装
-    return ft.Container(
-        content=ft.Column([
-            ft.Text("武器装备", size=14, weight=ft.FontWeight.BOLD, opacity=0.6),
-            ft.Row([
+    col_controls: list[ft.Control] = [
+        ft.Text(vm.display_name, size=12, weight=ft.FontWeight.BOLD),
+        # 使用 PropertySlider 绑定 VM
+        PropertySlider(
+            "精炼", 
+            value=vm.refinement, 
+            min_val=1, 
+            max_val=5, 
+            divisions=4, 
+            element=element, 
+            on_change=vm.set_refinement,
+            on_focus=on_slider_focus
+        ),
+        PropertySlider(
+            "等级", 
+            value=vm.level, 
+            discrete_values=[1, 20, 40, 50, 60, 70, 80, 90], 
+            element=element, 
+            on_change=vm.set_level,
+            on_focus=on_slider_focus
+        ),
+    ]
+
+    main_col_controls: list[ft.Control] = [
+        ft.Text("武器装备", size=14, weight=ft.FontWeight.BOLD, opacity=0.6),
+        ft.Row(
+            controls=[
                 weapon_preview,
-                ft.Column([
-                    ft.Text(vm.display_name, size=12, weight=ft.FontWeight.BOLD),
-                    # 使用 PropertySlider 绑定 VM
-                    PropertySlider(
-                        "精炼", value=vm.refinement, min_val=1, max_val=5, divisions=4, 
-                        element=element, 
-                        on_change=vm.set_refinement,
-                        on_focus=on_slider_focus
-                    ),
-                    PropertySlider(
-                        "等级", value=vm.level, discrete_values=[1, 20, 40, 50, 60, 70, 80, 90], 
-                        element=element, 
-                        on_change=vm.set_level,
-                        on_focus=on_slider_focus
-                    ),
-                ], spacing=5)
-            ], spacing=15)
-        ], spacing=10),
+                ft.Column(controls=col_controls, spacing=5)
+            ], 
+            spacing=15
+        )
+    ]
+
+    return ft.Container(
+        content=ft.Column(controls=main_col_controls, spacing=10),
         padding=ft.Padding(20, 15, 20, 15),
         bgcolor=ft.Colors.with_opacity(0.02, ft.Colors.WHITE),
         border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
