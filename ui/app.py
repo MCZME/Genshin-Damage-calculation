@@ -50,7 +50,7 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
     page.window.min_height = 800
 
     # 4. 实例化布局
-    layout = AppLayout(page, state)
+    layout = AppLayout(page, state, persistence)
     # 将布局实例挂载到 Page 方便访问，但渲染使用声明式方式
     setattr(page, "app_layout", layout)
     

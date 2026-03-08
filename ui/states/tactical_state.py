@@ -1,29 +1,33 @@
+from __future__ import annotations
 import flet as ft
-
-import time
-
+from typing import Any
+from collections.abc import Callable
 from core.data_models.action_data_model import ActionDataModel
-from ui.view_models.tactical.action_vm import ActionViewModel
 from ui.view_models.tactical.tactical_page_vm import TacticalPageViewModel
 
 @ft.observable
 class TacticalState:
     """
-    战术视图的状态管理器。
+    战术视图的状态管理器 (MVVM V5.0)。
     """
     def __init__(self):
         # 底层数据列表
-        self.sequence_data = [] 
+        self.sequence_data: list[ActionDataModel] = [] 
         
         # 顶层页面 VM
         self.page_vm = TacticalPageViewModel()
         
-        # 初始动作模拟
+        # 初始动作模拟 (保持原有逻辑)
         self.add_action(ActionDataModel.create("hu_tao", "elemental_skill"))
         self.add_action(ActionDataModel.create("hu_tao", "normal_attack"))
 
+    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
+    def notify(self) -> None: ...
+    def subscribe(self, handler: Callable[..., Any]) -> None: ...
+    def unsubscribe(self, handler: Callable[..., Any]) -> None: ...
+
     @property
-    def sequence(self):
+    def sequence(self) -> list[ActionDataModel]:
         """兼容性属性：返回 DataModel 列表"""
         return self.sequence_data
 
@@ -47,7 +51,7 @@ class TacticalState:
         self.sequence_data.clear()
         self.page_vm.clear_sequence()
 
-    def load_from_dict(self, sequence_config: list):
+    def load_from_dict(self, sequence_config: list[dict[str, Any]]):
         """配置重载"""
         self.sequence_data = [ActionDataModel(d) for d in sequence_config]
         self.page_vm.load_sequence(self.sequence_data)

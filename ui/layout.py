@@ -1,13 +1,18 @@
+from __future__ import annotations
 import flet as ft
+from typing import TYPE_CHECKING
 from ui.states.analysis_state import AnalysisState
-from ui.states.app_state import AppState
 from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
 from ui.views.analysis_view import AnalysisView
 from ui.views.strategic_view import StrategicView
 from ui.views.tactical_view import TacticalView
 from ui.views.scene_view import SceneView
-from ui.view_models.layout_vm import LayoutViewModel
+
+if TYPE_CHECKING:
+    from ui.states.app_state import AppState
+    from ui.view_models.layout_vm import LayoutViewModel
+    from ui.services.persistence_manager import PersistenceManager
 
 
 class AppLayout:
@@ -15,9 +20,10 @@ class AppLayout:
     高度响应式布局 (MVVM 重构版 V5.0)
     已修复：采用多视图 Stack + Visibility 模式，根治切换后的 RuntimeError。
     """
-    def __init__(self, page: ft.Page, state: AppState):
+    def __init__(self, page: ft.Page, state: AppState, persistence: PersistenceManager):
         self.page = page
         self.state = state
+        self.persistence = persistence
         GenshinTheme.apply_page_settings(self.page)
 
     @ft.component
@@ -49,9 +55,12 @@ class AppLayout:
             ("复盘", "review", ft.Icons.ANALYTICS),
         ]
         
-        nav_controls = [
-            self._build_nav_item_declarative(text, pid, icon, active_phase == pid, handle_nav)
-            for text, pid, icon in nav_items_data
+        def create_nav_btn(label: str, pid: str, icon: ft.IconData, is_active: bool) -> ft.Control:
+            return self._build_nav_item_declarative(label, pid, icon, is_active, handle_nav)
+
+        nav_controls: list[ft.Control] = [
+            create_nav_btn(label, phase_id, icon, active_phase == phase_id) 
+            for label, phase_id, icon in nav_items_data
         ]
 
         # 4. 核心渲染策略重构：
@@ -109,20 +118,36 @@ class AppLayout:
             border_radius=20, on_click=lambda _: on_click(pid), animate=300
         )
 
-    def _build_header_declarative(self, nav_controls):
+    def _build_header_declarative(self, nav_controls: list[ft.Control]) -> ft.Control:
+        header_left_controls: list[ft.Control] = [
+            ft.Container(width=4, height=20, bgcolor=ft.Colors.PRIMARY, border_radius=2),
+            ft.Text("GENSHIN WORKBENCH", size=13, weight=ft.FontWeight.W_900, color=GenshinTheme.ON_SURFACE),
+        ]
+        
+        header_right_controls: list[ft.Control] = [
+            ft.IconButton(ft.Icons.SAVE_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.save_config)),
+            ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.load_config)),
+        ]
+
         return ft.Container(
-            content=ft.Row([
-                ft.Row([
-                    ft.Container(width=4, height=20, bgcolor=ft.Colors.PRIMARY, border_radius=2),
-                    ft.Text("GENSHIN WORKBENCH", size=13, weight=ft.FontWeight.W_900, color=GenshinTheme.ON_SURFACE),
-                ], spacing=12),
-                ft.Container(content=ft.Row(nav_controls, spacing=4, tight=True), bgcolor="rgba(0, 0, 0, 0.2)", border_radius=30, padding=4, border=ft.border.all(1, "rgba(255, 255, 255, 0.05)")),
-                ft.Row([
-                    ft.IconButton(ft.Icons.SAVE_OUTLINED, on_click=lambda _: self.page.run_task(self.page.persistence.save_config)),
-                    ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, on_click=lambda _: self.page.run_task(self.page.persistence.load_config)),
-                ], spacing=5)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=32, vertical=12), bgcolor=GenshinTheme.HEADER_BG, blur=20, border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
+            content=ft.Row(
+                controls=[
+                    ft.Row(controls=header_left_controls, spacing=12),
+                    ft.Container(
+                        content=ft.Row(controls=nav_controls, spacing=4, tight=True), 
+                        bgcolor="rgba(0, 0, 0, 0.2)", 
+                        border_radius=30, 
+                        padding=4, 
+                        border=ft.border.all(1, "rgba(255, 255, 255, 0.05)")
+                    ),
+                    ft.Row(controls=header_right_controls, spacing=5)
+                ], 
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            ),
+            padding=ft.Padding.symmetric(horizontal=32, vertical=12), 
+            bgcolor=GenshinTheme.HEADER_BG, 
+            blur=20, 
+            border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
         )
 
     def _build_footer_declarative(self):

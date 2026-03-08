@@ -76,7 +76,8 @@ class AnalysisDataManager:
         try:
             if key == "dps":
                 raw_events = await self.state.adapter.get_dps_data()
-                stacked_pts = await self.state.adapter.get_stacked_dps_data()
+                # 修正方法名
+                stacked_pts = await self.state.adapter.get_stacked_dps_data_raw()
                 slot.data = {
                     "raw_events": raw_events,
                     "frame_indices": [p['frame'] for p in raw_events],
@@ -119,6 +120,10 @@ class AnalysisStateModel:
     drawer_side: str = "right"
     # [V7.2] 选中的伤害事件 (持久化 L2 状态)
     selected_event: Optional[Dict[str, Any]] = None
+    # [V8.0] 聚焦角色 ID
+    focus_char_id: Optional[int] = None
+    # [V8.1] 历史对话框状态 (替代旧版 events)
+    history_dialog_visible: bool = False
 
 class AnalysisState:
     """
@@ -133,6 +138,18 @@ class AnalysisState:
         self.selected_audit_index = -1
         self.current_audit = None
         self.audit_logs = []
+
+    def run_task(self, task: Callable, *args, **kwargs):
+        """[V8.2] 安全的异步任务挂载代理，优先利用 Flet page，回退到 asyncio"""
+        if self.app_state and getattr(self.app_state, 'page', None):
+            self.app_state.page.run_task(task, *args, **kwargs)
+        else:
+            asyncio.create_task(task(*args, **kwargs))
+
+    def set_focus_char(self, char_id: int):
+        """设置当前分析视图关注的角色"""
+        self.model.focus_char_id = char_id
+        self._notify_update()
 
     def set_selected_event(self, event: Optional[Dict[str, Any]]):
         """设置当前选中的伤害事件"""
@@ -244,9 +261,7 @@ class AnalysisState:
             self.model.total_frames = int(stats.get("total_frames", 0))
             self.model.loading = False
             
-            if self.app_state:
-                self.app_state.events.notify("analysis_session_changed", session_id)
-                
+            # [V8.1] 移除已弃用的 app_state.events
             for tile in self.model.active_tiles:
                 await self.data_manager.subscribe(tile['type'], tile['instance_id'])
             self._notify_update()
@@ -261,10 +276,15 @@ class AnalysisState:
         adapter = ReviewDataAdapter()
         async def _task():
             self.model.sessions_history = await adapter.get_all_sessions()
-            if self.app_state:
-                self.app_state.events.notify("analysis_history_ready")
+            # [V8.1] 使用状态标志驱动 UI 弹窗
+            self.model.history_dialog_visible = True
             self._notify_update()
         asyncio.create_task(_task())
+
+    def close_history(self):
+        """关闭历史记录对话框"""
+        self.model.history_dialog_visible = False
+        self._notify_update()
 
     def select_audit(self, index: int):
         if 0 <= index < len(self.audit_logs):
@@ -274,8 +294,7 @@ class AnalysisState:
                 trail = await self.adapter.get_damage_audit(item['event_id'])
                 item['audit_trail'] = trail
                 self.current_audit = item
-                if self.app_state:
-                    self.app_state.events.notify("audit_detail_ready")
+                # [V8.1] 移除已弃用的 app_state.events
                 self._notify_update()
             asyncio.create_task(_load_detail())
 

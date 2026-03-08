@@ -1,7 +1,7 @@
 import json
 import os
 import flet as ft
-from typing import List, Dict, Any, Optional
+from typing import Any
 from core.logger import get_ui_logger
 from core.batch.models import SimulationNode, SimulationMetrics, ModifierRule
 from core.batch.generator import ConfigGenerator
@@ -14,13 +14,13 @@ class UniverseState:
     """
     def __init__(self):
         # 1. 核心数据
-        self.root_config: Optional[Dict] = None  # 存储从工作台传入的基准配置
+        self.root_config: dict | None = None  # 存储从工作台传入的基准配置
         self.universe_root = SimulationNode(id="root", name="基准宇宙")
         self.selected_node = self.universe_root
 
     # --- 变异树操作 (规则驱动版) ---
 
-    def select_node(self, node: Optional[SimulationNode]):
+    def select_node(self, node: SimulationNode | None):
         self.selected_node = node
         self.notify()
 
@@ -88,7 +88,7 @@ class UniverseState:
                 self.selected_node = self.universe_root
                 self.notify()
 
-    def update_node(self, node_id: str, name: str = None, rule: ModifierRule = None):
+    def update_node(self, node_id: str, name: str | None = None, rule: ModifierRule | None = None):
         def _find(current):
             if current.id == node_id:
                 return current
@@ -106,7 +106,7 @@ class UniverseState:
                 node.rule = rule
             self.notify()
 
-    def get_selected_node_config(self) -> Optional[Dict]:
+    def get_selected_node_config(self) -> dict | None:
         if not self.root_config or not self.selected_node:
             return None
         return ConfigGenerator.resolve_node_config(self.root_config, self.universe_root, self.selected_node.id)
@@ -163,6 +163,6 @@ class UniverseState:
         self.notify()
         get_ui_logger().log_info(f"Universe tree loaded from {filename}")
 
-    def list_universes(self) -> List[str]:
+    def list_universes(self) -> list[str]:
         os.makedirs("data/universes", exist_ok=True)
         return [f for f in os.listdir("data/universes") if f.endswith(".json")]

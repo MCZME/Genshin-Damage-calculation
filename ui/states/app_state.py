@@ -1,11 +1,11 @@
 import json
 import os
-import asyncio
 import flet as ft
-from typing import List, Dict, Any, Optional
+from typing import Any
 from core.data.repository import MySQLDataRepository
 from core.data_models.team_data_model import CharacterDataModel
 from core.logger import get_ui_logger
+from core.batch.models import SimulationNode, ModifierRule
 from ui.services.metadata_service import MetadataService
 from ui.services.simulation_service import SimulationService
 from ui.view_models.library_vm import LibraryViewModel
@@ -55,29 +55,44 @@ class AppState:
     def register_page(self, page: ft.Page):
         self.page = page
 
+    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
+    def notify(self) -> None: ...
+    def subscribe(self, handler) -> None: ...
+    def unsubscribe(self, handler) -> None: ...
+
     # --- 代理属性 ---
     @property
-    def char_map(self): return self.metadata.char_map
+    def char_map(self):
+        return self.metadata.char_map
+
     @property
-    def weapon_map(self): return self.metadata.weapon_map
+    def weapon_map(self):
+        return self.metadata.weapon_map
+
     @property
-    def target_map(self): return self.metadata.target_map
+    def target_map(self):
+        return self.metadata.target_map
+
     @property
-    def implemented_chars(self): return self.metadata.implemented_chars
+    def implemented_chars(self):
+        return self.metadata.implemented_chars
+
     @property
-    def implemented_weapons(self): return self.metadata.implemented_weapons
+    def implemented_weapons(self):
+        return self.metadata.implemented_weapons
+
     @property
-    def artifact_sets(self): return self.metadata.artifact_sets
+    def artifact_sets(self):
+        return self.metadata.artifact_sets
 
     # --- 配置流重构 ---
 
-    async def apply_external_config(self, config: Dict):
+    async def apply_external_config(self, config: dict):
         """导入外部全量配置"""
         from core.data_models.team_data_model import CharacterDataModel
-        from core.data_models.scene_data_model import TargetDataModel
-        
+
         ctx = config.get("context_config", {})
-        
+
         # 1. 恢复编队 (从仿真格式转回内部格式)
         loaded_team = ctx.get("team", [])
         for i in range(4):
@@ -85,7 +100,7 @@ class AppState:
                 item = loaded_team[i]
                 char_cfg = item.get("character", {})
                 weapon_cfg = item.get("weapon", {})
-                
+
                 internal_dict = {
                     "id": char_cfg.get("id"),
                     "name": char_cfg.get("name"),
@@ -94,16 +109,16 @@ class AppState:
                     "constellation": str(char_cfg.get("constellation", 0)),
                     "type": char_cfg.get("type", "Unknown"),
                     "talents": {
-                        "na": str(char_cfg.get("talents", [1,1,1])[0]),
-                        "e": str(char_cfg.get("talents", [1,1,1])[1]),
-                        "q": str(char_cfg.get("talents", [1,1,1])[2]),
+                        "na": str(char_cfg.get("talents", [1, 1, 1])[0]),
+                        "e": str(char_cfg.get("talents", [1, 1, 1])[1]),
+                        "q": str(char_cfg.get("talents", [1, 1, 1])[2]),
                     },
                     "weapon": {
                         "id": weapon_cfg.get("name"),
                         "level": str(weapon_cfg.get("level", 90)),
                         "refinement": str(weapon_cfg.get("refinement", 1))
                     },
-                    "artifacts": item.get("artifacts", []) 
+                    "artifacts": item.get("artifacts", [])
                 }
                 self.strategic_state.team_data[i] = internal_dict
             else:
@@ -116,7 +131,7 @@ class AppState:
             target_id = t_item.get("id", "target_unknown")
             self.strategic_data_target_pos = self.strategic_state.spatial_data["target_positions"]
             self.strategic_data_target_pos[target_id] = t_item.get("position", {"x": 0, "z": 5})
-            
+
             internal_target = {
                 "id": target_id,
                 "name": t_item.get("name"),
@@ -126,35 +141,53 @@ class AppState:
             self.strategic_state.targets_data.append(internal_target)
 
         self.strategic_state.scene_data = ctx.get("environment", {})
-        
+
         # 3. 恢复战术
         self.tactical_state.load_from_dict(config.get("sequence_config", []))
 
         # 4. 触发 VM 重建与全局刷新
         self.strategic_state.rebind_all_vms()
-        self.notify() # 代替 events.notify
+        self.notify()  # 代替 events.notify
         get_ui_logger().log_info("AppState: Configuration normalized and applied.")
 
-    def export_config(self) -> Dict[str, Any]:
+    def export_config(self) -> dict[str, Any]:
         """导出全量配置"""
         team_cfg = [
-            CharacterDataModel(m).to_simulator_format() 
+            CharacterDataModel(m).to_simulator_format()
             for m in self.strategic_state.team_data if m.get("id")
         ]
+
+        # 核心修复：手动解析 char_id 到 character_name 的映射，确保动作序列符合仿真引擎格式
+        char_id_to_name: dict[str, str] = {
+            m.get("id", ""): m.get("name", "Unknown")
+            for m in self.strategic_state.team_data
+            if m.get("id")
+        }
+
+        simulation_sequence = []
+        for act in self.tactical_state.page_vm.sequence_vms:
+            # 显式转换确保类型安全
+            raw_name = char_id_to_name.get(act.char_id, "Unknown")
+            char_name = str(raw_name) if raw_name is not None else "Unknown"
+            
+            # 使用 ActionDataModel 提供的序列化方法
+            simulation_sequence.append(act.model.to_simulator_format(char_name))
+
         return {
             "context_config": {
                 "team": team_cfg,
                 "targets": [t.to_simulator_format() for t in self.strategic_state.target_vms],
                 "environment": self.strategic_state.scene_data
             },
-            "sequence_config": [act.model.raw_data for act in self.tactical_state.page_vm.sequence_vms]
+            "sequence_config": simulation_sequence
         }
 
     # --- 仿真控制代理 ---
 
     async def run_simulation(self):
-        if self.is_simulating: return
-        
+        if self.is_simulating:
+            return
+
         def update_progress(status, progress):
             self.sim_status = status
             self.sim_progress = progress
@@ -164,7 +197,7 @@ class AppState:
         self.is_simulating = True
         try:
             config = self.export_config()
-            metrics = await self.simulation.run_single(config, on_progress=update_progress)
+            await self.simulation.run_single(config, on_progress=update_progress)
         finally:
             self.is_simulating = False
             self.layout_vm.update_simulation(self.sim_status, self.sim_progress, False)
@@ -172,9 +205,12 @@ class AppState:
 
     # --- 其它代理方法 ---
     @property
-    def universe_root(self): return self.universe_state.universe_root
-    def save_config(self, filename: str, data: Dict = None):
-        if not filename.endswith(".json"): filename += ".json"
+    def universe_root(self):
+        return self.universe_state.universe_root
+
+    def save_config(self, filename: str, data: dict | None = None):
+        if not filename.endswith(".json"):
+            filename += ".json"
         save_path = os.path.join("data/configs", filename) if not os.path.isabs(filename) else filename
         config_data = data if data is not None else self.export_config()
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -184,20 +220,40 @@ class AppState:
 
     async def load_config(self, filename: str):
         path = os.path.join("data/configs", filename)
-        if not os.path.exists(path): return
+        if not os.path.exists(path):
+            return
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         await self.apply_external_config(data)
 
     # --- 变异树操作 (通过 UniverseState 代理) ---
     @property
-    def selected_node(self): return self.universe_state.selected_node
-    def select_node(self, node): self.universe_state.select_node(node)
-    def add_branch(self, parent, name="新分支"): self.universe_state.add_branch(parent, name)
-    def apply_range_to_node(self, node, path, s, e, step, label): self.universe_state.apply_range_to_node(node, path, s, e, step, label)
-    def remove_node(self, nid): self.universe_state.remove_node(nid)
-    def update_node(self, nid, name=None, rule=None): self.universe_state.update_node(nid, name, rule)
-    def get_selected_node_config(self): return self.universe_state.get_selected_node_config()
-    def save_universe(self, filename): self.universe_state.save_universe(filename)
-    def load_universe(self, filename): self.universe_state.load_universe(filename)
-    def list_universes(self): return self.universe_state.list_universes()
+    def selected_node(self) -> SimulationNode | None:
+        return self.universe_state.selected_node
+
+    def select_node(self, node: SimulationNode | None):
+        self.universe_state.select_node(node)
+
+    def add_branch(self, parent: SimulationNode, name: str = "新分支"):
+        self.universe_state.add_branch(parent, name)
+
+    def apply_range_to_node(self, node: SimulationNode, path: list, s: float, e: float, step: float, label: str):
+        self.universe_state.apply_range_to_node(node, path, s, e, step, label)
+
+    def remove_node(self, nid: str):
+        self.universe_state.remove_node(nid)
+
+    def update_node(self, nid: str, name: str | None = None, rule: ModifierRule | None = None):
+        self.universe_state.update_node(nid, name, rule)
+
+    def get_selected_node_config(self) -> dict | None:
+        return self.universe_state.get_selected_node_config()
+
+    def save_universe(self, filename):
+        self.universe_state.save_universe(filename)
+
+    def load_universe(self, filename):
+        self.universe_state.load_universe(filename)
+
+    def list_universes(self):
+        return self.universe_state.list_universes()

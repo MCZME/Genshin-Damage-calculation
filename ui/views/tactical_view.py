@@ -1,12 +1,11 @@
 import flet as ft
-from typing import Dict, Any, List
+from typing import Any
 from ui.states.tactical_state import TacticalState
 from ui.theme import GenshinTheme
 from ui.states.app_state import AppState
 from ui.components.tactical.action_card import ActionCard
 from ui.components.tactical.tactical_action_btn import TacticalActionBtn
 from ui.components.tactical.tactical_member_slot import TacticalMemberSlot
-from ui.services.ui_formatter import UIFormatter
 from core.data_models.action_data_model import ActionDataModel
 from core.registry import CharacterClassMap, initialize_registry
 
@@ -21,10 +20,13 @@ class TacticalView:
         # 确保注册表已初始化
         initialize_registry()
 
-    def _get_default_metadata(self) -> Dict[str, Any]:
+    def _get_default_metadata(self) -> dict[str, Any]:
         """兜底默认元数据"""
         return {
-            "normal_attack": {"label": "普通攻击", "params": [{"key": "count", "label": "连招次数", "type": "int", "min": 1, "max": 5, "default": 1}]},
+            "normal_attack": {
+                "label": "普通攻击", 
+                "params": [{"key": "count", "label": "连招次数", "type": "int", "min": 1, "max": 5, "default": 1}]
+            },
             "elemental_skill": {"label": "元素战技", "params": []},
             "elemental_burst": {"label": "元素爆发", "params": []},
             "charged_attack": {"label": "重击", "params": []},
@@ -32,9 +34,9 @@ class TacticalView:
             "skip": {"label": "等待", "params": [{"key": "frames", "label": "帧数", "type": "int", "default": 60}]}
         }
 
-    def _get_char_metadata(self, char_name: str) -> Dict[str, Any]:
+    def _get_char_metadata(self, char_name: str | None) -> dict[str, Any]:
         """获取指定角色的动作元数据"""
-        if char_name in CharacterClassMap:
+        if char_name and char_name in CharacterClassMap:
             cls = CharacterClassMap[char_name]
             if hasattr(cls, "get_action_metadata"):
                 return cls.get_action_metadata()
@@ -52,33 +54,47 @@ class TacticalView:
         team_data = self.app_state.strategic_state.team_data
 
         # 3. 辅助方法
-        def get_char_name(char_id):
+        def get_char_name(char_id: str | None) -> str:
             for m in team_data:
-                if m.get("id") == char_id: return m.get("name", "Unknown")
+                if m.get("id") == char_id:
+                    return m.get("name", "Unknown")
             return "Unknown"
 
-        def get_char_element(char_id):
+        def get_char_element(char_id: str | None) -> str:
             for m in team_data:
-                if m.get("id") == char_id: return m.get("element", "Neutral")
+                if m.get("id") == char_id:
+                    return m.get("element", "Neutral")
             return "Neutral"
 
         # 4. 布局组件构建
-        header = ft.Row([
-            ft.Text("战术动作编排", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-            ft.Row([
-                ft.TextButton("清空序列", icon=ft.Icons.DELETE_SWEEP, icon_color=ft.Colors.RED_400, on_click=lambda _: [vm.clear_sequence(), state.notify()]),
-            ], spacing=10)
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        header = ft.Row(
+            controls=[
+                ft.Text("战术动作编排", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                ft.Row(
+                    controls=[
+                        ft.TextButton(
+                            "清空序列", 
+                            icon=ft.Icons.DELETE_SWEEP, 
+                            icon_color=ft.Colors.RED_400, 
+                            on_click=lambda _: [vm.clear_sequence(), state.notify()]
+                        ),
+                    ], 
+                    spacing=10
+                )
+            ], 
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+        )
 
-        sidebar = ft.Column([
+        sidebar_controls: list[ft.Control] = [
             TacticalMemberSlot(
                 i, team_data[i], 
                 is_selected=(i == active_member_index),
                 on_click=set_active_member_index
             ) for i in range(4)
-        ], width=180, expand=True, spacing=10)
+        ]
+        sidebar = ft.Column(controls=sidebar_controls, width=180, expand=True, spacing=10)
 
-        sequence_items = []
+        sequence_items: list[ft.Control] = []
         for i, action_vm in enumerate(sequence_vms):
             sequence_items.append(
                 ActionCard(
@@ -94,16 +110,25 @@ class TacticalView:
             if i < len(sequence_vms) - 1:
                 sequence_items.append(ft.Icon(ft.Icons.CHEVRON_RIGHT, size=14, color=ft.Colors.WHITE_10))
 
-        sequence_axis = ft.Column([
-            ft.Row([
-                ft.Text("执行序列流", size=16, weight=ft.FontWeight.BOLD, opacity=0.8),
-                ft.Text(f"({len(sequence_vms)} Actions)", size=11, color=GenshinTheme.TEXT_SECONDARY),
-            ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            ft.Container(
-                content=ft.Row(sequence_items, spacing=8, run_spacing=8, wrap=True),
-                padding=ft.Padding(0, 5, 0, 10), expand=True
-            )
-        ], spacing=10, expand=True, scroll=ft.ScrollMode.HIDDEN)
+        sequence_axis = ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[
+                        ft.Text("执行序列流", size=16, weight=ft.FontWeight.BOLD, opacity=0.8),
+                        ft.Text(f"({len(sequence_vms)} Actions)", size=11, color=GenshinTheme.TEXT_SECONDARY),
+                    ], 
+                    spacing=10, 
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                ft.Container(
+                    content=ft.Row(sequence_items, spacing=8, run_spacing=8, wrap=True),
+                    padding=ft.Padding(0, 5, 0, 10), expand=True
+                )
+            ], 
+            spacing=10, 
+            expand=True, 
+            scroll=ft.ScrollMode.HIDDEN
+        )
 
         # 4.4 指令库与编辑器
         active_member = team_data[active_member_index]
@@ -111,10 +136,15 @@ class TacticalView:
         
         # 4.4.1 指令库构建
         if active_member.get("id") is None:
-            command_library = ft.Column([
-                ft.Text("尚未配置角色", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE_24),
-                ft.Text("请先到战略视图中配置角色。", size=12, color=GenshinTheme.TEXT_SECONDARY)
-            ], expand=True, spacing=10, alignment=ft.MainAxisAlignment.CENTER)
+            command_library = ft.Column(
+                controls=[
+                    ft.Text("尚未配置角色", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE_24),
+                    ft.Text("请先到战略视图中配置角色。", size=12, color=GenshinTheme.TEXT_SECONDARY)
+                ], 
+                expand=True, 
+                spacing=10, 
+                alignment=ft.MainAxisAlignment.CENTER
+            )
         else:
             char_meta = self._get_char_metadata(active_member.get("name"))
             order = ["normal_attack", "charged_attack", "elemental_skill", "elemental_burst", "dash", "skip"]
@@ -127,27 +157,35 @@ class TacticalView:
                     # 准备默认参数
                     default_params = {p['key']: p.get('default') for p in info.get('params', []) if 'default' in p}
                     
-                    btn = TacticalActionBtn(
-                        key, info.get("label", key), active_member.get("element", "Neutral"),
-                        on_click=lambda k, dp=default_params: [
+                    # 闭包捕获
+                    def create_click_handler(k, dp):
+                        return lambda _: [
                             vm.add_action(ActionDataModel.create(active_member['id'], k, params=dp.copy())), 
                             state.notify()
                         ]
+
+                    btn = TacticalActionBtn(
+                        key, info.get("label", key), active_member.get("element", "Neutral"),
+                        on_click=create_click_handler(key, default_params)
                     )
                     current_row.append(btn)
                     if len(current_row) == 2:
                         rows.append(ft.Row(current_row, spacing=15))
                         current_row = []
-            if current_row: rows.append(ft.Row(current_row, spacing=15))
+            if current_row:
+                rows.append(ft.Row(current_row, spacing=15))
 
-            command_library = ft.Column([
-                ft.Text("招式指令选单", size=12, weight=ft.FontWeight.W_600, opacity=0.4),
-                *rows,
-                ft.Text("点击招式向序列末尾追加动作", size=10, color=GenshinTheme.TEXT_SECONDARY, italic=True)
-            ], spacing=10)
+            command_library = ft.Column(
+                controls=[
+                    ft.Text("招式指令选单", size=12, weight=ft.FontWeight.W_600, opacity=0.4),
+                    *rows,
+                    ft.Text("点击招式向序列末尾追加动作", size=10, color=GenshinTheme.TEXT_SECONDARY, italic=True)
+                ], 
+                spacing=10
+            )
 
         # 4.4.2 参数编辑器 (恢复 Schema 驱动逻辑)
-        inspector_controls = []
+        inspector_controls: list[ft.Control] = []
         if selected_action_vm:
             # 获取当前选中动作所属角色的元数据
             sel_char_name = get_char_name(selected_action_vm.char_id)
@@ -173,14 +211,20 @@ class TacticalView:
                             ft.Slider(
                                 min=p['min'], max=p['max'], divisions=p['max']-p['min'],
                                 value=float(current_val),
-                                on_change=lambda e, k=p_key: [selected_action_vm.set_param(k, int(e.control.value)), state.notify()]
+                                on_change=lambda e, k=p_key: [
+                                    selected_action_vm.set_param(k, int(e.control.value or 0)), 
+                                    state.notify()
+                                ]
                             )
                         ], spacing=0))
                     else:
                         inspector_controls.append(ft.TextField(
                             label=p_label, value=str(current_val),
                             dense=True, text_size=12, border_color=ft.Colors.WHITE_10,
-                            on_change=lambda e, k=p_key: [selected_action_vm.set_param(k, e.control.value), state.notify()]
+                            on_change=lambda e, k=p_key: [
+                                selected_action_vm.set_param(k, e.control.value or ""), 
+                                state.notify()
+                            ]
                         ))
                 elif p_type == 'select':
                     options = p.get('options', {})
@@ -188,12 +232,18 @@ class TacticalView:
                         label=p_label, value=str(current_val),
                         options=[ft.dropdown.Option(str(opt_k), text=str(opt_v)) for opt_k, opt_v in options.items()],
                         dense=True, text_size=12, border_color=ft.Colors.WHITE_10,
-                        on_change=lambda e, k=p_key: [selected_action_vm.set_param(k, e.control.value), state.notify()]
+                        on_select=lambda e, k=p_key: [
+                            selected_action_vm.set_param(k, e.control.value or ""), 
+                            state.notify()
+                        ]
                     ))
                 elif p_type == 'bool':
                     inspector_controls.append(ft.Switch(
                         label=p_label, value=bool(current_val),
-                        on_change=lambda e, k=p_key: [selected_action_vm.set_param(k, e.control.value), state.notify()]
+                        on_change=lambda e, k=p_key: [
+                            selected_action_vm.set_param(k, bool(e.control.value)), 
+                            state.notify()
+                        ]
                     ))
 
             if not inspector_controls:
@@ -220,21 +270,35 @@ class TacticalView:
                 bgcolor=ft.Colors.with_opacity(0.01, ft.Colors.WHITE), border_radius=12
             )
 
-        mid_section = ft.Column([command_library, ft.Divider(height=1, color=ft.Colors.WHITE_10), params_panel], width=240, spacing=15)
+        mid_section_controls: list[ft.Control] = [
+            command_library, 
+            ft.Divider(height=1, color=ft.Colors.WHITE_10), 
+            params_panel
+        ]
+        mid_section = ft.Column(controls=mid_section_controls, width=240, spacing=15)
 
         # 5. 组装最终布局
-        return ft.Container(
-            content=ft.Column([
-                header,
-                ft.Row([
+        main_layout_controls: list[ft.Control] = [
+            header,
+            ft.Row(
+                controls=[
                     ft.Container(content=sidebar, width=160),
                     ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.1, GenshinTheme.ON_SURFACE)),
-                    ft.Row([
-                        mid_section,
-                        ft.VerticalDivider(width=1, color=ft.Colors.WHITE_10),
-                        sequence_axis
-                    ], expand=True, vertical_alignment=ft.CrossAxisAlignment.START)
-                ], expand=True)
-            ], spacing=10),
+                    ft.Row(
+                        controls=[
+                            mid_section,
+                            ft.VerticalDivider(width=1, color=ft.Colors.WHITE_10),
+                            sequence_axis
+                        ], 
+                        expand=True, 
+                        vertical_alignment=ft.CrossAxisAlignment.START
+                    )
+                ], 
+                expand=True
+            )
+        ]
+
+        return ft.Container(
+            content=ft.Column(controls=main_layout_controls, spacing=10),
             padding=15, expand=True, bgcolor=GenshinTheme.BACKGROUND
         )

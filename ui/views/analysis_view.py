@@ -1,9 +1,7 @@
+from __future__ import annotations
 import asyncio
-import uuid
-import math
-import bisect
 import flet as ft
-from ui.theme import GenshinTheme
+from typing import TYPE_CHECKING, Any, Callable
 from ui.states.analysis_state import AnalysisState
 from ui.components.analysis.scrubber import GlobalScrubber
 from ui.components.analysis.floating_drawer import FloatingDrawer
@@ -11,15 +9,19 @@ from ui.components.analysis.tile_container import TileContainer
 from ui.components.analysis.dps_tile import DPSChartTile
 from ui.components.analysis.summary_tile import SummaryTile
 from ui.components.analysis.damage_dist_tile import DamageDistributionTile
+from ui.components.analysis.stats_tile import CharacterStatsTile
 from ui.components.analysis.history_dialog import HistoryDialog
 from ui.components.analysis.toolbox import AnalysisToolbox
 from core.logger import get_ui_logger
+
+if TYPE_CHECKING:
+    from ui.states.app_state import AppState
 
 # --- Grid Configuration [V4.0 Final] ---
 CELL_SIZE = 160
 GUTTER = 16
 
-def calculate_grid_layout(items, available_width):
+def calculate_grid_layout(items: list[dict], available_width: float) -> tuple[list[dict], float]:
     """[Pure Function] 核心网格布局算法"""
     if not available_width or available_width < 100:
         return [], 0
@@ -69,7 +71,7 @@ def calculate_grid_layout(items, available_width):
     return layout_results, max_y * (CELL_SIZE + GUTTER)
 
 @ft.component
-def TileWrapper(item, state, set_maximized_tile_id):
+def TileWrapper(item: dict, state: AnalysisState, set_maximized_tile_id: Callable):
     """磁贴包装器 [V6.0] 仅负责 UI 交互映射"""
     
     def handle_close(iid):
@@ -88,10 +90,11 @@ class AnalysisView:
     """
     分析视图 V6.8 (模块化网格 - 160px 固化版)
     """
-    def __init__(self, app_state=None, state=None):
+    def __init__(self, app_state: AppState | None = None, state: AnalysisState | None = None):
         self.app_state = app_state
         self.state = state or AnalysisState(app_state=app_state)
-        self.scrubber_ref = ft.Ref[GlobalScrubber]()
+        # GlobalScrubber 是一个被 @ft.component 装饰的函数，因此 Ref 类型应为 Control
+        self.scrubber_ref = ft.Ref[ft.Control]()
         # self.drawer_comp = FloatingDrawer(width=450)
 
     @ft.component
@@ -99,28 +102,30 @@ class AnalysisView:
         # 1. 订阅核心状态
         active_tiles = self.state.model.active_tiles 
         _trigger = self.state.model.update_counter
+        # [V8.1] 历史弹窗状态直接从模型读取
+        is_history_open = self.state.model.history_dialog_visible
         
         # 2. 本地 UI 状态
-        is_history_open, set_is_history_open = ft.use_state(False)
         maximized_tile_id, set_maximized_tile_id = ft.use_state(None)
         
         # 强刷钩子与响应式宽度
         dummy, set_dummy = ft.use_state(0)
-        page_width = self.app_state.page.width if (self.app_state and self.app_state.page) else 1200
-        container_width, set_container_width = ft.use_state(page_width - 140)
+        
+        # 安全获取页面宽度
+        current_page_width = 1200.0
+        if self.app_state and self.app_state.page and self.app_state.page.width:
+            current_page_width = float(self.app_state.page.width)
+            
+        container_width, set_container_width = ft.use_state(current_page_width - 140)
         
         # 3. 事件绑定
         def setup_events():
-            subs = []
-            if self.app_state:
-                subs.append(self.app_state.events.subscribe("analysis_history_ready", lambda: set_is_history_open(True)))
-            
             # PubSub 订阅需要包含清理逻辑，防止订阅累积导致卡死
             def on_force_refresh(e):
                 async def _update():
                     set_dummy(lambda d: d + 1)
-                    if self.app_state and self.app_state.page:
-                        set_container_width(self.app_state.page.width - 140)
+                    if self.app_state and self.app_state.page and self.app_state.page.width:
+                        set_container_width(float(self.app_state.page.width) - 140)
                 if self.app_state and self.app_state.page:
                     self.app_state.page.run_task(_update)
             
@@ -128,20 +133,21 @@ class AnalysisView:
                 self.app_state.page.pubsub.subscribe(on_force_refresh)
 
             def cleanup():
-                for unsub in subs:
-                    if callable(unsub): 
-                        try: unsub()
-                        except: pass
                 # 必须显式取消订阅
                 if self.app_state and self.app_state.page:
-                    self.app_state.page.pubsub.unsubscribe(on_force_refresh)
+                    self.app_state.page.pubsub.unsubscribe()
             return cleanup
         ft.use_effect(setup_events, [])
 
-        def on_resize(e):
+        def on_resize(e: Any):
+            if self.app_state and self.app_state.page and self.app_state.page.width:
+                set_container_width(float(self.app_state.page.width) - 140)
+        
+        def setup_resize() -> None:
             if self.app_state and self.app_state.page:
-                set_container_width(self.app_state.page.width - 140)
-        ft.use_effect(lambda: setattr(self.app_state.page, "on_resize", on_resize), [])
+                self.app_state.page.on_resize = on_resize
+            
+        ft.use_effect(setup_resize, [])
 
         # 4. 业务逻辑绑定
         def handle_drill_down(point):
@@ -161,10 +167,14 @@ class AnalysisView:
                 return DamageDistributionTile(state_obj, on_drill_down=handle_drill_down), (4, 2)
             elif tile_type == "summary":
                 return SummaryTile(state_obj), (2, 1)
+            elif tile_type == "stats":
+                return CharacterStatsTile(state_obj, iid), (2, 2)
             return None, (1, 1)
 
         def handle_toolbox_action(tid):
-            if tid == "history": self.state.load_history_list(); return
+            if tid == "history":
+                self.state.load_history_list()
+                return
             self.state.add_tile(tid, tile_factory)
 
         # 5. 计算网格布局
@@ -176,9 +186,9 @@ class AnalysisView:
         if is_history_open:
             focus_content = HistoryDialog(
                 sessions=self.state.model.sessions_history,
-                on_select=lambda sid: [self.state.load_session(sid), set_is_history_open(False)],
-                on_close=lambda: set_is_history_open(False)
-            ).build()
+                on_select=lambda sid: [self.state.load_session(sid), self.state.close_history()],
+                on_close=lambda: self.state.close_history()
+            )
         elif maximized_tile_id:
             max_item = next((t for t in active_tiles if t['instance_id'] == maximized_tile_id), None)
             if max_item:
@@ -190,7 +200,8 @@ class AnalysisView:
                 )
 
         type_counts = {t['type']: 0 for t in active_tiles}
-        for t in active_tiles: type_counts[t['type']] += 1
+        for t in active_tiles:
+            type_counts[t['type']] += 1
 
         # 7. 获取数据槽位供抽屉使用
         dist_slot = self.state.data_manager.get_slot("damage_dist")
@@ -243,7 +254,7 @@ class AnalysisView:
 
             ft.Container(
                 content=ft.Stack([
-                    ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: [set_is_history_open(False), set_maximized_tile_id(None)]),
+                    ft.Container(bgcolor="rgba(0,0,0,0.7)", on_click=lambda _: [self.state.close_history(), set_maximized_tile_id(None)]),
                     ft.Container(content=focus_content, padding=40, alignment=ft.Alignment.CENTER),
                 ]),
                 visible=focus_content is not None, expand=True
