@@ -1,5 +1,5 @@
 import flet as ft
-from typing import Dict, List, Optional
+from collections.abc import Callable
 from ui.theme import GenshinTheme
 
 def format_val(val: float, is_percent: bool = False) -> str:
@@ -34,7 +34,7 @@ def AuditDetailItem(step: dict, is_primary: bool = False):
     )
 
 @ft.component
-def MultiplierBlock(id_key: str, name: str, val: str, is_active: bool, on_change: callable):
+def MultiplierBlock(id_key: str, name: str, val: str, is_active: bool, on_change: Callable):
     """函数式乘区方块：MD3 FilterChip 风格"""
     bg_color = ft.Colors.with_opacity(0.2, GenshinTheme.PRIMARY) if is_active else ft.Colors.with_opacity(0.03, ft.Colors.ON_SURFACE)
     text_color = GenshinTheme.PRIMARY if is_active else ft.Colors.ON_SURFACE_VARIANT
@@ -131,7 +131,8 @@ def DamageAuditInspector(state, model, dist_slot, detail_slot, on_fetch_detail):
 
     # --- 视图 B: 审计详情 ---
     def build_audit_view():
-        if not selected_event: return ft.Container()
+        if not selected_event:
+            return ft.Container()
         
         buckets_data = detail_slot.data or {}
         elem_color = GenshinTheme.get_element_color(selected_event.get('element'))

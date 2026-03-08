@@ -1,5 +1,5 @@
 import flet as ft
-from ui.theme import GenshinTheme
+from collections.abc import Callable
 from ui.components.tactical.tactical_action_btn import TacticalActionBtn
 from ui.components.tactical.tactical_member_slot import TacticalMemberSlot
 
@@ -7,7 +7,7 @@ class CommandPalette:
     """
     指令调色盘：展示当前队伍成员及其可选招式
     """
-    def __init__(self, team_data: list, on_action_add: callable):
+    def __init__(self, team_data: list, on_action_add: Callable):
         self.team_data = team_data
         self.on_action_add = on_action_add
 
@@ -17,7 +17,6 @@ class CommandPalette:
         
         # 1. 获取当前选中的成员
         member = self.team_data[active_index]
-        elem_color = GenshinTheme.get_element_color(member.get("element", "Neutral"))
         is_empty = member.get("id") is None
 
         # 2. 招式指令库逻辑

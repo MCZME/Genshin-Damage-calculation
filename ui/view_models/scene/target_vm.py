@@ -1,6 +1,6 @@
 import flet as ft
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from ui.view_models.base_vm import BaseViewModel
 from core.data_models.scene_data_model import TargetDataModel
 

@@ -1,4 +1,3 @@
-import asyncio
 import time
 from typing import Dict, Any, Optional, Callable
 from core.factory.assembler import create_simulator_from_config
@@ -22,7 +21,8 @@ class SimulationService:
         on_progress: Callable[[str, float], None]
     ) -> Optional[SimulationMetrics]:
         """执行单次仿真任务"""
-        if self.is_simulating: return None
+        if self.is_simulating:
+            return None
         
         self.is_simulating = True
         db = ResultDatabase()
@@ -33,7 +33,7 @@ class SimulationService:
             
             # 1. 创建会话
             config_name = f"仿真_{int(time.time())}"
-            session_id = await db.create_session(config_name, config_snapshot=config)
+            await db.create_session(config_name, config_snapshot=config)
             await db.start_session()
             
             on_progress("RUNNING SIMULATION...", 0.3)
@@ -56,8 +56,10 @@ class SimulationService:
         except Exception as e:
             get_ui_logger().log_error(f"SimulationService: Single run failed: {e}")
             on_progress(f"FAILED: {str(e)[:20]}", 0.0)
-            try: await db.stop_session()
-            except: pass
+            try:
+                await db.stop_session()
+            except Exception:
+                pass
             raise e
         finally:
             self.is_simulating = False
@@ -69,13 +71,15 @@ class SimulationService:
         on_progress: Callable[[str, float], None]
     ) -> Any:
         """执行批量仿真任务"""
-        if self.is_simulating: return None
+        if self.is_simulating:
+            return None
         
         self.is_simulating = True
         try:
             on_progress("BATCH PREPARING...", 0.05)
             configs = list(ConfigGenerator.generate_from_tree(root_config, universe_root))
-            if not configs: return None
+            if not configs:
+                return None
             
             runner = BatchRunner()
             
@@ -88,7 +92,7 @@ class SimulationService:
             
         except Exception as e:
             get_ui_logger().log_error(f"SimulationService: Batch run failed: {e}")
-            on_progress(f"BATCH FAILED", 0.0)
+            on_progress("BATCH FAILED", 0.0)
             raise e
         finally:
             self.is_simulating = False

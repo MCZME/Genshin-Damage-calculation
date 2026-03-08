@@ -1,82 +1,74 @@
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from __future__ import annotations
 import flet as ft
+from dataclasses import dataclass, field
+from typing import Any, cast
 from core.data.repository import DataRepository
 
 @dataclass
 class AssetOption:
-    """轻量级资产选项 DTO (Data Transfer Object)"""
-    id: str
+    """单个资产选项的元数据快照"""
     name: str
-    icon_path: str
-    rarity: int
     element: str = "Neutral"
-    type: str = "Unknown"
+    rarity: int = 4
     is_implemented: bool = True
 
 @ft.observable
+@dataclass
 class LibraryViewModel:
     """
-    资产库视图模型：管理全局静态资产元数据。
-    负责加载数据库数据并转换为 UI 友好的 AssetOption 列表。
+    资产库视图模型。
+    管理可用的角色、武器、圣遗物选项列表及实装状态。
     """
-    def __init__(self, repo: DataRepository):
-        self._repo = repo
-        self._chars: List[AssetOption] = []
-        self._weapons: Dict[str, List[AssetOption]] = {}
-        self._artifacts: List[str] = []
-        
-        # 缓存已实装名单
-        self.implemented_chars = set()
-        self.implemented_weapons = set()
-        
+    repo: DataRepository
+    
+    # 选项列表 (名称)
+    character_names: list[str] = field(default_factory=list)
+    weapon_names: list[str] = field(default_factory=list)
+    artifact_set_names: list[str] = field(default_factory=list)
+    
+    # 实装名单 (ID 或 Key)
+    implemented_chars: set[str] = field(default_factory=set)
+    implemented_weapons: set[str] = field(default_factory=set)
+
+    def __post_init__(self):
+        self.initialize()
+
+    def notify_update(self):
+        """显式触发变更通知，解决静态检查报错"""
+        cast(Any, self).notify()
+
     def initialize(self):
         """同步实装名单并加载数据"""
-        from core.registry import CharacterClassMap, WeaponClassMap, ArtifactSetMap
+        from core.registry import CharacterClassMap, WeaponClassMap
         self.implemented_chars = set(CharacterClassMap.keys())
         self.implemented_weapons = set(WeaponClassMap.keys())
         
-        self.refresh_data()
+        self.refresh_all()
 
-    def refresh_data(self):
-        """重新从仓库加载元数据"""
-        # 1. 加载角色列表
-        raw_chars = self._repo.get_all_characters()
-        self._chars = [
-            AssetOption(
-                id=str(c["id"]), name=c["name"], rarity=c["rarity"],
-                element=c["element"], type=c["type"],
-                icon_path=f"assets/avatars/{c['id']}.png",
-                is_implemented=c["name"] in self.implemented_chars
-            ) for c in raw_chars
-        ]
+    def refresh_all(self):
+        """从数据库刷新所有资产名称列表"""
+        # 1. 获取角色名称
+        chars = self.repo.get_all_characters()
+        self.character_names = [c['name'] for c in chars]
         
-        # 2. 加载武器 (按类型缓存)
-        weapon_types = ["单手剑", "双手剑", "长柄武器", "法器", "弓"]
-        for wt in weapon_types:
-            raw_ws = self._repo.get_weapons_by_type(wt)
-            self._weapons[wt] = [
-                AssetOption(
-                    id=w["name"], name=w["name"], rarity=w["rarity"],
-                    type=wt, icon_path=f"assets/weapons/{w['name']}.png",
-                    is_implemented=w["name"] in self.implemented_weapons
-                ) for w in raw_ws
-            ]
-            
-        # 3. 加载圣遗物套装
-        self._artifacts = self._repo.get_all_artifact_sets()
-        self.notify()
+        # 2. 获取武器名称 (DataRepository 没有直接获取全量名称的方法，使用 query)
+        weapon_rows = self.repo.query("SELECT Name FROM `weapon` ORDER BY Name ASC")
+        self.weapon_names = [str(row[0]) for row in weapon_rows]
+        
+        # 3. 获取圣遗物套装名称
+        self.artifact_set_names = self.repo.get_all_artifact_sets()
+        
+        self.notify_update()
 
-    @property
-    def character_options(self) -> List[AssetOption]:
-        """获取所有可用角色选项"""
-        return self._chars
+    def get_character_options(self, only_implemented: bool = False) -> list[str]:
+        if only_implemented:
+            return [name for name in self.character_names if name in self.implemented_chars]
+        return self.character_names
 
-    def get_weapon_options(self, weapon_type: str) -> List[AssetOption]:
-        """根据武器类型获取可选武器"""
-        return self._weapons.get(weapon_type, [])
+    def get_weapon_options(self, only_implemented: bool = False) -> list[str]:
+        if only_implemented:
+            return [name for name in self.weapon_names if name in self.implemented_weapons]
+        return self.weapon_names
 
-    @property
-    def artifact_set_options(self) -> List[str]:
-        """获取所有圣遗物套装名称"""
-        return self._artifacts
+    def get_artifact_options(self) -> list[str]:
+        return self.artifact_set_names

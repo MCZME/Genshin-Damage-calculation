@@ -38,8 +38,8 @@ def SubStatRow(
             label_options=sub_options,
             # 适配 StatInputField 的 on_select 重命名
             on_select=lambda v: vm.update_sub_stat_value(index, v),
-            on_label_change=lambda l: vm.update_sub_stat_key(index, l)
-        ),
+            on_label_change=lambda label: vm.update_sub_stat_key(index, label)
+            ),
         # 悬浮显示的微型删除按钮
         ft.Container(
             content=ft.IconButton(
