@@ -1,6 +1,7 @@
+from __future__ import annotations
 import flet as ft
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, cast
 from ui.view_models.strategic.character_vm import CharacterViewModel
 from ui.view_models.strategic.active_character_vm import ActiveCharacterProxy
 
@@ -8,24 +9,36 @@ from ui.view_models.strategic.active_character_vm import ActiveCharacterProxy
 @dataclass
 class StrategicPageViewModel:
     """
-    战略页面顶层视图模型。
-    协调侧边栏列表与详情面板的同步。
+    战略页面视图模型。
+    管理队伍中 4 个角色的 VM 及其代理状态。
     """
-    team_vms: List[CharacterViewModel] = field(default_factory=list)
-    current_index: int = 0
-    active_character_proxy: ActiveCharacterProxy = field(default_factory=ActiveCharacterProxy)
+    team_vms: list[CharacterViewModel] = field(default_factory=list)
+    active_index: int = 0
+    active_char_proxy: ActiveCharacterProxy | None = None
 
     def __post_init__(self):
-        if self.team_vms:
-            self.active_character_proxy.bind_to(self.team_vms[0])
+        # 初始化 4 个空槽位
+        if not self.team_vms:
+            self.team_vms = [CharacterViewModel(None) for _ in range(4)]
+        self._update_proxy()
 
-    def select_member(self, index: int):
-        if 0 <= index < len(self.team_vms):
-            self.current_index = index
-            self.active_character_proxy.bind_to(self.team_vms[index])
-            self.notify()
+    def notify_update(self):
+        """显式触发变更通知，解决静态检查报错"""
+        cast(Any, self).notify()
 
-    def update_team(self, vms: List[CharacterViewModel]):
-        self.team_vms = vms
-        self.select_member(self.current_index)
-        self.notify()
+    def select_character(self, index: int):
+        if 0 <= index < 4:
+            self.active_index = index
+            self._update_proxy()
+            self.notify_update()
+
+    def _update_proxy(self):
+        """更新当前活动角色的属性代理"""
+        target_vm = self.team_vms[self.active_index]
+        self.active_char_proxy = ActiveCharacterProxy(target_vm)
+
+    def swap_character(self, idx1: int, idx2: int):
+        if 0 <= idx1 < 4 and 0 <= idx2 < 4:
+            self.team_vms[idx1], self.team_vms[idx2] = self.team_vms[idx2], self.team_vms[idx1]
+            self._update_proxy()
+            self.notify_update()

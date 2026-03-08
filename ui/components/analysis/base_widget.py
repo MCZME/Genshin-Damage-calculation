@@ -46,7 +46,7 @@ class AnalysisTile(ABC):
         """
         pass
 
-    def get_settings_items(self) -> List[ft.PopupMenuItem]:
+    def get_settings_items(self) -> list[ft.PopupMenuItem]:
         """
         [V9.0] 获取设置菜单项。若返回非空列表，容器将自动渲染为 PopupMenuButton。
         """

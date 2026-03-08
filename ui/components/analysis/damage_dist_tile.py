@@ -1,6 +1,5 @@
 import flet as ft
 import flet.canvas as cv
-import math
 import bisect
 from ui.states.analysis_state import AnalysisState
 from ui.theme import GenshinTheme
@@ -16,8 +15,10 @@ from core.logger import get_ui_logger
 STD_WIDTH = 636 
 
 def format_science(val: float) -> str:
-    if val >= 1_000_000: return f"{val/1_000_000:.1f}M"
-    if val >= 1_000: return f"{val/1_000:.1f}k"
+    if val >= 1_000_000:
+        return f"{val/1_000_000:.1f}M"
+    if val >= 1_000:
+        return f"{val/1_000:.1f}k"
     return str(int(val))
 
 class IsolatedPulseCanvas(ft.Container):
@@ -32,7 +33,8 @@ class IsolatedPulseCanvas(ft.Container):
         self.clip_behavior = ft.ClipBehavior.NONE
         self._build_canvas()
 
-    def is_isolated(self) -> bool: return True
+    def is_isolated(self) -> bool:
+        return True
 
     def _build_canvas(self):
         try:
@@ -65,7 +67,8 @@ class IsolatedPulseCanvas(ft.Container):
             shapes = []
             
             # --- 1. 坐标轴标签与参考线 ---
-            label_style = ft.TextStyle(size=9, color="#8E96AD", weight="w600")
+            # [FIX] 修正 FontWeight 引用方式
+            label_style = ft.TextStyle(size=9, color="#8E96AD", weight=ft.FontWeight.W_600)
             if is_split:
                 # 仅保留 PEAK, SPLIT 和 MID 标签 (不绘制参考线)
                 shapes.append(cv.Text(STD_WIDTH - 25, 5, format_science(global_peak), style=label_style))
@@ -89,10 +92,12 @@ class IsolatedPulseCanvas(ft.Container):
                 f_data = frame_map[f]
                 x_pos = (f / total_frames) * STD_WIDTH
                 total_val = f_data["total"]
-                if total_val < noise_threshold: continue
+                if total_val < noise_threshold:
+                    continue
                 target_y = get_y_pos(total_val)
                 total_h = draw_h - target_y
-                if total_h < 1.0: continue
+                if total_h < 1.0:
+                    continue
                 
                 curr_y_offset = 0.0
                 for ev in f_data["events"]:
@@ -122,7 +127,8 @@ def FrequencyHeatmap(data: dict, width: float):
         buckets[bid] = buckets.get(bid, 0) + frame_map[f].get("hit_count", 0)
     for bid, hits in buckets.items():
         intensity = min(hits / (max_hits * 1.2), 1.0)
-        if intensity < 0.02: continue
+        if intensity < 0.02:
+            continue
         final_opacity = max(intensity, 0.2)
         color = ft.Colors.with_opacity(final_opacity, "#6495ED")
         shapes.append(cv.Rect(x=bid * px_step, y=0, width=px_step, height=4, paint=ft.Paint(color=color, style=ft.PaintingStyle.FILL)))
@@ -152,26 +158,34 @@ class DamageDistributionTile(AnalysisTile):
         burst_h = (self.canvas_height - 10) * 0.25 + 15 if is_split else 0
         
         def handle_hover(e: ft.HoverEvent):
-            if not e.local_position: set_hover_frame(None); return
+            if not e.local_position:
+                set_hover_frame(None)
+                return
             logical_x = e.local_position.x - 10
             clicked_f = (logical_x / STD_WIDTH) * max(data.get("total_frames", 1), 1)
             sorted_f = data.get("sorted_frames", [])
-            if not sorted_f: return
+            if not sorted_f:
+                return
             idx = bisect.bisect_left(sorted_f, clicked_f)
             candidates = sorted_f[max(0, idx-1):min(len(sorted_f), idx+1)]
             if candidates:
                 closest = min(candidates, key=lambda f: abs(f - clicked_f))
                 if abs(closest - clicked_f) < (15 / STD_WIDTH) * max(data.get("total_frames", 1), 1):
-                    set_hover_frame(closest); set_hover_dmg(data.get("frame_map", {}).get(closest, {}).get("total", 0))
-                else: set_hover_frame(None)
-            else: set_hover_frame(None)
+                    set_hover_frame(closest)
+                    set_hover_dmg(data.get("frame_map", {}).get(closest, {}).get("total", 0))
+                else:
+                    set_hover_frame(None)
+            else:
+                set_hover_frame(None)
 
         def handle_tap(e: ft.TapEvent):
-            if not e.local_position: return
+            if not e.local_position:
+                return
             logical_x = e.local_position.x - 10
             clicked_f = (logical_x / STD_WIDTH) * max(data.get("total_frames", 1), 1)
             sorted_f = data.get("sorted_frames", [])
-            if not sorted_f: return
+            if not sorted_f:
+                return
             idx = bisect.bisect_left(sorted_f, clicked_f)
             candidates = sorted_f[max(0, idx-1):min(len(sorted_f), idx+1)]
             if candidates:
@@ -218,7 +232,7 @@ class DamageDistributionTile(AnalysisTile):
                                 ft.Container(
                                     content=ft.Column([
                                         ft.Text(f"帧伤害: {format_science(hover_dmg)}" if hover_frame is not None else "等待扫描", 
-                                               size=11, color=self.theme_color if hover_frame else ft.Colors.WHITE_24, weight="w900")
+                                               size=11, color=self.theme_color if hover_frame else ft.Colors.WHITE_24, weight=ft.FontWeight.W_900)
                                     ], spacing=4),
                                     left=10, top=0,
                                 ),
@@ -244,21 +258,28 @@ def DamageCursorLayer(state: AnalysisState, canvas_height: int):
 @ft.component
 def TimeAxis(total_frames: int, width: float):
     total_seconds = total_frames / 60
-    if total_seconds <= 0: return ft.Container()
-    if total_seconds <= 5: step = 1.0
-    elif total_seconds <= 15: step = 2.0
-    elif total_seconds <= 30: step = 5.0
-    elif total_seconds <= 60: step = 10.0
-    else: step = 20.0
+    if total_seconds <= 0:
+        return ft.Container()
+    if total_seconds <= 5:
+        step = 1.0
+    elif total_seconds <= 15:
+        step = 2.0
+    elif total_seconds <= 30:
+        step = 5.0
+    elif total_seconds <= 60:
+        step = 10.0
+    else:
+        step = 20.0
     shapes = []
-    labels = []
+    labels: list[ft.Control] = []
     shapes.append(cv.Line(0, 0, width, 0, paint=ft.Paint(color=ft.Colors.WHITE_12, stroke_width=1)))
     label_w = 40
     num_ticks = int(total_seconds / (step / 2)) + 1
     for i in range(num_ticks):
         sec = i * (step / 2)
         x = (sec / total_seconds) * width
-        if x > width - 5: break
+        if x > width - 5:
+            break
         is_major = i % 2 == 0
         h = 6 if is_major else 3
         color = ft.Colors.WHITE_38 if is_major else ft.Colors.WHITE_12
@@ -268,7 +289,7 @@ def TimeAxis(total_frames: int, width: float):
             time_str = f"{s}s" if m == 0 else f"{m}:{s:02d}s"
             align = ft.TextAlign.LEFT if i == 0 else ft.TextAlign.CENTER
             pos_left = x if i == 0 else x - label_w / 2
-            labels.append(ft.Container(content=ft.Text(time_str, size=10, color=ft.Colors.WHITE_54, weight="w600", text_align=align), left=pos_left, width=label_w, top=14))
+            labels.append(ft.Container(content=ft.Text(time_str, size=10, color=ft.Colors.WHITE_54, weight=ft.FontWeight.W_600, text_align=align), left=pos_left, width=label_w, top=14))
     end_time_str = f"{total_seconds:.2f}s"
-    labels.append(ft.Container(content=ft.Text(end_time_str, size=10, color=ft.Colors.WHITE_54, weight="w600", text_align=ft.TextAlign.RIGHT), left=width - label_w, width=label_w, top=14))
+    labels.append(ft.Container(content=ft.Text(end_time_str, size=10, color=ft.Colors.WHITE_54, weight=ft.FontWeight.W_600, text_align=ft.TextAlign.RIGHT), left=width - label_w, width=label_w, top=14))
     return ft.Container(content=ft.Stack([cv.Canvas(shapes=shapes, height=10), *labels], width=width, clip_behavior=ft.ClipBehavior.NONE), width=width, height=35, margin=ft.margin.only(top=-18))

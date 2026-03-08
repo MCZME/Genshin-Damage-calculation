@@ -1,9 +1,8 @@
 import json
 import os
 import flet as ft
-from typing import Any
 from core.logger import get_ui_logger
-from core.batch.models import SimulationNode, SimulationMetrics, ModifierRule
+from core.batch.models import SimulationNode, ModifierRule
 from core.batch.generator import ConfigGenerator
 
 @ft.observable

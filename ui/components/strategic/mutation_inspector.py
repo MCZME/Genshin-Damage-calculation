@@ -1,6 +1,5 @@
 import flet as ft
 from ui.states.app_state import AppState
-from core.logger import get_ui_logger
 from core.batch.models import ModifierRule
 from ui.theme import GenshinTheme
 
@@ -132,7 +131,8 @@ def show_add_rule_dialog(state: AppState):
     添加规则对话框逻辑 (外部辅助函数)。
     """
     page = state.page # 假设 AppState 持有 page 引用
-    if not page: return
+    if not page:
+        return
 
     char_options = []
     current_config = state.get_selected_node_config()
@@ -162,7 +162,9 @@ def show_add_rule_dialog(state: AppState):
 
     is_range = ft.Switch(label="开启区间扫描模式", value=False)
     value_input = ft.TextField(label="具体数值", hint_text="输入替换值")
-    start_f = ft.TextField(label="起始", width=100); end_f = ft.TextField(label="终止", width=100); step_f = ft.TextField(label="步长", width=100)
+    start_f = ft.TextField(label="起始", width=100)
+    end_f = ft.TextField(label="终止", width=100)
+    step_f = ft.TextField(label="步长", width=100)
     range_fields = ft.Row([start_f, end_f, step_f], visible=False, spacing=10)
     
     is_range.on_change = lambda _: (
@@ -172,14 +174,16 @@ def show_add_rule_dialog(state: AppState):
     )
 
     def on_confirm(_):
-        if not category_drop.value or not property_drop.value: return
+        if not category_drop.value or not property_drop.value:
+            return
         idx = int(char_drop.value) if char_drop.visible else 0
         path = _map_to_path(category_drop.value, property_drop.value, idx)
         if is_range.value:
             state.apply_range_to_node(state.selected_node, path, float(start_f.value), float(end_f.value), float(step_f.value), property_drop.value)
         else:
             val = value_input.value
-            if val.replace(".", "").isdigit(): val = float(val)
+            if val.replace(".", "").isdigit():
+                val = float(val)
             rule = ModifierRule(target_path=path, value=val, label=f"[{idx + 1}] {property_drop.value}")
             state.update_node(state.selected_node.id, rule=rule)
         page.pop_dialog()
@@ -197,9 +201,13 @@ def show_add_rule_dialog(state: AppState):
 
 def _map_to_path(category, prop, idx):
     field = prop
-    if category == "角色属性": field = {"等级": "level", "命座": "constellation"}.get(prop, prop)
-    elif category == "武器属性": field = {"等级": "level", "精炼": "refinement"}.get(prop, prop)
+    if category == "角色属性":
+        field = {"等级": "level", "命座": "constellation"}.get(prop, prop)
+    elif category == "武器属性":
+        field = {"等级": "level", "精炼": "refinement"}.get(prop, prop)
     path = ["context_config"]
-    if category in ["角色属性", "武器属性"]: path.extend(["team", idx, "character" if category == "角色属性" else "weapon", field])
-    else: path.extend(["environment", prop])
+    if category in ["角色属性", "武器属性"]:
+        path.extend(["team", idx, "character" if category == "角色属性" else "weapon", field])
+    else:
+        path.extend(["environment", prop])
     return path

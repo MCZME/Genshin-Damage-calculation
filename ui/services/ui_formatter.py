@@ -1,5 +1,4 @@
 import flet as ft
-from ui.theme import GenshinTheme
 
 class UIFormatter:
     """

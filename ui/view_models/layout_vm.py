@@ -1,25 +1,28 @@
+from __future__ import annotations
 import flet as ft
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, cast
 
 @ft.observable
 @dataclass
 class LayoutViewModel:
     """
-    主布局视图模型。
-    管理导航、侧边栏折叠状态及全局仿真进度。
+    布局视图模型。
+    管理页面导航及抽屉/边栏的可见性状态。
     """
-    current_phase: str = "strategic"
-    sim_status: str = "IDLE"
-    sim_progress: float = 0.0
-    is_simulating: bool = False
+    current_phase: str = "strategic" # strategic, scene, tactical, review
+    drawer_opened: bool = False
+
+    def notify_update(self):
+        """显式触发变更通知，解决静态检查报错"""
+        cast(Any, self).notify()
 
     def switch_tab(self, phase_id: str):
+        """切换导航标签页"""
         self.current_phase = phase_id
-        self.notify()
+        self.notify_update()
 
-    def update_simulation(self, status: str, progress: float, is_running: bool):
-        self.sim_status = status
-        self.sim_progress = progress
-        self.is_simulating = is_running
-        self.notify()
+    def toggle_drawer(self):
+        """切换侧边抽屉状态"""
+        self.drawer_opened = not self.drawer_opened
+        self.notify_update()

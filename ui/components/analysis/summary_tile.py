@@ -1,7 +1,5 @@
 import flet as ft
-import asyncio
 from ui.states.analysis_state import AnalysisState
-from ui.theme import GenshinTheme
 from ui.services.ui_formatter import UIFormatter
 from ui.components.analysis.base_widget import AnalysisTile
 

@@ -40,7 +40,8 @@ def TargetSlot(
     for k in res_keys:
         def handle_res_change(v, key=k):
             data['resists'][key] = v
-            if on_change: on_change()
+            if on_change:
+                on_change()
 
         res_controls.append(
             StatInputField(

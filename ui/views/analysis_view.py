@@ -49,7 +49,8 @@ def calculate_grid_layout(items: list[dict], available_width: float) -> tuple[li
                         if (x + dx, y + dy) in occupied:
                             is_free = False
                             break
-                    if not is_free: break
+                    if not is_free:
+                        break
                 
                 if is_free:
                     for dx in range(eff_w):
