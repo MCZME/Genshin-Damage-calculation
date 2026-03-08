@@ -1,7 +1,8 @@
 import flet as ft
 import asyncio
 import uuid
-from typing import List, Dict, Any, Optional, Union, Callable
+from typing import Any
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from core.persistence.adapter import ReviewDataAdapter
 from core.persistence.processors.damage_dist import DamageDistProcessor
@@ -26,15 +27,16 @@ class AnalysisDataManager:
     """
     def __init__(self, state: 'AnalysisState'):
         self.state = state
-        self._slots: Dict[str, DataSlot] = {
+        self._slots: dict[str, DataSlot] = {
             "dps": DataSlot(key="dps"),
             "summary": DataSlot(key="summary"),
             "audit": DataSlot(key="audit"),
-            "damage_dist": DataSlot(key="damage_dist"), # 新增伤害分布槽位
+            "damage_dist": DataSlot(key="damage_dist"), 
+            "char_base": DataSlot(key="char_base"), # [V8.3] 新增角色基础面板槽位
         }
         self._lock = asyncio.Lock()
 
-    def get_slot(self, key: str) -> Optional[DataSlot]:
+    def get_slot(self, key: str) -> DataSlot | None:
         return self._slots.get(key)
 
     async def subscribe(self, key: str, instance_id: str):
@@ -93,6 +95,9 @@ class AnalysisDataManager:
                 # 注入总帧数支持 (如果数据中不包含)
                 if slot.data:
                     slot.data["total_frames"] = self.state.model.total_frames
+            elif key == "char_base":
+                # [V8.3] 获取所有角色的初始属性快照
+                slot.data = await self.state.adapter.get_all_characters_base_stats()
             
             get_ui_logger().log_debug(f"DataManager: [{key}] data ready.")
         except Exception as e:
@@ -107,21 +112,25 @@ class AnalysisDataManager:
 @dataclass
 class AnalysisStateModel:
     """全局仿真复盘元状态模型"""
-    current_session_id: Optional[int] = None
+    current_session_id: int | None = None
     loading: bool = False
-    sessions_history: List[Dict[str, Any]] = field(default_factory=list)
+    sessions_history: list[dict[str, Any]] = field(default_factory=list)
     current_frame: int = 0
     total_frames: int = 0
-    active_tiles: List[Dict[str, Any]] = field(default_factory=list)
+    active_tiles: list[dict[str, Any]] = field(default_factory=list)
     # [V6.1] 强制更新触发器：用于解决复杂嵌套下的重绘失效
     update_counter: int = 0
     # [V7.0] 抽屉状态
     drawer_visible: bool = False
     drawer_side: str = "right"
     # [V7.2] 选中的伤害事件 (持久化 L2 状态)
-    selected_event: Optional[Dict[str, Any]] = None
-    # [V8.0] 聚焦角色 ID
-    focus_char_id: Optional[int] = None
+    selected_event: dict[str, Any] | None = None
+    # [V8.0] 聚焦角色 ID (全局焦点)
+    focus_char_id: int | None = None
+    # [V8.3] 磁贴实例配置：{ instance_id: { "target_char_id": int } }
+    tile_instance_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # [V8.4] 角色属性展示偏好：{ char_id: list[stat_keys] }
+    char_display_preferences: dict[int, list[str]] = field(default_factory=dict)
     # [V8.1] 历史对话框状态 (替代旧版 events)
     history_dialog_visible: bool = False
 
@@ -132,12 +141,12 @@ class AnalysisState:
     def __init__(self, app_state=None):
         self.app_state = app_state
         self.model = AnalysisStateModel()
-        self.adapter: Optional[ReviewDataAdapter] = None
+        self.adapter: ReviewDataAdapter | None = None
         self.data_manager = AnalysisDataManager(self)
         
-        self.selected_audit_index = -1
-        self.current_audit = None
-        self.audit_logs = []
+        self.selected_audit_index: int = -1
+        self.current_audit: Any | None = None
+        self.audit_logs: list[Any] = []
 
     def run_task(self, task: Callable, *args, **kwargs):
         """[V8.2] 安全的异步任务挂载代理，优先利用 Flet page，回退到 asyncio"""
@@ -147,11 +156,41 @@ class AnalysisState:
             asyncio.create_task(task(*args, **kwargs))
 
     def set_focus_char(self, char_id: int):
-        """设置当前分析视图关注的角色"""
+        """设置当前分析视图关注的角色 (全局)"""
         self.model.focus_char_id = char_id
         self._notify_update()
 
-    def set_selected_event(self, event: Optional[Dict[str, Any]]):
+    def set_tile_char(self, instance_id: str, char_id: int):
+        """设置特定磁贴实例关注的角色"""
+        if instance_id not in self.model.tile_instance_configs:
+            self.model.tile_instance_configs[instance_id] = {}
+        self.model.tile_instance_configs[instance_id]["target_char_id"] = char_id
+        self._notify_update()
+
+    def get_tile_char(self, instance_id: str) -> int:
+        """获取磁贴实例关注的角色 ID，回退到全局焦点或 0"""
+        config = self.model.tile_instance_configs.get(instance_id, {})
+        return config.get("target_char_id") or self.model.focus_char_id or 0
+
+    def toggle_stat_preference(self, char_id: int, stat_key: str):
+        """切换角色属性的展示偏好"""
+        if char_id not in self.model.char_display_preferences:
+            self.model.char_display_preferences[char_id] = []
+        
+        prefs = self.model.char_display_preferences[char_id]
+        if stat_key in prefs:
+            prefs.remove(stat_key)
+        else:
+            # 限制最多显示 8 个
+            if len(prefs) < 8:
+                prefs.append(stat_key)
+        self._notify_update()
+
+    def get_stat_preferences(self, char_id: int) -> list[str]:
+        """获取角色的展示偏好，若无则返回默认前 8 个"""
+        return self.model.char_display_preferences.get(char_id, [])
+
+    def set_selected_event(self, event: dict[str, Any] | None):
         """设置当前选中的伤害事件"""
         self.model.selected_event = event
         self._notify_update()
@@ -167,11 +206,15 @@ class AnalysisState:
 
     async def load_audit_detail(self, event_id: int):
         """[V7.0] 异步加载 L2 审计详情"""
-        if not self.adapter: return
+        if not self.adapter:
+            return
         
         from core.persistence.processors.audit_processor import AuditProcessor
         
         slot = self.data_manager.get_slot("audit")
+        if not slot:
+            return # [FIX] 修复 None 告警
+        
         slot.loading = True
         self._notify_update()
         
@@ -203,7 +246,8 @@ class AnalysisState:
 
     def _notify_update(self):
         """强制触发 Observable 变更通知"""
-        self.model.update_counter += 1
+        if self.model: # [FIX] 修复 None 告警
+            self.model.update_counter += 1
         # [V6.2] 暴力强刷：通过 PubSub 通知 View 层重绘
         if self.app_state and self.app_state.page:
             self.app_state.page.pubsub.send_all("analysis_view_refresh")
@@ -215,6 +259,8 @@ class AnalysisState:
         # 工厂函数现在返回 (tile_instance, grid_size)
         # grid_size 是一个 (width_units, height_units) 元组
         tile_instance, grid_size = factory_func(self, instance_id)
+        if not tile_instance:
+            return # [FIX] 修复 None 告警
         tile_instance.instance_id = instance_id
         
         tile_data = {
@@ -252,20 +298,31 @@ class AnalysisState:
         self.model.current_session_id = session_id
         self.model.loading = True
         self.adapter = ReviewDataAdapter(session_id=session_id)
-        
+
+        # 1. 先标记所有槽位数据失效
         for slot in self.data_manager._slots.values():
             slot.data = None
-            
+
         async def _fetch_meta():
-            stats = await self.adapter.get_summary_stats()
-            self.model.total_frames = int(stats.get("total_frames", 0))
-            self.model.loading = False
-            
-            # [V8.1] 移除已弃用的 app_state.events
-            for tile in self.model.active_tiles:
-                await self.data_manager.subscribe(tile['type'], tile['instance_id'])
-            self._notify_update()
-        
+            if not self.adapter:
+                return # [FIX] 修复 None 告警
+            try:
+                stats = await self.adapter.get_summary_stats()
+                self.model.total_frames = int(stats.get("total_frames", 0))
+
+                # 2. [关键修复] 重新抓取所有活跃槽位的数据
+                # 只要 ref_count > 0，说明当前 UI 中有组件需要该数据（如全局订阅的 char_base）
+                for key, slot in self.data_manager._slots.items():
+                    if slot.ref_count > 0:
+                        await self.data_manager._fetch_data(key)
+
+                get_ui_logger().log_info(f"AnalysisState: Session {session_id} loaded with {self.model.total_frames} frames.")
+            except Exception as e:
+                get_ui_logger().log_error(f"AnalysisState: Failed to load session meta: {e}")
+            finally:
+                self.model.loading = False
+                self._notify_update()
+
         asyncio.create_task(_fetch_meta())
 
     def set_frame(self, frame_id: int):
@@ -291,6 +348,8 @@ class AnalysisState:
             self.selected_audit_index = index
             item = self.audit_logs[index]
             async def _load_detail():
+                if not self.adapter:
+                    return # [FIX] 修复 None 告警
                 trail = await self.adapter.get_damage_audit(item['event_id'])
                 item['audit_trail'] = trail
                 self.current_audit = item

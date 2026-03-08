@@ -71,7 +71,7 @@ def calculate_grid_layout(items: list[dict], available_width: float) -> tuple[li
     return layout_results, max_y * (CELL_SIZE + GUTTER)
 
 @ft.component
-def TileWrapper(item: dict, state: AnalysisState, set_maximized_tile_id: Callable):
+def TileWrapper(item: dict, state: AnalysisState, set_maximized_tile_id: Callable, on_settings: Callable | None = None):
     """磁贴包装器 [V6.0] 仅负责 UI 交互映射"""
     
     def handle_close(iid):
@@ -83,6 +83,7 @@ def TileWrapper(item: dict, state: AnalysisState, set_maximized_tile_id: Callabl
         tile=item['tile'],
         on_close=handle_close,
         on_maximize=set_maximized_tile_id,
+        on_settings=on_settings,
         is_maximized=False
     )
 
@@ -158,6 +159,12 @@ class AnalysisView:
                 # 异步加载该事件的审计详情
                 asyncio.create_task(self.state.load_audit_detail(point['event_id']))
 
+        def handle_tile_settings(iid: str, btn: ft.Control):
+            """[V8.9] 委托式设置处理：由磁贴实例决定具体的设置行为"""
+            target_tile = next((t['tile'] for t in active_tiles if t['instance_id'] == iid), None)
+            if target_tile and hasattr(target_tile, "on_settings_click"):
+                target_tile.on_settings_click(btn)
+
         def tile_factory(state_obj, iid):
             tile_type = iid.rsplit('_', 1)[0]
             if tile_type == "dps":
@@ -179,6 +186,11 @@ class AnalysisView:
 
         # 5. 计算网格布局
         visible_tiles = [t for t in active_tiles if t['instance_id'] != maximized_tile_id]
+        # 确保未最大化的磁贴状态正确
+        for t in visible_tiles:
+            if hasattr(t['tile'], 'is_maximized'):
+                t['tile'].is_maximized = False
+
         layout_items, total_grid_height = calculate_grid_layout(visible_tiles, container_width)
 
         # 6. 聚焦层 (对话框/全屏磁贴)
@@ -192,9 +204,14 @@ class AnalysisView:
         elif maximized_tile_id:
             max_item = next((t for t in active_tiles if t['instance_id'] == maximized_tile_id), None)
             if max_item:
+                # [V8.6] 显式标记最大化状态供磁贴内部 render() 使用
+                if hasattr(max_item['tile'], 'is_maximized'):
+                    max_item['tile'].is_maximized = True
+                
                 focus_content = TileContainer(
                     tile=max_item['tile'], 
                     on_maximize=lambda _: set_maximized_tile_id(None),
+                    on_settings=handle_tile_settings,
                     on_close=lambda _: set_maximized_tile_id(None), 
                     is_maximized=True
                 )
@@ -207,6 +224,11 @@ class AnalysisView:
         dist_slot = self.state.data_manager.get_slot("damage_dist")
         audit_slot = self.state.data_manager.get_slot("audit")
 
+        # [V8.7] 确保 char_base 始终在线
+        async def ensure_base_data():
+            await self.state.data_manager.subscribe("char_base", "GLOBAL_VIEW")
+        ft.use_effect(lambda: [asyncio.create_task(ensure_base_data()), None][1], [])
+
         return ft.Stack([
             ft.Row([
                 AnalysisToolbox(active_counts=type_counts, on_tile_action=handle_toolbox_action),
@@ -218,7 +240,7 @@ class AnalysisView:
                                 controls=[
                                     ft.Container(
                                         key=f"CONT_{res['item']['instance_id']}",
-                                        content=TileWrapper(res['item'], self.state, set_maximized_tile_id),
+                                        content=TileWrapper(res['item'], self.state, set_maximized_tile_id, handle_tile_settings),
                                         left=res['left'],
                                         top=res['top'],
                                         width=res['width'],
