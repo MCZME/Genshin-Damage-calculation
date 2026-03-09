@@ -1,5 +1,6 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.action.action_data import ActionFrameData
 from core.action.action_manager import ActionManager
@@ -24,10 +25,10 @@ class Character(CombatEntity, ABC):
         self,
         id: int = 1,
         level: int = 1,
-        skill_params: List[int] = None,
+        skill_params: list[int] | None = None,
         constellation: int = 0,
-        base_data: Dict[str, Any] = None,
-        pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+        base_data: dict[str, Any] | None = None,
+        pos: tuple[float, float, float] = (0.0, 0.0, 0.0),
     ):
         name = base_data.get("name", "Unknown") if base_data else "Unknown"
         super().__init__(name=name, faction=Faction.PLAYER, pos=pos, hitbox=(0.3, 1.8))
@@ -79,21 +80,17 @@ class Character(CombatEntity, ABC):
             self.element = "无"
             self.type = "Unknown"
 
-        # -----------------------------------------------------
-        # 标准化组件
-        # -----------------------------------------------------
-        self.skills: Dict[str, Any] = {}
+        self.skills: dict[str, Any] = {}
         self.elemental_energy: Any = None
 
-        # [新] 动态天赋与固定命座
-        self.talents: List[TalentEffect] = []  # 动态列表，支持任意数量天赋
-        self.constellations: List[Optional[ConstellationEffect]] = [None] * 6
+        self.talents: list[TalentEffect] = []
+        self.constellations: list[ConstellationEffect | None] = [None] * 6
 
         self.weapon: Any = None
         self.artifact_manager: Any = None
-        self.shield_effects: List[Any] = []
+        self.shield_effects: list[Any] = []
         self.on_field = False
-        self.max_combo = 5  # 默认最大普攻连招段数
+        self.max_combo = 5
         self.infusion_manager = InfusionManager()
 
         ctx = get_context()
@@ -101,7 +98,7 @@ class Character(CombatEntity, ABC):
         self.action_manager = ActionManager(self, ctx)
 
         self.current_hp = 0.0
-        self._last_max_hp = 0.0  # 用于追踪最大生命值变动
+        self._last_max_hp = 0.0
 
         self.initialize_gear()
 
@@ -148,7 +145,7 @@ class Character(CombatEntity, ABC):
 
         from core.systems.utils import AttributeCalculator
 
-        max_hp = AttributeCalculator.get_hp(self)
+        max_hp = AttributeCalculator.get_final_hp(self)
         self.current_hp = max_hp
         self._last_max_hp = max_hp
 
@@ -176,7 +173,7 @@ class Character(CombatEntity, ABC):
         # 1. 检测最大生命值变动并同比缩放当前血量
         from core.systems.utils import AttributeCalculator
 
-        current_max_hp = AttributeCalculator.get_hp(self)
+        current_max_hp = AttributeCalculator.get_final_hp(self)
         if current_max_hp != self._last_max_hp and self._last_max_hp > 0:
             # 同比缩放公式: (变动前的当前生命值/变动前的最大生命值) * 变动后的最大生命值
             ratio = self.current_hp / self._last_max_hp
@@ -246,7 +243,7 @@ class Character(CombatEntity, ABC):
         }
 
         et = event_map.get(name)
-        if et:
+        if et and self.event_engine:
             self.event_engine.publish(
                 GameEvent(
                     event_type=et,
@@ -266,7 +263,7 @@ class Character(CombatEntity, ABC):
     def heal(self, amount: float) -> None:
         from core.systems.utils import AttributeCalculator
 
-        max_hp = AttributeCalculator.get_hp(self)
+        max_hp = AttributeCalculator.get_final_hp(self)
         self.current_hp = min(max_hp, self.current_hp + amount)
 
     def hurt(self, amount: float) -> None:
@@ -285,7 +282,7 @@ class Character(CombatEntity, ABC):
         if shield in self.shield_effects:
             self.shield_effects.remove(shield)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -336,7 +333,7 @@ class Character(CombatEntity, ABC):
         return base
 
     @classmethod
-    def get_action_metadata(cls) -> Dict[str, Any]:
+    def get_action_metadata(cls) -> dict[str, Any]:
         """
         [V2.3] 获取动作参数元数据（类方法）。
         UI 可以在不实例化角色的情况下获取参数 Schema。

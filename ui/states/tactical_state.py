@@ -21,11 +21,6 @@ class TacticalState:
         self.add_action(ActionDataModel.create("hu_tao", "elemental_skill"))
         self.add_action(ActionDataModel.create("hu_tao", "normal_attack"))
 
-    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
-    def notify(self) -> None: ...
-    def subscribe(self, handler: Callable[..., Any]) -> None: ...
-    def unsubscribe(self, handler: Callable[..., Any]) -> None: ...
-
     @property
     def sequence(self) -> list[ActionDataModel]:
         """兼容性属性：返回 DataModel 列表"""

@@ -55,11 +55,6 @@ class AppState:
     def register_page(self, page: ft.Page):
         self.page = page
 
-    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
-    def notify(self) -> None: ...
-    def subscribe(self, handler) -> None: ...
-    def unsubscribe(self, handler) -> None: ...
-
     # --- 代理属性 ---
     @property
     def char_map(self):
@@ -166,12 +161,11 @@ class AppState:
 
         simulation_sequence = []
         for act in self.tactical_state.page_vm.sequence_vms:
-            # 显式转换确保类型安全
             raw_name = char_id_to_name.get(act.char_id, "Unknown")
             char_name = str(raw_name) if raw_name is not None else "Unknown"
             
-            # 使用 ActionDataModel 提供的序列化方法
-            simulation_sequence.append(act.model.to_simulator_format(char_name))
+            if act.model is not None:
+                simulation_sequence.append(act.model.to_simulator_format(char_name))
 
         return {
             "context_config": {

@@ -1,8 +1,7 @@
 from __future__ import annotations
 import flet as ft
 from dataclasses import dataclass
-from typing import Any
-from collections.abc import Callable
+from typing import Any, cast
 from ui.view_models.strategic.character_vm import CharacterViewModel
 from ui.view_models.strategic.weapon_vm import WeaponViewModel
 from ui.view_models.strategic.artifact_vm import ArtifactPieceViewModel
@@ -16,15 +15,14 @@ class ActiveCharacterProxy:
     """
     _target: CharacterViewModel | None = None
 
-    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
-    def notify(self) -> None: ...
-    def subscribe(self, handler: Callable[..., Any]) -> None: ...
-    def unsubscribe(self, handler: Callable[..., Any]) -> None: ...
+    def notify_update(self):
+        """显式触发变更通知，解决静态检查报错"""
+        cast(Any, self).notify()
 
     def bind_to(self, vm: CharacterViewModel):
         """重绑定目标 VM"""
         self._target = vm
-        self.notify()
+        self.notify_update()
 
     @property
     def target(self) -> CharacterViewModel | None:
@@ -51,7 +49,7 @@ class ActiveCharacterProxy:
     def set_level(self, val: int):
         if self._target:
             self._target.set_level(val)
-            self.notify()
+            self.notify_update()
 
     @property
     def constellation(self) -> int:
@@ -60,7 +58,7 @@ class ActiveCharacterProxy:
     def set_constellation(self, val: int):
         if self._target:
             self._target.set_constellation(val)
-            self.notify()
+            self.notify_update()
 
     # 天赋
     @property
@@ -70,7 +68,7 @@ class ActiveCharacterProxy:
     def set_talent_na(self, val: int):
         if self._target:
             self._target.set_talent_na(val)
-            self.notify()
+            self.notify_update()
 
     @property
     def talent_e(self) -> int:
@@ -79,7 +77,7 @@ class ActiveCharacterProxy:
     def set_talent_e(self, val: int):
         if self._target:
             self._target.set_talent_e(val)
-            self.notify()
+            self.notify_update()
 
     @property
     def talent_q(self) -> int:
@@ -88,7 +86,7 @@ class ActiveCharacterProxy:
     def set_talent_q(self, val: int):
         if self._target:
             self._target.set_talent_q(val)
-            self.notify()
+            self.notify_update()
 
     # 子 VM 代理
     @property

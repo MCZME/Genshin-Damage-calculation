@@ -235,12 +235,11 @@ class StrategicView:
             )
 
         elif picker_type == "weapon":
-            # 暂时从 proxy 拿数据源，增加安全校验以适配 Pylance
             target_vm = proxy.target
             weapon_vm = proxy.weapon
             
-            if target_vm and weapon_vm:
-                char_weapon_type = target_vm.model.raw_data.get("type", "单手剑") 
+            if target_vm and weapon_vm and target_vm.model:
+                char_weapon_type = target_vm.model.raw_data.get("type", "单手剑")
                 weapon_options = self.library_vm.get_weapon_options(char_weapon_type)
 
                 def finish_weapon_select(wid: str):

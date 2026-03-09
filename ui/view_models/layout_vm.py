@@ -26,3 +26,9 @@ class LayoutViewModel:
         """切换侧边抽屉状态"""
         self.drawer_opened = not self.drawer_opened
         self.notify_update()
+    
+    def update_simulation(self, status: str, progress: float, is_running: bool):
+        self.sim_status = status
+        self.sim_progress = progress
+        self.is_simulating = is_running
+        self.notify_update()
