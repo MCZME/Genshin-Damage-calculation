@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Any, Tuple, Optional, Set
+from typing import Dict, List, Any, Tuple, Set
 from core.persistence.database import GenshinJSONEncoder
 
 class DataProjector:

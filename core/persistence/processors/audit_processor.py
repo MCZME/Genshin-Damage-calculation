@@ -1,5 +1,5 @@
-from typing import List, Dict, Any, Optional
-import math
+from __future__ import annotations
+from typing import Any
 
 class AuditProcessor:
     """
@@ -19,7 +19,7 @@ class AuditProcessor:
     }
 
     @staticmethod
-    def process_detail(raw_trail: List[Dict[str, Any]], is_crit: bool = False) -> Dict[str, Any]:
+    def process_detail(raw_trail: list[dict[str, Any]], is_crit: bool = False) -> dict[str, Any]:
         """
         [核心] 聚合原始审计链为 7 大乘区大类。
         """
@@ -67,7 +67,10 @@ class AuditProcessor:
         for s in buckets["multiplier"]["steps"]:
             if "倍率" in s["stat"]:
                 # 记录最新的倍率分量
-                buckets["multiplier"]["multiplier"] = s["value"] / 100 if s["value"] > 5 else s["value"]
+                if s["value"] > 5:
+                    buckets["multiplier"]["multiplier"] = s["value"] / 100
+                else:
+                    buckets["multiplier"]["multiplier"] = s["value"]
             elif s["stat"] == "固定伤害值加成":
                 buckets["multiplier"]["flat"] += s["value"]
 
@@ -81,7 +84,8 @@ class AuditProcessor:
         if is_crit:
             c_val = 100.0
             for s in buckets["crit"]["steps"]:
-                if s["stat"] == "暴击伤害": c_val = s["value"]
+                if s["stat"] == "暴击伤害":
+                    c_val = s["value"]
             buckets["crit"]["multiplier"] = c_val / 100.0
         else:
             buckets["crit"]["multiplier"] = 1.0
@@ -90,8 +94,10 @@ class AuditProcessor:
         r_base = 1.0
         r_bonus = 0.0
         for s in buckets["reaction"]["steps"]:
-            if s["stat"] == "反应基础倍率": r_base = s["value"]
-            elif s["stat"] == "反应加成系数": r_bonus += s["value"]
+            if s["stat"] == "反应基础倍率":
+                r_base = s["value"]
+            elif s["stat"] == "反应加成系数":
+                r_bonus += s["value"]
         buckets["reaction"]["multiplier"] = r_base * (1.0 + r_bonus) if r_base > 0 else 1.0
 
         # [Defense] 防御区
@@ -107,4 +113,3 @@ class AuditProcessor:
         buckets["resistance"]["multiplier"] = res_coeff if res_coeff > 0 else 1.0
 
         return buckets
-

@@ -1,5 +1,6 @@
+from __future__ import annotations
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from core.context import get_context
 from core.mechanics.aura import AuraManager
@@ -7,6 +8,7 @@ from core.mechanics.icd import ICDManager
 
 if TYPE_CHECKING:
     from core.effect.common import ShieldEffect
+    from core.context import SimulationContext, EventEngine
 
 
 class EntityState(Enum):
@@ -34,7 +36,7 @@ class BaseEntity:
     _id_counter = 0
 
     def __init__(
-        self, name: str, life_frame: float = float("inf"), context: Optional[Any] = None
+        self, name: str, life_frame: float = float("inf"), context: SimulationContext | None = None
     ) -> None:
         """初始化基础实体。
 
@@ -52,7 +54,17 @@ class BaseEntity:
 
         # 上下文与事件引擎绑定
         self.ctx = context if context else get_context()
-        self.event_engine = self.ctx.event_engine if self.ctx else None
+        self.event_engine: EventEngine | None = self.ctx.event_engine if self.ctx else None
+
+    def __hash__(self) -> int:
+        """基于 entity_id 的哈希，确保在 set 等集合中的唯一性。"""
+        return hash(self.entity_id)
+
+    def __eq__(self, other: Any) -> bool:
+        """基于 entity_id 的相等判定。"""
+        if isinstance(other, BaseEntity):
+            return self.entity_id == other.entity_id
+        return False
 
     @property
     def is_active(self) -> bool:
@@ -92,30 +104,37 @@ class BaseEntity:
         """[钩子] 实体销毁前的清理逻辑。"""
         pass
 
-    def export_state(self) -> Dict[str, Any]:
+    def export_state(self) -> dict[str, Any]:
         """导出基础状态快照。"""
         return {
             "entity_id": self.entity_id,
             "name": self.name,
             "frame": self.current_frame,
             "state": self.state.name,
-            "hitbox_radius": self.hitbox[0] if hasattr(self, "hitbox") else 0.5,
-            "hitbox_height": self.hitbox[1] if hasattr(self, "hitbox") else 2.0,
+            "hitbox_radius": getattr(self, "hitbox", (0.5, 2.0))[0],
+            "hitbox_height": getattr(self, "hitbox", (0.5, 2.0))[1],
         }
 
-    def export_static_data(self) -> Dict[str, Any]:
+    def export_static_data(self) -> dict[str, Any]:
         """[扩展点] 导出实体的静态登记信息。由子类具体实现。"""
+        pos = getattr(self, "pos", [0.0, 0.0, 0.0])
+        hitbox = getattr(self, "hitbox", (0.5, 2.0))
+        owner_id = None
+        owner = getattr(self, "owner", None)
+        if owner is not None:
+            owner_id = getattr(owner, "entity_id", None)
+
         return {
             "entity_id": self.entity_id,
             "entity_type": "CONSTRUCT",
             "name": self.name,
-            "spawn_x": getattr(self, "pos", [0,0,0])[0],
-            "spawn_y": getattr(self, "pos", [0,0,0])[2], # y 是高度
-            "spawn_z": getattr(self, "pos", [0,0,0])[1],
-            "hitbox_radius": self.hitbox[0] if hasattr(self, "hitbox") else 0.5,
-            "hitbox_height": self.hitbox[1] if hasattr(self, "hitbox") else 2.0,
+            "spawn_x": pos[0],
+            "spawn_y": pos[2], # y 是高度
+            "spawn_z": pos[1],
+            "hitbox_radius": hitbox[0],
+            "hitbox_height": hitbox[1],
             "duration": self.life_frame if self.life_frame != float('inf') else -1,
-            "owner_id": getattr(self, "owner", None).entity_id if hasattr(self, "owner") and self.owner else None
+            "owner_id": owner_id
         }
 
 
@@ -129,36 +148,36 @@ class CombatEntity(BaseEntity):
         self,
         name: str,
         faction: Faction = Faction.ENEMY,
-        pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+        pos: tuple[float, float, float] = (0.0, 0.0, 0.0),
         facing: float = 0.0,
-        hitbox: Tuple[float, float] = (0.5, 2.0),
+        hitbox: tuple[float, float] = (0.5, 2.0),
         life_frame: float = float("inf"),
-        context: Optional[Any] = None,
+        context: SimulationContext | None = None,
     ) -> None:
         """初始化战斗实体。"""
         super().__init__(name, life_frame, context)
 
         self.faction: Faction = faction
-        self.pos: List[float] = list(pos)
+        self.pos: list[float] = list(pos)
         self.facing: float = facing
-        self.hitbox: Tuple[float, float] = hitbox
+        self.hitbox: tuple[float, float] = hitbox
 
         # 核心战斗组件
         self.aura: AuraManager = AuraManager()
-        self.active_effects: List[Any] = []
-        self.shield_effects: List["ShieldEffect"] = []
+        self.active_effects: list[Any] = []
+        self.shield_effects: list[ShieldEffect] = []
 
         # ICD 管理器 (用于追踪该实体受到的附着冷却)
         self.icd_manager: ICDManager = ICDManager(self)
 
         # [新] 通用机制指标 (用于持久化特定机制的动态数值，如：气氛值、层数)
-        self.custom_metrics: Dict[str, float] = {}
+        self.custom_metrics: dict[str, float] = {}
 
         # [新] 属性审计链支持
         from core.systems.contract.modifier import ModifierRecord
 
-        self.dynamic_modifiers: List[ModifierRecord] = []
-        self.attribute_data: Dict[str, float] = {}
+        self.dynamic_modifiers: list[ModifierRecord] = []
+        self.attribute_data: dict[str, float] = {}
 
     def add_modifier(
         self, source: str, stat: str, value: float, op: str = "ADD"
@@ -204,7 +223,7 @@ class CombatEntity(BaseEntity):
                     )
                 )
 
-    def export_state(self) -> Dict[str, Any]:
+    def export_state(self) -> dict[str, Any]:
         """导出战斗状态快照。"""
         base = super().export_state()
         base.update(
@@ -220,7 +239,7 @@ class CombatEntity(BaseEntity):
         )
         return base
 
-    def set_position(self, x: float, z: float, y: Optional[float] = None) -> None:
+    def set_position(self, x: float, z: float, y: float | None = None) -> None:
         """设置实体在场景中的坐标。"""
         self.pos[0] = x
         self.pos[1] = z
@@ -273,13 +292,14 @@ class CombatEntity(BaseEntity):
                     )
                 )
 
-    def apply_elemental_aura(self, damage: Any) -> List[Any]:
+    def apply_elemental_aura(self, damage: Any) -> list[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。"""
         # 1. 检查 ICD
-        tag = getattr(damage.config, "icd_tag", "Default")
-        group = getattr(damage.config, "icd_group", "Default")
+        config = getattr(damage, "config", None)
+        tag = getattr(config, "icd_tag", "Default") if config else "Default"
+        group = getattr(config, "icd_group", "Default") if config else "Default"
 
-        # 修正：显式判断 damage.source 是否为 None
+        # 显式判断 damage.source 是否为 None
         source_ent = getattr(damage, "source", None)
         if source_ent is None:
             source_ent = self
@@ -290,8 +310,9 @@ class CombatEntity(BaseEntity):
             return []
 
         # 2. 应用元素附着
-        final_u = damage.element[1] * multiplier
-        results = self.aura.apply_element(damage.element[0], final_u)
+        element_data = getattr(damage, "element", (None, 0.0))
+        final_u = element_data[1] * multiplier
+        results = self.aura.apply_element(element_data[0], final_u)
 
         # 3. 反馈并发布反应事件
         from core.event import GameEvent, EventType
@@ -300,15 +321,16 @@ class CombatEntity(BaseEntity):
         if hasattr(damage, "reaction_results"):
             damage.reaction_results.extend(results)
 
-        for res in results:
-            self.event_engine.publish(
-                GameEvent(
-                    event_type=EventType.AFTER_ELEMENTAL_REACTION,
-                    frame=get_current_time(),
-                    source=source_ent,
-                    data={"target": self, "elemental_reaction": res},
+        if self.event_engine:
+            for res in results:
+                self.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.AFTER_ELEMENTAL_REACTION,
+                        frame=get_current_time(),
+                        source=source_ent,
+                        data={"target": self, "elemental_reaction": res},
+                    )
                 )
-            )
 
         return results
 
@@ -317,7 +339,8 @@ class CombatEntity(BaseEntity):
         self.aura.update(self, 1 / 60)
 
         for eff in self.active_effects[:]:
-            eff.on_frame_update(self)
+            if hasattr(eff, "on_frame_update"):
+                eff.on_frame_update(self)
 
     def finish(self) -> None:
         """战斗实体销毁流程：先结清状态，再执行基类销毁。"""

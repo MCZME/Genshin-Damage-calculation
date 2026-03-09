@@ -1,6 +1,7 @@
+from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.combat_space import CombatSpace
@@ -34,16 +35,16 @@ class SimulationContext:
     global_vertical_dist: float = 0.0
 
     # 核心组件
-    event_engine: Optional["EventEngine"] = field(default=None)
-    space: Optional["CombatSpace"] = None
-    system_manager: Optional["SystemManager"] = None
-    logger: Optional["SimulationLogger"] = None
+    event_engine: EventEngine | None = field(default=None)
+    space: CombatSpace | None = None
+    system_manager: SystemManager | None = None
+    logger: SimulationLogger | None = None
 
     # 内部状态管理
     _modifier_id_counter: int = field(default=0, init=False)
     _instance_id_counter: int = field(default=0, init=False)
-    _seen_entities: set = field(default_factory=set, init=False)
-    _token: Optional[Any] = field(default=None, init=False, repr=False)
+    _seen_entities: set[int] = field(default_factory=set, init=False)
+    _token: Any | None = field(default=None, init=False, repr=False)
 
     def get_next_modifier_id(self) -> int:
         """获取下一个全局唯一的修饰符 ID。"""
@@ -64,7 +65,7 @@ class SimulationContext:
             from core.combat_space import CombatSpace
             self.space = CombatSpace()
 
-    def __enter__(self) -> "SimulationContext":
+    def __enter__(self) -> SimulationContext:
         """激活上下文，使其成为当前线程/协程的活跃上下文。"""
         self._token = _current_context.set(self)
         return self
@@ -87,14 +88,14 @@ class SimulationContext:
         if self.space:
             self.space.on_frame_update()
 
-    def get_system(self, cls_or_name: Union[str, Type]) -> Optional[Any]:
+    def get_system(self, cls_or_name: str | type) -> Any | None:
         """获取已挂载的仿真系统实例。
 
         Args:
             cls_or_name: 系统的类定义或字符串名称。
 
         Returns:
-            Optional[Any]: 系统实例，若未找到则返回 None。
+            Any | None: 系统实例，若未找到则返回 None。
         """
         if self.system_manager:
             return self.system_manager.get_system(cls_or_name)
@@ -113,9 +114,9 @@ class SimulationContext:
         if self.logger:
             self.logger.log_info("Context Reset", sender="Context")
 
-    def take_snapshot(self) -> Dict[str, Any]:
+    def take_snapshot(self) -> dict[str, Any]:
         """抓取当前仿真场景的全量状态快照 (V3.0 自动化登记增强版)。"""
-        snapshot = {
+        snapshot: dict[str, Any] = {
             "frame": self.current_frame,
             "global": {
                 "move_dist": round(self.global_move_dist, 3),
@@ -131,7 +132,7 @@ class SimulationContext:
             from core.entities.base_entity import Faction
             
             # 统一处理所有实体
-            all_current_entities = []
+            all_current_entities: list[Any] = []
             if self.space.team:
                 all_current_entities.extend(self.space.team.get_members())
             
@@ -140,12 +141,13 @@ class SimulationContext:
 
             for entity in all_current_entities:
                 # 1. 发现新实体，导出元数据进行登记
-                is_new = entity.entity_id not in self._seen_entities
+                eid = int(entity.entity_id)
+                is_new = eid not in self._seen_entities
                 meta = None
                 if is_new:
                     meta = entity.export_static_data()
                     snapshot["entities_meta"].append(meta)
-                    self._seen_entities.add(entity.entity_id)
+                    self._seen_entities.add(eid)
 
                 # 2. 导出状态
                 state = entity.export_state()
@@ -178,16 +180,16 @@ class EventEngine:
     支持业务事件的帧内缓冲，以便于战果复盘持久化。
     """
 
-    def __init__(self, parent: Optional["EventEngine"] = None):
+    def __init__(self, parent: EventEngine | None = None):
         """初始化事件引擎。
 
         Args:
             parent: 可选的父引擎，若存在，事件将向上冒泡发布。
         """
-        self._handlers: Dict[Any, List[Any]] = {}
+        self._handlers: dict[Any, list[Any]] = {}
         self.parent = parent
         # 缓存当前帧的关键业务事件，供快照导出使用
-        self.current_frame_events: List[Dict[str, Any]] = []
+        self.current_frame_events: list[dict[str, Any]] = []
 
     def subscribe(self, event_type: Any, handler: Any) -> None:
         """订阅特定类型的事件。
@@ -268,7 +270,7 @@ class EventEngine:
 # Context Management Utilities
 # ---------------------------------------------------------
 
-_current_context: ContextVar[Optional[SimulationContext]] = ContextVar(
+_current_context: ContextVar[SimulationContext | None] = ContextVar(
     "current_simulation_context", default=None
 )
 
