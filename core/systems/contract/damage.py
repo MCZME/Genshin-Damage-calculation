@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 from core.systems.contract.attack import AttackConfig
 from core.mechanics.aura import Element
 

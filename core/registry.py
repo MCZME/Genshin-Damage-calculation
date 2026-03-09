@@ -1,6 +1,6 @@
 import pkgutil
 import importlib
-from typing import Dict, Type, Any, Callable, List, Optional
+from typing import Dict, Type, Any, Callable, Optional
 
 # --- 存储容器 ---
 CharacterClassMap: Dict[str, Type[Any]] = {}

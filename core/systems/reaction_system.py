@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Tuple
 
+from core.systems.contract.attack import AttackConfig
 from core.systems.contract.damage import Damage
 from core.systems.contract.reaction import (
     ElementalReactionType,
@@ -68,25 +69,27 @@ class ReactionSystem(GameSystem):
     def _handle_burning_tick(self, event: GameEvent) -> None:
         """处理燃烧周期性范围伤害。"""
         target = event.data.get("target")
-        source_char = event.source  # 燃烧的源通常是最初挂火/草的角色
 
         from core.systems.contract.attack import AttackConfig, HitboxConfig, AOEShape
 
         react_dmg = Damage(
-            damage_multiplier=0,
+            damage_multiplier=(0.0,),
             element=(Element.PYRO, 0.0),
             config=AttackConfig(
-                attack_tag=AttackCategory.REACTION,
-                hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=1.0),  # 1米范围 AOE
+                attack_tag=AttackCategory.REACTION.name,
+                hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=1.0),
             ),
             name="燃烧伤害",
         )
 
+        if target is None:
+            return
         level_mult = get_reaction_multiplier(target.level)
         react_dmg.add_data("等级系数", level_mult)
         react_dmg.add_data("反应系数", 0.25)
 
-        self.context.space.broadcast_damage(target, react_dmg)
+        if self.context and self.context.space:
+            self.context.space.broadcast_damage(target, react_dmg)
 
     def _generate_transformative_damage(
         self,
@@ -101,27 +104,26 @@ class ReactionSystem(GameSystem):
         if not self._check_damage_icd(target, r_type):
             return
 
-        from core.systems.contract.attack import AttackConfig
-
         level_mult = get_reaction_multiplier(source_char.level)
 
         dmg = Damage(
-            damage_multiplier=0,
+            damage_multiplier=(0.0,),
             element=(element, 0.0),
-            config=AttackConfig(attack_tag=AttackCategory.REACTION),
+            config=AttackConfig(attack_tag=AttackCategory.REACTION.name),
             name=r_type.value,
         )
         dmg.add_data("等级系数", level_mult)
         dmg.add_data("反应系数", multiplier)
 
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.BEFORE_DAMAGE,
-                frame=get_current_time(),
-                source=source_char,
-                data={"character": source_char, "target": target, "damage": dmg},
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.BEFORE_DAMAGE,
+                    frame=get_current_time(),
+                    source=source_char,
+                    data={"character": source_char, "target": target, "damage": dmg},
+                )
             )
-        )
 
     def _apply_reaction_effect(self, event: GameEvent, res: ReactionResult) -> None:
         """根据反应类别分发逻辑。"""
@@ -159,6 +161,8 @@ class ReactionSystem(GameSystem):
         target = event.data.get("target")
         source_char = event.source
 
+        if target is None:
+            return
         base_shield = get_reaction_multiplier(source_char.level) * 1.0
         shard = CrystalShardEntity(
             creator=source_char,
@@ -166,7 +170,8 @@ class ReactionSystem(GameSystem):
             pos=tuple(target.pos),
             base_shield_hp=base_shield,
         )
-        self.context.space.register(shard)
+        if self.context and self.context.space:
+            self.context.space.register(shard)
 
     def _handle_bloom(self, event: GameEvent, res: ReactionResult) -> None:
         """处理绽放反应。"""
@@ -174,17 +179,20 @@ class ReactionSystem(GameSystem):
 
         target = event.data.get("target")
         source_char = event.source
+        if target is None:
+            return
         core = DendroCoreEntity(creator=source_char, pos=tuple(target.pos))
-        self.context.space.register(core)
+        if self.context and self.context.space:
+            self.context.space.register(core)
 
     def _handle_superconduct(self, event: GameEvent, res: ReactionResult) -> None:
         """处理超导减抗逻辑。"""
         from core.effect.common import ResistanceDebuffEffect
 
         target = event.data.get("target")
-        source_char = event.source
+        if target is None:
+            return
 
-        # 降低 40% 物理抗性，持续 12s
         debuff = ResistanceDebuffEffect(
             owner=target,
             name="超导减抗",
@@ -192,12 +200,11 @@ class ReactionSystem(GameSystem):
             amount=40.0,
             duration=12 * 60,
         )
-        # 如果实体具备添加效果的方法，则应用
-        if hasattr(target, "active_effects"):
-            # 检查是否已存在同名效果，避免重复叠加
-            for eff in target.active_effects:
+        active_effects = getattr(target, "active_effects", None)
+        if active_effects is not None:
+            for eff in active_effects:
                 if eff.name == "超导减抗":
-                    eff.duration = 12 * 60  # 刷新时间
+                    eff.duration = 12 * 60
                     return
             debuff.apply()
 
@@ -206,18 +213,19 @@ class ReactionSystem(GameSystem):
         target = event.data.get("target")
         source_char = event.source
 
-        # 扩散半径通常为 6m
-        # 传播除了风以外的反应元素
         element_to_spread = res.target_element
         if element_to_spread != Element.ANEMO:
-            self.context.space.broadcast_element(
-                source=source_char,
-                element=element_to_spread,
-                u_value=1.0,
-                origin=(target.pos[0], target.pos[1]),  # 仅取 X, Z
-                radius=6.0,
-                exclude_target=target,
-            )
+            if target is None:
+                return
+            if self.context and self.context.space:
+                self.context.space.broadcast_element(
+                    source=source_char,
+                    element=element_to_spread,
+                    u_value=1.0,
+                    origin=(target.pos[0], target.pos[1]),
+                    radius=6.0,
+                    exclude_target=target,
+                )
 
     def _handle_freeze(self, event: GameEvent, res: ReactionResult) -> None:
         """处理冻结状态。"""
@@ -232,8 +240,6 @@ class ReactionSystem(GameSystem):
         # 检查受击 ICD
         if not self._check_damage_icd(target, res.reaction_type):
             return
-
-        level_mult = get_reaction_multiplier(source_char.level)
 
         reaction_multipliers = {
             ElementalReactionType.OVERLOAD: 2.75,

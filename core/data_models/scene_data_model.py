@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from core.data_models.team_data_model import BaseDataModel
 
 class TargetDataModel(BaseDataModel):

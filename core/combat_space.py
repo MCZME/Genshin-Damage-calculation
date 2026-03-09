@@ -1,5 +1,6 @@
+from __future__ import annotations
 import math
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from core.mechanics.aura import Element
 from core.systems.contract.attack import AOEShape
@@ -19,15 +20,15 @@ class CombatSpace:
 
     def __init__(self) -> None:
         """初始化战场空间。"""
-        self._entities: Dict[Faction, List[CombatEntity]] = {
+        self._entities: dict[Faction, list[CombatEntity]] = {
             Faction.PLAYER: [],  # [重构] 此处仅存放召唤物
             Faction.ENEMY: [],
             Faction.NEUTRAL: [],
         }
-        self._remove_queue: List[CombatEntity] = []
-        self.team: Optional["Team"] = None
+        self._remove_queue: list[CombatEntity] = []
+        self.team: Team | None = None
 
-    def set_team(self, team: "Team") -> None:
+    def set_team(self, team: Team) -> None:
         """注入队伍实例。角色由 Team 逻辑驱动，空间仅在物理计算时查询它。"""
         self.team = team
 
@@ -79,7 +80,7 @@ class CombatSpace:
     # 物理判定内核 (XZ平面投影) - 已适配 Team 架构
     # ---------------------------------------------------------
 
-    def _get_search_targets(self, faction: Faction) -> List[CombatEntity]:
+    def _get_search_targets(self, faction: Faction) -> list[CombatEntity]:
         """获取检索时的候选实体列表（动态合并场上角色）。"""
         targets = self._entities[faction].copy()
 
@@ -90,11 +91,11 @@ class CombatSpace:
         return targets
 
     def get_entities_in_range(
-        self, origin: Tuple[float, float], radius: float, faction: Faction
-    ) -> List[CombatEntity]:
+        self, origin: tuple[float, float], radius: float, faction: Faction
+    ) -> list[CombatEntity]:
         """执行圆柱/球体判定。"""
         ox, oz = origin
-        results: List[CombatEntity] = []
+        results: list[CombatEntity] = []
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -107,17 +108,17 @@ class CombatSpace:
 
     def get_entities_in_box(
         self,
-        origin: Tuple[float, float],
+        origin: tuple[float, float],
         length: float,
         width: float,
         facing: float,
         faction: Faction,
-    ) -> List[CombatEntity]:
+    ) -> list[CombatEntity]:
         """执行矩形区域判定。"""
         ox, oz = origin
         rad = math.radians(-facing)
         cos_f, sin_f = math.cos(rad), math.sin(rad)
-        results: List[CombatEntity] = []
+        results: list[CombatEntity] = []
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -135,7 +136,7 @@ class CombatSpace:
                 results.append(e)
         return results
 
-    def broadcast_damage(self, attacker: CombatEntity, damage: "Damage") -> None:
+    def broadcast_damage(self, attacker: CombatEntity, damage: Damage) -> None:
         """发起伤害广播。"""
         config = getattr(damage, "config", None)
         if not config:
@@ -156,7 +157,7 @@ class CombatSpace:
         oz = attacker.pos[1] + offset[0] * math.sin(rad) + offset[1] * math.cos(rad)
         origin = (ox, oz)
 
-        targets: List[CombatEntity] = []
+        targets: list[CombatEntity] = []
         for faction in target_factions:
             if shape in [AOEShape.SPHERE, AOEShape.CYLINDER]:
                 targets.extend(self.get_entities_in_range(origin, radius, faction))
@@ -192,11 +193,11 @@ class CombatSpace:
     def broadcast_element(
         self,
         source: CombatEntity,
-        element: "Element",
+        element: Element,
         u_value: float,
-        origin: Tuple[float, float],
+        origin: tuple[float, float],
         radius: float,
-        exclude_target: Optional[CombatEntity] = None,
+        exclude_target: CombatEntity | None = None,
     ) -> None:
         """发起元素广播。"""
         hit_count = 0
@@ -216,11 +217,11 @@ class CombatSpace:
         )
 
     def _find_closest(
-        self, origin: Tuple[float, float], faction: Faction
-    ) -> Optional[CombatEntity]:
+        self, origin: tuple[float, float], faction: Faction
+    ) -> CombatEntity | None:
         ox, oz = origin
         best_dist = float("inf")
-        best_e: Optional[CombatEntity] = None
+        best_e: CombatEntity | None = None
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -232,24 +233,34 @@ class CombatSpace:
 
     def _apply_selection_strategy(
         self,
-        targets: List[CombatEntity],
-        data: Dict[str, Any],
-        origin: Tuple[float, float],
-    ) -> List[CombatEntity]:
+        targets: list[CombatEntity],
+        data: dict[str, Any],
+        origin: tuple[float, float],
+    ) -> list[CombatEntity]:
         if not targets:
             return []
-        targets = list(set(targets))
+        
+        # 使用 entity_id 保证去重，防止哈希失效
+        seen_ids = set()
+        unique_targets = []
+        for t in targets:
+            if t.entity_id not in seen_ids:
+                unique_targets.append(t)
+                seen_ids.add(t.entity_id)
+        
         select_way = data.get("selection_way", "ALL")
-        max_targets = data.get("max_targets", 999)
+        max_targets = int(data.get("max_targets", 999))
+        
         if select_way == "CLOSEST":
-            targets.sort(
+            unique_targets.sort(
                 key=lambda e: (e.pos[0] - origin[0]) ** 2 + (e.pos[1] - origin[1]) ** 2
             )
-        return targets[: min(len(targets), max_targets)]
+        
+        return unique_targets[: min(len(unique_targets), max_targets)]
 
-    def get_all_entities(self) -> List[CombatEntity]:
+    def get_all_entities(self) -> list[CombatEntity]:
         """获取所有物理实体列表（包含场上角色）。"""
-        results: List[CombatEntity] = []
+        results: list[CombatEntity] = []
         for faction_list in self._entities.values():
             results.extend(faction_list)
 

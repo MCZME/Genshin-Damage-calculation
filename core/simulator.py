@@ -1,4 +1,6 @@
-from typing import Any, Callable, List, Optional
+from __future__ import annotations
+from typing import Any, cast
+from collections.abc import Callable
 import traceback
 
 from core.action.action_data import ActionCommand
@@ -16,9 +18,9 @@ class Simulator:
     def __init__(
         self,
         context: SimulationContext,
-        action_sequence: List[ActionCommand],
-        persistence_db: Optional[Any] = None,
-        on_progress: Optional[Callable[[int], Any]] = None,
+        action_sequence: list[ActionCommand],
+        persistence_db: Any | None = None,
+        on_progress: Callable[[int], Any] | None = None,
     ):
         """初始化模拟器。
 
@@ -61,9 +63,10 @@ class Simulator:
                 self._try_enqueue_next_action()
 
                 # 3. 发布帧结束事件 (驱动各 System 结算)
-                self.ctx.event_engine.publish(
-                    GameEvent(EventType.FRAME_END, self.ctx.current_frame)
-                )
+                if self.ctx.event_engine:
+                    self.ctx.event_engine.publish(
+                        GameEvent(EventType.FRAME_END, self.ctx.current_frame)
+                    )
 
                 # 4. 持久化快照
                 if self.db:
@@ -95,15 +98,17 @@ class Simulator:
                     self.ctx.event_engine.clear_frame_events()
 
                 from core.entities.base_entity import Faction
-                all_entities = []
+                all_entities: list[Any] = []
                 if self.ctx.space.team:
                     all_entities.extend(self.ctx.space.team.get_members())
+                
                 for faction in Faction:
                     all_entities.extend(self.ctx.space._entities.get(faction, []))
                 
                 # 2. 统一触发实体销毁 (会自动闭合 DB 中的 end_frame)
                 for ent in all_entities:
-                    ent.finish()
+                    if hasattr(ent, "finish"):
+                        ent.finish()
                 
                 # 3. 记录最后的结清快照
                 if self.db:
@@ -124,7 +129,7 @@ class Simulator:
         if self.action_ptr >= len(self.actions):
             return
 
-        command: ActionCommand = self.actions[self.action_ptr]
+        command = cast(ActionCommand, self.actions[self.action_ptr])
 
         # 优先从 Team 实例中查找角色 (通过 Space 访问)
         char = None

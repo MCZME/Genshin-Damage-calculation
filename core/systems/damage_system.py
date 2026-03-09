@@ -1,28 +1,30 @@
-from typing import Dict, Any, Optional, List
+from __future__ import annotations
+from typing import Any, cast, TYPE_CHECKING
 import random
 
 from core.systems.utils import AttributeCalculator
 from core.systems.base_system import GameSystem
-from core.context import EventEngine
 from core.event import GameEvent, EventType
-from core.systems.contract.damage import Damage
 from core.systems.contract.modifier import ModifierRecord
 from core.mechanics.aura import Element
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
 
+if TYPE_CHECKING:
+    from core.context import EventEngine
+    from core.systems.contract.damage import Damage
 
 class DamageContext:
     """伤害计算上下文 (支持全过程审计)。"""
 
-    def __init__(self, damage: Damage, source: Any, target: Optional[Any] = None):
+    def __init__(self, damage: Damage, source: Any, target: Any | None = None):
         self.damage = damage
         self.source = source
         self.target = target
         self.config = damage.config
 
-        self.stats: Dict[str, float] = {
+        self.stats: dict[str, float] = {
             "攻击力": 0.0,
             "生命值": 0.0,
             "防御力": 0.0,
@@ -36,7 +38,7 @@ class DamageContext:
             "反应基础倍率": 0.0,
             "反应加成系数": 0.0,
         }
-        self.audit_trail: List[ModifierRecord] = []
+        self.audit_trail: list[ModifierRecord] = []
         self.final_result: float = 0.0
         self.is_crit: bool = False
 
@@ -57,7 +59,7 @@ class DamageContext:
         m_id = 0
         try:
             m_id = get_context().get_next_modifier_id()
-        except:
+        except Exception:
             pass
 
         self.audit_trail.append(ModifierRecord(m_id, source, stat, value, op))
@@ -92,7 +94,7 @@ class DamagePipeline:
             return
         ctx.target = ctx.damage.target
 
-        # 5. 即时契约快照 (捕捉最终倍率和专项增伤)
+        # 5. 即时契约快照 (捕捉经过事件修改后的最终值)。
         self._snapshot_instant(ctx)
 
         # 6. 后续结算
@@ -106,7 +108,7 @@ class DamagePipeline:
     def _snapshot_instant(self, ctx: DamageContext):
         """阶段 2: 即时契约快照 (捕捉经过事件修改后的最终值)。"""
         src = ctx.source
-        scaling_stats = ctx.damage.scaling_stat
+        scaling_stats = cast(list[str], ctx.damage.scaling_stat)
 
         # 按需注入主属性向量
         for s_name in scaling_stats:
@@ -117,39 +119,41 @@ class DamagePipeline:
 
         # 记录暴击面板 (作为基础)
         ctx.add_modifier(
-            "[实体面板]", "暴击率", AttributeCalculator.get_crit_rate(src) * 100, "ADD"
+            "[实体面板]", "暴击率", AttributeCalculator.get_val_by_name(src, "暴击率"), "ADD"
         )
 
         # 1. 捕捉最终倍率向量 (可能被 BEFORE_CALCULATE 修改)
         mults = ctx.damage.damage_multiplier
-        stats = ctx.damage.scaling_stat
-        for i, s_name in enumerate(stats):
+        for i, s_name in enumerate(scaling_stats):
             m_val = mults[i] if i < len(mults) else 0.0
             ctx.add_modifier("[技能契约]", f"{s_name}倍率", m_val, "ADD")
 
         # 2. 反应所需精通 (只有可能触发反应时注入)
         el = ctx.damage.element[0]
-        el_name = el.value if isinstance(el, Element) else el
-        if "元素精通" not in stats and el_name not in ("无", "物理"):
+        el_name = el.value if isinstance(el, Element) else str(el)
+        if "元素精通" not in scaling_stats and el_name not in ("无", "物理"):
             em_val = AttributeCalculator.get_val_by_name(src, "元素精通")
             ctx.add_modifier("[实体面板同步]", "元素精通", em_val, "ADD")
 
         # 3. 动态增伤区汇总 (此时已包含 BEFORE_CALCULATE 注入的所有 Buff)
-        bonus = AttributeCalculator.get_damage_bonus(src, el_name) * 100
+        bonus = AttributeCalculator.get_final_damage_bonus(src, el_name)
 
         ctx.add_modifier("[最终增伤区]", "伤害加成", bonus, "ADD")
 
     def _calculate_def_res(self, ctx: DamageContext):
-        target_def = ctx.target.attribute_data.get("防御力", 0)
-        coeff_def = (5 * ctx.source.level + 500) / (
-            target_def + 5 * ctx.source.level + 500
+        if not ctx.target:
+            return
+            
+        target_def = float(ctx.target.attribute_data.get("防御力", 0))
+        coeff_def = (5 * float(ctx.source.level) + 500) / (
+            target_def + 5 * float(ctx.source.level) + 500
         )
         ctx.add_modifier("防御减免结算", "防御区系数", coeff_def, "ADD")
 
         el = ctx.damage.element[0]
-        el_name = el.value if isinstance(el, Element) else el
+        el_name = el.value if isinstance(el, Element) else str(el)
 
-        res = ctx.target.attribute_data.get(f"{el_name}元素抗性", 10.0)
+        res = float(ctx.target.attribute_data.get(f"{el_name}元素抗性", 10.0))
         coeff_res = 1.0
         if res > 75:
             coeff_res = 1 / (1 + 4 * res / 100)
@@ -170,9 +174,9 @@ class DamagePipeline:
         # 剧变反应结算
         if AttackCategory.REACTION in categories:
             em_inc = (16 * s["元素精通"]) / (s["元素精通"] + 2000)
-            level_coeff = ctx.damage.data.get("等级系数", 0)
-            react_base = ctx.damage.data.get("反应系数", 1.0)
-            bonus = ctx.damage.data.get("反应伤害提高", 0)
+            level_coeff = float(ctx.damage.data.get("等级系数", 0))
+            react_base = float(ctx.damage.data.get("反应系数", 1.0))
+            bonus = float(ctx.damage.data.get("反应伤害提高", 0))
             ctx.final_result = (
                 level_coeff * react_base * (1 + em_inc + bonus) * s["抗性区系数"]
             )
@@ -200,7 +204,7 @@ class DamagePipeline:
 
     def _get_base_value(self, ctx: DamageContext) -> float:
         d = ctx.damage
-        stats = d.scaling_stat
+        stats = cast(list[str], d.scaling_stat)
         mults = d.damage_multiplier
         
         total_base = 0.0
@@ -216,8 +220,10 @@ class DamagePipeline:
         if Config.get("emulation.open_critical"):
             if random.uniform(0, 100) <= ctx.stats["暴击率"]:
                 ctx.is_crit = True
+                # [FIX] 修正方法名 get_final_crit_dmg
+                crit_dmg = AttributeCalculator.get_final_crit_dmg(ctx.source)
                 ctx.add_modifier(
-                    "暴击区", "暴击伤害", 100 + AttributeCalculator.get_crit_damage(ctx.source), "ADD"
+                    "暴击区", "暴击伤害", 100 + crit_dmg, "ADD"
                 )
                 return 1 + ctx.stats["暴击伤害"] / 100
         return 1.0
@@ -226,7 +232,9 @@ class DamagePipeline:
         from core.context import get_context
 
         sim_ctx = get_context()
-        sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
+        # [FIX] 检查 space 是否为 None
+        if sim_ctx.space:
+            sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
 
     def _preprocess_reaction_stats(self, ctx: DamageContext):
         for res in ctx.damage.reaction_results:
@@ -236,9 +244,11 @@ class DamagePipeline:
 
 
 class DamageSystem(GameSystem):
-    def initialize(self, context):
+    def initialize(self, context: Any):
         super().initialize(context)
-        self.pipeline = DamagePipeline(self.engine)
+        # [FIX] 使用 cast 确保 engine 不为 None
+        if self.engine:
+            self.pipeline = DamagePipeline(self.engine)
 
     def register_events(self, engine: EventEngine):
         engine.subscribe(EventType.BEFORE_DAMAGE, self)
@@ -246,23 +256,27 @@ class DamageSystem(GameSystem):
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.BEFORE_DAMAGE:
             char = event.data["character"]
-            dmg = event.data["damage"]
+            dmg = cast('Damage', event.data["damage"])
             target = event.data.get("target")
             ctx = DamageContext(dmg, char, target)
-            self.pipeline.run(ctx)
+            
+            if hasattr(self, "pipeline"):
+                self.pipeline.run(ctx)
 
             if dmg.target:
                 get_emulation_logger().log_damage(char, dmg.target, dmg)
-                self.engine.publish(
-                    GameEvent(
-                        event_type=EventType.AFTER_DAMAGE,
-                        frame=event.frame,
-                        source=char,
-                        data={
-                            "character": char, 
-                            "target": dmg.target, 
-                            "target_id": getattr(dmg.target, "entity_id", None),
-                            "damage": dmg
-                        },
+                # [FIX] 检查 self.engine
+                if self.engine:
+                    self.engine.publish(
+                        GameEvent(
+                            event_type=EventType.AFTER_DAMAGE,
+                            frame=event.frame,
+                            source=char,
+                            data={
+                                "character": char, 
+                                "target": dmg.target, 
+                                "target_id": getattr(dmg.target, "entity_id", None),
+                                "damage": dmg
+                            },
+                        )
                     )
-                )

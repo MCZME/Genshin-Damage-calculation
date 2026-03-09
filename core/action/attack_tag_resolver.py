@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List, Set, Optional, Union
+from typing import Sequence, Set, Optional, Union
 
 class AttackCategory(Enum):
     """攻击所属的高级分类。"""
@@ -18,7 +18,7 @@ class AttackTagResolver:
     """
     
     @staticmethod
-    def resolve_categories(main_tag: Union[str, AttackCategory], extra_tags: Optional[List[Union[str, AttackCategory]]] = None) -> Set[AttackCategory]:
+    def resolve_categories(main_tag: Union[str, AttackCategory], extra_tags: Optional[Sequence[Union[str, AttackCategory]]] = None) -> Set[AttackCategory]:
         """
         根据标签列表解析出所属的分类集合。
         支持传入原生字符串标签或已解析的 AttackCategory 枚举。

@@ -2,7 +2,6 @@ from core.systems.base_system import GameSystem
 from core.context import EventEngine
 from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
-from core.entities.base_entity import Faction
 
 
 class NatlanSystem(GameSystem):

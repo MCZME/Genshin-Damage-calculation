@@ -1,6 +1,5 @@
 from typing import Dict, Set
 
-from core.entities.base_entity import Faction
 from core.event import EventType, GameEvent
 from core.systems.base_system import GameSystem
 from core.context import EventEngine

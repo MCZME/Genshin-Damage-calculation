@@ -1,7 +1,8 @@
+from __future__ import annotations
 import aiosqlite
 import json
 import asyncio
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Any, cast
 from enum import Enum
 from dataclasses import is_dataclass, asdict
 
@@ -9,19 +10,21 @@ class GenshinJSONEncoder(json.JSONEncoder):
     """
     通用 JSON 编码器：处理枚举、数据类及特殊对象。
     """
-    def default(self, obj):
-        if isinstance(obj, Enum):
-            return obj.name
-        if is_dataclass(obj):
-            return asdict(obj)
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
-        if hasattr(obj, "name"):
-            return obj.name
+    def default(self, o: Any) -> Any:
+        # [FIX] 参数名从 obj 改为 o，以匹配基类 JSONEncoder.default
+        if isinstance(o, Enum):
+            return o.name
+        if is_dataclass(o):
+            # [FIX] 使用 cast(Any, o) 修复 Pylance 对 asdict 参数类型的严格检查
+            return asdict(cast(Any, o))
+        if hasattr(o, "to_dict"):
+            return o.to_dict()
+        if hasattr(o, "name"):
+            return o.name
         try:
-            return super().default(obj)
+            return super().default(o)
         except TypeError:
-            return str(obj)
+            return str(o)
 
 class ResultDatabase:
     """
@@ -32,11 +35,11 @@ class ResultDatabase:
 
     def __init__(self, db_path: str = "simulation_audit.db"):
         self.db_path = db_path
-        self._queue: asyncio.Queue = asyncio.Queue()
-        self._worker_task: Optional[asyncio.Task] = None
+        self._queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        self._worker_task: asyncio.Task[None] | None = None
         self._running = False
-        self.session_id: Optional[int] = None
-        self.projector: Optional[Any] = None # 延迟初始化
+        self.session_id: int | None = None
+        self.projector: Any | None = None # 延迟初始化
 
     async def initialize(self):
         """
@@ -46,7 +49,6 @@ class ResultDatabase:
             # 开启 WAL 模式提高并发性能
             await db.execute("PRAGMA journal_mode=WAL")
             await db.execute("PRAGMA foreign_keys=ON")
-            # 此处省略重复的 CREATE TABLE 语句...
 
             # 1. 仿真会话与详情 (垂直拆分)
             await db.execute("""
@@ -295,18 +297,19 @@ class ResultDatabase:
 
             await db.commit()
 
-    async def create_session(self, config_name: str, config_snapshot: dict = None) -> int:
+    async def create_session(self, config_name: str, config_snapshot: dict[str, Any] | None = None) -> int:
         """
         创建一个新的仿真会话，并将重型配置数据存储在详情表中。
         同时初始化业务投影器。
         """
+        # [FIX] 将 config_snapshot 的类型标注改为 dict[str, Any] | None = None 修复 Pylance 报错
         async with aiosqlite.connect(self.db_path) as db:
             # 1. 插入会话元数据
             cursor = await db.execute(
                 "INSERT INTO simulation_sessions (config_name) VALUES (?)",
                 (config_name,)
             )
-            session_id = cursor.lastrowid
+            session_id = cast(int, cursor.lastrowid)
 
             # 2. 插入重型配置快照
             if config_snapshot:
@@ -336,7 +339,7 @@ class ResultDatabase:
             await self._queue.put(None)
             await self._worker_task
 
-    def record_snapshot(self, snapshot: dict):
+    def record_snapshot(self, snapshot: dict[str, Any]):
         """压入待处理数据"""
         self._queue.put_nowait(snapshot)
 
@@ -357,19 +360,21 @@ class ResultDatabase:
                     break
                 
                 # 1. 获取所有轨道的 SQL 指令
-                commands = []
+                commands: list[tuple[str, Any]] = []
                 commands.extend(self.projector.project_static_meta(item))
                 commands.extend(self.projector.project_pulse(item))
                 commands.extend(self.projector.project_metrics(item))
                 commands.extend(self.projector.project_events(item))
                 
                 # 2. 批量执行指令集 (在同一个原子操作中)
+                sql = "None"
+                params = "None"
                 try:
                     for sql, params in commands:
                         await db.execute(sql, params)
                 except Exception as e:
                     get_emulation_logger().log_error(
-                        f"持久化执行失败: {e}\n最近一条SQL: {sql if 'sql' in locals() else 'None'}\n参数: {params if 'params' in locals() else 'None'}",
+                        f"持久化执行失败: {e}\n最近一条SQL: {sql}\n参数: {params}",
                         sender="Persistence"
                     )
                     # 如果发生外键冲突，跳过当前快照以保护后续数据
@@ -391,8 +396,10 @@ class ResultDatabase:
                 )
                 await db.commit()
 
-    async def get_frame(self, frame_id: int) -> Optional[dict]:
+    async def get_frame(self, frame_id: int) -> dict[str, Any] | None:
         """按帧 ID 获取快照数据 (重定向到外部适配器)"""
         from core.persistence.adapter import ReviewDataAdapter
+        if self.session_id is None:
+            return None
         adapter = ReviewDataAdapter(self.db_path, self.session_id)
         return await adapter.get_frame(frame_id)
