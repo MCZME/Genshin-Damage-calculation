@@ -51,11 +51,6 @@ class StrategicState:
             "manual_buffs": []
         }
 
-    # --- 静态类型检查辅助 (由 @ft.observable 注入) ---
-    def notify(self) -> None: ...
-    def subscribe(self, handler: Callable[..., Any]) -> None: ...
-    def unsubscribe(self, handler: Callable[..., Any]) -> None: ...
-
     def rebind_all_vms(self):
         """配置重载后强制重建 VM 树"""
         self.team_vms = [CharacterViewModel(CharacterDataModel(d)) for d in self.team_data]

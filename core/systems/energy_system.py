@@ -56,18 +56,19 @@ class EnergySystem(GameSystem):
         
         # 发布能量变动后置事件 (V2.5 投影器必需)
         from core.tool import get_current_time
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.AFTER_ENERGY_CHANGE,
-                frame=get_current_time(),
-                source=character,
-                data={
-                    "character": character,
-                    "new_energy": character.elemental_energy.current_energy,
-                    "delta": energy_value
-                }
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_ENERGY_CHANGE,
+                    frame=get_current_time(),
+                    source=character,
+                    data={
+                        "character": character,
+                        "new_energy": character.elemental_energy.current_energy,
+                        "delta": energy_value
+                    }
+                )
             )
-        )
 
     def get_rate(self, character, particle_element, team_obj):
         """计算微粒获取系数"""
@@ -85,5 +86,5 @@ class EnergySystem(GameSystem):
             base = 1.0 if on_field else 0.6
 
         # 充能效率加成
-        energy_rate = AttributeCalculator.get_energy_recharge(character)
+        energy_rate = AttributeCalculator.get_final_er(character)
         return base * energy_rate

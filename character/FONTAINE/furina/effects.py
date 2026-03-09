@@ -92,7 +92,7 @@ class FurinaFanfareEffect(BaseEffect):
         if amount <= 0:
             return
 
-        max_hp = AttributeCalculator.get_hp(target)
+        max_hp = AttributeCalculator.get_final_hp(target)
         if max_hp <= 0:
             return
 
@@ -147,7 +147,7 @@ class FurinaCenterOfAttentionHeal(BaseEffect):
             self.timer = 0
 
     def _do_team_heal(self):
-        hp = AttributeCalculator.get_hp(self.owner)
+        hp = AttributeCalculator.get_final_hp(self.owner)
         heal_val = hp * 0.04
 
         if self.owner.ctx.space and self.owner.ctx.space.team:
@@ -227,7 +227,7 @@ class FurinaCenterOfAttentionEffect(BaseEffect):
         ):
             return
 
-        max_hp = AttributeCalculator.get_hp(self.owner)
+        max_hp = AttributeCalculator.get_final_hp(self.owner)
         bonus_val = max_hp * 0.18
         if self.owner.arkhe_mode == "芒":
             bonus_val = max_hp * 0.43

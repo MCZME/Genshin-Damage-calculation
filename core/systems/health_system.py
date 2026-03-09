@@ -1,4 +1,5 @@
-from typing import Any, Optional
+from __future__ import annotations
+from typing import Any
 
 from core.systems.contract.healing import Healing
 from core.context import EventEngine
@@ -27,11 +28,11 @@ class HealingCalculator:
         stat = self.healing.scaling_stat
 
         if stat == "攻击力":
-            return AttributeCalculator.get_attack(entity)
+            return AttributeCalculator.get_final_atk(entity)
         if stat == "生命值":
-            return AttributeCalculator.get_hp(entity)
+            return AttributeCalculator.get_final_hp(entity)
         if stat == "防御力":
-            return AttributeCalculator.get_defense(entity)
+            return AttributeCalculator.get_final_def(entity)
         return 0.0
 
     def calculate(self) -> float:
@@ -39,15 +40,13 @@ class HealingCalculator:
         base_val = self._get_base_attr()
         m = self.healing.base_multiplier
 
-        # 处理倍率 (百分比 + 固定值) 或 仅百分比
         if isinstance(m, (tuple, list)):
             raw_value = (m[0] / 100.0) * base_val + m[1]
         else:
             raw_value = (m / 100.0) * base_val
 
-        # 应用治疗加成与受治疗加成
-        bonus = AttributeCalculator.get_healing_bonus(self.source)
-        received_bonus = AttributeCalculator.get_incoming_healing_bonus(self.target)
+        bonus = AttributeCalculator.get_final_healing_bonus(self.source)
+        received_bonus = AttributeCalculator.get_final_incoming_healing_bonus(self.target)
 
         final_value = raw_value * (1 + bonus) * (1 + received_bonus)
         self.healing.final_value = final_value
@@ -78,8 +77,8 @@ class HealthSystem(GameSystem):
         source = data.get("character")
         from core.entities.base_entity import CombatEntity
 
-        target: Optional[CombatEntity] = data.get("target")
-        healing: Healing = data.get("healing")
+        target: CombatEntity | None = data.get("target")
+        healing: Healing | None = data.get("healing")
 
         if not target or not healing:
             return
@@ -95,30 +94,32 @@ class HealthSystem(GameSystem):
         get_emulation_logger().log_heal(source, target, healing)
 
         # 4. 发布治疗后置事件
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.AFTER_HEAL,
-                frame=event.frame,
-                source=source,
-                data={"character": source, "target": target, "healing": healing},
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_HEAL,
+                    frame=event.frame,
+                    source=source,
+                    data={"character": source, "target": target, "healing": healing},
+                )
             )
-        )
         # 5. 发布生命值变动事件 (V2.5 投影器必需)
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.AFTER_HEALTH_CHANGE,
-                frame=event.frame,
-                source=target,
-                data={"character": target, "new_hp": target.current_hp}
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_HEALTH_CHANGE,
+                    frame=event.frame,
+                    source=target,
+                    data={"character": target, "new_hp": getattr(target, "current_hp", 0)}
+                )
             )
-        )
 
     def _handle_hurt(self, event: GameEvent) -> None:
         """处理受伤逻辑 (包含护盾扣除后的实际血量扣除)。"""
         data = event.data
         from core.entities.base_entity import CombatEntity
 
-        target: Optional[CombatEntity] = data.get("target")
+        target: CombatEntity | None = data.get("target")
         source = data.get("character")
         amount = data.get("amount", 0.0)
         is_ignore_shield = data.get("ignore_shield", False)
@@ -137,25 +138,27 @@ class HealthSystem(GameSystem):
         )
 
         # 3. 发布受伤后置事件
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.AFTER_HURT,
-                frame=event.frame,
-                source=source,
-                data={
-                    "character": source,
-                    "target": target,
-                    "amount": amount,
-                    "ignore_shield": is_ignore_shield,
-                },
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_HURT,
+                    frame=event.frame,
+                    source=source,
+                    data={
+                        "character": source,
+                        "target": target,
+                        "amount": amount,
+                        "ignore_shield": is_ignore_shield,
+                    },
+                )
             )
-        )
         # 4. 发布生命值变动事件 (V2.5 投影器必需)
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.AFTER_HEALTH_CHANGE,
-                frame=event.frame,
-                source=target,
-                data={"character": target, "new_hp": target.current_hp}
+        if self.engine:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.AFTER_HEALTH_CHANGE,
+                    frame=event.frame,
+                    source=target,
+                    data={"character": target, "new_hp": getattr(target, "current_hp", 0)}
+                )
             )
-        )

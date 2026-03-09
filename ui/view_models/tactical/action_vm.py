@@ -1,8 +1,10 @@
+from __future__ import annotations
 import flet as ft
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, cast
 from ui.view_models.base_vm import BaseViewModel
 from core.data_models.action_data_model import ActionDataModel
+
 
 @ft.observable
 @dataclass
@@ -11,17 +13,32 @@ class ActionViewModel(BaseViewModel[ActionDataModel]):
     单个动作单元的视图模型。
     """
     @property
-    def uid(self) -> str: return self.model.uid
-    @property
-    def action_key(self) -> str: return self.model.action_key
-    @property
-    def char_id(self) -> str: return self.model.char_id
+    def uid(self) -> str:
+        if self.model is None:
+            return ""
+        return self.model.uid
 
     @property
-    def params(self) -> Dict[str, Any]:
+    def action_key(self) -> str:
+        if self.model is None:
+            return ""
+        return self.model.action_key
+
+    @property
+    def char_id(self) -> str:
+        if self.model is None:
+            return ""
+        return self.model.char_id
+
+    @property
+    def params(self) -> dict[str, Any]:
+        if self.model is None:
+            return {}
         return self.model.params
 
     def set_param(self, key: str, value: Any):
+        if self.model is None:
+            return
         self.model.set_param(key, value)
         self.notify_update()
 
