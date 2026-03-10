@@ -20,16 +20,20 @@ class ActionDataModel(BaseDataModel):
         return str(self._data.get("uid", ""))
 
     @property
-    def char_id(self) -> str:
-        return str(self._data.get("char_id", "unknown"))
+    def character_name(self) -> str:
+        return str(self._data.get("character_name", "unknown"))
 
-    @char_id.setter
-    def char_id(self, value: str):
-        self._data["char_id"] = value
+    @character_name.setter
+    def character_name(self, value: str):
+        self._data["character_name"] = value
 
     @property
     def action_key(self) -> str:
-        return str(self._data.get("action_type", "Wait"))
+        return str(self._data.get("action_key", "Wait"))
+
+    @action_key.setter
+    def action_key(self, value: str):
+        self._data["action_key"] = value
 
     @property
     def params(self) -> dict[str, Any]:
@@ -41,20 +45,19 @@ class ActionDataModel(BaseDataModel):
     def set_param(self, key: str, value: Any):
         self.params[key] = value
 
-    def to_simulator_format(self, char_name: str) -> dict[str, Any]:
+    def to_simulator_format(self) -> dict[str, Any]:
         """转换为仿真引擎期望的格式"""
         return {
-            "character_name": char_name,
+            "character_name": self.character_name,
             "action_key": self.action_key,
             "params": self.params
         }
 
     @staticmethod
-    def create(char_id: str, action_type: str, params: dict | None = None) -> ActionDataModel:
-        # [FIX] 显式处理 params 为 None 的情况
+    def create(character_name: str, action_key: str, params: dict | None = None) -> ActionDataModel:
         return ActionDataModel({
-            "char_id": char_id,
-            "action_type": action_type,
+            "character_name": character_name,
+            "action_key": action_key,
             "params": params if params is not None else {}
         })
 

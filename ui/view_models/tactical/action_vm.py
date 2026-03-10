@@ -26,9 +26,10 @@ class ActionViewModel(BaseViewModel[ActionDataModel]):
 
     @property
     def char_id(self) -> str:
+        """代理到 character_name，保持属性名兼容"""
         if self.model is None:
             return ""
-        return self.model.char_id
+        return self.model.character_name
 
     @property
     def params(self) -> dict[str, Any]:

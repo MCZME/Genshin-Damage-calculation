@@ -54,15 +54,12 @@ class TacticalView:
         team_data = self.app_state.strategic_state.team_data
 
         # 3. 辅助方法
-        def get_char_name(char_id: str | None) -> str:
-            for m in team_data:
-                if m.get("id") == char_id:
-                    return m.get("name", "Unknown")
-            return "Unknown"
+        def get_char_name(char_name: str | None) -> str:
+            return char_name or "Unknown"
 
-        def get_char_element(char_id: str | None) -> str:
+        def get_char_element(char_name: str | None) -> str:
             for m in team_data:
-                if m.get("id") == char_id:
+                if m.get("name") == char_name:
                     return m.get("element", "Neutral")
             return "Neutral"
 
@@ -160,7 +157,7 @@ class TacticalView:
                     # 闭包捕获
                     def create_click_handler(k, dp):
                         return lambda _: [
-                            vm.add_action(ActionDataModel.create(active_member['id'], k, params=dp.copy())), 
+                            vm.add_action(ActionDataModel.create(active_member['name'], k, params=dp.copy())),
                             state.notify()
                         ]
 
