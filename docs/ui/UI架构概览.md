@@ -56,6 +56,7 @@ graph TD
 ### 3.1 AppState 瘦身
 - `AppState` 不再直接操作底层字典 Key。
 - **服务化**: 逻辑抽离至 `MetadataService` (元数据) 和 `SimulationService` (仿真调度)。
+- **领域专用数据服务 (DataServices)**: 对于分析系统等重数据场景，引入 `AnalysisDataService`。通过 `DataSlot` 实现响应式数据缓存与基于引用计数的自动清理机制。
 - **生命周期协调**: `AppState` 负责在配置全局重载时，协调各子 State 重建其 ViewModel 树。
 
 ### 3.2 刷新机制
