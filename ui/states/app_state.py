@@ -124,8 +124,12 @@ class AppState:
         self.strategic_state.spatial_data["target_positions"].clear()
         for t_item in ctx.get("targets", []):
             target_id = t_item.get("id", "target_unknown")
-            self.strategic_data_target_pos = self.strategic_state.spatial_data["target_positions"]
-            self.strategic_data_target_pos[target_id] = t_item.get("position", {"x": 0, "z": 5})
+            # 直接写入位置数据，确保坐标正确转换为 float
+            position = t_item.get("position", {"x": 0.0, "z": 5.0})
+            self.strategic_state.spatial_data["target_positions"][target_id] = {
+                "x": float(position.get("x", 0.0)),
+                "z": float(position.get("z", 5.0))
+            }
 
             internal_target = {
                 "id": target_id,
@@ -152,20 +156,10 @@ class AppState:
             for m in self.strategic_state.team_data if m.get("id")
         ]
 
-        # 核心修复：手动解析 char_id 到 character_name 的映射，确保动作序列符合仿真引擎格式
-        char_id_to_name: dict[str, str] = {
-            m.get("id", ""): m.get("name", "Unknown")
-            for m in self.strategic_state.team_data
-            if m.get("id")
-        }
-
         simulation_sequence = []
         for act in self.tactical_state.page_vm.sequence_vms:
-            raw_name = char_id_to_name.get(act.char_id, "Unknown")
-            char_name = str(raw_name) if raw_name is not None else "Unknown"
-            
             if act.model is not None:
-                simulation_sequence.append(act.model.to_simulator_format(char_name))
+                simulation_sequence.append(act.model.to_simulator_format())
 
         return {
             "context_config": {
