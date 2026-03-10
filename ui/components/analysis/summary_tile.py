@@ -1,41 +1,94 @@
+"""
+[V9.1] 汇总统计磁贴组件
+
+重构说明：
+- 数据转换逻辑已迁移至 SummaryViewModel
+- 组件仅负责 UI 渲染
+"""
 import flet as ft
-from ui.states.analysis_state import AnalysisState
-from ui.services.ui_formatter import UIFormatter
+from typing import TYPE_CHECKING
+
 from ui.components.analysis.base_widget import AnalysisTile
+from ui.view_models.analysis.tile_vms.summary_vm import SummaryViewModel
+
+if TYPE_CHECKING:
+    from ui.services.analysis_data_service import AnalysisDataService
+
 
 class SummaryTile(AnalysisTile):
     """
-    磁贴：全局战报看板 (V5.1 Pro 适配版)
+    [V9.1] 全局战报看板
+    规格: 2x1
+
+    重构说明：
+    - 数据转换逻辑已迁移至 SummaryViewModel
+    - 组件仅负责 UI 渲染
     """
-    def __init__(self, state: AnalysisState):
-        super().__init__("全局战报看板", ft.Icons.DASHBOARD_ROUNDED, "summary", state)
+
+    def __init__(self, data_service: 'AnalysisDataService'):
+        super().__init__(
+            "全局战报看板",
+            ft.Icons.DASHBOARD_ROUNDED,
+            "summary",
+            data_service.state
+        )
+        self.data_service = data_service
         self.expand = False
-        # V4.5 Pro 视觉属性
-        self.theme_color = "#D3BC8E" # 琥珀金
-        self.gradient_top = "#2A2634" # 深紫过渡
+        self.theme_color = "#D3BC8E"
+        self.gradient_top = "#2A2634"
+        self._vm: SummaryViewModel | None = None
+
+    def _get_vm(self) -> SummaryViewModel:
+        """获取或创建 ViewModel"""
+        if self._vm is None:
+            self._vm = SummaryViewModel(
+                data_service=self.data_service,
+                instance_id=self.instance_id or "summary_unknown"
+            )
+        return self._vm
 
     @ft.component
     def render(self):
-        # 1. 获取中心化数据槽位
-        slot = self.state.data_manager.get_slot("summary")
-        
+        vm = self._get_vm()
+        slot = self.data_service.get_slot("summary")
+
+        # 加载状态
         if not slot or slot.loading or slot.data is None:
             return ft.Container(
-                content=ft.ProgressRing(width=20, height=20, color=self.theme_color), 
-                alignment=ft.Alignment.CENTER, 
+                content=ft.ProgressRing(width=20, height=20, color=self.theme_color),
+                alignment=ft.Alignment.CENTER,
                 expand=True
             )
 
-        d = slot.data
+        # 获取指标
+        metrics = vm.get_metrics()
 
-        def create_metric_box(label, value, color, icon):
+        def create_metric_box(
+            label: str,
+            value: str,
+            color: str,
+            icon: ft.IconData
+        ) -> ft.Control:
             return ft.Container(
                 content=ft.Column([
                     ft.Row([
                         ft.Icon(icon, size=14, color=ft.Colors.WHITE, opacity=0.4),
-                        ft.Text(label, size=10, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE, opacity=0.5, style=ft.TextStyle(letter_spacing=0.8)),
+                        ft.Text(
+                            label,
+                            size=10,
+                            weight=ft.FontWeight.W_600,
+                            color=ft.Colors.WHITE,
+                            opacity=0.5,
+                            style=ft.TextStyle(letter_spacing=0.8)
+                        ),
                     ], spacing=8),
-                    ft.Text(value, size=22, weight=ft.FontWeight.W_900, color=color, style=ft.TextStyle(letter_spacing=-0.5)),
+                    ft.Text(
+                        value,
+                        size=22,
+                        weight=ft.FontWeight.W_900,
+                        color=color,
+                        style=ft.TextStyle(letter_spacing=-0.5)
+                    ),
                 ], spacing=4, alignment=ft.MainAxisAlignment.CENTER),
                 expand=True,
                 alignment=ft.Alignment.CENTER_LEFT
@@ -44,12 +97,31 @@ class SummaryTile(AnalysisTile):
         # 2x2 布局在 (2, 1) 尺寸下会更加舒展
         return ft.Column([
             ft.Row([
-                create_metric_box("TOTAL DMG", UIFormatter.format_metric_value(d.get("total_damage", 0)), ft.Colors.AMBER_ACCENT_200, ft.Icons.AUTO_GRAPH_ROUNDED),
-                create_metric_box("AVG DPS", UIFormatter.format_metric_value(d.get("avg_dps", 0)), self.theme_color, ft.Icons.TIMELINE_ROUNDED),
+                create_metric_box(
+                    metrics[0]["label"],
+                    metrics[0]["value"],
+                    metrics[0]["color"],
+                    metrics[0]["icon"]
+                ),
+                create_metric_box(
+                    metrics[1]["label"],
+                    metrics[1]["value"],
+                    metrics[1]["color"],
+                    metrics[1]["icon"]
+                ),
             ], spacing=20, expand=True),
             ft.Row([
-                create_metric_box("DURATION", f"{d.get('duration_seconds', 0):.1f}s", ft.Colors.LIGHT_BLUE_ACCENT_100, ft.Icons.TIMER_ROUNDED),
-                create_metric_box("PEAK DMG", UIFormatter.format_metric_value(d.get("peak_dps", 0)), ft.Colors.RED_ACCENT_200, ft.Icons.BOLT_ROUNDED),
+                create_metric_box(
+                    metrics[2]["label"],
+                    metrics[2]["value"],
+                    metrics[2]["color"],
+                    metrics[2]["icon"]
+                ),
+                create_metric_box(
+                    metrics[3]["label"],
+                    metrics[3]["value"],
+                    metrics[3]["color"],
+                    metrics[3]["icon"]
+                ),
             ], spacing=20, expand=True),
         ], spacing=10, expand=True)
-

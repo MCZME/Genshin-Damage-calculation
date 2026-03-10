@@ -35,10 +35,10 @@ class AppLayout:
         strat_view = ft.use_memo(lambda: StrategicView(self.state), [])
         scene_view = ft.use_memo(lambda: SceneView(self.state), [])
         tact_view = ft.use_memo(lambda: TacticalView(self.state), [])
-        
+
         # AnalysisState 专用 (保持动态 build 因为其数据量大且生命周期独立)
-        analysis_state = ft.use_memo(lambda: AnalysisState(app_state=self.state), [])
-        analysis_view = ft.use_memo(lambda: AnalysisView(self.state, state=analysis_state), [])
+        analysis_state = ft.use_memo(lambda: AnalysisState(self.state), [])
+        analysis_view = ft.use_memo(lambda: AnalysisView(self.state), [])
 
         # 2. 导航处理逻辑
         def handle_nav(pid):
@@ -88,7 +88,7 @@ class AppLayout:
             ),
             # 复盘视图 (动态渲染)
             ft.Container(
-                content=analysis_view.build() if active_phase == "review" else ft.Container(),
+                content=analysis_view.build(analysis_state) if active_phase == "review" else ft.Container(),
                 visible=(active_phase == "review"),
                 expand=True
             )

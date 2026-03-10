@@ -1,3 +1,10 @@
+"""
+[V9.2] 全局时间控制锚点
+
+重构说明 (V9.2):
+- 通过 state.model 访问 (代理到 vm)
+- 保持接口兼容性
+"""
 import flet as ft
 from ui.theme import GenshinTheme
 from ui.states.analysis_state import AnalysisState
@@ -14,13 +21,15 @@ def GlobalScrubber(state: AnalysisState, on_change=None):
     """
     全局时间控制锚点 (声明式 V6.6)。
     实现拖动实时反馈与松开延迟同步。
+
+    [V9.2] state.model 代理到 vm
     """
     # 1. 局部状态：管理标尺拖动时的临时位置 (不触发全局重绘)
     local_frame, set_local_frame = ft.use_state(state.model.current_frame)
-    
+
     # 2. 全局状态监听：当外部触发帧跳转时同步本地状态
     ft.use_effect(
-        lambda: set_local_frame(state.model.current_frame), 
+        lambda: set_local_frame(state.model.current_frame),
         [state.model.current_frame]
     )
 
@@ -43,19 +52,19 @@ def GlobalScrubber(state: AnalysisState, on_change=None):
         content=ft.Row([
             # 当前时间显示
             ft.Text(
-                format_time(local_frame), 
-                size=12, 
+                format_time(local_frame),
+                size=12,
                 font_family="Consolas",
-                weight=ft.FontWeight.W_600, 
+                weight=ft.FontWeight.W_600,
                 color=GenshinTheme.PRIMARY,
-                width=80, 
+                width=80,
                 text_align=ft.TextAlign.CENTER
             ),
-            
+
             # 核心标尺
             ft.Slider(
-                min=0, 
-                max=max_frames, 
+                min=0,
+                max=max_frames,
                 value=local_frame,
                 divisions=max_frames,
                 active_color=GenshinTheme.PRIMARY,
@@ -64,7 +73,7 @@ def GlobalScrubber(state: AnalysisState, on_change=None):
                 on_change_end=handle_change_end, # 延迟同步
                 expand=True,
             ),
-            
+
             # 总时长显示
             ft.Container(
                 content=ft.Text(format_time(max_frames), size=10, opacity=0.4),

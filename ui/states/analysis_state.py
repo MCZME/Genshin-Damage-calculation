@@ -1,363 +1,224 @@
+"""
+[V9.2 MVVM 重构] 分析状态模块
+
+重构说明 (V9.2):
+- AnalysisStateModel 已删除，字段合并到 AnalysisViewModel
+- AnalysisState 简化为 ViewModel 工厂 + 兼容性代理
+- 访问路径: state.model.xxx 实际代理到 vm.xxx
+
+架构分层:
+- AnalysisViewModel: 状态持有 + 业务逻辑 (ui/view_models/analysis/main_vm.py)
+- AnalysisDataService: 数据服务层，管理缓存和动态数据查询
+- AnalysisState: 工厂 + 兼容性代理层
+"""
+from __future__ import annotations
+
 import flet as ft
 import asyncio
-import uuid
-from typing import Any
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
 from core.persistence.adapter import ReviewDataAdapter
-from core.persistence.processors.damage_dist import DamageDistProcessor
 from core.logger import get_ui_logger
 
-@ft.observable
-@dataclass
-class DataSlot:
-    """[V4.8] 响应式数据槽位：支持基于订阅者集合的自动清理"""
-    key: str
-    data: Any = None
-    loading: bool = False
-    subscribers: set = field(default_factory=set)
+if TYPE_CHECKING:
+    from ui.states.app_state import AppState
+    from ui.view_models.analysis.main_vm import AnalysisViewModel
 
-    @property
-    def ref_count(self) -> int:
-        return len(self.subscribers)
-
-class AnalysisDataManager:
-    """
-    [V4.8] 复盘数据生命周期管理器 (集合驱动版)
-    """
-    def __init__(self, state: 'AnalysisState'):
-        self.state = state
-        self._slots: dict[str, DataSlot] = {
-            "dps": DataSlot(key="dps"),
-            "summary": DataSlot(key="summary"),
-            "audit": DataSlot(key="audit"),
-            "damage_dist": DataSlot(key="damage_dist"), 
-            "char_base": DataSlot(key="char_base"), # [V8.3] 新增角色基础面板槽位
-        }
-        self._lock = asyncio.Lock()
-
-    def get_slot(self, key: str) -> DataSlot | None:
-        return self._slots.get(key)
-
-    async def subscribe(self, key: str, instance_id: str):
-        if key not in self._slots:
-            return None
-        
-        async with self._lock:
-            slot = self._slots[key]
-            slot.subscribers.add(instance_id)
-            get_ui_logger().log_debug(f"DataManager: [{key}] subscribed by {instance_id}. Total: {slot.ref_count}")
-            
-            if slot.ref_count > 0 and slot.data is None and not slot.loading:
-                await self._fetch_data(key)
-            return slot
-
-    async def unsubscribe(self, key: str, instance_id: str):
-        if key not in self._slots:
-            return
-        
-        async with self._lock:
-            slot = self._slots[key]
-            if instance_id in slot.subscribers:
-                slot.subscribers.remove(instance_id)
-                get_ui_logger().log_debug(f"DataManager: [{key}] unsubscribed {instance_id}. Remaining: {slot.ref_count}")
-            
-            if slot.ref_count == 0:
-                slot.data = None
-                slot.loading = False
-                get_ui_logger().log_debug(f"DataManager: [{key}] data cleared (No references).")
-
-    async def _fetch_data(self, key: str):
-        if not self.state.adapter:
-            return
-            
-        slot = self._slots[key]
-        slot.loading = True
-        get_ui_logger().log_debug(f"DataManager: Fetching data for [{key}]...")
-        
-        try:
-            if key == "dps":
-                raw_events = await self.state.adapter.get_dps_data()
-                # 修正方法名
-                stacked_pts = await self.state.adapter.get_stacked_dps_data_raw()
-                slot.data = {
-                    "raw_events": raw_events,
-                    "frame_indices": [p['frame'] for p in raw_events],
-                    "stacked_points": stacked_pts
-                }
-            elif key == "summary":
-                slot.data = await self.state.adapter.get_summary_stats()
-            elif key == "damage_dist":
-                # [V6.6] 编排逻辑：从适配器拉取原始事件流 -> 传给专项处理器加工 ViewModel
-                raw_events = await self.state.adapter.get_raw_damage_events()
-                slot.data = DamageDistProcessor.process(raw_events)
-                
-                # 注入总帧数支持 (如果数据中不包含)
-                if slot.data:
-                    slot.data["total_frames"] = self.state.model.total_frames
-            elif key == "char_base":
-                # [V8.3] 获取所有角色的初始属性快照
-                slot.data = await self.state.adapter.get_all_characters_base_stats()
-            
-            get_ui_logger().log_debug(f"DataManager: [{key}] data ready.")
-        except Exception as e:
-            get_ui_logger().log_error(f"DataManager Error [{key}]: {str(e)}")
-        finally:
-            slot.loading = False
-            # [V6.3] 数据就绪后强制通知 UI 刷新
-            if hasattr(self.state, '_notify_update'):
-                self.state._notify_update()
 
 @ft.observable
-@dataclass
-class AnalysisStateModel:
-    """全局仿真复盘元状态模型"""
-    current_session_id: int | None = None
-    loading: bool = False
-    sessions_history: list[dict[str, Any]] = field(default_factory=list)
-    current_frame: int = 0
-    total_frames: int = 0
-    active_tiles: list[dict[str, Any]] = field(default_factory=list)
-    # [V6.1] 强制更新触发器：用于解决复杂嵌套下的重绘失效
-    update_counter: int = 0
-    # [V7.0] 抽屉状态
-    drawer_visible: bool = False
-    drawer_side: str = "right"
-    # [V7.2] 选中的伤害事件 (持久化 L2 状态)
-    selected_event: dict[str, Any] | None = None
-    # [V8.0] 聚焦角色 ID (全局焦点)
-    focus_char_id: int | None = None
-    # [V8.3] 磁贴实例配置：{ instance_id: { "target_char_id": int } }
-    tile_instance_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
-    # [V8.4] 角色属性展示偏好：{ char_id: list[stat_keys] }
-    char_display_preferences: dict[int, list[str]] = field(default_factory=dict)
-    # [V8.1] 历史对话框状态 (替代旧版 events)
-    history_dialog_visible: bool = False
-
 class AnalysisState:
     """
-    [V6.1 业务驱动生命周期协调者]
+    [V9.2 MVVM] ViewModel 工厂 + 兼容性代理
+
+    职责：
+    1. 创建并持有 AnalysisViewModel
+    2. 创建并持有 DataService
+    3. 提供兼容性代理 (state.model.xxx → vm.xxx)
+
+    所有业务逻辑已迁移至 AnalysisViewModel
     """
-    def __init__(self, app_state=None):
+    def __init__(self, app_state: 'AppState | None' = None):
         self.app_state = app_state
-        self.model = AnalysisStateModel()
-        self.adapter: ReviewDataAdapter | None = None
-        self.data_manager = AnalysisDataManager(self)
-        
+
+        # 延迟导入避免循环依赖
+        from ui.view_models.analysis.main_vm import AnalysisViewModel
+        from ui.services.analysis_data_service import AnalysisDataService
+
+        # 创建 ViewModel
+        self.vm: AnalysisViewModel = AnalysisViewModel(app_state=app_state)
+
+        # 注册响应式回调 (VM 变更时触发 Flet 响应式更新)
+        self.vm._notify_callback = self._on_vm_update
+
+        # 创建 DataService 并关联
+        self.data_service = AnalysisDataService(self.vm)
+        self.vm.data_service = self.data_service
+
+        # 审计相关状态 (保留供兼容)
         self.selected_audit_index: int = -1
         self.current_audit: Any | None = None
         self.audit_logs: list[Any] = []
 
-    def run_task(self, task: Callable, *args, **kwargs):
-        """[V8.2] 安全的异步任务挂载代理，优先利用 Flet page，回退到 asyncio"""
-        if self.app_state and getattr(self.app_state, 'page', None):
-            self.app_state.page.run_task(task, *args, **kwargs)
-        else:
-            asyncio.create_task(task(*args, **kwargs))
+    # ============================================================
+    # 兼容性属性：model 指向 vm
+    # ============================================================
 
-    def set_focus_char(self, char_id: int):
-        """设置当前分析视图关注的角色 (全局)"""
-        self.model.focus_char_id = char_id
-        self._notify_update()
+    @property
+    def model(self) -> 'AnalysisViewModel':
+        """[兼容性] 代理到 ViewModel"""
+        return self.vm
+
+    @property
+    def adapter(self) -> ReviewDataAdapter | None:
+        """[兼容性] 代理到 ViewModel"""
+        return self.vm.adapter
+
+    @adapter.setter
+    def adapter(self, value: ReviewDataAdapter | None):
+        """[兼容性] 代理到 ViewModel"""
+        self.vm.adapter = value
+
+    @property
+    def data_manager(self):
+        """[兼容性] 指向 DataService"""
+        return self.data_service
+
+    def _notify_update(self):
+        """触发 Observable 变更通知 (供 ViewModel 调用)"""
+        self.notify()
+        self.vm._notify_update()
+
+    def _on_vm_update(self):
+        """VM 变更时触发 Flet 响应式更新"""
+        self.notify()
+
+    # ============================================================
+    # 兼容性方法 (保持与现有组件的兼容性)
+    # 这些方法代理到 ViewModel
+    # ============================================================
+
+    def set_frame(self, frame_id: int):
+        """设置当前帧 (兼容性方法)"""
+        self.vm.set_frame(frame_id)
 
     def set_tile_char(self, instance_id: str, char_id: int):
-        """设置特定磁贴实例关注的角色"""
-        if instance_id not in self.model.tile_instance_configs:
-            self.model.tile_instance_configs[instance_id] = {}
-        self.model.tile_instance_configs[instance_id]["target_char_id"] = char_id
-        self._notify_update()
+        """设置特定磁贴实例关注的角色 (兼容性方法)"""
+        self.vm.set_tile_char(instance_id, char_id)
 
     def get_tile_char(self, instance_id: str) -> int:
-        """获取磁贴实例关注的角色 ID，回退到全局焦点或 0"""
-        config = self.model.tile_instance_configs.get(instance_id, {})
-        return config.get("target_char_id") or self.model.focus_char_id or 0
+        """获取磁贴实例关注的角色 ID (兼容性方法)"""
+        return self.vm.get_tile_char(instance_id)
+
+    def get_stat_preferences(self, char_id: int) -> list[str]:
+        """获取角色的展示偏好"""
+        return self.vm.get_stat_preferences(char_id)
 
     def toggle_stat_preference(self, char_id: int, stat_key: str):
         """切换角色属性的展示偏好"""
-        if char_id not in self.model.char_display_preferences:
-            self.model.char_display_preferences[char_id] = []
-        
-        prefs = self.model.char_display_preferences[char_id]
-        if stat_key in prefs:
-            prefs.remove(stat_key)
-        else:
-            # 限制最多显示 8 个
-            if len(prefs) < 8:
-                prefs.append(stat_key)
-        self._notify_update()
+        self.vm.toggle_stat_preference(char_id, stat_key)
 
-    def get_stat_preferences(self, char_id: int) -> list[str]:
-        """获取角色的展示偏好，若无则返回默认前 8 个"""
-        return self.model.char_display_preferences.get(char_id, [])
+    def run_task(self, coro):
+        """运行异步任务"""
+        self.vm.run_task(coro)
 
-    def set_selected_event(self, event: dict[str, Any] | None):
-        """设置当前选中的伤害事件"""
-        self.model.selected_event = event
-        self._notify_update()
+    def refresh_data(self):
+        """刷新数据 (兼容性方法 - 供外部导航调用)"""
+        sid = getattr(self.app_state, "last_session_id", None)
+        if sid and self.vm.current_session_id != sid:
+            self.vm.current_session_id = sid
+            self.vm.loading = True
+            self.vm.adapter = ReviewDataAdapter(session_id=sid)
+            self.data_service.adapter = self.vm.adapter
+            self.data_service.invalidate_all_slots()
 
-    def open_drawer(self, side: str = "right"):
-        self.model.drawer_side = side
-        self.model.drawer_visible = True
-        self._notify_update()
+            async def _fetch_meta():
+                if not self.vm.adapter:
+                    return
+                try:
+                    stats = await self.vm.adapter.get_summary_stats()
+                    self.vm.total_frames = int(stats.get("total_frames", 0))
+                    await self.data_service.refresh_active_slots()
+                except Exception as e:
+                    get_ui_logger().log_error(f"refresh_data error: {e}")
+                finally:
+                    self.vm.loading = False
+                    self.vm._notify_update()
 
-    def close_drawer(self):
-        self.model.drawer_visible = False
-        self._notify_update()
+            asyncio.create_task(_fetch_meta())
 
-    async def load_audit_detail(self, event_id: int):
-        """[V7.0] 异步加载 L2 审计详情"""
-        if not self.adapter:
-            return
-        
-        from core.persistence.processors.audit_processor import AuditProcessor
-        
-        slot = self.data_manager.get_slot("audit")
-        if not slot:
-            return # [FIX] 修复 None 告警
-        
-        slot.loading = True
-        self._notify_update()
-        
-        try:
-            # 1. 查找基础事件信息 (用于判断是否暴击)
-            # 在 damage_dist 槽位中查找
-            dist_slot = self.data_manager.get_slot("damage_dist")
-            is_crit = False
-            if dist_slot and dist_slot.data:
-                for f_data in dist_slot.data.get("frame_map", {}).values():
-                    for ev in f_data.get("events", []):
-                        if ev['event_id'] == event_id:
-                            is_crit = ev.get('is_crit', False)
-                            break
-            
-            # 2. 拉取原始审计链
-            raw_trail = await self.adapter.get_damage_audit(event_id)
-            
-            # 3. 聚合加工
-            processed = AuditProcessor.process_detail(raw_trail, is_crit=is_crit)
-            slot.data = processed
-            
-            get_ui_logger().log_debug(f"Audit: Event {event_id} processed.")
-        except Exception as e:
-            get_ui_logger().log_error(f"Audit Detail Error: {str(e)}")
-        finally:
-            slot.loading = False
-            self._notify_update()
+    # ============================================================
+    # 代理方法 (状态变更通过 State 触发响应式更新)
+    # ============================================================
 
-    def _notify_update(self):
-        """强制触发 Observable 变更通知"""
-        if self.model: # [FIX] 修复 None 告警
-            self.model.update_counter += 1
-        # [V6.2] 暴力强刷：通过 PubSub 通知 View 层重绘
-        if self.app_state and self.app_state.page:
-            self.app_state.page.pubsub.send_all("analysis_view_refresh")
+    def set_container_width(
+        self,
+        width: float,
+        active_tiles: list[dict] | None = None,
+        maximized_tile_id: str | None = None
+    ):
+        """更新容器宽度并触发布局重算"""
+        self.vm.set_container_width(width, active_tiles, maximized_tile_id)
 
-    def add_tile(self, tile_type: str, factory_func: Callable):
-        """[Mutation] 添加磁贴 (V6.5 模块化尺寸适配)"""
-        instance_id = f"{tile_type}_{uuid.uuid4().hex[:8]}"
-        
-        # 工厂函数现在返回 (tile_instance, grid_size)
-        # grid_size 是一个 (width_units, height_units) 元组
-        tile_instance, grid_size = factory_func(self, instance_id)
-        if not tile_instance:
-            return # [FIX] 修复 None 告警
-        tile_instance.instance_id = instance_id
-        
-        tile_data = {
-            'instance_id': instance_id,
-            'type': tile_type,
-            'tile': tile_instance,
-            'grid_size': grid_size if grid_size else (1, 1) # 默认 1x1
-        }
-        
-        # 不可变更新
-        new_list = list(self.model.active_tiles)
-        new_list.append(tile_data)
-        self.model.active_tiles = new_list
-        self._notify_update()
-        
-        async def _sub():
-            await self.data_manager.subscribe(tile_type, instance_id)
-        asyncio.create_task(_sub())
-        return instance_id
+    def refresh_layout(
+        self,
+        active_tiles: list[dict] | None = None,
+        maximized_tile_id: str | None = None
+    ):
+        """刷新布局"""
+        self.vm.refresh_layout(active_tiles, maximized_tile_id)
+
+    def add_tile(
+        self,
+        tile_type: str,
+        tile_factory
+    ) -> str | None:
+        """添加磁贴"""
+        return self.vm.add_tile(tile_type, tile_factory)
 
     def remove_tile(self, instance_id: str):
-        """[Mutation] 移除磁贴"""
-        target = next((t for t in self.model.active_tiles if t['instance_id'] == instance_id), None)
-        if not target:
-            return
-
-        self.model.active_tiles = [t for t in self.model.active_tiles if t['instance_id'] != instance_id]
-        self._notify_update()
-        
-        async def _unsub():
-            await self.data_manager.unsubscribe(target['type'], instance_id)
-        asyncio.create_task(_unsub())
+        """移除磁贴"""
+        self.vm.remove_tile(instance_id)
 
     def load_session(self, session_id: int):
-        self.model.current_session_id = session_id
-        self.model.loading = True
-        self.adapter = ReviewDataAdapter(session_id=session_id)
-
-        # 1. 先标记所有槽位数据失效
-        for slot in self.data_manager._slots.values():
-            slot.data = None
-
-        async def _fetch_meta():
-            if not self.adapter:
-                return # [FIX] 修复 None 告警
-            try:
-                stats = await self.adapter.get_summary_stats()
-                self.model.total_frames = int(stats.get("total_frames", 0))
-
-                # 2. [关键修复] 重新抓取所有活跃槽位的数据
-                # 只要 ref_count > 0，说明当前 UI 中有组件需要该数据（如全局订阅的 char_base）
-                for key, slot in self.data_manager._slots.items():
-                    if slot.ref_count > 0:
-                        await self.data_manager._fetch_data(key)
-
-                get_ui_logger().log_info(f"AnalysisState: Session {session_id} loaded with {self.model.total_frames} frames.")
-            except Exception as e:
-                get_ui_logger().log_error(f"AnalysisState: Failed to load session meta: {e}")
-            finally:
-                self.model.loading = False
-                self._notify_update()
-
-        asyncio.create_task(_fetch_meta())
-
-    def set_frame(self, frame_id: int):
-        if self.model.current_frame != frame_id:
-            self.model.current_frame = frame_id
+        """加载复盘会话"""
+        self.vm.load_session(session_id)
 
     def load_history_list(self):
-        adapter = ReviewDataAdapter()
-        async def _task():
-            self.model.sessions_history = await adapter.get_all_sessions()
-            # [V8.1] 使用状态标志驱动 UI 弹窗
-            self.model.history_dialog_visible = True
-            self._notify_update()
-        asyncio.create_task(_task())
+        """加载历史会话列表"""
+        self.vm.load_history_list()
 
     def close_history(self):
         """关闭历史记录对话框"""
-        self.model.history_dialog_visible = False
-        self._notify_update()
+        self.vm.close_history()
 
-    def select_audit(self, index: int):
-        if 0 <= index < len(self.audit_logs):
-            self.selected_audit_index = index
-            item = self.audit_logs[index]
-            async def _load_detail():
-                if not self.adapter:
-                    return # [FIX] 修复 None 告警
-                trail = await self.adapter.get_damage_audit(item['event_id'])
-                item['audit_trail'] = trail
-                self.current_audit = item
-                # [V8.1] 移除已弃用的 app_state.events
-                self._notify_update()
-            asyncio.create_task(_load_detail())
+    def open_drawer(self, side: str = "right"):
+        """打开侧边抽屉"""
+        self.vm.open_drawer(side)
 
-    def refresh_data(self):
-        sid = getattr(self.app_state, "last_session_id", None)
-        if sid:
-            self.load_session(sid)
+    def close_drawer(self):
+        """关闭侧边抽屉"""
+        self.vm.close_drawer()
+
+    def handle_drill_down(self, point: dict):
+        """下钻：切换帧并打开审计抽屉"""
+        self.vm.handle_drill_down(point)
+
+    def handle_toolbox_action(self, action_id: str, tile_factory):
+        """处理工具箱操作"""
+        self.vm.handle_toolbox_action(action_id, tile_factory)
+
+    async def load_audit_detail(self, event_id: int):
+        """异步加载审计详情"""
+        await self.vm.load_audit_detail(event_id)
+
+    def set_focus_char(self, char_id: int):
+        """设置当前分析视图关注的角色"""
+        self.vm.set_focus_char(char_id)
+
+    def set_selected_event(self, event: dict[str, Any] | None):
+        """设置当前选中的伤害事件"""
+        self.vm.set_selected_event(event)
+
+    def _trigger_rerender(self):
+        """触发组件重新渲染"""
+        self.vm._trigger_rerender()

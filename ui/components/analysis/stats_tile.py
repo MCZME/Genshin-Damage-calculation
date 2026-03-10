@@ -1,71 +1,35 @@
+"""
+[V9.1] 角色实时面板磁贴组件
+
+重构说明：
+- 数据转换逻辑已迁移至 StatsViewModel
+- 组件仅负责 UI 渲染
+- 混合使用缓存和动态查询
+"""
 import flet as ft
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+from ui.components.analysis.base_widget import AnalysisTile
+from ui.view_models.analysis.tile_vms.stats_vm import StatsViewModel, STAT_GROUPS, DEFAULT_STATS
 from ui.theme import GenshinTheme
 from ui.services.ui_formatter import UIFormatter
-from ui.states.analysis_state import AnalysisState
-from ui.components.analysis.base_widget import AnalysisTile
 
-# --- Constants & Groups ---
-STAT_GROUPS: dict[str, list[str]] = {
-    "基础属性": ["生命值", "攻击力", "防御力", "元素精通"],
-    "进阶属性": ["暴击率", "暴击伤害", "元素充能效率", "治疗加成", "受治疗加成"],
-    "元素加成": ["火元素伤害加成", "水元素伤害加成", "草元素伤害加成", "雷元素伤害加成", "风元素伤害加成", "冰元素伤害加成", "岩元素伤害加成", "物理伤害加成"],
-    "其他": ["抗打断", "护盾强效"]
-}
+if TYPE_CHECKING:
+    from ui.services.analysis_data_service import AnalysisDataService
 
-DEFAULT_STATS: list[str] = ["攻击力", "生命值", "防御力", "元素精通", "暴击率", "暴击伤害", "元素充能效率", "伤害加成"]
-
-def calculate_snapshot_stat(base_stats: dict[str, Any], mods: list[dict[str, Any]], key: str, element: str = "Neutral") -> tuple[float, float, str]:
-    """
-    [V8.5] 核心计算引擎：基于基础快照与动态修饰符还原瞬时数值。
-    返回: (最终值, 加成值, 公式字符串)
-    """
-    base = float(base_stats.get(key, 0.0))
-    pct_bonus = float(base_stats.get(f"{key}%", 0.0))
-    flat_bonus = float(base_stats.get(f"固定{key}", 0.0))
-    
-    # 针对“伤害加成”的特殊逻辑：合并全伤与元素伤
-    actual_keys = [key]
-    if key == "伤害加成":
-        if element != "Neutral":
-            actual_keys.append(f"{element}元素伤害加成")
-    
-    # 计算公式追踪
-    formula = f"{base:.0f}"
-    
-    # 叠加修饰符
-    for m in mods:
-        m_stat = str(m.get("stat", ""))
-        m_val = float(m.get("value", 0.0))
-        
-        # 匹配属性名或其百分比/固定变体
-        if m_stat in actual_keys:
-            flat_bonus += m_val
-        elif m_stat.replace("%", "") in actual_keys and "%" in m_stat:
-            pct_bonus += m_val
-        elif m_stat.replace("固定", "") in actual_keys and "固定" in m_stat:
-            flat_bonus += m_val
-            
-    if key in ["攻击力", "生命值", "防御力"]:
-        total = base * (1 + pct_bonus / 100) + flat_bonus
-        bonus = total - base
-        formula = f"{base:.0f} × (1 + {pct_bonus:.1f}%) + {flat_bonus:.0f}"
-        return total, bonus, formula
-    
-    # 其他属性（如精通、双暴、充能）通常是平铺加法
-    total = base + flat_bonus
-    # 某些属性在 base_stats 中已经是百分比（如暴击率）
-    bonus = total - base
-    is_pct_stat = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
-    formula = f"{base:.1f}{'%' if is_pct_stat else ''} + {flat_bonus:.1f}"
-    return total, bonus, formula
 
 @ft.component
-def CharacterStatusBar(current_hp: float, max_hp: float, current_energy: float, max_energy: float, theme_color: str):
-    """[V9.2] 紧凑型生存状态栏：展示 HP 和能量进度"""
+def CharacterStatusBar(
+    current_hp: float,
+    max_hp: float,
+    current_energy: float,
+    max_energy: float,
+    theme_color: str
+):
+    """[V9.1] 紧凑型生存状态栏：展示 HP 和能量进度"""
     hp_ratio = max(0.0, min(1.0, current_hp / max_hp)) if max_hp > 0 else 0
     en_ratio = max(0.0, min(1.0, current_energy / max_energy)) if max_energy > 0 else 0
-    
+
     return ft.Column([
         # HP Bar
         ft.Stack([
@@ -79,81 +43,82 @@ def CharacterStatusBar(current_hp: float, max_hp: float, current_energy: float, 
         ], width=200),
     ], spacing=2)
 
+
 @ft.component
-def StatsDashboard(state: AnalysisState, instance_id: str):
+def StatsDashboard(
+    data_service: 'AnalysisDataService',
+    instance_id: str
+):
     """正常态渲染逻辑 (2x2 Dashboard)"""
-    char_id = state.get_tile_char(instance_id)
-    frame_id = state.model.current_frame
-    
-    # 1. 订阅数据槽位
-    base_slot = state.data_manager.get_slot("char_base")
-    
-    # [FIX] 纠正 use_state 的用法：解构赋值
+    # 创建 ViewModel
+    vm = ft.use_memo(
+        lambda: StatsViewModel(data_service, instance_id),
+        [instance_id]
+    )
+
+    # 获取目标角色 ID (V9.2: 通过 vm 访问)
+    char_id = data_service.state.get_tile_char(instance_id)
+    frame_id = data_service.state.current_frame
+
+    # 同步 ViewModel 的角色 ID
+    if vm.target_char_id != char_id:
+        vm.target_char_id = char_id
+
+    # 获取基础数据槽位
+    base_slot = data_service.get_slot("char_base")
+
+    # 本地状态
     snapshot, set_snapshot = ft.use_state(None)
     loading, set_loading = ft.use_state(False)
 
-    # 2. 抓取当前帧快照
+    # 抓取当前帧快照
     def fetch_frame_data():
-        if not state.adapter:
+        if not data_service.adapter:
             return
+
         async def _fetch():
             set_loading(True)
             try:
-                if state.adapter:
-                    data = await state.adapter.get_frame(frame_id)
-                    # [FIX] 显式转换消除 setter 参数告警
+                if data_service.adapter:
+                    data = await data_service.adapter.get_frame(frame_id)
                     set_snapshot(cast(Any, data))
             finally:
                 set_loading(False)
-        state.run_task(_fetch)
 
-    ft.use_effect(fetch_frame_data, [frame_id, char_id, state.model.current_session_id])
+        data_service.state.run_task(_fetch)
 
+    ft.use_effect(fetch_frame_data, [frame_id, char_id, data_service.state.current_session_id])
+
+    # 检查数据状态
     if not base_slot or not base_slot.data or char_id not in base_slot.data:
-        return ft.Container(content=ft.Text("请先选择角色", color=ft.Colors.WHITE_38), alignment=ft.Alignment.CENTER)
+        return ft.Container(
+            content=ft.Text("请先选择角色", color=ft.Colors.WHITE_38),
+            alignment=ft.Alignment.CENTER
+        )
 
-    # 3. 准备展示数据
-    char_base = cast(dict[str, Any], base_slot.data[char_id])
-    char_name = str(char_base.get("名称", "Unknown"))
-    element_zh = "无"
-    if state.app_state and char_name in state.app_state.char_map:
-        element_zh = str(state.app_state.char_map[char_name].get("element", "无"))
-    
-    theme_color = GenshinTheme.get_element_color(element_zh)
-    
+    # 更新 ViewModel 快照
+    vm.snapshot = cast(dict[str, Any] | None, snapshot)
+
+    # 获取基础渲染属性
+    theme_color = vm.theme_color
+
     # 获取动态数据
-    active_mods: list[dict[str, Any]] = []
-    active_effects: list[dict[str, Any]] = []
-    shields: list[dict[str, Any]] = []
-    curr_hp = float(char_base.get("生命值", 0))
-    max_hp = curr_hp
-    curr_en = 0.0
-    max_en = float(char_base.get("元素爆发能量", 40.0))
-
-    # [FIX] 使用 cast 后的字典
-    snap_dict = cast(dict[str, Any] | None, snapshot)
-    if snap_dict and "team" in snap_dict:
-        char_snap = next((c for c in snap_dict["team"] if c["entity_id"] == char_id), None)
-        if char_snap:
-            active_mods = char_snap.get("active_modifiers", [])
-            active_effects = char_snap.get("active_effects", [])
-            shields = char_snap.get("shields", [])
-            curr_hp = float(char_snap.get("current_hp", curr_hp))
-            curr_en = float(char_snap.get("current_energy", 0.0))
-            final_hp, _, _ = calculate_snapshot_stat(char_base, active_mods, "生命值", element_zh)
-            max_hp = final_hp
+    active_effects = vm.active_effects
+    shields = vm.shields
+    curr_hp = vm.current_hp
+    max_hp = vm.max_hp
+    curr_en = vm.current_energy
+    max_en = vm.max_energy
 
     # 获取用户偏好
-    display_stats = state.get_stat_preferences(char_id)
-    if not display_stats:
-        display_stats = DEFAULT_STATS
+    display_stats = vm.get_display_stats()
 
     def create_stat_unit(key: str) -> ft.Control:
-        total, bonus, _ = calculate_snapshot_stat(char_base, active_mods, key, element_zh)
+        total, bonus, _ = vm.calculate_stat(key)
         is_pct = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
         fmt = ".1f" if is_pct else ".0f"
         suffix = "%" if is_pct else ""
-        
+
         return ft.Column(
             controls=[
                 ft.Text(key, size=9, color=ft.Colors.WHITE_54),
@@ -173,7 +138,7 @@ def StatsDashboard(state: AnalysisState, instance_id: str):
     # 构造网格
     grid_rows: list[ft.Control] = []
     for i in range(0, len(display_stats), 2):
-        pair = display_stats[i:i+2]
+        pair = display_stats[i:i + 2]
         row_controls: list[ft.Control] = [create_stat_unit(k) for k in pair]
         if len(row_controls) < 2:
             row_controls.append(ft.Container(expand=1))
@@ -189,9 +154,10 @@ def StatsDashboard(state: AnalysisState, instance_id: str):
             tooltip=eff['name']
         ) for eff in active_effects
     ]
+
     # 护盾标识
     if shields:
-        total_shield = sum(s.get('current_hp', 0) for s in shields)
+        total_shield = vm.get_total_shield_hp()
         effect_tags.insert(0, ft.Container(
             content=ft.Row([
                 ft.Icon(ft.Icons.SHIELD_ROUNDED, size=10, color=ft.Colors.WHITE),
@@ -204,7 +170,7 @@ def StatsDashboard(state: AnalysisState, instance_id: str):
 
     main_column_controls: list[ft.Control] = [
         ft.Row([
-            ft.Icon(UIFormatter.get_element_icon(element_zh), size=16, color=theme_color),
+            ft.Icon(UIFormatter.get_element_icon(element), size=16, color=theme_color),
             ft.Column([
                 ft.Text(char_name, size=13, weight=ft.FontWeight.BOLD),
                 CharacterStatusBar(curr_hp, max_hp, curr_en, max_en, theme_color)
@@ -225,62 +191,65 @@ def StatsDashboard(state: AnalysisState, instance_id: str):
         spacing=6
     )
 
+
 @ft.component
-def StatsDetailAudit(state: AnalysisState, instance_id: str):
+def StatsDetailAudit(
+    data_service: 'AnalysisDataService',
+    instance_id: str
+):
     """展开态渲染逻辑 (Full Screen Audit & Config)"""
-    char_id = state.get_tile_char(instance_id)
-    # [FIX] 纠正 use_state 的用法
+    # 创建 ViewModel
+    vm = ft.use_memo(
+        lambda: StatsViewModel(data_service, instance_id),
+        [instance_id]
+    )
+
+    char_id = data_service.state.get_tile_char(instance_id)
     selected_stat, set_selected_stat = ft.use_state("攻击力")
-    
-    base_slot = state.data_manager.get_slot("char_base")
-    frame_id = state.model.current_frame
-    
-    # [FIX] 解构赋值
+
+    base_slot = data_service.get_slot("char_base")
+    frame_id = data_service.state.current_frame  # V9.2: 直接访问 vm 属性
+
+    # 同步 ViewModel 的角色 ID
+    if vm.target_char_id != char_id:
+        vm.target_char_id = char_id
+
+    # 本地状态
     snapshot, set_snapshot = ft.use_state(None)
 
     # 副作用：抓取当前帧快照以获取修饰符
     def fetch_mods():
-        if not state.adapter:
+        if not data_service.adapter:
             return
+
         async def _fetch():
-            if state.adapter:
-                data = await state.adapter.get_frame(frame_id)
-                # [FIX] 显式转换
+            if data_service.adapter:
+                data = await data_service.adapter.get_frame(frame_id)
                 set_snapshot(cast(Any, data))
-        state.run_task(_fetch)
+
+        data_service.state.run_task(_fetch)
+
     ft.use_effect(fetch_mods, [frame_id, char_id])
 
     if not base_slot or not base_slot.data or char_id not in base_slot.data:
         return ft.Text("数据未就绪")
 
-    char_base = cast(dict[str, Any], base_slot.data[char_id])
-    char_name = str(char_base.get("名称", "Unknown"))
-    element_zh = "无"
-    if state.app_state and char_name in state.app_state.char_map:
-        element_zh = str(state.app_state.char_map[char_name].get("element", "无"))
-    
-    active_mods: list[dict[str, Any]] = []
-    # [FIX] 使用解构赋值后的变量
-    snap_dict = cast(dict[str, Any] | None, snapshot)
-    if snap_dict and "team" in snap_dict:
-        char_snap = next((c for c in snap_dict["team"] if c["entity_id"] == char_id), None)
-        if char_snap:
-            active_mods = char_snap.get("active_modifiers", [])
+    # 更新 ViewModel 快照
+    vm.snapshot = cast(dict[str, Any] | None, snapshot)
 
     # 获取当前勾选偏好
-    prefs = state.get_stat_preferences(char_id) or DEFAULT_STATS
+    prefs = vm.get_display_stats() or DEFAULT_STATS
 
     # --- 左侧：配置列表 ---
     def create_list_item(key: str) -> ft.Control:
-        # [FIX] 直接使用解构后的变量
         is_selected = (selected_stat == key)
         is_checked = key in prefs
-        
+
         return ft.Container(
             content=ft.Row([
                 ft.Checkbox(
-                    value=is_checked, 
-                    on_change=lambda _: state.toggle_stat_preference(char_id, key),
+                    value=is_checked,
+                    on_change=lambda _: data_service.state.toggle_stat_preference(char_id, key),
                     scale=0.8,
                     fill_color=ft.Colors.AMBER_400
                 ),
@@ -307,16 +276,9 @@ def StatsDetailAudit(state: AnalysisState, instance_id: str):
     left_column = ft.Column(controls=list_controls, expand=1)
 
     # --- 右侧：审计面板 ---
-    total, bonus, formula = calculate_snapshot_stat(char_base, active_mods, selected_stat, element_zh)
-    
-    relevant_mods: list[dict[str, Any]] = []
-    search_keys = [selected_stat, f"{selected_stat}%", f"固定{selected_stat}"]
-    if selected_stat == "伤害加成":
-        search_keys.append(f"{element_zh}元素伤害加成")
-        
-    for m in active_mods:
-        if m.get("stat") in search_keys:
-            relevant_mods.append(m)
+    total, bonus, formula = vm.calculate_stat(selected_stat)
+
+    relevant_mods = vm.get_relevant_mods(selected_stat)
 
     modifier_list_controls: list[ft.Control] = [
         ft.Container(
@@ -358,45 +320,60 @@ def StatsDetailAudit(state: AnalysisState, instance_id: str):
 
     return ft.Row([left_column, ft.VerticalDivider(width=1), right_panel], expand=True, spacing=20)
 
+
 class CharacterStatsTile(AnalysisTile):
     """
-    磁贴：角色实时面板 (V2.0 - 瞬时快照审计版)
+    [V9.1] 磁贴：角色实时面板 (瞬时快照审计版)
     规格: 2x2
+
+    重构说明：
+    - 数据转换逻辑已迁移至 StatsViewModel
+    - 组件仅负责 UI 渲染
     """
-    def __init__(self, state: AnalysisState, instance_id: str):
-        super().__init__("角色实时面板", ft.Icons.PERSON_SEARCH_ROUNDED, "stats", state)
+
+    def __init__(
+        self,
+        data_service: 'AnalysisDataService',
+        instance_id: str
+    ):
+        super().__init__(
+            "角色实时面板",
+            ft.Icons.PERSON_SEARCH_ROUNDED,
+            "stats",
+            data_service.state
+        )
+        self.data_service = data_service
         self.instance_id = instance_id
-        # 初始主题色，实际渲染时由内容组件动态计算
         self.theme_color = GenshinTheme.ELEMENT_COLORS["Neutral"]
-        self.is_maximized = False # 由 TileContainer 状态驱动
-        self.has_settings = True # [V8.8] 显式开启设置按钮
+        self.is_maximized = False
+        self.has_settings = True
 
     def get_settings_items(self) -> list[ft.PopupMenuItem]:
-        """[V9.0] 构造角色切换菜单项列表"""
-        base_slot = self.state.data_manager.get_slot("char_base")
+        """[V9.1] 构造角色切换菜单项列表"""
+        base_slot = self.data_service.get_slot("char_base")
         if not base_slot or not base_slot.data:
             return []
 
         menu_items: list[ft.PopupMenuItem] = []
         char_data = cast(dict[int, Any], base_slot.data)
-        iid = cast(str, self.instance_id) 
-        
+        iid = cast(str, self.instance_id)
+
         for cid, stats in char_data.items():
             name = str(stats.get("名称", f"ID:{cid}"))
-            # [FIX] 闭包内引用局部变量确保安全
+
             def make_handler(_cid, _iid=iid):
-                return lambda e: self.state.set_tile_char(_iid, _cid)
-            
+                return lambda e: self.data_service.state.set_tile_char(_iid, _cid)
+
             menu_items.append(ft.PopupMenuItem(content=ft.Text(name), on_click=make_handler(cid)))
         return menu_items
 
     def render(self) -> ft.Control:
         """
-        [V8.6] 渲染入口分发。
+        [V9.1] 渲染入口分发。
         根据 self.is_maximized 状态决定展示仪表盘（2x2）还是深度审计（全屏）。
         """
         iid = cast(str, self.instance_id)
         if getattr(self, "is_maximized", False):
-            return StatsDetailAudit(state=self.state, instance_id=iid)
-        
-        return StatsDashboard(state=self.state, instance_id=iid)
+            return StatsDetailAudit(data_service=self.data_service, instance_id=iid)
+
+        return StatsDashboard(data_service=self.data_service, instance_id=iid)
