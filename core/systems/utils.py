@@ -30,7 +30,7 @@ class AttributeCalculator:
     @staticmethod
     def get_final_atk(entity: Any) -> float:
         """合算最终攻击力"""
-        base = float(entity.attribute_data.get('基础攻击力', 0.0))
+        base = float(entity.attribute_data.get('攻击力', 0.0))
         percent = float(entity.attribute_data.get('攻击力%', 0.0))
         flat = float(entity.attribute_data.get('固定攻击力', 0.0))
         
@@ -45,7 +45,7 @@ class AttributeCalculator:
     @staticmethod
     def get_final_hp(entity: Any) -> float:
         """合算最终生命值"""
-        base = float(entity.attribute_data.get('基础生命值', 0.0))
+        base = float(entity.attribute_data.get('生命值', 0.0))
         percent = float(entity.attribute_data.get('生命值%', 0.0))
         flat = float(entity.attribute_data.get('固定生命值', 0.0))
         
@@ -60,7 +60,7 @@ class AttributeCalculator:
     @staticmethod
     def get_final_def(entity: Any) -> float:
         """合算最终防御力"""
-        base = float(entity.attribute_data.get('基础防御力', 0.0))
+        base = float(entity.attribute_data.get('防御力', 0.0))
         percent = float(entity.attribute_data.get('防御力%', 0.0))
         flat = float(entity.attribute_data.get('固定防御力', 0.0))
         
