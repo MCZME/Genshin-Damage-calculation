@@ -101,8 +101,11 @@ def StatsDashboard(
 
     # 获取基础渲染属性
     theme_color = vm.theme_color
+    element = vm.element
+    char_name = vm.char_name
 
     # 获取动态数据
+    active_mods = vm.active_mods
     active_effects = vm.active_effects
     shields = vm.shields
     curr_hp = vm.current_hp
