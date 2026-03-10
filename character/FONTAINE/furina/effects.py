@@ -87,7 +87,9 @@ class FurinaFanfareEffect(BaseEffect):
         if event.event_type == EventType.AFTER_HURT:
             amount = event.data.get("amount", 0.0)
         else:
-            amount = getattr(event, "healing").final_value
+            healing = event.data.get("healing")
+            if healing:
+                amount = getattr(healing, "final_value", 0.0)
 
         if amount <= 0:
             return
