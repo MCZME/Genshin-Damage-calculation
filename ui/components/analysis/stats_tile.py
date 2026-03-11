@@ -26,22 +26,28 @@ def CharacterStatusBar(
     max_energy: float,
     theme_color: str
 ):
-    """[V9.1] 紧凑型生存状态栏：展示 HP 和能量进度"""
+    """[V9.3] 紧凑型生存状态栏：展示 HP 和能量进度（响应式布局）"""
     hp_ratio = max(0.0, min(1.0, current_hp / max_hp)) if max_hp > 0 else 0
     en_ratio = max(0.0, min(1.0, current_energy / max_energy)) if max_energy > 0 else 0
 
     return ft.Column([
-        # HP Bar
-        ft.Stack([
-            ft.Container(height=4, bgcolor=ft.Colors.WHITE_10, border_radius=2),
-            ft.Container(height=4, width=200 * hp_ratio, bgcolor=ft.Colors.GREEN_400, border_radius=2, animate=300),
-        ], width=200),
-        # Energy Bar (更细)
-        ft.Stack([
-            ft.Container(height=2, bgcolor=ft.Colors.WHITE_10, border_radius=1),
-            ft.Container(height=2, width=200 * en_ratio, bgcolor=theme_color, border_radius=1, animate=300, opacity=0.8),
-        ], width=200),
-    ], spacing=2)
+        # HP Bar - 响应式宽度
+        ft.ProgressBar(
+            value=hp_ratio,
+            bar_height=4,
+            color=ft.Colors.GREEN_400,
+            bgcolor=ft.Colors.WHITE_10,
+            expand=True
+        ),
+        # Energy Bar (更细) - 响应式宽度
+        ft.ProgressBar(
+            value=en_ratio,
+            bar_height=2,
+            color=theme_color,
+            bgcolor=ft.Colors.WHITE_10,
+            expand=True
+        ),
+    ], spacing=2, expand=True)
 
 
 @ft.component
@@ -67,25 +73,9 @@ def StatsDashboard(
     # 获取基础数据槽位
     base_slot = data_service.get_slot("char_base")
 
-    # 本地状态
-    snapshot, set_snapshot = ft.use_state(None)
-    loading, set_loading = ft.use_state(False)
-
-    # 抓取当前帧快照
+    # [V9.3] 抓取当前帧快照 - 使用 ViewModel 的异步方法
     def fetch_frame_data():
-        if not data_service.adapter:
-            return
-
-        async def _fetch():
-            set_loading(True)
-            try:
-                if data_service.adapter:
-                    data = await data_service.adapter.get_frame(frame_id)
-                    set_snapshot(cast(Any, data))
-            finally:
-                set_loading(False)
-
-        data_service.state.run_task(_fetch)
+        data_service.state.run_task(vm.fetch_snapshot)
 
     ft.use_effect(fetch_frame_data, [frame_id, char_id, data_service.state.current_session_id])
 
@@ -95,9 +85,6 @@ def StatsDashboard(
             content=ft.Text("请先选择角色", color=ft.Colors.WHITE_38),
             alignment=ft.Alignment.CENTER
         )
-
-    # 更新 ViewModel 快照
-    vm.snapshot = cast(dict[str, Any] | None, snapshot)
 
     # 获取基础渲染属性
     theme_color = vm.theme_color
@@ -217,28 +204,14 @@ def StatsDetailAudit(
     if vm.target_char_id != char_id:
         vm.target_char_id = char_id
 
-    # 本地状态
-    snapshot, set_snapshot = ft.use_state(None)
-
-    # 副作用：抓取当前帧快照以获取修饰符
+    # [V9.3] 使用 ViewModel 的异步方法抓取快照
     def fetch_mods():
-        if not data_service.adapter:
-            return
-
-        async def _fetch():
-            if data_service.adapter:
-                data = await data_service.adapter.get_frame(frame_id)
-                set_snapshot(cast(Any, data))
-
-        data_service.state.run_task(_fetch)
+        data_service.state.run_task(vm.fetch_snapshot)
 
     ft.use_effect(fetch_mods, [frame_id, char_id])
 
     if not base_slot or not base_slot.data or char_id not in base_slot.data:
         return ft.Text("数据未就绪")
-
-    # 更新 ViewModel 快照
-    vm.snapshot = cast(dict[str, Any] | None, snapshot)
 
     # 获取当前勾选偏好
     prefs = vm.get_display_stats() or DEFAULT_STATS

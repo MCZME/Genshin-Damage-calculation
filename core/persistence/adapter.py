@@ -166,16 +166,7 @@ class ReviewDataAdapter:
                         if row:
                             entity_snapshot["stats"] = json.loads(row[0])
                     
-                    # 2. 轨迹同步 (坐标、动作)
-                    async with db.execute(
-                        "SELECT x, y, z, action_id, is_on_field FROM character_pulses "
-                        "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
-                        "ORDER BY frame_id DESC LIMIT 1", (sid, eid, frame_id)
-                    ) as sc:
-                        row = await sc.fetchone()
-                        if row:
-                            entity_snapshot.update({"pos": [row[0], row[1], row[2]], "action_id": row[3], "on_field": bool(row[4])})
-                            entity_snapshot["stats"].update({"坐标_X": round(row[0], 2), "坐标_Y": round(row[1], 2), "在场": "是" if row[4] else "否"})
+                    # [V9.3] 移除坐标等非核心数据查询，精简数据传输
 
                 # 3. 资源跳变还原 (HP, ENERGY)
                 # 针对每种跳变类型取最近的一条记录

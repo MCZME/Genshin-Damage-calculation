@@ -43,6 +43,7 @@ def calculate_snapshot_stat(
 ) -> tuple[float, float, str]:
     """
     [V9.1] 核心计算引擎：基于基础快照与动态修饰符还原瞬时数值
+    [V9.3] 元素加成自动合并：计算"伤害加成"时自动累加基础属性中的元素伤害加成
 
     Args:
         base_stats: 角色基础属性
@@ -60,10 +61,17 @@ def calculate_snapshot_stat(
     # 针对"伤害加成"的特殊逻辑：合并全伤与元素伤
     actual_keys = [key]
     if key == "伤害加成" and element != "Neutral":
-        actual_keys.append(f"{element}元素伤害加成")
+        element_dmg_key = f"{element}元素伤害加成"
+        actual_keys.append(element_dmg_key)
+        # [V9.3] 自动合并基础属性中的元素伤害加成
+        element_dmg_base = float(base_stats.get(element_dmg_key, 0.0))
+        base += element_dmg_base
+
+    # 判断是否为百分比属性（用于公式格式化）
+    is_pct_stat = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
 
     # 计算公式追踪
-    formula = f"{base:.0f}"
+    formula = f"{base:.1f}{'%' if is_pct_stat else ''}"
 
     # 叠加修饰符
     for m in mods:
@@ -87,8 +95,7 @@ def calculate_snapshot_stat(
     # 其他属性（如精通、双暴、充能）通常是平铺加法
     total = base + flat_bonus
     bonus = total - base
-    is_pct_stat = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
-    formula = f"{base:.1f}{'%' if is_pct_stat else ''} + {flat_bonus:.1f}"
+    formula = f"{base:.1f}{'%' if is_pct_stat else ''} + {flat_bonus:.1f}{'%' if is_pct_stat else ''}"
     return total, bonus, formula
 
 
@@ -96,6 +103,7 @@ def calculate_snapshot_stat(
 class StatsViewModel:
     """
     角色统计 ViewModel - 演示缓存与动态查询混合
+    [V9.3] 异步抓取下沉至 ViewModel，带竞态保护
     """
 
     def __init__(self, data_service: 'AnalysisDataService', instance_id: str):
@@ -104,13 +112,20 @@ class StatsViewModel:
         self.target_char_id: int = 0
         self.snapshot: dict[str, Any] | None = None
         self.loading_snapshot: bool = False
+        # [V9.3] 竞态保护：请求版本控制
+        self._request_version: int = 0
 
     # ============================================================
     # 状态属性
     # ============================================================
 
     @property
-    def char_base_slot(self) -> dict[str, Any] | None:
+    def frame_id(self) -> int:
+        """当前帧 ID"""
+        return self.data_service.state.current_frame
+
+    @property
+    def char_base_slot(self) -> dict[int, dict[str, Any]] | None:
         """从缓存获取角色基础属性槽位"""
         slot = self.data_service.get_cached("char_base")
         return slot.data if slot and slot.data else None
@@ -235,6 +250,28 @@ class StatsViewModel:
         self.loading_snapshot = True
         try:
             self.snapshot = await self.data_service.query_frame_snapshot(frame_id)
+        finally:
+            self.loading_snapshot = False
+
+    async def fetch_snapshot(self) -> None:
+        """
+        [V9.3] 异步获取当前帧快照（带版本控制防止竞态）
+        用于从 View 层调用的主要入口
+        """
+        if not self.data_service.adapter:
+            return
+
+        # 递增版本号
+        current_version = self._request_version + 1
+        self._request_version = current_version
+
+        self.loading_snapshot = True
+        try:
+            data = await self.data_service.adapter.get_frame(self.frame_id)
+
+            # 仅当版本匹配时更新（防止旧数据覆盖新数据）
+            if self._request_version == current_version:
+                self.snapshot = data
         finally:
             self.loading_snapshot = False
 
