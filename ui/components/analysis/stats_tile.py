@@ -24,30 +24,54 @@ def CharacterStatusBar(
     max_hp: float,
     current_energy: float,
     max_energy: float,
-    theme_color: str
+    theme_color: str,
+    show_hp: bool = True,
+    show_energy: bool = True,
+    compact: bool = True
 ):
-    """[V9.3] 紧凑型生存状态栏：展示 HP 和能量进度（响应式布局）"""
+    """[V9.5] 生存状态栏：展示 HP 和能量进度（响应式布局）
+    支持独立显示控制：
+    - show_hp=True, show_energy=False → 只显示 HP 条
+    - show_hp=False, show_energy=True → 只显示能量条
+    - 两者皆 False → 返回空容器
+
+    Args:
+        compact: 紧凑模式（用于仪表盘），展开态使用更宽的长条样式
+    """
+    # 如果两者都不显示，返回空容器
+    if not show_hp and not show_energy:
+        return ft.Container()
+
     hp_ratio = max(0.0, min(1.0, current_hp / max_hp)) if max_hp > 0 else 0
     en_ratio = max(0.0, min(1.0, current_energy / max_energy)) if max_energy > 0 else 0
 
-    return ft.Column([
-        # HP Bar - 响应式宽度
-        ft.ProgressBar(
+    # [V9.5] 根据模式调整条的高度
+    hp_bar_height = 4 if compact else 6
+    en_bar_height = 2 if compact else 4
+
+    bars: list[ft.Control] = []
+
+    # HP Bar - 仅当 show_hp 为 True 时渲染
+    if show_hp:
+        bars.append(ft.ProgressBar(
             value=hp_ratio,
-            bar_height=4,
+            bar_height=hp_bar_height,
             color=ft.Colors.GREEN_400,
             bgcolor=ft.Colors.WHITE_10,
             expand=True
-        ),
-        # Energy Bar (更细) - 响应式宽度
-        ft.ProgressBar(
+        ))
+
+    # Energy Bar (更细) - 仅当 show_energy 为 True 时渲染
+    if show_energy:
+        bars.append(ft.ProgressBar(
             value=en_ratio,
-            bar_height=2,
+            bar_height=en_bar_height,
             color=theme_color,
             bgcolor=ft.Colors.WHITE_10,
             expand=True
-        ),
-    ], spacing=2, expand=True)
+        ))
+
+    return ft.Column(bars, spacing=2, expand=True)
 
 
 @ft.component
@@ -102,6 +126,11 @@ def StatsDashboard(
 
     # 获取用户偏好
     display_stats = vm.get_display_stats()
+    prefs = set(display_stats)  # 转换为集合便于快速查找
+
+    # [V9.5] 生存状态条显示控制：使用"血条"/"能量条"而非"生命值"/"元素能量"
+    show_hp_bar = "血条" in prefs
+    show_energy_bar = "能量条" in prefs
 
     def create_stat_unit(key: str) -> ft.Control:
         total, bonus, _ = vm.calculate_stat(key)
@@ -139,7 +168,7 @@ def StatsDashboard(
         ft.Container(
             content=ft.Text(eff['name'][:2], size=8, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
             bgcolor=ft.Colors.AMBER_400,
-            padding=ft.padding.symmetric(horizontal=4, vertical=1),
+            padding=ft.Padding(left=4, right=4, top=1, bottom=1),
             border_radius=3,
             tooltip=eff['name']
         ) for eff in active_effects
@@ -154,26 +183,46 @@ def StatsDashboard(
                 ft.Text(f"{total_shield:.0f}", size=8, weight=ft.FontWeight.BOLD)
             ], spacing=2),
             bgcolor=ft.Colors.BLUE_GREY_700,
-            padding=ft.padding.symmetric(horizontal=4, vertical=1),
+            padding=ft.Padding(left=4, right=4, top=1, bottom=1),
             border_radius=3
         ))
 
-    main_column_controls: list[ft.Control] = [
-        ft.Row([
-            ft.Icon(UIFormatter.get_element_icon(element), size=16, color=theme_color),
-            ft.Column([
-                ft.Text(char_name, size=13, weight=ft.FontWeight.BOLD),
-                CharacterStatusBar(curr_hp, max_hp, curr_en, max_en, theme_color)
-            ], spacing=2, expand=True),
-            ft.Text(f"F_{frame_id}", size=9, color=ft.Colors.WHITE_10, font_family="Consolas")
-        ], vertical_alignment=ft.CrossAxisAlignment.START),
-        ft.Divider(height=1, color=ft.Colors.WHITE_10),
-        ft.Column(controls=grid_rows, spacing=4, scroll=ft.ScrollMode.HIDDEN, expand=True),
-        ft.Row([
-            ft.Row(controls=effect_tags, spacing=4, expand=True, wrap=True),
-            ft.Text(f"{len(active_mods)} Mods", size=8, color=ft.Colors.WHITE_24),
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+    main_column_controls: list[ft.Control] = []
+
+    # [V9.2+] 顶部行：图标 + 名称 + 状态条（如果启用） + 帧号
+    top_row_controls: list[ft.Control] = [
+        ft.Icon(UIFormatter.get_element_icon(element), size=16, color=theme_color),
     ]
+
+    # 名称 + 状态条列
+    name_col_controls: list[ft.Control] = [
+        ft.Text(char_name, size=13, weight=ft.FontWeight.BOLD),
+    ]
+
+    # [V9.2+] 根据偏好决定是否渲染状态条
+    if show_hp_bar or show_energy_bar:
+        name_col_controls.append(
+            CharacterStatusBar(
+                curr_hp, max_hp, curr_en, max_en, theme_color,
+                show_hp=show_hp_bar,
+                show_energy=show_energy_bar
+            )
+        )
+
+    top_row_controls.append(ft.Column(name_col_controls, spacing=2, expand=True))
+    top_row_controls.append(
+        ft.Text(f"F_{frame_id}", size=9, color=ft.Colors.WHITE_10, font_family="Consolas")
+    )
+
+    main_column_controls.append(
+        ft.Row(top_row_controls, vertical_alignment=ft.CrossAxisAlignment.START)
+    )
+    main_column_controls.append(ft.Divider(height=1, color=ft.Colors.WHITE_10))
+    main_column_controls.append(ft.Column(controls=grid_rows, spacing=4, scroll=ft.ScrollMode.HIDDEN, expand=True))
+    main_column_controls.append(ft.Row([
+        ft.Row(controls=effect_tags, spacing=4, expand=True, wrap=True),
+        ft.Text(f"{len(active_mods)} Mods", size=8, color=ft.Colors.WHITE_24),
+    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
 
     return ft.Column(
         controls=main_column_controls,
@@ -187,7 +236,21 @@ def StatsDetailAudit(
     data_service: 'AnalysisDataService',
     instance_id: str
 ):
-    """展开态渲染逻辑 (Full Screen Audit & Config)"""
+    """[V9.5] 展开态渲染逻辑 - 三层响应式布局重构
+
+    布局结构：
+    ┌─────────────────────────────────────────────────────────┐
+    │ 顶部：全景看板 (Identity Header)                          │
+    │ [图标] [角色名] [━━━━━━ HP条 ━━━━━━] [━━ 能量条 ━━] [帧号] │
+    ├─────────────────────────────────────────────────────────┤
+    │ 中部：混合配置矩阵 (Hybrid Config Matrix)                 │
+    │ ┌─────────┬─────────┬─────────┬─────────┐               │
+    │ │ 生存状态 │ 基础属性 │ 进阶属性 │ 元素加成 │               │
+    │ └─────────┴─────────┴─────────┴─────────┘               │
+    ├─────────────────────────────────────────────────────────┤
+    │ 底部：动态审计详情 (Audit Panel)                          │
+    └─────────────────────────────────────────────────────────┘
+    """
     # 创建 ViewModel
     vm = ft.use_memo(
         lambda: StatsViewModel(data_service, instance_id),
@@ -198,26 +261,85 @@ def StatsDetailAudit(
     selected_stat, set_selected_stat = ft.use_state("攻击力")
 
     base_slot = data_service.get_slot("char_base")
-    frame_id = data_service.state.current_frame  # V9.2: 直接访问 vm 属性
+    frame_id = data_service.state.current_frame
 
     # 同步 ViewModel 的角色 ID
     if vm.target_char_id != char_id:
         vm.target_char_id = char_id
 
-    # [V9.3] 使用 ViewModel 的异步方法抓取快照
+    # 使用 ViewModel 的异步方法抓取快照
     def fetch_mods():
         data_service.state.run_task(vm.fetch_snapshot)
 
-    ft.use_effect(fetch_mods, [frame_id, char_id])
+    ft.use_effect(fetch_mods, [char_id])
 
     if not base_slot or not base_slot.data or char_id not in base_slot.data:
         return ft.Text("数据未就绪")
 
     # 获取当前勾选偏好
-    prefs = vm.get_display_stats() or DEFAULT_STATS
+    prefs_list = vm.get_display_stats() or DEFAULT_STATS
+    prefs = set(prefs_list)
 
-    # --- 左侧：配置列表 ---
-    def create_list_item(key: str) -> ft.Control:
+    # [V9.5] 从偏好中读取血条/能量条显示控制
+    show_hp_bar = "血条" in prefs
+    show_energy_bar = "能量条" in prefs
+
+    # 获取渲染所需数据
+    theme_color = vm.theme_color
+    element = vm.element
+    char_name = vm.char_name
+    curr_hp = vm.current_hp
+    max_hp = vm.max_hp
+    curr_en = vm.current_energy
+    max_en = vm.max_energy
+
+    # ============================================================
+    # 第一层：顶部全景看板 (Identity Header)
+    # ============================================================
+    def create_identity_header() -> ft.Control:
+        """创建顶部全景看板"""
+        # 基础控件：图标 + 名称
+        header_controls: list[ft.Control] = [
+            ft.Icon(UIFormatter.get_element_icon(element), size=20, color=theme_color),
+            ft.Text(char_name, size=16, weight=ft.FontWeight.BOLD),
+        ]
+
+        # 如果启用状态条，添加展开态状态条
+        if show_hp_bar or show_energy_bar:
+            header_controls.append(
+                ft.Container(
+                    content=CharacterStatusBar(
+                        curr_hp, max_hp, curr_en, max_en, theme_color,
+                        show_hp=show_hp_bar,
+                        show_energy=show_energy_bar,
+                        compact=False  # 展开态使用更宽的样式
+                    ),
+                    width=200,  # 给状态条一个固定宽度
+                    padding=ft.Padding(top=4, bottom=4, left=0, right=0)
+                )
+            )
+
+        # 帧号
+        header_controls.append(
+            ft.Text(f"Frame {frame_id}", size=10, color=ft.Colors.WHITE_38)
+        )
+
+        return ft.Container(
+            content=ft.Row(
+                header_controls,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER
+            ),
+            padding=ft.Padding.all(10),
+            bgcolor=ft.Colors.BLACK_26,
+            border_radius=ft.BorderRadius.all(8)
+        )
+
+    # ============================================================
+    # 第二层：中部混合配置矩阵 (Hybrid Config Matrix)
+    # ============================================================
+    def create_component_checkbox(key: str) -> ft.Control:
+        """创建组件勾选项（血条/能量条）- 无数值显示"""
         is_selected = (selected_stat == key)
         is_checked = key in prefs
 
@@ -226,75 +348,223 @@ def StatsDetailAudit(
                 ft.Checkbox(
                     value=is_checked,
                     on_change=lambda _: data_service.state.toggle_stat_preference(char_id, key),
-                    scale=0.8,
+                    scale=0.75,
                     fill_color=ft.Colors.AMBER_400
                 ),
-                ft.Text(key, size=13, weight=ft.FontWeight.BOLD if is_selected else None),
-            ], spacing=0),
-            padding=ft.padding.symmetric(horizontal=10, vertical=2),
-            bgcolor=ft.Colors.WHITE_10 if is_selected else None,
-            border_radius=8,
+                ft.Text(key, size=11, weight=ft.FontWeight.BOLD if is_selected else None, expand=True),
+            ], spacing=2, tight=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+            bgcolor=ft.Colors.AMBER_900 if is_selected else ft.Colors.WHITE_12,
+            border_radius=6,
             on_click=lambda _: set_selected_stat(key)
         )
 
-    list_controls: list[ft.Control] = [
-        ft.Text("展示配置 (勾选以在仪表盘显示)", size=12, color=ft.Colors.WHITE_38),
-        ft.Column([
-            ft.ExpansionTile(
-                title=ft.Text(gname, size=12, weight=ft.FontWeight.BOLD),
-                controls=[create_list_item(k) for k in gstats],
-                expanded=True,
-                text_color=ft.Colors.AMBER_200,
-                controls_padding=ft.padding.only(left=10)
-            ) for gname, gstats in STAT_GROUPS.items()
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
-    ]
-    left_column = ft.Column(controls=list_controls, expand=1)
+    def create_stat_checkbox(key: str) -> ft.Control:
+        """创建属性勾选项（数值项）- 带数值显示"""
+        is_selected = (selected_stat == key)
+        is_checked = key in prefs
 
-    # --- 右侧：审计面板 ---
-    total, bonus, formula = vm.calculate_stat(selected_stat)
+        # 计算属性值
+        total, bonus, _ = vm.calculate_stat(key)
+        is_pct = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
+        suffix = "%" if is_pct else ""
+        fmt = ".1f" if is_pct else ".0f"
 
-    relevant_mods = vm.get_relevant_mods(selected_stat)
-
-    modifier_list_controls: list[ft.Control] = [
-        ft.Container(
+        return ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.BOLT_ROUNDED, size=14, color=ft.Colors.AMBER_400),
-                ft.Text(m['name'], size=13, weight=ft.FontWeight.W_600, expand=True),
-                ft.Text(f"+{m['value']:.1f}", color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
-                ft.Text(f"({m['op']})", size=10, color=ft.Colors.WHITE_24)
-            ]),
-            padding=10, bgcolor=ft.Colors.WHITE_10, border_radius=8
-        ) for m in relevant_mods
-    ]
+                ft.Checkbox(
+                    value=is_checked,
+                    on_change=lambda _: data_service.state.toggle_stat_preference(char_id, key),
+                    scale=0.75,
+                    fill_color=ft.Colors.AMBER_400
+                ),
+                ft.Text(key, size=11, weight=ft.FontWeight.BOLD if is_selected else None, expand=True),
+                ft.Text(f"{total:{fmt}}{suffix}", size=11, color=ft.Colors.AMBER_100, weight=ft.FontWeight.W_600),
+            ], spacing=2, tight=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+            bgcolor=ft.Colors.AMBER_900 if is_selected else ft.Colors.WHITE_12,
+            border_radius=6,
+            on_click=lambda _: set_selected_stat(key)
+        )
 
-    right_panel_content: list[ft.Control] = [
-        ft.Text(f"{selected_stat} 审计详情", size=20, weight=ft.FontWeight.W_900),
-        ft.Container(
-            content=ft.Column([
-                ft.Text("瞬时计算公式", size=11, color=ft.Colors.WHITE_38),
-                ft.Text(formula, size=16, font_family="Consolas", color=ft.Colors.AMBER_100),
-                ft.Divider(height=20, color=ft.Colors.WHITE_10),
-                ft.Row([
-                    ft.Text("最终结果", size=12, color=ft.Colors.WHITE_54),
-                    ft.Text(f"{total:.2f}", size=24, weight=ft.FontWeight.W_900, color=ft.Colors.WHITE)
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            ]),
-            padding=20, bgcolor=ft.Colors.BLACK12, border_radius=12
-        ),
-        ft.Text(f"贡献修饰符 ({len(relevant_mods)})", size=12, weight=ft.FontWeight.BOLD),
-        ft.Column(controls=modifier_list_controls, scroll=ft.ScrollMode.ADAPTIVE, expand=True) if relevant_mods else ft.Text("当前帧无相关动态修饰符", color=ft.Colors.WHITE_24, italic=True)
-    ]
+    # [V9.5] 组件项列表（生存状态分组）
+    COMPONENT_KEYS = ["血条", "能量条"]
 
-    right_panel = ft.Container(
-        content=ft.Column(controls=right_panel_content, spacing=15),
-        padding=20,
-        expand=2,
-        bgcolor="#1A1822",
-        border_radius=12
+    # 将属性分组转换为列布局
+    group_columns: list[ft.Control] = []
+    for gname, gstats in STAT_GROUPS.items():
+        column_content: list[ft.Control] = [
+            ft.Text(gname, size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_200),
+        ]
+        for k in gstats:
+            # 根据是否为组件项选择不同的渲染方式
+            if k in COMPONENT_KEYS:
+                column_content.append(create_component_checkbox(k))
+            else:
+                column_content.append(create_stat_checkbox(k))
+
+        group_columns.append(
+            ft.Column(controls=column_content, spacing=3, expand=1)
+        )
+
+    # 属性矩阵行
+    matrix_row = ft.Row(
+        controls=group_columns,
+        spacing=15,
+        expand=True
     )
 
-    return ft.Row([left_column, ft.VerticalDivider(width=1), right_panel], expand=True, spacing=20)
+    # ============================================================
+    # 第三层：底部动态审计详情 (Audit Panel)
+    # ============================================================
+    def render_audit_panel() -> ft.Control:
+        """[V9.5] 根据选中项类型渲染不同的审计面板"""
+        # 组件配置模式：血条
+        if selected_stat == "血条":
+            hp_pct = (curr_hp / max_hp * 100) if max_hp > 0 else 0
+            return ft.Container(
+                content=ft.Column([
+                    ft.Text("当前生命值", size=10, color=ft.Colors.WHITE_38),
+                    ft.Row([
+                        ft.Text(f"{curr_hp:.0f}", size=24, weight=ft.FontWeight.W_900, color=ft.Colors.GREEN_400),
+                        ft.Text(f"/ {max_hp:.0f}", size=16, color=ft.Colors.WHITE_54),
+                    ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
+                    ft.Text(f"({hp_pct:.1f}%)", size=14, color=ft.Colors.AMBER_200),
+                    ft.ProgressBar(
+                        value=hp_pct / 100,
+                        bar_height=8,
+                        color=ft.Colors.GREEN_400,
+                        bgcolor=ft.Colors.WHITE_10,
+                        expand=True
+                    ),
+                ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.START),
+                padding=ft.Padding.all(15),
+                bgcolor="#1A1822",
+                border_radius=12,
+                expand=True
+            )
+
+        # 组件配置模式：能量条
+        elif selected_stat == "能量条":
+            en_pct = (curr_en / max_en * 100) if max_en > 0 else 0
+            return ft.Container(
+                content=ft.Column([
+                    ft.Text("当前能量", size=10, color=ft.Colors.WHITE_38),
+                    ft.Row([
+                        ft.Text(f"{curr_en:.1f}", size=24, weight=ft.FontWeight.W_900, color=theme_color),
+                        ft.Text(f"/ {max_en:.0f}", size=16, color=ft.Colors.WHITE_54),
+                    ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
+                    ft.Text(f"({en_pct:.1f}%)", size=14, color=ft.Colors.AMBER_200),
+                    ft.ProgressBar(
+                        value=en_pct / 100,
+                        bar_height=8,
+                        color=theme_color,
+                        bgcolor=ft.Colors.WHITE_10,
+                        expand=True
+                    ),
+                ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.START),
+                padding=ft.Padding.all(15),
+                bgcolor="#1A1822",
+                border_radius=12,
+                expand=True
+            )
+
+        # 面板属性审计模式
+        else:
+            return render_stat_audit()
+
+    def render_stat_audit() -> ft.Control:
+        """渲染属性审计详情（公式 + 修饰符堆栈）"""
+        total, bonus, formula = vm.calculate_stat(selected_stat)
+        relevant_mods = vm.get_relevant_mods(selected_stat)
+
+        # 判断是否为百分比属性
+        is_pct = any(x in selected_stat for x in ["率", "伤害", "充能", "加成", "效率"])
+        suffix = "%" if is_pct else ""
+
+        # 审计公式面板
+        formula_panel = ft.Container(
+            content=ft.Column([
+                ft.Text("计算公式", size=10, color=ft.Colors.WHITE_38),
+                ft.Text(formula, size=14, font_family="Consolas", color=ft.Colors.AMBER_100),
+            ], spacing=4),
+            padding=ft.Padding.all(12),
+            bgcolor=ft.Colors.BLACK_26,
+            border_radius=8,
+            expand=1
+        )
+
+        # 最终结果面板
+        result_panel = ft.Container(
+            content=ft.Column([
+                ft.Text("最终结果", size=10, color=ft.Colors.WHITE_38),
+                ft.Text(f"{total:.2f}{suffix}", size=18, weight=ft.FontWeight.W_900, color=ft.Colors.WHITE),
+            ], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding.all(12),
+            bgcolor=ft.Colors.AMBER_900,
+            border_radius=8
+        )
+
+        # 修饰符列表（横向滚动）
+        modifier_cards: list[ft.Control] = [
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.BOLT_ROUNDED, size=12, color=ft.Colors.AMBER_400),
+                    ft.Text(m['name'], size=10, weight=ft.FontWeight.W_600, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS),
+                    ft.Text(f"+{m['value']:.1f}", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
+                    ft.Text(f"({m['op']})", size=8, color=ft.Colors.WHITE_38),
+                ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.Padding.all(8),
+                bgcolor=ft.Colors.WHITE_10,
+                border_radius=6,
+                width=100
+            ) for m in relevant_mods[:8]
+        ]
+
+        modifiers_panel = ft.Column([
+            ft.Text(f"贡献修饰符 ({len(relevant_mods)})", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE_54),
+            ft.Row(
+                controls=modifier_cards if relevant_mods else [ft.Text("当前帧无相关修饰符", color=ft.Colors.WHITE_24, italic=True, size=10)],
+                spacing=8,
+                scroll=ft.ScrollMode.ADAPTIVE
+            )
+        ], spacing=6)
+
+        return ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(f"🔍 {selected_stat} 审计详情", size=14, weight=ft.FontWeight.W_800, expand=True),
+                    result_panel
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                formula_panel,
+                modifiers_panel,
+            ], spacing=10),
+            padding=ft.Padding.all(15),
+            bgcolor="#1A1822",
+            border_radius=12,
+            expand=True
+        )
+
+    # ============================================================
+    # 主布局：三层结构
+    # ============================================================
+    return ft.Column([
+        # 第一层：顶部全景看板
+        create_identity_header(),
+        # 第二层：中部混合配置矩阵
+        ft.Container(
+            content=ft.Column([
+                ft.Text("属性配置 (勾选以在仪表盘显示)", size=11, color=ft.Colors.WHITE_38),
+                matrix_row,
+            ], spacing=8),
+            padding=ft.Padding.all(10),
+            bgcolor=ft.Colors.BLACK_12,
+            border_radius=ft.BorderRadius.all(8)
+        ),
+        ft.Divider(height=1, color=ft.Colors.WHITE_10),
+        # 第三层：底部动态审计详情
+        render_audit_panel(),
+    ], spacing=10, expand=True, scroll=ft.ScrollMode.ADAPTIVE)
 
 
 class CharacterStatsTile(AnalysisTile):
