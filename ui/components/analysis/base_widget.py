@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ui.states.analysis_state import AnalysisState, DataSlot
+    from ui.states.analysis_state import AnalysisState
+    from ui.services.analysis_data_service import DataSlot
 
 class AnalysisTile(ABC):
     """
@@ -31,14 +32,14 @@ class AnalysisTile(ABC):
         """
         if not self.instance_id:
             return None
-        return await self.state.data_manager.subscribe(self.tile_type, self.instance_id)
+        return await self.state.data_service.subscribe(self.tile_type, self.instance_id)
 
     async def unsubscribe_data(self):
         """
         释放订阅，允许 DataManager 在无引用时清理内存。
         """
         if self.instance_id:
-            await self.state.data_manager.unsubscribe(self.tile_type, self.instance_id)
+            await self.state.data_service.unsubscribe(self.tile_type, self.instance_id)
 
     def on_settings_click(self, btn: ft.Control):
         """

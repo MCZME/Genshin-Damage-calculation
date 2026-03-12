@@ -3,13 +3,12 @@
 
 重构说明 (V9.2):
 - AnalysisStateModel 已删除，字段合并到 AnalysisViewModel
-- AnalysisState 简化为 ViewModel 工厂 + 兼容性代理
-- 访问路径: state.model.xxx 实际代理到 vm.xxx
+- AnalysisState 简化为 ViewModel 工厂
 
 架构分层:
 - AnalysisViewModel: 状态持有 + 业务逻辑 (ui/view_models/analysis/main_vm.py)
 - AnalysisDataService: 数据服务层，管理缓存和动态数据查询
-- AnalysisState: 工厂 + 兼容性代理层
+- AnalysisState: 工厂
 """
 from __future__ import annotations
 
@@ -33,7 +32,6 @@ class AnalysisState:
     职责：
     1. 创建并持有 AnalysisViewModel
     2. 创建并持有 DataService
-    3. 提供兼容性代理 (state.model.xxx → vm.xxx)
 
     所有业务逻辑已迁移至 AnalysisViewModel
     """
@@ -58,30 +56,6 @@ class AnalysisState:
         self.selected_audit_index: int = -1
         self.current_audit: Any | None = None
         self.audit_logs: list[Any] = []
-
-    # ============================================================
-    # 兼容性属性：model 指向 vm
-    # ============================================================
-
-    @property
-    def model(self) -> 'AnalysisViewModel':
-        """[兼容性] 代理到 ViewModel"""
-        return self.vm
-
-    @property
-    def adapter(self) -> ReviewDataAdapter | None:
-        """[兼容性] 代理到 ViewModel"""
-        return self.vm.adapter
-
-    @adapter.setter
-    def adapter(self, value: ReviewDataAdapter | None):
-        """[兼容性] 代理到 ViewModel"""
-        self.vm.adapter = value
-
-    @property
-    def data_manager(self):
-        """[兼容性] 指向 DataService"""
-        return self.data_service
 
     def _notify_update(self):
         """触发 Observable 变更通知 (供 ViewModel 调用)"""
@@ -211,14 +185,6 @@ class AnalysisState:
         """异步加载审计详情"""
         await self.vm.load_audit_detail(event_id)
 
-    def set_focus_char(self, char_id: int):
-        """设置当前分析视图关注的角色"""
-        self.vm.set_focus_char(char_id)
-
     def set_selected_event(self, event: dict[str, Any] | None):
         """设置当前选中的伤害事件"""
         self.vm.set_selected_event(event)
-
-    def _trigger_rerender(self):
-        """触发组件重新渲染"""
-        self.vm._trigger_rerender()

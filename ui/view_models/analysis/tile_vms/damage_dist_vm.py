@@ -1,10 +1,15 @@
 """
-[V9.1] 伤害分布 ViewModel
+[V9.2] 伤害分布 ViewModel
 
 职责：
 1. 从缓存获取伤害分布数据
 2. 提供脉冲图渲染所需的数据结构
 3. 处理交互事件
+
+重构说明：
+- 使用统一签名 state: AnalysisState
+- 通过 state.data_service 访问数据服务
+- 通过 state.vm 访问 ViewModel
 """
 from __future__ import annotations
 
@@ -15,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from ui.theme import GenshinTheme
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 @ft.observable
@@ -29,11 +34,11 @@ class DamageDistViewModel:
 
     def __init__(
         self,
-        data_service: 'AnalysisDataService',
+        state: 'AnalysisState',
         instance_id: str,
         on_drill_down: Callable[[dict[str, Any]], None] | None = None
     ):
-        self.data_service = data_service
+        self.state = state
         self.instance_id = instance_id
         self.on_drill_down = on_drill_down
         self.theme_color = "#6495ED"
@@ -45,19 +50,19 @@ class DamageDistViewModel:
     @property
     def loading(self) -> bool:
         """数据是否正在加载"""
-        slot = self.data_service.get_cached("damage_dist")
+        slot = self.state.data_service.get_cached("damage_dist")
         return slot.loading if slot else True
 
     @property
     def has_data(self) -> bool:
         """是否有数据"""
-        slot = self.data_service.get_cached("damage_dist")
+        slot = self.state.data_service.get_cached("damage_dist")
         return slot is not None and slot.data is not None
 
     @property
     def data(self) -> dict[str, Any]:
         """原始数据"""
-        slot = self.data_service.get_cached("damage_dist")
+        slot = self.state.data_service.get_cached("damage_dist")
         return slot.data if slot and slot.data else {}
 
     # ============================================================
@@ -130,7 +135,7 @@ class DamageDistViewModel:
 
         if abs(closest - clicked_f) < tolerance:
             f_int = int(closest)
-            self.data_service.state.set_frame(f_int)
+            self.state.vm.set_frame(f_int)
 
             # 下钻逻辑
             if self.on_drill_down:
@@ -142,7 +147,7 @@ class DamageDistViewModel:
                     drill_point['frame'] = f_int
                     self.on_drill_down(drill_point)
         else:
-            self.data_service.state.set_frame(int(clicked_f))
+            self.state.vm.set_frame(int(clicked_f))
 
     def handle_hover(
         self,

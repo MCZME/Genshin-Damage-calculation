@@ -1,9 +1,10 @@
 """
-[V9.1] 汇总统计磁贴组件
+[V9.2] 汇总统计磁贴组件
 
 重构说明：
 - 数据转换逻辑已迁移至 SummaryViewModel
 - 组件仅负责 UI 渲染
+- 使用统一签名 state: AnalysisState
 """
 import flet as ft
 from typing import TYPE_CHECKING
@@ -12,27 +13,27 @@ from ui.components.analysis.base_widget import AnalysisTile
 from ui.view_models.analysis.tile_vms.summary_vm import SummaryViewModel
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 class SummaryTile(AnalysisTile):
     """
-    [V9.1] 全局战报看板
+    [V9.2] 全局战报看板
     规格: 2x1
 
     重构说明：
     - 数据转换逻辑已迁移至 SummaryViewModel
     - 组件仅负责 UI 渲染
+    - 使用统一签名 state: AnalysisState
     """
 
-    def __init__(self, data_service: 'AnalysisDataService'):
+    def __init__(self, state: 'AnalysisState'):
         super().__init__(
             "全局战报看板",
             ft.Icons.DASHBOARD_ROUNDED,
             "summary",
-            data_service.state
+            state
         )
-        self.data_service = data_service
         self.expand = False
         self.theme_color = "#D3BC8E"
         self.gradient_top = "#2A2634"
@@ -42,7 +43,7 @@ class SummaryTile(AnalysisTile):
         """获取或创建 ViewModel"""
         if self._vm is None:
             self._vm = SummaryViewModel(
-                data_service=self.data_service,
+                state=self.state,
                 instance_id=self.instance_id or "summary_unknown"
             )
         return self._vm
@@ -50,7 +51,7 @@ class SummaryTile(AnalysisTile):
     @ft.component
     def render(self):
         vm = self._get_vm()
-        slot = self.data_service.get_slot("summary")
+        slot = self.state.data_service.get_slot("summary")
 
         # 加载状态
         if not slot or slot.loading or slot.data is None:

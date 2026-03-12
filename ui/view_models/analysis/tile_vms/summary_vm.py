@@ -1,9 +1,13 @@
 """
-[V9.1] 汇总统计 ViewModel
+[V9.2] 汇总统计 ViewModel
 
 职责：
 1. 从缓存获取汇总统计数据
 2. 提供格式化的统计指标
+
+重构说明：
+- 使用统一签名 state: AnalysisState
+- 通过 state.data_service 访问数据服务
 """
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from ui.services.ui_formatter import UIFormatter
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 @ft.observable
@@ -22,8 +26,8 @@ class SummaryViewModel:
     汇总统计 ViewModel - 从缓存获取汇总数据
     """
 
-    def __init__(self, data_service: 'AnalysisDataService', instance_id: str):
-        self.data_service = data_service
+    def __init__(self, state: 'AnalysisState', instance_id: str):
+        self.state = state
         self.instance_id = instance_id
         self.theme_color = "#D3BC8E"  # 琥珀金
 
@@ -34,13 +38,13 @@ class SummaryViewModel:
     @property
     def loading(self) -> bool:
         """数据是否正在加载"""
-        slot = self.data_service.get_cached("summary")
+        slot = self.state.data_service.get_cached("summary")
         return slot.loading if slot else True
 
     @property
     def has_data(self) -> bool:
         """是否有数据"""
-        slot = self.data_service.get_cached("summary")
+        slot = self.state.data_service.get_cached("summary")
         return slot is not None and slot.data is not None
 
     # ============================================================
@@ -50,7 +54,7 @@ class SummaryViewModel:
     @property
     def data(self) -> dict[str, Any]:
         """原始数据"""
-        slot = self.data_service.get_cached("summary")
+        slot = self.state.data_service.get_cached("summary")
         return slot.data if slot and slot.data else {}
 
     @property

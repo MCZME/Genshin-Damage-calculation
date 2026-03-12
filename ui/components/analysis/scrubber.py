@@ -1,9 +1,5 @@
 """
 [V9.2] 全局时间控制锚点
-
-重构说明 (V9.2):
-- 通过 state.model 访问 (代理到 vm)
-- 保持接口兼容性
 """
 import flet as ft
 from ui.theme import GenshinTheme
@@ -21,16 +17,14 @@ def GlobalScrubber(state: AnalysisState, on_change=None):
     """
     全局时间控制锚点 (声明式 V6.6)。
     实现拖动实时反馈与松开延迟同步。
-
-    [V9.2] state.model 代理到 vm
     """
     # 1. 局部状态：管理标尺拖动时的临时位置 (不触发全局重绘)
-    local_frame, set_local_frame = ft.use_state(state.model.current_frame)
+    local_frame, set_local_frame = ft.use_state(state.vm.current_frame)
 
     # 2. 全局状态监听：当外部触发帧跳转时同步本地状态
     ft.use_effect(
-        lambda: set_local_frame(state.model.current_frame),
-        [state.model.current_frame]
+        lambda: set_local_frame(state.vm.current_frame),
+        [state.vm.current_frame]
     )
 
     # 3. 拖动中：仅更新本地显示，确保绝对丝滑
@@ -46,7 +40,7 @@ def GlobalScrubber(state: AnalysisState, on_change=None):
             on_change(val)
 
     # 计算最大帧数
-    max_frames = max(state.model.total_frames, 1)
+    max_frames = max(state.vm.total_frames, 1)
 
     return ft.Container(
         content=ft.Row([

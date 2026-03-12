@@ -1,9 +1,10 @@
 """
-[V9.1] 伤害分布脉冲图磁贴组件
+[V9.2] 伤害分布脉冲图磁贴组件
 
 重构说明：
 - 数据转换逻辑已迁移至 DamageDistViewModel
 - 组件仅负责 UI 渲染
+- 使用统一签名 state: AnalysisState
 """
 import flet as ft
 import flet.canvas as cv
@@ -15,7 +16,7 @@ from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 # 绘制区域常量
@@ -173,10 +174,10 @@ def FrequencyHeatmap(data: dict, width: float):
 
 
 @ft.component
-def DamageCursorLayer(state: Any, canvas_height: int):
-    """游标层 (V9.2: state 为 AnalysisViewModel)"""
-    current_frame = state.current_frame
-    total_frames = max(state.total_frames, 1)
+def DamageCursorLayer(state: 'AnalysisState', canvas_height: int):
+    """游标层 (V9.2: state 为 AnalysisState)"""
+    current_frame = state.vm.current_frame
+    total_frames = max(state.vm.total_frames, 1)
     pos_ratio = current_frame / total_frames
     return ft.Container(
         bgcolor=ft.Colors.with_opacity(0.6, "#6495ED"),
@@ -272,26 +273,26 @@ def TimeAxis(total_frames: int, width: float):
 
 class DamageDistributionTile(AnalysisTile):
     """
-    [V9.1] 伤害分布脉冲图
+    [V9.2] 伤害分布脉冲图
     规格: 4x2
 
     重构说明：
     - 数据转换逻辑已迁移至 DamageDistViewModel
     - 组件仅负责 UI 渲染
+    - 使用统一签名 state: AnalysisState
     """
 
     def __init__(
         self,
-        data_service: 'AnalysisDataService',
+        state: 'AnalysisState',
         on_drill_down: Callable[[dict[str, Any]], None] | None = None
     ):
         super().__init__(
             "伤害分布脉冲图",
             ft.Icons.QUERY_STATS_ROUNDED,
             "damage_dist",
-            data_service.state
+            state
         )
-        self.data_service = data_service
         self.on_drill_down = on_drill_down
         self.expand = True
         self.canvas_height = 240
@@ -303,7 +304,7 @@ class DamageDistributionTile(AnalysisTile):
         """获取或创建 ViewModel"""
         if self._vm is None:
             self._vm = DamageDistViewModel(
-                data_service=self.data_service,
+                state=self.state,
                 instance_id=self.instance_id or "damage_dist_unknown",
                 on_drill_down=self.on_drill_down
             )
@@ -312,7 +313,7 @@ class DamageDistributionTile(AnalysisTile):
     @ft.component
     def render(self):
         vm = self._get_vm()
-        slot = self.data_service.get_slot("damage_dist")
+        slot = self.state.data_service.get_slot("damage_dist")
 
         if not slot or slot.data is None:
             return ft.Container(
@@ -360,7 +361,7 @@ class DamageDistributionTile(AnalysisTile):
                         ft.Container(
                             content=ft.Stack([
                                 isolated_canvas,
-                                DamageCursorLayer(state=self.data_service.state, canvas_height=self.canvas_height),
+                                DamageCursorLayer(state=self.state, canvas_height=self.canvas_height),
                                 # 读数面板
                                 ft.Container(
                                     content=ft.Column([
