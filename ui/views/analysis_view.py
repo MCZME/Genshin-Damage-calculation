@@ -70,7 +70,7 @@ def _create_tile_factory(state: AnalysisState) -> Callable[[str], tuple[Any, tup
             from ui.components.analysis.summary_tile import SummaryTile
             return SummaryTile(state), (2, 1)
         elif tile_type == "stats":
-            from ui.components.analysis.stats_tile import CharacterStatsTile
+            from ui.components.analysis.stats.stats_tile import CharacterStatsTile
             return CharacterStatsTile(state, iid), (2, 2)
         return None, (1, 1)
 

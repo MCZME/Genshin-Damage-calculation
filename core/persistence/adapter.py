@@ -194,12 +194,18 @@ class ReviewDataAdapter:
 
                 # 5. 效果与护盾还原 (Effect Lifecycles)
                 async with db.execute(
-                    "SELECT instance_id, effect_type, name, start_frame FROM simulation_effect_lifecycles "
+                    "SELECT instance_id, effect_type, name, start_frame, end_frame, duration FROM simulation_effect_lifecycles "
                     "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)", (sid, eid, frame_id, frame_id)
                 ) as sc:
                     async for r in sc:
-                        inst_id, eff_type, eff_name, start_f = r
-                        eff_data = {"instance_id": inst_id, "name": eff_name, "start_frame": start_f}
+                        inst_id, eff_type, eff_name, start_f, end_f, duration = r
+                        eff_data = {
+                            "instance_id": inst_id,
+                            "name": eff_name,
+                            "start_frame": start_f,
+                            "end_frame": end_f,
+                            "duration": duration
+                        }
                         
                         if eff_type == "SHIELD":
                             # 进一步查询护盾剩余量
