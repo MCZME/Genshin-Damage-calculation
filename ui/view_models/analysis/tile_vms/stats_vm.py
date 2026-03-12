@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # - 状态效果：在右区效果墙显示，始终可见无需勾选
 STAT_GROUPS: dict[str, list[str]] = {
     "基础属性": ["生命值", "攻击力", "防御力", "元素精通"],
-    "进阶属性": ["暴击率", "暴击伤害", "元素充能效率", "治疗加成", "受治疗加成", "抗打断", "护盾强效"],
+    "进阶属性": ["暴击率", "暴击伤害", "元素充能效率", "治疗加成", "受治疗加成", "护盾强效"],
     # [V9.5 Pro Fix] 拆分元素加成为两组，均衡矩阵布局
     "元素加成·上": [
         "火元素伤害加成", "水元素伤害加成", "草元素伤害加成", "雷元素伤害加成"
@@ -128,10 +128,15 @@ class StatsViewModel:
     [V9.2] 使用统一签名 state: AnalysisState
     """
 
-    def __init__(self, state: 'AnalysisState', instance_id: str):
+    def __init__(
+        self,
+        state: 'AnalysisState',
+        instance_id: str,
+        initial_char_id: int = 0
+    ):
         self.state = state
         self.instance_id = instance_id
-        self.target_char_id: int = 0
+        self.target_char_id: int = initial_char_id
         self.snapshot: dict[str, Any] | None = None
         self.loading_snapshot: bool = False
         # [V9.3] 竞态保护：请求版本控制
@@ -418,6 +423,29 @@ class StatsViewModel:
     def get_total_shield_hp(self) -> float:
         """计算总护盾量"""
         return sum(s.get('current_hp', 0) for s in self.shields)
+
+    # ============================================================
+    # 角色同步方法
+    # ============================================================
+
+    def update_char_id(self, char_id: int) -> bool:
+        """更新角色 ID，返回是否发生变化"""
+        if self.target_char_id != char_id:
+            self.target_char_id = char_id
+            return True
+        return False
+
+    # ============================================================
+    # 状态条代理方法
+    # ============================================================
+
+    def get_status_bar_selection(self) -> list[str] | None:
+        """获取状态条选中状态"""
+        return self.state.vm.get_status_bar_selection(self.instance_id)
+
+    def toggle_status_bar_selection(self, selection: str) -> None:
+        """切换状态条选中状态"""
+        self.state.vm.toggle_status_bar_selection(self.instance_id, selection)
 
     # ============================================================
     # 设置菜单

@@ -11,9 +11,11 @@
     "defaultApprovalMode": "plan",
     "plan": {
       "directory": ".gemini/plans"
-    }
+    },
+    "enableNotifications": true
   },
   "experimental": {
-    "plan": true
+    "plan": true,
+    "enableAgents": true
   }
 }

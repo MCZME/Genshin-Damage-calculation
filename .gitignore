@@ -12,3 +12,5 @@ config.json
 simulation_audit.db
 .env
 .trae
+CLAUDE.md
+.claude
