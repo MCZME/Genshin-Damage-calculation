@@ -23,9 +23,9 @@ def StatsDetailAudit(vm: StatsViewModel):
     │ 顶部：整合全景看板 (Integrated Header)                    │
     │ [图标+名称] | [自适应状态集群] | [帧号]                    │
     ├─────────────────────────────────────────────────────────┤
-    │ 二分监控矩阵 (Split Monitor Matrix)                      │
+    │ 二分监控矩阵 (Split Monitor Matrix) - expand=3           │
     │ ┌────────────────────────────┬────────────────┐          │
-    │ │ 左区 70% 配置矩阵 (4列)     │ 右区 30% 效果墙 │          │
+    │ │ 左区 70% 配置矩阵 (横向)    │ 右区 30% 效果墙 │          │
     │ │ ┌─────┬─────┬─────┬─────┐ │ [胶囊网格]      │          │
     │ │ │生存 │基础 │进阶 │元素 │ │  · 效果1        │          │
     │ │ │状态 │属性 │属性 │加成 │ │  · 效果2        │          │
@@ -33,7 +33,7 @@ def StatsDetailAudit(vm: StatsViewModel):
     │ │                            │  (内部滚动)    │          │
     │ └────────────────────────────┴────────────────┘          │
     ├─────────────────────────────────────────────────────────┤
-    │ 底部：审计面板 (Audit Panel) - expand=True               │
+    │ 底部：审计面板 (Audit Panel) - expand=2                  │
     └─────────────────────────────────────────────────────────┘
     """
     # 本地 UI 状态
@@ -112,7 +112,7 @@ def StatsDetailAudit(vm: StatsViewModel):
     # 配置矩阵复选框工厂
     # ============================================================
     def create_stat_checkbox(key: str) -> ft.Control:
-        """创建属性勾选项（数值项）- 带数值显示"""
+        """创建属性勾选项（数值项）- 适度紧凑的设计"""
         is_selected = (selected_stat == key)
         is_checked = key in prefs
 
@@ -128,14 +128,16 @@ def StatsDetailAudit(vm: StatsViewModel):
                     value=is_checked,
                     on_change=lambda _: vm.state.vm.toggle_stat_preference(vm.target_char_id, key),
                     scale=0.75,
-                    fill_color=ft.Colors.AMBER_400
+                    fill_color=ft.Colors.AMBER_400,
+                    expand=1
                 ),
-                ft.Text(key, size=11, weight=ft.FontWeight.BOLD if is_selected else None, expand=True),
-                ft.Text(f"{total:{fmt}}{suffix}", size=11, color=ft.Colors.AMBER_100, weight=ft.FontWeight.W_600),
-            ], spacing=2, tight=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Text(key, size=10, weight=ft.FontWeight.BOLD if is_selected else None, expand=4, no_wrap=True),
+                ft.Text(f"{total:{fmt}}{suffix}", size=10, color=ft.Colors.AMBER_100, weight=ft.FontWeight.W_600, expand=2),
+            ], tight=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.Padding(left=6, right=6, top=2, bottom=2),
             bgcolor=ft.Colors.AMBER_900 if is_selected else ft.Colors.WHITE_12,
             border_radius=6,
+            width=148,  # 适度放宽宽度
             on_click=lambda _: set_selected_stat(key)
         )
 
@@ -145,32 +147,34 @@ def StatsDetailAudit(vm: StatsViewModel):
     def create_split_monitor_matrix() -> ft.Control:
         """
         [V9.5 Pro V2] 创建二分监控矩阵
-        - 左区 70%: 配置矩阵 (5列，仅数值属性)
+        - 左区 70%: 配置矩阵 (横向平铺)
         - 右区 30%: 效果墙（始终显示）+ 内部滚动
         """
-        # 左区：配置矩阵 (4列) - 只包含数值属性
-        group_columns: list[ft.Control] = []
-        for gname, gstats in STAT_GROUPS.items():
-            column_content: list[ft.Control] = [
-                ft.Text(gname, size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_200),
-            ]
-            for k in gstats:
-                column_content.append(create_stat_checkbox(k))
+        # 左区：构建平铺内容
+        left_content: list[ft.Control] = [
+            ft.Text("属性配置 (勾选以在仪表盘显示)", size=11, color=ft.Colors.WHITE_38),
+        ]
 
-            group_columns.append(
-                ft.Column(controls=column_content, spacing=3, expand=1)
+        for gname, gstats in STAT_GROUPS.items():
+            left_content.append(
+                ft.Column([
+                    ft.Text(gname, size=8, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_200),
+                    ft.Row(
+                        controls=[create_stat_checkbox(k) for k in gstats],
+                        spacing=8,
+                        wrap=True
+                    )
+                ], spacing=6)
             )
 
         left_zone = ft.Container(
-            content=ft.Column([
-                ft.Text("属性配置 (勾选以在仪表盘显示)", size=11, color=ft.Colors.WHITE_38),
-                ft.Row(
-                    controls=group_columns,
-                    spacing=12,
-                    expand=True
-                ),
-            ], spacing=8),
-            padding=ft.Padding.all(10),
+            content=ft.Column(
+                controls=left_content,
+                spacing=8,
+                scroll=ft.ScrollMode.ADAPTIVE,
+                expand=True
+            ),
+            padding=ft.Padding.all(8),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=ft.BorderRadius.all(8),
             expand=7  # 70%
@@ -197,8 +201,8 @@ def StatsDetailAudit(vm: StatsViewModel):
                         scroll=ft.ScrollMode.ADAPTIVE,
                         expand=True
                     ),
-                ], spacing=6),
-                padding=ft.Padding.all(10),
+                ], spacing=6, expand=True),
+                padding=ft.Padding.all(12),
                 bgcolor=ft.Colors.BLACK_12,
                 border_radius=ft.BorderRadius.all(8),
                 expand=3  # 30%
@@ -208,9 +212,9 @@ def StatsDetailAudit(vm: StatsViewModel):
             right_zone = ft.Container(
                 content=ft.Column([
                     ft.Text("活跃效果", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE_54),
-                    ft.Text("当前无活跃效果", size=10, color=ft.Colors.WHITE_24, italic=True),
+                    ft.Text("当前无活跃效果", size=11, color=ft.Colors.WHITE_24, italic=True),
                 ], spacing=6, alignment=ft.MainAxisAlignment.CENTER, expand=True),
-                padding=ft.Padding.all(10),
+                padding=ft.Padding.all(12),
                 bgcolor=ft.Colors.BLACK_12,
                 border_radius=ft.BorderRadius.all(8),
                 expand=3,
@@ -220,24 +224,23 @@ def StatsDetailAudit(vm: StatsViewModel):
         return ft.Row([
             left_zone,
             right_zone,
-        ], spacing=8, expand=True)
+        ], spacing=8, expand=3, vertical_alignment=ft.CrossAxisAlignment.STRETCH)
 
     # ============================================================
     # 第三层：底部审计面板 (Audit Panel)
     # ============================================================
     def render_audit_panel() -> ft.Control:
-        """[V9.5 Pro V2] 根据选中项类型渲染不同的审计面板"""
+        """[V9.5 Pro V2] 根据选中项类型渲染审计面板"""
         # 组件配置模式：血条
         if selected_stat == "血条":
             hp_pct = (curr_hp / max_hp * 100) if max_hp > 0 else 0
             return ft.Container(
                 content=ft.Column([
-                    ft.Text("当前生命值", size=10, color=ft.Colors.WHITE_38),
+                    ft.Text("当前生命值", size=11, color=ft.Colors.WHITE_38),
                     ft.Row([
                         ft.Text(f"{curr_hp:.0f}", size=28, weight=ft.FontWeight.W_900, color=ft.Colors.GREEN_400),
                         ft.Text(f"/ {max_hp:.0f}", size=18, color=ft.Colors.WHITE_54),
                     ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
-                    ft.Text(f"({hp_pct:.1f}%)", size=16, color=ft.Colors.AMBER_200),
                     ft.ProgressBar(
                         value=hp_pct / 100,
                         bar_height=10,
@@ -249,7 +252,7 @@ def StatsDetailAudit(vm: StatsViewModel):
                 padding=ft.Padding.all(15),
                 bgcolor="#1A1822",
                 border_radius=12,
-                expand=True
+                expand=2
             )
 
         # 组件配置模式：能量条
@@ -257,12 +260,11 @@ def StatsDetailAudit(vm: StatsViewModel):
             en_pct = (curr_en / max_en * 100) if max_en > 0 else 0
             return ft.Container(
                 content=ft.Column([
-                    ft.Text("当前能量", size=10, color=ft.Colors.WHITE_38),
+                    ft.Text("当前能量", size=11, color=ft.Colors.WHITE_38),
                     ft.Row([
                         ft.Text(f"{curr_en:.1f}", size=28, weight=ft.FontWeight.W_900, color=theme_color),
                         ft.Text(f"/ {max_en:.0f}", size=18, color=ft.Colors.WHITE_54),
                     ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
-                    ft.Text(f"({en_pct:.1f}%)", size=16, color=ft.Colors.AMBER_200),
                     ft.ProgressBar(
                         value=en_pct / 100,
                         bar_height=10,
@@ -274,7 +276,7 @@ def StatsDetailAudit(vm: StatsViewModel):
                 padding=ft.Padding.all(15),
                 bgcolor="#1A1822",
                 border_radius=12,
-                expand=True
+                expand=2
             )
 
         # 面板属性审计模式
@@ -302,7 +304,7 @@ def StatsDetailAudit(vm: StatsViewModel):
             expand=1
         )
 
-        # 最终结果面板 - 增强视觉权重
+        # 最终结果面板
         result_panel = ft.Container(
             content=ft.Column([
                 ft.Text("最终结果", size=10, color=ft.Colors.WHITE_38),
@@ -311,27 +313,20 @@ def StatsDetailAudit(vm: StatsViewModel):
             padding=ft.Padding(left=16, right=16, top=12, bottom=12),
             bgcolor=ft.Colors.AMBER_900,
             border_radius=8,
-            gradient=ft.LinearGradient(
-                begin=ft.Alignment.CENTER_LEFT,
-                end=ft.Alignment.CENTER_RIGHT,
-                colors=[ft.Colors.AMBER_900, ft.Colors.AMBER_800]
-            )
         )
 
         # 修饰符列表（横向滚动）
         modifier_cards: list[ft.Control] = [
             ft.Container(
                 content=ft.Column([
-                    ft.Icon(ft.Icons.BOLT_ROUNDED, size=12, color=ft.Colors.AMBER_400),
                     ft.Text(m['name'], size=10, weight=ft.FontWeight.W_600, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS),
                     ft.Text(f"+{m['value']:.1f}", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
-                    ft.Text(f"({m['op']})", size=8, color=ft.Colors.WHITE_38),
                 ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 padding=ft.Padding.all(8),
                 bgcolor=ft.Colors.WHITE_10,
                 border_radius=6,
                 width=100
-            ) for m in relevant_mods[:8]
+            ) for m in relevant_mods[:10]
         ]
 
         modifiers_panel = ft.Column([
@@ -355,7 +350,7 @@ def StatsDetailAudit(vm: StatsViewModel):
             padding=ft.Padding.all(15),
             bgcolor="#1A1822",
             border_radius=12,
-            expand=True
+            expand=2
         )
 
     # ============================================================
@@ -364,16 +359,15 @@ def StatsDetailAudit(vm: StatsViewModel):
     main_controls: list[ft.Control] = [
         # 第一层：顶部整合看板
         create_integrated_header(),
-        # 第二层：二分监控矩阵
+        # 第二层：二分监控矩阵 (比例分配)
         create_split_monitor_matrix(),
         ft.Divider(height=1, color=ft.Colors.WHITE_10),
-        # 第三层：底部审计面板
+        # 第三层：底部审计面板 (比例分配)
         render_audit_panel(),
     ]
 
     return ft.Column(
         main_controls,
         spacing=10,
-        expand=True,
-        scroll=ft.ScrollMode.ADAPTIVE
+        expand=True
     )
