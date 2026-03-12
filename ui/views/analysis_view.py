@@ -3,7 +3,6 @@
 
 重构说明 (V9.2):
 - 使用简化后的 AnalysisState 和 AnalysisViewModel
-- state.model 代理到 vm，访问路径保持兼容
 - 磁贴工厂函数签名更新为接收 ViewModel
 
 职责:
@@ -53,29 +52,26 @@ def TileWrapper(
     )
 
 
-def _create_tile_factory(state: AnalysisState) -> Callable:
+def _create_tile_factory(state: AnalysisState) -> Callable[[str], tuple[Any, tuple[int, int]]]:
     """创建磁贴工厂函数 (V9.2: 接收 State)"""
-    def tile_factory(vm_arg: AnalysisViewModel, iid: str) -> tuple[Any, tuple[int, int]]:
+    def tile_factory(iid: str) -> tuple[Any, tuple[int, int]]:
         tile_type = iid.rsplit('_', 1)[0]
         # 创建下钻处理函数
         def on_drill_down(point: dict):
             state.handle_drill_down(point)
 
-        # 使用 data_service 创建磁贴实例
-        data_service = vm_arg.data_service
-
         if tile_type == "dps":
             from ui.components.analysis.dps_tile import DPSChartTile
-            return DPSChartTile(data_service, on_drill_down=on_drill_down), (2, 2)
+            return DPSChartTile(state, on_drill_down=on_drill_down), (2, 2)
         elif tile_type == "damage_dist":
             from ui.components.analysis.damage_dist_tile import DamageDistributionTile
-            return DamageDistributionTile(data_service, on_drill_down=on_drill_down), (4, 2)
+            return DamageDistributionTile(state, on_drill_down=on_drill_down), (4, 2)
         elif tile_type == "summary":
             from ui.components.analysis.summary_tile import SummaryTile
-            return SummaryTile(data_service), (2, 1)
+            return SummaryTile(state), (2, 1)
         elif tile_type == "stats":
             from ui.components.analysis.stats_tile import CharacterStatsTile
-            return CharacterStatsTile(data_service, iid), (2, 2)
+            return CharacterStatsTile(state, iid), (2, 2)
         return None, (1, 1)
 
     return tile_factory
@@ -153,7 +149,7 @@ class AnalysisView:
         def setup_resize() -> None:
             def on_resize(e: Any):
                 # 通过 State 代理触发重新渲染
-                state._trigger_rerender()
+                state._on_vm_update()
             if vm.app_state and vm.app_state.page:
                 vm.app_state.page.on_resize = on_resize
 

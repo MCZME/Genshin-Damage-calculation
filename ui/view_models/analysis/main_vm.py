@@ -3,7 +3,7 @@
 
 重构说明 (V9.2):
 - 原 AnalysisStateModel 字段已合并到此类
-- 访问路径简化: vm.current_frame (原 state.model.current_frame)
+- 访问路径简化: vm.current_frame
 - ViewModel 直接持有所有状态字段
 
 职责:
@@ -69,6 +69,11 @@ class AnalysisViewModel:
         self.tile_instance_configs: dict[str, dict[str, Any]] = {}
         self.char_display_preferences: dict[int, list[str]] = {}
         self.history_dialog_visible: bool = False
+
+        # ============================================================
+        # [V9.5 Pro V2] 状态条选中状态
+        # ============================================================
+        self.status_bar_selection: dict[str, list[str]] = {}  # instance_id -> ["血条", "能量条"]
 
         # ============================================================
         # 布局状态
@@ -183,11 +188,11 @@ class AnalysisViewModel:
     def add_tile(
         self,
         tile_type: str,
-        tile_factory: Callable[['AnalysisViewModel', str], tuple[Any, tuple[int, int]]]
+        tile_factory: Callable[[str], tuple[Any, tuple[int, int]]]
     ) -> str | None:
         """添加磁贴"""
         instance_id = f"{tile_type}_{uuid.uuid4().hex[:8]}"
-        tile_instance, grid_size = tile_factory(self, instance_id)
+        tile_instance, grid_size = tile_factory(instance_id)
 
         if not tile_instance:
             return None
@@ -232,15 +237,6 @@ class AnalysisViewModel:
             async def _unsub():
                 await self.data_service.unsubscribe(target['type'], instance_id)
             asyncio.create_task(_unsub())
-
-    def create_tile_instance(
-        self,
-        tile_type: str,
-        instance_id: str,
-        tile_factory: Callable
-    ) -> tuple[Any, tuple[int, int]] | None:
-        """创建磁贴实例 (供外部工厂调用)"""
-        return tile_factory(self, instance_id)
 
     # ============================================================
     # 会话管理
@@ -406,11 +402,6 @@ class AnalysisViewModel:
     # 角色焦点管理
     # ============================================================
 
-    def set_focus_char(self, char_id: int):
-        """设置当前分析视图关注的角色 (全局)"""
-        self.focus_char_id = char_id
-        self._notify_update()
-
     def set_tile_char(self, instance_id: str, char_id: int):
         """设置特定磁贴实例关注的角色"""
         if instance_id not in self.tile_instance_configs:
@@ -424,7 +415,13 @@ class AnalysisViewModel:
         return config.get("target_char_id") or self.focus_char_id or 0
 
     def toggle_stat_preference(self, char_id: int, stat_key: str):
-        """切换角色属性的展示偏好"""
+        """[V9.5 Pro V2] 切换角色属性的展示偏好
+
+        组件项（血条、能量条、状态效果）不受 8 项限制
+        """
+        # 组件项：控制状态条和效果墙显示，不受数量限制
+        COMPONENT_KEYS = ["血条", "能量条", "状态效果"]
+
         if char_id not in self.char_display_preferences:
             self.char_display_preferences[char_id] = []
 
@@ -432,13 +429,43 @@ class AnalysisViewModel:
         if stat_key in prefs:
             prefs.remove(stat_key)
         else:
-            if len(prefs) < 8:
+            # 组件项不受 8 项限制
+            if stat_key in COMPONENT_KEYS or len(prefs) < 8:
                 prefs.append(stat_key)
         self._notify_update()
 
     def get_stat_preferences(self, char_id: int) -> list[str]:
         """获取角色的展示偏好"""
         return self.char_display_preferences.get(char_id, [])
+
+    def toggle_status_bar_selection(self, instance_id: str, selection: str):
+        """[V9.5 Pro V2] 切换状态条选中状态 (多选支持)
+
+        Args:
+            instance_id: 磁贴实例 ID
+            selection: 要切换的状态项名称
+        """
+        if instance_id not in self.status_bar_selection:
+            self.status_bar_selection[instance_id] = []
+        
+        prefs = self.status_bar_selection[instance_id]
+        if selection in prefs:
+            prefs.remove(selection)
+        else:
+            prefs.append(selection)
+            
+        self._notify_update()
+
+    def get_status_bar_selection(self, instance_id: str) -> list[str] | None:
+        """[V9.5 Pro V2] 获取状态条选中状态
+
+        Args:
+            instance_id: 磁贴实例 ID
+
+        Returns:
+            选中项列表，若从未设置过则返回 None
+        """
+        return self.status_bar_selection.get(instance_id)
 
     def set_selected_event(self, event: dict[str, Any] | None):
         """设置当前选中的伤害事件"""
@@ -457,15 +484,6 @@ class AnalysisViewModel:
             asyncio.create_task(coro)
 
     # ============================================================
-    # 兼容性属性
-    # ============================================================
-
-    @property
-    def model(self):
-        """[兼容性] 返回 self，支持 state.model.xxx 访问模式"""
-        return self
-
-    # ============================================================
     # 内部通知
     # ============================================================
 
@@ -473,7 +491,3 @@ class AnalysisViewModel:
         """通知 State 触发 Flet 响应式更新"""
         if self._notify_callback:
             self._notify_callback()
-
-    def _trigger_rerender(self):
-        """触发组件重新渲染 (用于 resize 等外部事件)"""
-        self._notify_update()

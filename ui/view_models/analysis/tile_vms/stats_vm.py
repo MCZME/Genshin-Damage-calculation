@@ -1,10 +1,15 @@
 """
-[V9.1] 角色统计 ViewModel
+[V9.2] 角色统计 ViewModel
 
 职责：
 1. 混合使用缓存和动态查询
 2. 提供角色面板数据
 3. 计算瞬时属性
+
+重构说明：
+- 使用统一签名 state: AnalysisState
+- 通过 state.data_service 访问数据服务
+- 通过 state.vm 访问 ViewModel
 """
 from __future__ import annotations
 
@@ -14,28 +19,26 @@ from typing import TYPE_CHECKING, Any
 from ui.theme import GenshinTheme
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 # --- 属性分组常量 ---
-# [V9.5] 重构：区分"生存状态"（组件项）和"面板属性"（数值项）
-# - 血条/能量条 = 实时状态组件，控制顶部及仪表盘状态条显示
-# - 生命值/元素能量 = 面板数值项，参与计算
+# [V9.5 Pro V2] 重构：移除"生存状态"分组
+# - 血条/能量条：在顶部显示，可点击选中查看详情
+# - 状态效果：在右区效果墙显示，始终可见无需勾选
 STAT_GROUPS: dict[str, list[str]] = {
-    "生存状态": ["血条", "能量条"],  # 组件项：控制顶部状态条显示
-    "基础属性": ["生命值", "攻击力", "防御力", "元素精通"],  # 数值项
-    "进阶属性": ["暴击率", "暴击伤害", "元素充能效率", "治疗加成", "受治疗加成"],
-    "元素加成": [
-        "火元素伤害加成", "水元素伤害加成", "草元素伤害加成",
-        "雷元素伤害加成", "风元素伤害加成", "冰元素伤害加成",
-        "岩元素伤害加成", "物理伤害加成"
+    "基础属性": ["生命值", "攻击力", "防御力", "元素精通"],
+    "进阶属性": ["暴击率", "暴击伤害", "元素充能效率", "治疗加成", "受治疗加成", "抗打断", "护盾强效"],
+    # [V9.5 Pro Fix] 拆分元素加成为两组，均衡矩阵布局
+    "元素加成·上": [
+        "火元素伤害加成", "水元素伤害加成", "草元素伤害加成", "雷元素伤害加成"
     ],
-    "其他": ["抗打断", "护盾强效"]
+    "元素加成·下": [
+        "风元素伤害加成", "冰元素伤害加成", "岩元素伤害加成", "物理伤害加成"
+    ]
 }
 
 DEFAULT_STATS: list[str] = [
-    # [V9.5] 新增默认显示血条和能量条
-    "血条", "能量条",
     "攻击力", "生命值", "防御力", "元素精通",
     "暴击率", "暴击伤害", "元素充能效率", "伤害加成"
 ]
@@ -122,10 +125,11 @@ class StatsViewModel:
     角色统计 ViewModel - 演示缓存与动态查询混合
     [V9.3] 异步抓取下沉至 ViewModel，带竞态保护
     [V9.4] 字符快照查找缓存 + 计算缓存
+    [V9.2] 使用统一签名 state: AnalysisState
     """
 
-    def __init__(self, data_service: 'AnalysisDataService', instance_id: str):
-        self.data_service = data_service
+    def __init__(self, state: 'AnalysisState', instance_id: str):
+        self.state = state
         self.instance_id = instance_id
         self.target_char_id: int = 0
         self.snapshot: dict[str, Any] | None = None
@@ -146,12 +150,12 @@ class StatsViewModel:
     @property
     def frame_id(self) -> int:
         """当前帧 ID"""
-        return self.data_service.state.current_frame
+        return self.state.vm.current_frame
 
     @property
     def char_base_slot(self) -> dict[int, dict[str, Any]] | None:
         """从缓存获取角色基础属性槽位"""
-        slot = self.data_service.get_cached("char_base")
+        slot = self.state.data_service.get_cached("char_base")
         return slot.data if slot and slot.data else None
 
     @property
@@ -170,8 +174,8 @@ class StatsViewModel:
     def element(self) -> str:
         """角色元素"""
         char_name = self.char_name
-        if self.data_service.state.app_state:
-            char_map = self.data_service.state.app_state.char_map
+        if self.state.vm.app_state:
+            char_map = self.state.vm.app_state.char_map
             if char_name in char_map:
                 return str(char_map[char_name].get("element", "无"))
         return "无"
@@ -231,6 +235,52 @@ class StatsViewModel:
         return char_snap.get("active_effects", []) if char_snap else []
 
     @property
+    def active_effects_with_frames(self) -> list[dict[str, Any]]:
+        """
+        [V9.5] 返回带帧数信息的活跃效果列表
+
+        每个效果包含:
+        - name: 效果名称
+        - start_frame: 开始帧
+        - end_frame: 结束帧（可能为 None）
+        - remaining_frames: 剩余帧数
+        - total_duration_frames: 总持续时间（帧数）
+        """
+        effects = self.active_effects
+        current_frame = self.frame_id
+        result: list[dict[str, Any]] = []
+
+        for eff in effects:
+            start_f = eff.get("start_frame", 0)
+            end_f = eff.get("end_frame")
+            duration = eff.get("duration")
+
+            # 计算剩余帧数
+            if end_f is not None:
+                remaining = end_f - current_frame
+            else:
+                remaining = None  # 无限持续时间
+
+            # 计算总持续时间
+            if end_f is not None and start_f is not None:
+                total_duration = end_f - start_f
+            elif duration is not None:
+                total_duration = duration
+            else:
+                total_duration = None  # 未知总时间
+
+            result.append({
+                "name": eff.get("name", "Unknown"),
+                "instance_id": eff.get("instance_id"),
+                "start_frame": start_f,
+                "end_frame": end_f,
+                "remaining_frames": max(0, remaining) if remaining is not None else None,
+                "total_duration_frames": total_duration
+            })
+
+        return result
+
+    @property
     def shields(self) -> list[dict[str, Any]]:
         """护盾列表"""
         char_snap = self._char_snapshot
@@ -281,7 +331,7 @@ class StatsViewModel:
         """动态查询帧快照（绕过缓存）"""
         self.loading_snapshot = True
         try:
-            self.snapshot = await self.data_service.query_frame_snapshot(frame_id)
+            self.snapshot = await self.state.data_service.query_frame_snapshot(frame_id)
         finally:
             self.loading_snapshot = False
 
@@ -291,7 +341,7 @@ class StatsViewModel:
         用于从 View 层调用的主要入口
         [V9.5] 添加帧缓存保护，避免重复请求同一帧
         """
-        if not self.data_service.adapter:
+        if not self.state.data_service.adapter:
             return
 
         current_frame = self.frame_id
@@ -305,7 +355,7 @@ class StatsViewModel:
 
         self.loading_snapshot = True
         try:
-            data = await self.data_service.adapter.get_frame(current_frame)
+            data = await self.state.data_service.adapter.get_frame(current_frame)
 
             # 仅当版本匹配时更新（防止旧数据覆盖新数据）
             if self._request_version == current_version:
@@ -344,7 +394,7 @@ class StatsViewModel:
     def get_display_stats(self) -> list[str]:
         """获取用户偏好的展示属性列表"""
         char_id = self.target_char_id
-        prefs = self.data_service.state.get_stat_preferences(char_id)
+        prefs = self.state.vm.get_stat_preferences(char_id)
         return prefs if prefs else DEFAULT_STATS
 
     def get_relevant_mods(self, stat_key: str) -> list[dict[str, Any]]:
@@ -386,3 +436,57 @@ class StatsViewModel:
             name = str(stats.get("名称", f"ID:{cid}"))
             items.append((cid, name))
         return items
+
+    # ============================================================
+    # [V9.5 Pro V2] 自适应状态集群数据
+    # ============================================================
+
+    def get_status_indicators(
+        self, 
+        selection: list[str] | None = None,
+        focus_name: str | None = None,
+        always_show: bool = False
+    ) -> list[dict[str, Any]]:
+        """
+        [V9.5 Pro V2] 为 AdaptiveStatusCluster 提供配置数据
+
+        Args:
+            selection: 当前选中状态列表（如 ["血条", "能量条"]）
+            focus_name: 当前获得焦点的状态项（供审计面板使用，带高亮反馈）
+            always_show: 是否始终显示所有指标（展开模式用）
+
+        Returns:
+            指示器配置列表
+        """
+        indicators: list[dict[str, Any]] = []
+        
+        # 如果 selection 为 None，视为“未初始化的默认状态”，此时全显（show_all = True）
+        # 一旦用户进行了勾选操作（哪怕勾选后又全部取消，导致 selection 为空列表），则进入“仅显示选中项”模式，不再全显
+        show_all = selection is None
+        actual_selection = selection or []
+
+        # HP 指示器
+        hp_checked = "血条" in actual_selection
+        indicators.append({
+            "name": "HP",
+            "current": self.current_hp,
+            "maximum": self.max_hp,
+            "color": ft.Colors.GREEN_400,
+            "visible": always_show or show_all or hp_checked,
+            "checked": hp_checked,
+            "selected": focus_name == "血条"
+        })
+
+        # 能量指示器
+        energy_checked = "能量条" in actual_selection
+        indicators.append({
+            "name": "Energy",
+            "current": self.current_energy,
+            "maximum": self.max_energy,
+            "color": self.theme_color,
+            "visible": always_show or show_all or energy_checked,
+            "checked": energy_checked,
+            "selected": focus_name == "能量条"
+        })
+
+        return indicators

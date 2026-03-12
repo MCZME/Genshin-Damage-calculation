@@ -1,10 +1,15 @@
 """
-[V9.1] DPS 图表 ViewModel
+[V9.2] DPS 图表 ViewModel
 
 职责：
 1. 从缓存获取 DPS 数据
 2. 将原始数据转换为图表格式
 3. 提供图表交互所需的数据
+
+重构说明：
+- 使用统一签名 state: AnalysisState
+- 通过 state.data_service 访问数据服务
+- 通过 state.vm 访问 ViewModel
 """
 from __future__ import annotations
 
@@ -14,7 +19,7 @@ import bisect
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    from ui.services.analysis_data_service import AnalysisDataService
+    from ui.states.analysis_state import AnalysisState
 
 
 @ft.observable
@@ -25,11 +30,11 @@ class DPSChartViewModel:
 
     def __init__(
         self,
-        data_service: 'AnalysisDataService',
+        state: 'AnalysisState',
         instance_id: str,
         on_drill_down: Callable[[dict[str, Any]], None] | None = None
     ):
-        self.data_service = data_service
+        self.state = state
         self.instance_id = instance_id
         self.on_drill_down = on_drill_down
         self.theme_color = "#FFD700"
@@ -41,19 +46,19 @@ class DPSChartViewModel:
     @property
     def loading(self) -> bool:
         """数据是否正在加载"""
-        slot = self.data_service.get_cached("dps")
+        slot = self.state.data_service.get_cached("dps")
         return slot.loading if slot else True
 
     @property
     def has_data(self) -> bool:
         """是否有数据"""
-        slot = self.data_service.get_cached("dps")
+        slot = self.state.data_service.get_cached("dps")
         return slot is not None and slot.data is not None
 
     @property
     def total_frames(self) -> int:
         """总帧数 (V9.2: 直接访问 vm)"""
-        return max(self.data_service.vm.total_frames, 1)
+        return max(self.state.vm.total_frames, 1)
 
     # ============================================================
     # 数据转换
@@ -62,7 +67,7 @@ class DPSChartViewModel:
     @property
     def chart_data(self) -> list[fch.LineChartData]:
         """缓存数据 → 图表格式"""
-        slot = self.data_service.get_cached("dps")
+        slot = self.state.data_service.get_cached("dps")
         if not slot or not slot.data:
             return []
 
@@ -92,7 +97,7 @@ class DPSChartViewModel:
     @property
     def max_y(self) -> float:
         """Y 轴最大值"""
-        slot = self.data_service.get_cached("dps")
+        slot = self.state.data_service.get_cached("dps")
         if not slot or not slot.data:
             return 100
 
@@ -108,7 +113,7 @@ class DPSChartViewModel:
 
     def handle_chart_event(self, e: fch.LineChartEvent) -> None:
         """处理图表交互事件"""
-        slot = self.data_service.get_cached("dps")
+        slot = self.state.data_service.get_cached("dps")
         if not slot or not slot.data:
             return
 
@@ -117,7 +122,7 @@ class DPSChartViewModel:
 
         if e.event_type == "click" and e.x is not None:
             clicked_frame = int(e.x)
-            self.data_service.state.set_frame(clicked_frame)
+            self.state.vm.set_frame(clicked_frame)
 
             # 下钻逻辑
             if self.on_drill_down and raw_events:
