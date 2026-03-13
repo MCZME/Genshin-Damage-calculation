@@ -19,7 +19,6 @@ import flet as ft
 from typing import Any, Callable
 
 from ui.states.analysis_state import AnalysisState
-from ui.view_models.analysis.main_vm import AnalysisViewModel
 from ui.components.analysis.scrubber import GlobalScrubber
 from ui.components.analysis.floating_drawer import FloatingDrawer
 from ui.components.analysis.tile_container import TileContainer
@@ -149,7 +148,7 @@ class AnalysisView:
         def setup_resize() -> None:
             def on_resize(e: Any):
                 # 通过 State 代理触发重新渲染
-                state._on_vm_update()
+                state._notify_update()
             if vm.app_state and vm.app_state.page:
                 vm.app_state.page.on_resize = on_resize
 

@@ -4,6 +4,8 @@
 提供标准化的状态效果展示组件，支持两种模式：
 - Mini 模式：仪表盘使用，微型胶囊显示效果名前2字
 - Expanded 模式：审计详情区使用，显示全名和剩余帧数进度条
+
+[V9.6] 添加描述信息展示支持
 """
 import flet as ft
 from typing import Any
@@ -15,10 +17,12 @@ def StatusCapsule(
     remaining_frames: int | None,
     total_duration_frames: int | None,
     mode: str = "mini",
-    bgcolor: str = ft.Colors.BLACK_26
+    bgcolor: str = ft.Colors.BLACK_26,
+    description: str | None = None
 ):
     """
     [V9.5] 状态胶囊组件
+    [V9.6] 添加 description 参数
 
     Args:
         name: 效果名称
@@ -28,47 +32,59 @@ def StatusCapsule(
             - mini: 微型胶囊，用于仪表盘
             - expanded: 展开药丸状，用于审计详情区
         bgcolor: 背景颜色
+        description: 效果描述（可选）
 
     Mini 模式特性：
     - 微型胶囊，显示效果名前2字
-    - tooltip 显示完整名称
+    - tooltip 显示完整名称、描述和剩余帧数
 
     Expanded 模式特性：
     - 标准药丸状：图标 + 全名 + 剩余帧数 (如 "45F")
     - 内底部嵌入细长进度条（剩余帧/总帧，由右向左变短）
     """
     if mode == "mini":
-        return _render_mini_capsule(name, remaining_frames, bgcolor)
+        return _render_mini_capsule(name, remaining_frames, bgcolor, description)
     else:
-        return _render_expanded_capsule(name, remaining_frames, total_duration_frames, bgcolor)
+        return _render_expanded_capsule(name, remaining_frames, total_duration_frames, bgcolor, description)
 
 
 def _render_mini_capsule(
     name: str,
     remaining_frames: int | None,
-    bgcolor: str
+    bgcolor: str,
+    description: str | None = None
 ) -> ft.Control:
-    """渲染 Mini 模式胶囊（仪表盘使用）"""
+    """渲染 Mini 模式胶囊（仪表盘使用）
+
+    [V9.6.1] 样式优化：
+    - 增大字体和内边距，提升可读性
+    - 使用更鲜明的背景色（琥珀色调），增强视觉识别度
+    """
     display_name = name[:2] if len(name) > 2 else name
 
-    # 构建 tooltip 内容
+    # 构建 tooltip 内容 [V9.6] 添加描述支持
     tooltip_parts = [name]
+    if description:
+        tooltip_parts.append(description)  # 描述在名称下方
     if remaining_frames is not None:
         tooltip_parts.append(f"剩余 {remaining_frames} 帧")
     else:
         tooltip_parts.append("无限持续时间")
-    tooltip_text = "\n".join(tooltip_parts)
+    tooltip_text = "\n\n".join(tooltip_parts)  # 使用双换行分隔
+
+    # 默认使用琥珀色调，更醒目
+    effective_bgcolor = bgcolor if bgcolor != ft.Colors.BLACK_26 else ft.Colors.with_opacity(0.6, ft.Colors.AMBER_700)
 
     return ft.Container(
         content=ft.Text(
             display_name,
-            size=8,
+            size=10,  # 增大字体
             weight=ft.FontWeight.BOLD,
             color=ft.Colors.WHITE
         ),
-        bgcolor=bgcolor,
-        padding=ft.Padding(left=4, right=4, top=1, bottom=1),
-        border_radius=3,
+        bgcolor=effective_bgcolor,
+        padding=ft.Padding(left=6, right=6, top=3, bottom=3),  # 增大内边距
+        border_radius=4,
         tooltip=tooltip_text
     )
 
@@ -77,10 +93,12 @@ def _render_expanded_capsule(
     name: str,
     remaining_frames: int | None,
     total_duration_frames: int | None,
-    bgcolor: str
+    bgcolor: str,
+    description: str | None = None
 ) -> ft.Control:
     """
     渲染 Expanded 模式胶囊（审计详情区使用）
+    [V9.6] 添加描述支持（通过 tooltip 显示）
 
     布局结构：
     ┌─────────────────────────────────┐
@@ -137,15 +155,23 @@ def _render_expanded_capsule(
         padding=ft.Padding(top=2, bottom=0, left=0, right=0)
     )
 
+    # [V9.6] 构建 tooltip 内容
+    tooltip_parts = [name]
+    if description:
+        tooltip_parts.append(description)
+    if remaining_frames is not None:
+        tooltip_parts.append(f"剩余 {remaining_frames} 帧")
+    else:
+        tooltip_parts.append("无限持续时间")
+    tooltip_text = "\n\n".join(tooltip_parts)
+
     return ft.Container(
-        content=ft.Column([
-            main_row,
-            progress_bar
-        ], spacing=0),
+        content=ft.Column([main_row, progress_bar], spacing=0),
         bgcolor=bgcolor,
         padding=ft.Padding(left=8, right=8, top=6, bottom=4),
         border_radius=6,
-        width=140  # 固定宽度便于流式布局
+        width=140,  # 固定宽度便于流式布局
+        tooltip=tooltip_text
     )
 
 
@@ -157,9 +183,10 @@ def StatusCapsuleWall(
 ):
     """
     [V9.5] 仪表盘模式的状态胶囊墙（单行截断 + +N 显示）
+    [V9.6] 传递描述信息
 
     Args:
-        effects: 效果列表，每个元素需包含 name, remaining_frames, total_duration_frames
+        effects: 效果列表，每个元素需包含 name, remaining_frames, total_duration_frames, description
         max_visible: 最多显示的胶囊数量，超出显示 +N
         bgcolor: 背景颜色
     """
@@ -175,7 +202,8 @@ def StatusCapsuleWall(
             remaining_frames=eff.get("remaining_frames"),
             total_duration_frames=eff.get("total_duration_frames"),
             mode="mini",
-            bgcolor=bgcolor
+            bgcolor=bgcolor,
+            description=eff.get("description")
         )
         for eff in visible_effects
     ]
@@ -208,9 +236,10 @@ def StatusCapsuleGrid(
 ):
     """
     [V9.5] 审计模式的 Expanded 状态胶囊网格（流式布局）
+    [V9.6] 传递描述信息
 
     Args:
-        effects: 效果列表，每个元素需包含 name, remaining_frames, total_duration_frames
+        effects: 效果列表，每个元素需包含 name, remaining_frames, total_duration_frames, description
         bgcolor: 背景颜色
     """
     if not effects:
@@ -230,22 +259,15 @@ def StatusCapsuleGrid(
             remaining_frames=eff.get("remaining_frames"),
             total_duration_frames=eff.get("total_duration_frames"),
             mode="expanded",
-            bgcolor=bgcolor
+            bgcolor=bgcolor,
+            description=eff.get("description")
         )
         for eff in effects
     ]
 
-    return ft.Column([
-        ft.Text(
-            f"活跃状态效果 ({len(effects)})",
-            size=10,
-            weight=ft.FontWeight.BOLD,
-            color=ft.Colors.WHITE_54
-        ),
-        ft.Row(
-            controls=capsules,
-            spacing=8,
-            wrap=True,
-            run_spacing=8
-        )
-    ], spacing=6)
+    return ft.Row(
+        controls=capsules,
+        spacing=8,
+        wrap=True,
+        run_spacing=8
+    )
