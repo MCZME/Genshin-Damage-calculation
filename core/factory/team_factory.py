@@ -79,6 +79,9 @@ class TeamFactory:
         if artifacts_data:
             self._apply_artifacts(character, artifacts_data)
 
+        # 7. 初始化装备属性 (必须在武器和圣遗物注入后调用)
+        character.initialize_gear()
+
         return character
 
     def _apply_weapon(self, character: Any, weapon_data: Dict[str, Any]):

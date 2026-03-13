@@ -403,3 +403,25 @@ class ResultDatabase:
             return None
         adapter = ReviewDataAdapter(self.db_path, self.session_id)
         return await adapter.get_frame(frame_id)
+
+    async def record_static_modifiers(self, entity_id: int, modifiers: list[Any]) -> None:
+        """
+        记录实体的静态修饰符（武器/圣遗物）。
+
+        静态属性修饰符是永久性的，不需要帧级生命周期管理。
+        此方法直接写入数据库，不依赖事件捕获时机。
+
+        Args:
+            entity_id: 所属实体 ID
+            modifiers: 修饰符列表 (ModifierRecord 对象)
+        """
+        if not self.projector or not modifiers:
+            return
+
+        commands = self.projector.record_static_modifiers(entity_id, modifiers)
+
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA foreign_keys=ON")
+            for sql, params in commands:
+                await db.execute(sql, params)
+            await db.commit()
