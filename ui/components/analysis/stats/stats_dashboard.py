@@ -46,14 +46,7 @@ def StatsDashboard(vm: StatsViewModel):
         return ft.Column(
             controls=[
                 ft.Text(key, size=9, color=ft.Colors.WHITE_54),
-                ft.Row(
-                    controls=[
-                        ft.Text(f"{total:{fmt}}{suffix}", size=13, weight=ft.FontWeight.W_800),
-                        ft.Text(f"+{bonus:{fmt}}{suffix}" if abs(bonus) > 0.1 else "", size=8, color=ft.Colors.GREEN_400)
-                    ],
-                    spacing=2,
-                    vertical_alignment=ft.CrossAxisAlignment.END
-                )
+                ft.Text(f"{total:{fmt}}{suffix}", size=13, weight=ft.FontWeight.W_800),
             ],
             spacing=0,
             expand=1
