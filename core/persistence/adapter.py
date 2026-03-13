@@ -1,5 +1,7 @@
 import json
 from typing import Any, cast
+
+import aiosqlite
 from core.persistence.repository import SimulationRepository
 
 class ReviewDataAdapter:
@@ -137,9 +139,8 @@ class ReviewDataAdapter:
             return None
         await self._ensure_name_map(sid)
         
-        import aiosqlite 
         async with aiosqlite.connect(self.repo.db_path) as db:
-            snapshot = {
+            snapshot: dict[str, Any] = {
                 "frame": frame_id,
                 "team": [],
                 "entities": [],
@@ -150,15 +151,15 @@ class ReviewDataAdapter:
 
             for ent in active_entities:
                 eid, name, etype = ent['id'], ent['name'], ent['type']
-                entity_snapshot = {
-                    "entity_id": eid, 
-                    "name": name, 
-                    "stats": {}, 
+                entity_snapshot: dict[str, Any] = {
+                    "entity_id": eid,
+                    "name": name,
+                    "stats": {},
                     "active_modifiers": [],
                     "active_effects": [], # [V9.2] 活跃效果列表
-                    "shields": []         # [V9.2] 活跃护盾列表
+                    "shields": [],        # [V9.2] 活跃护盾列表
+                    "metrics": {}         # [V9.6] 机制指标字典
                 }
-
                 # 1. 加载基础面板 (仅角色)
                 if etype == "CHARACTER":
                     async with db.execute("SELECT base_attributes FROM simulation_characters WHERE session_id=? AND entity_id=?", (sid, eid)) as sc:
@@ -219,6 +220,16 @@ class ReviewDataAdapter:
                             entity_snapshot["shields"].append(eff_data)
                         else:
                             entity_snapshot["active_effects"].append(eff_data)
+
+                # [V9.6] 查询机制指标（用于效果描述动态数据）
+                async with db.execute(
+                    "SELECT metric_key, value FROM simulation_mechanism_metrics "
+                    "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
+                    "GROUP BY metric_key HAVING frame_id = MAX(frame_id)",
+                    (sid, eid, frame_id)
+                ) as sc:
+                    async for row in sc:
+                        entity_snapshot["metrics"][row[0]] = row[1]
 
                 if etype == "CHARACTER":
                     snapshot["team"].append(entity_snapshot)

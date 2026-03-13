@@ -17,6 +17,7 @@ import flet as ft
 from typing import TYPE_CHECKING, Any
 
 from ui.theme import GenshinTheme
+from ui.assets.descriptions import EFFECT_DESCRIPTIONS
 
 if TYPE_CHECKING:
     from ui.states.analysis_state import AnalysisState
@@ -243,6 +244,7 @@ class StatsViewModel:
     def active_effects_with_frames(self) -> list[dict[str, Any]]:
         """
         [V9.5] 返回带帧数信息的活跃效果列表
+        [V9.6] 添加描述信息，支持动态数据注入
 
         每个效果包含:
         - name: 效果名称
@@ -250,10 +252,15 @@ class StatsViewModel:
         - end_frame: 结束帧（可能为 None）
         - remaining_frames: 剩余帧数
         - total_duration_frames: 总持续时间（帧数）
+        - description: 效果描述（可能为 None）
         """
         effects = self.active_effects
         current_frame = self.frame_id
         result: list[dict[str, Any]] = []
+
+        # 获取当前角色的 metrics（用于描述模板格式化）
+        char_snap = self._char_snapshot
+        metrics = char_snap.get("metrics", {}) if char_snap else {}
 
         for eff in effects:
             start_f = eff.get("start_frame", 0)
@@ -274,13 +281,25 @@ class StatsViewModel:
             else:
                 total_duration = None  # 未知总时间
 
+            # 构建描述 [V9.6]
+            description: str | None = None
+            effect_name = eff.get("name", "Unknown")
+            if effect_name in EFFECT_DESCRIPTIONS:
+                template = EFFECT_DESCRIPTIONS[effect_name]
+                try:
+                    description = template.format(**metrics)
+                except KeyError:
+                    # 缺少必要的 metric key，使用原始模板
+                    description = template
+
             result.append({
-                "name": eff.get("name", "Unknown"),
+                "name": effect_name,
                 "instance_id": eff.get("instance_id"),
                 "start_frame": start_f,
                 "end_frame": end_f,
                 "remaining_frames": max(0, remaining) if remaining is not None else None,
-                "total_duration_frames": total_duration
+                "total_duration_frames": total_duration,
+                "description": description
             })
 
         return result

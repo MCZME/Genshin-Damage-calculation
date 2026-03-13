@@ -47,7 +47,7 @@ def CharacterStatsTileRenderer(
     # 2. 创建 ViewModel (单一实例)
     vm = ft.use_memo(
         lambda: StatsViewModel(state, instance_id, initial_char_id=char_id),
-        [instance_id]
+        [frame_id]
     )
 
     # 3. 同步 char_id

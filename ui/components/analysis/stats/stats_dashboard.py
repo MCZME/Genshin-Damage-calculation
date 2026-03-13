@@ -25,14 +25,13 @@ def StatsDashboard(vm: StatsViewModel):
     frame_id = vm.frame_id
 
     # 获取动态数据
-    active_mods = vm.active_mods
     shields = vm.shields
 
     # [V9.5] 获取带帧数信息的效果列表
     effects_with_frames = vm.active_effects_with_frames
 
     # 获取用户偏好
-    display_stats = vm.get_display_stats()
+    stat_items = vm.get_display_stats()
 
     # [V9.5 Pro V2] 获取状态条选中状态（通过 VM 代理方法）
     status_selection = vm.get_status_bar_selection()
@@ -59,9 +58,6 @@ def StatsDashboard(vm: StatsViewModel):
             spacing=0,
             expand=1
         )
-
-    # 过滤出实际的属性项
-    stat_items = [k for k in display_stats if k not in ["血条", "能量条", "状态效果"]]
 
     # 构造网格
     grid_rows: list[ft.Control] = []
@@ -134,13 +130,10 @@ def StatsDashboard(vm: StatsViewModel):
     elif shields:
         bottom_row_controls.append(shield_indicator)
 
-    bottom_row_controls.append(
-        ft.Text(f"{len(active_mods)} Mods", size=8, color=ft.Colors.WHITE_24)
-    )
-
-    main_column_controls.append(
-        ft.Row(bottom_row_controls, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-    )
+    if bottom_row_controls:
+        main_column_controls.append(
+            ft.Row(bottom_row_controls, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        )
 
     return ft.Column(
         controls=main_column_controls,

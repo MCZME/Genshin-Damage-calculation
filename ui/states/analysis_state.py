@@ -46,7 +46,7 @@ class AnalysisState:
         self.vm: AnalysisViewModel = AnalysisViewModel(app_state=app_state)
 
         # 注册响应式回调 (VM 变更时触发 Flet 响应式更新)
-        self.vm._notify_callback = self._on_vm_update
+        self.vm._notify_callback = self._notify_update
 
         # 创建 DataService 并关联
         self.data_service = AnalysisDataService(self.vm)
@@ -60,11 +60,6 @@ class AnalysisState:
     def _notify_update(self):
         """触发 Observable 变更通知 (供 ViewModel 调用)"""
         self.notify()
-        self.vm._notify_update()
-
-    def _on_vm_update(self):
-        """VM 变更时触发 Flet 响应式更新"""
-        self.notify()
 
     # ============================================================
     # 兼容性方法 (保持与现有组件的兼容性)
@@ -74,6 +69,7 @@ class AnalysisState:
     def set_frame(self, frame_id: int):
         """设置当前帧 (兼容性方法)"""
         self.vm.set_frame(frame_id)
+        self._notify_update()
 
     def set_tile_char(self, instance_id: str, char_id: int):
         """设置特定磁贴实例关注的角色 (兼容性方法)"""
