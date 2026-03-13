@@ -13,10 +13,7 @@ def init_all():
     
     # 2. 初始化日志
     logger_init()
-    
-    # 3. 日志管理：清理/压缩旧日志
-    # manage_log_files(max_files=30)
-    
+
     get_ui_logger().log_info("系统初始化完成")
 
 if __name__ == "__main__":
@@ -36,3 +33,6 @@ if __name__ == "__main__":
         port=8550, 
         view=ft.AppView.FLET_APP
     )
+
+    # 启动后管理日志文件，保留最近50个
+    manage_log_files(max_files=50)
