@@ -1,4 +1,5 @@
-from typing import Dict, Any, Optional
+from __future__ import annotations
+
 from core.context import create_context
 from core.factory.team_factory import TeamFactory
 from core.target import Target
@@ -17,7 +18,9 @@ class SimulationAssembler:
         self.repository = repository
         self.team_factory = TeamFactory(repository)
 
-    def assemble(self, config: Dict[str, Any], persistence_db: Optional[Any] = None) -> Simulator:
+    def assemble(
+        self, config: dict[str, Any], persistence_db: Any | None = None
+    ) -> tuple[Simulator, list[dict[str, Any]]]:
         """
         从配置包组装仿真实例。
 
@@ -26,7 +29,10 @@ class SimulationAssembler:
             persistence_db: 可选的持久化数据库接口。
 
         Returns:
-            Simulator: 已挂载完整 Context 和动作序列的模拟器实例。
+            tuple[Simulator, list[dict]]:
+                - Simulator: 已挂载完整 Context 和动作序列的模拟器实例。
+                - list[dict]: 静态修饰符数据列表，格式为 [{entity_id, modifiers}]，
+                  需要在异步环境中调用 persistence_db.record_static_modifiers()。
         """
         # 1. 初始化上下文环境 (自动激活系统与物理空间)
         ctx = create_context()
@@ -62,12 +68,28 @@ class SimulationAssembler:
         # 5. 构建模拟器 (注入持久化接口)
         simulator = Simulator(ctx, action_sequence, persistence_db=persistence_db)
 
-        return simulator
+        # 6. 收集静态修饰符数据 (用于后续异步持久化)
+        static_modifiers_data: list[dict[str, Any]] = []
+        if persistence_db and hasattr(persistence_db, "record_static_modifiers"):
+            for char in team.get_members():
+                if hasattr(char, "dynamic_modifiers") and char.dynamic_modifiers:
+                    static_modifiers_data.append({
+                        "entity_id": char.entity_id,
+                        "modifiers": char.dynamic_modifiers.copy()
+                    })
+
+        return simulator, static_modifiers_data
 
 
 def create_simulator_from_config(
-    config: Dict[str, Any], repository: DataRepository, persistence_db: Optional[Any] = None
+    config: dict[str, Any],
+    repository: DataRepository,
+    persistence_db: Any | None = None
 ) -> Simulator:
-    """快捷工厂函数"""
+    """快捷工厂函数（向后兼容，不返回静态修饰符数据）"""
     assembler = SimulationAssembler(repository)
-    return assembler.assemble(config, persistence_db=persistence_db)
+    simulator, _ = assembler.assemble(config, persistence_db=persistence_db)
+    return simulator
+
+
+from typing import Any

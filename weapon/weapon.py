@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 from core.context import get_context
 
@@ -20,7 +20,7 @@ class Weapon:
         id: int = 1,
         level: int = 1,
         lv: int = 1,
-        base_data: Optional[Dict[str, Any]] = None,
+        base_data: dict[str, Any] | None = None,
     ):
         self.character = character
         self.id = id
@@ -28,8 +28,8 @@ class Weapon:
         self.lv = lv
 
         try:
-            self.ctx: Optional[SimulationContext] = get_context()
-            self.event_engine: Optional[EventEngine] = (
+            self.ctx: SimulationContext | None = get_context()
+            self.event_engine: EventEngine | None = (
                 self.ctx.event_engine if self.ctx else None
             )
         except RuntimeError:
@@ -37,7 +37,7 @@ class Weapon:
             self.event_engine = None
 
         self.base_atk: float = 0.0
-        self.static_stats: Dict[str, float] = {}
+        self.static_stats: dict[str, float] = {}
 
         if base_data:
             self.name = base_data.get("name", "Unknown")
@@ -50,11 +50,22 @@ class Weapon:
             self.name = "Unknown"
 
     def apply_static_stats(self) -> None:
-        panel = self.character.attribute_data
-        panel["攻击力"] += self.base_atk
+        """通过审计链注入武器静态属性。"""
+        # 武器基础攻击力注入攻击力乘区
+        if self.base_atk > 0:
+            self.character.add_modifier(
+                source=f"武器-{self.name}",
+                stat="攻击力",
+                value=self.base_atk
+            )
+        # 副属性注入
         for attr, value in self.static_stats.items():
-            if attr in panel:
-                panel[attr] += value
+            if value > 0:
+                self.character.add_modifier(
+                    source=f"武器-{self.name}",
+                    stat=attr,
+                    value=value
+                )
 
     def skill(self) -> None:
         pass
@@ -63,7 +74,7 @@ class Weapon:
         """统一每帧逻辑更新接口"""
         pass
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "level": self.level,

@@ -100,7 +100,8 @@ class Character(CombatEntity, ABC):
         self.current_hp = 0.0
         self._last_max_hp = 0.0
 
-        self.initialize_gear()
+        # 注意：initialize_gear() 延迟到 TeamFactory 中调用
+        # 确保武器和圣遗物先注入后再初始化属性
 
     @abstractmethod
     def _setup_character_components(self) -> None:
