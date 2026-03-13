@@ -115,12 +115,16 @@ class TeamFactory:
             if not arti_data or not arti_data.get("main_stat"):
                 continue
 
+            piece = self._map_piece(arti_data.get("slot", ""))
+            if piece is None:
+                continue
+
             artifacts.append(
                 Artifact(
                     name=arti_data.get("set_name", "None"),
-                    piece=self._map_piece(arti_data.get("slot", "")),
-                    main=arti_data.get("main_stat"),
-                    sub=arti_data.get("sub_stats", []),
+                    piece=piece,
+                    main=arti_data.get("main_stat", {}),
+                    sub=arti_data.get("sub_stats", {}),
                 )
             )
 
@@ -135,8 +139,9 @@ class TeamFactory:
             "时之沙": ArtifactPiece.Sands_of_Eon,
             "空之杯": ArtifactPiece.Goblet_of_Eonothem,
             "理之冠": ArtifactPiece.Circlet_of_Logos,
-            # 兼容 UI 传参
+            # 兼容 UI 传参 (支持 plume 和 feather 两种命名)
             "flower": ArtifactPiece.Flower_of_Life,
+            "plume": ArtifactPiece.Plume_of_Death,
             "feather": ArtifactPiece.Plume_of_Death,
             "sands": ArtifactPiece.Sands_of_Eon,
             "goblet": ArtifactPiece.Goblet_of_Eonothem,
