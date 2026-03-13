@@ -14,10 +14,11 @@
 from __future__ import annotations
 
 import flet as ft
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from ui.theme import GenshinTheme
 from ui.assets.descriptions import EFFECT_DESCRIPTIONS
+from ui.view_models.analysis.tile_vms.types import AuditResult, ZonedModifier, ModifierZone, CUMULATIVE_STATS, PCT_ADDITIVE_STATS
 
 if TYPE_CHECKING:
     from ui.states.analysis_state import AnalysisState
@@ -50,10 +51,11 @@ def calculate_snapshot_stat(
     mods: list[dict[str, Any]],
     key: str,
     element: str = "Neutral"
-) -> tuple[float, float, str]:
+) -> AuditResult:
     """
     [V9.1] 核心计算引擎：基于基础快照与动态修饰符还原瞬时数值
     [V9.3] 元素加成自动合并：计算"伤害加成"时自动累加基础属性中的元素伤害加成
+    [V9.7] 返回结构化 AuditResult，支持 UI 图形化拆解
 
     Args:
         base_stats: 角色基础属性
@@ -62,7 +64,7 @@ def calculate_snapshot_stat(
         element: 角色元素类型
 
     Returns:
-        (最终值, 加成值, 公式字符串)
+        AuditResult 结构化结果
     """
     base = float(base_stats.get(key, 0.0))
     pct_bonus = float(base_stats.get(f"{key}%", 0.0))
@@ -80,8 +82,13 @@ def calculate_snapshot_stat(
     # 判断是否为百分比属性（用于公式格式化）
     is_pct_stat = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
 
-    # 计算公式追踪
-    formula = f"{base:.1f}{'%' if is_pct_stat else ''}"
+    # 识别计算范式
+    if key in CUMULATIVE_STATS:
+        paradigm: Literal["cumulative", "pct_additive", "additive"] = "cumulative"
+    elif key in PCT_ADDITIVE_STATS:
+        paradigm = "pct_additive"
+    else:
+        paradigm = "additive"
 
     # 叠加修饰符
     for m in mods:
@@ -96,28 +103,118 @@ def calculate_snapshot_stat(
         elif m_stat.replace("固定", "") in actual_keys and "固定" in m_stat:
             flat_bonus += m_val
 
-    if key in ["攻击力", "生命值", "防御力"]:
+    # 根据范式计算最终值
+    if paradigm == "cumulative":
         total = base * (1 + pct_bonus / 100) + flat_bonus
-        bonus = total - base
-        formula = f"{base:.0f} × (1 + {pct_bonus:.1f}%) + {flat_bonus:.0f}"
-        return total, bonus, formula
-
-    # 其他属性（如精通、双暴、充能）通常是平铺加法
-    total = base + flat_bonus
-    bonus = total - base
-
-    # [V9.4] 优化百分比属性格式化
-    if is_pct_stat:
-        # 基础值显示为百分比
-        formula_parts = [f"{base:.1f}%"]
-        # 加成也显示为百分比
-        if abs(flat_bonus) > 0.01:
-            formula_parts.append(f"+ {flat_bonus:.1f}%")
-        formula = " ".join(formula_parts)
+        # 累乘型公式格式化
+        formula = _format_cumulative_formula(base, pct_bonus, flat_bonus, is_pct_stat)
+    elif paradigm == "pct_additive":
+        # 百分比累加型：基础值 + 百分比加成
+        total = base + pct_bonus
+        formula = _format_pct_additive_formula(base, pct_bonus, is_pct_stat)
     else:
-        formula = f"{base:.1f} + {flat_bonus:.1f}"
+        # 纯累加型：基础值 + 固定值
+        total = base + flat_bonus
+        pct_bonus = 0.0
+        # 累加型公式格式化
+        formula = _format_additive_formula(base, flat_bonus, is_pct_stat)
 
-    return total, bonus, formula
+    return AuditResult(
+        paradigm=paradigm,
+        base=base,
+        pct_sum=pct_bonus,
+        flat_sum=flat_bonus,
+        total=total,
+        formula=formula,
+        is_pct_stat=is_pct_stat
+    )
+
+
+def _format_cumulative_formula(
+    base: float,
+    pct_bonus: float,
+    flat_bonus: float,
+    is_pct_stat: bool
+) -> str:
+    """格式化累乘型公式字符串"""
+    # 基础值
+    base_str = f"{base:.0f}{'%' if is_pct_stat else ''}"
+
+    # 百分比部分：仅在有值时显示
+    if abs(pct_bonus) > 0.01:
+        pct_str = f" × (1 + {pct_bonus:.1f}%)"
+    else:
+        pct_str = ""
+
+    # 固定值部分：仅在有值时显示
+    if abs(flat_bonus) > 0.01:
+        flat_str = f" + {flat_bonus:.0f}"
+    else:
+        flat_str = ""
+
+    return f"{base_str}{pct_str}{flat_str}"
+
+
+def _format_pct_additive_formula(
+    base: float,
+    pct_bonus: float,
+    is_pct_stat: bool
+) -> str:
+    """格式化百分比累加型公式字符串
+
+    Args:
+        base: 基础值
+        pct_bonus: 百分比加成总和
+        is_pct_stat: 是否为百分比属性
+
+    Returns:
+        格式化的公式字符串
+    """
+    if is_pct_stat:
+        # 百分比属性（如暴击率、暴击伤害、元素充能效率）
+        if abs(pct_bonus) > 0.01:
+            return f"{base:.1f}% + {pct_bonus:.1f}%"
+        return f"{base:.1f}%"
+    else:
+        # 非百分比属性（如元素精通）
+        if abs(pct_bonus) > 0.01:
+            return f"{base:.0f} + {pct_bonus:.0f}"
+        return f"{base:.0f}"
+
+
+def _format_additive_formula(
+    base: float,
+    flat_bonus: float,
+    is_pct_stat: bool
+) -> str:
+    """格式化累加型公式字符串"""
+    if is_pct_stat:
+        # 百分比属性格式化
+        formula_parts = [f"{base:.1f}%"]
+        if abs(flat_bonus) > 0.01:
+            sign = "+" if flat_bonus >= 0 else "-"
+            formula_parts.append(f"{sign} {abs(flat_bonus):.1f}%")
+        return " ".join(formula_parts)
+    else:
+        # 数值属性格式化
+        return f"{base:.1f} + {flat_bonus:.1f}"
+
+
+# 向后兼容函数
+def calculate_snapshot_stat_legacy(
+    base_stats: dict[str, Any],
+    mods: list[dict[str, Any]],
+    key: str,
+    element: str = "Neutral"
+) -> tuple[float, float, str]:
+    """
+    [V9.7] 向后兼容包装器 - 返回元组格式
+
+    保持原有签名，供旧代码调用。
+    """
+    result = calculate_snapshot_stat(base_stats, mods, key, element)
+    bonus = result.total - result.base
+    return result.total, bonus, result.formula
 
 
 @ft.observable
@@ -147,6 +244,8 @@ class StatsViewModel:
         self._char_snapshot_frame: int = -1
         # [V9.4] 计算缓存
         self._stat_cache: dict[str, tuple[float, float, str]] = {}
+        # [V9.7] 分解缓存
+        self._breakdown_cache: dict[str, tuple[AuditResult, list[ZonedModifier]]] = {}
         self._cache_frame_id: int = -1
 
     # ============================================================
@@ -316,7 +415,7 @@ class StatsViewModel:
         base_hp = float(self.char_base.get("生命值", 0))
         char_snap = self._char_snapshot
         if char_snap:
-            final_hp, _, _ = calculate_snapshot_stat(
+            final_hp, _, _ = calculate_snapshot_stat_legacy(
                 self.char_base, self.active_mods, "生命值", self.element
             )
             return float(char_snap.get("current_hp", final_hp))
@@ -328,7 +427,7 @@ class StatsViewModel:
         base_hp = float(self.char_base.get("生命值", 0))
         char_snap = self._char_snapshot
         if char_snap:
-            final_hp, _, _ = calculate_snapshot_stat(
+            final_hp, _, _ = calculate_snapshot_stat_legacy(
                 self.char_base, self.active_mods, "生命值", self.element
             )
             return final_hp
@@ -395,10 +494,20 @@ class StatsViewModel:
     def calculate_stat(self, key: str) -> tuple[float, float, str]:
         """
         [V9.4] 计算指定属性的瞬时值（带缓存）
+        [V9.7] 内部使用 AuditResult，外部返回元组格式（向后兼容）
+        [V9.10] 修复：在 snapshot 未获取或正在加载时不缓存空结果
 
         Returns:
             (最终值, 加成值, 公式字符串)
         """
+        # 如果正在加载或 snapshot 未获取，返回空结果（不缓存）
+        if self.loading_snapshot or self.snapshot is None:
+            result = calculate_snapshot_stat(
+                self.char_base, [], key, self.element
+            )
+            bonus = result.total - result.base
+            return (result.total, bonus, result.formula)
+
         # 缓存失效检测：帧 ID 变化时清空缓存
         if self._cache_frame_id != self.frame_id:
             self._stat_cache.clear()
@@ -408,12 +517,14 @@ class StatsViewModel:
         if key in self._stat_cache:
             return self._stat_cache[key]
 
-        # 计算并缓存
+        # 计算并缓存（转换为元组格式）
         result = calculate_snapshot_stat(
             self.char_base, self.active_mods, key, self.element
         )
-        self._stat_cache[key] = result
-        return result
+        bonus = result.total - result.base
+        tuple_result = (result.total, bonus, result.formula)
+        self._stat_cache[key] = tuple_result
+        return tuple_result
 
     def get_display_stats(self) -> list[str]:
         """获取用户偏好的展示属性列表"""
@@ -438,6 +549,89 @@ class StatsViewModel:
                     "op": m.get("op", "unknown")
                 })
         return relevant
+
+    def get_stat_breakdown(self, stat_key: str) -> tuple[AuditResult, list[ZonedModifier]]:
+        """
+        [V9.7] 获取属性计算的完整分解
+        [V9.10] 修复：在 snapshot 未获取或正在加载时不缓存空结果
+
+        Args:
+            stat_key: 属性名称
+
+        Returns:
+            (AuditResult 计算结果, ZonedModifier 带乘区标记的修饰符列表)
+        """
+        # 如果正在加载或 snapshot 未获取，返回空结果（不缓存）
+        if self.loading_snapshot or self.snapshot is None:
+            result = calculate_snapshot_stat(
+                self.char_base, [], stat_key, self.element
+            )
+            return result, []
+
+        # 缓存失效检测：帧 ID 变化时清空缓存
+        if self._cache_frame_id != self.frame_id:
+            self._stat_cache.clear()
+            self._breakdown_cache.clear()
+            self._cache_frame_id = self.frame_id
+
+        # 检查缓存
+        if stat_key in self._breakdown_cache:
+            return self._breakdown_cache[stat_key]
+
+        # 计算结构化结果
+        result = calculate_snapshot_stat(
+            self.char_base, self.active_mods, stat_key, self.element
+        )
+
+        # 过滤修饰符并标记乘区
+        zoned_mods: list[ZonedModifier] = []
+        search_keys = [stat_key, f"{stat_key}%", f"固定{stat_key}"]
+        if stat_key == "伤害加成":
+            search_keys.append(f"{self.element}元素伤害加成")
+
+        for m in self.active_mods:
+            m_stat = m.get("stat", "")
+            if m_stat in search_keys:
+                # 判断所属乘区
+                if "%" in m_stat:
+                    zone = ModifierZone.PERCENT
+                elif "固定" in m_stat:
+                    zone = ModifierZone.FLAT
+                else:
+                    # 直接匹配属性名的修饰符
+                    # - 累乘型属性（攻击力/生命值/防御力）：归入 BASE 区（作为基础加成）
+                    # - 其他属性（元素精通等）：归入 FLAT 区（作为固定值加成）
+                    if result.paradigm == "cumulative":
+                        zone = ModifierZone.BASE
+                    else:
+                        zone = ModifierZone.FLAT
+
+                # [V9.9] 识别来源类型
+                m_name = str(m.get("name", "Unknown"))
+                source_type = "Other"
+                
+                # 简单的名称启发式识别 (实际项目中可根据 m 中的元数据判断)
+                if any(x in m_name for x in ["之", "刃", "弓", "剑", "枪", "棒", "典"]):
+                    source_type = "Weapon"
+                elif any(x in m_name for x in ["2P", "4P", "件套", "花", "羽", "沙", "杯", "冠", "套"]):
+                    source_type = "Artifact"
+                elif any(x in m_name for x in ["天赋", "命之座", "技能"]):
+                    source_type = "Talent"
+                elif "共鸣" in m_name:
+                    source_type = "Resonance"
+
+                zoned_mods.append(ZonedModifier(
+                    name=m_name,
+                    stat=str(m_stat),
+                    value=float(m.get("value", 0.0)),
+                    op=str(m.get("op", "unknown")),
+                    zone=zone,
+                    source_type=source_type
+                ))
+
+        # 缓存结果
+        self._breakdown_cache[stat_key] = (result, zoned_mods)
+        return result, zoned_mods
 
     def get_total_shield_hp(self) -> float:
         """计算总护盾量"""

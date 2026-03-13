@@ -3,12 +3,15 @@
 
 展开态渲染逻辑 - 二分监控矩阵布局
 [V9.6] 简化为纯 UI 组件，接收 ViewModel 实例
+[V9.7] 集成自适应公式链与乘区修饰符卡片
 """
 import flet as ft
 
 from ui.view_models.analysis.tile_vms.stats_vm import StatsViewModel, STAT_GROUPS, DEFAULT_STATS
+from ui.view_models.analysis.tile_vms.types import ModifierZone
 from ui.components.analysis.stats.status_capsule import StatusCapsuleGrid
 from ui.components.analysis.stats.status_indicator import AdaptiveStatusCluster
+from ui.components.analysis.stats.formula_chain import InlineFormulaChain
 from ui.services.ui_formatter import UIFormatter
 
 
@@ -284,69 +287,75 @@ def StatsDetailAudit(vm: StatsViewModel):
             return render_stat_audit()
 
     def render_stat_audit() -> ft.Control:
-        """渲染属性审计详情（公式 + 修饰符堆栈）"""
-        total, bonus, formula = vm.calculate_stat(selected_stat)
-        relevant_mods = vm.get_relevant_mods(selected_stat)
+        """[V9.9] 渲染属性审计详情（来源分组）"""
+        
+        # 获取结构化分解数据
+        audit_result, zoned_mods = vm.get_stat_breakdown(selected_stat)
+
+        # 本地状态：高亮乘区 (使用 Any 类型避免 Flet 泛型限制)
+        highlight_zone: ModifierZone | None
+        highlight_zone, set_highlight_zone = ft.use_state(None)  # type: ignore[assignment]
+
+        def handle_zone_click(zone: ModifierZone):
+            """点击乘区切换高亮"""
+            set_highlight_zone(None if highlight_zone == zone else zone)
 
         # 判断是否为百分比属性
-        is_pct = any(x in selected_stat for x in ["率", "伤害", "充能", "加成", "效率"])
+        is_pct = audit_result.is_pct_stat
         suffix = "%" if is_pct else ""
 
-        # 审计公式面板
-        formula_panel = ft.Container(
-            content=ft.Column([
-                ft.Text("计算公式", size=10, color=ft.Colors.WHITE_38),
-                ft.Text(formula, size=14, font_family="Consolas", color=ft.Colors.AMBER_100),
+        # 内联式公式链组件（融合卡片）
+        formula_chain = InlineFormulaChain(
+            result=audit_result,
+            zoned_mods=zoned_mods,
+            highlight_zone=highlight_zone,
+            on_zone_click=handle_zone_click
+        )
+
+
+        # 计算范式标签
+        paradigm_label = "累乘型" if audit_result.paradigm == "cumulative" else "累加型"
+        paradigm_color = ft.Colors.GREEN_400 if audit_result.paradigm == "cumulative" else ft.Colors.CYAN_400
+
+        # 图例说明
+        legend_row = ft.Row([
+            ft.Row([
+                ft.Container(width=12, height=4, bgcolor=ft.Colors.AMBER_400, border_radius=2),
+                ft.Text("基础值", size=9, color=ft.Colors.WHITE_54),
             ], spacing=4),
-            padding=ft.Padding.all(12),
-            bgcolor=ft.Colors.BLACK_26,
-            border_radius=8,
-            expand=1
-        )
-
-        # 最终结果面板
-        result_panel = ft.Container(
-            content=ft.Column([
-                ft.Text("最终结果", size=10, color=ft.Colors.WHITE_38),
-                ft.Text(f"{total:.2f}{suffix}", size=22, weight=ft.FontWeight.W_900, color=ft.Colors.WHITE),
-            ], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.Padding(left=16, right=16, top=12, bottom=12),
-            bgcolor=ft.Colors.AMBER_900,
-            border_radius=8,
-        )
-
-        # 修饰符列表（横向滚动）
-        modifier_cards: list[ft.Control] = [
-            ft.Container(
-                content=ft.Column([
-                    ft.Text(m['name'], size=10, weight=ft.FontWeight.W_600, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS),
-                    ft.Text(f"+{m['value']:.1f}", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
-                ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.Padding.all(8),
-                bgcolor=ft.Colors.WHITE_10,
-                border_radius=6,
-                width=100
-            ) for m in relevant_mods[:10]
-        ]
-
-        modifiers_panel = ft.Column([
-            ft.Text(f"贡献修饰符 ({len(relevant_mods)})", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE_54),
-            ft.Row(
-                controls=modifier_cards if relevant_mods else [ft.Text("当前帧无相关修饰符", color=ft.Colors.WHITE_24, italic=True, size=10)],
-                spacing=8,
-                scroll=ft.ScrollMode.ADAPTIVE
-            )
-        ], spacing=6)
+            ft.Row([
+                ft.Container(width=12, height=4, bgcolor=ft.Colors.GREEN_400, border_radius=2),
+                ft.Text("百分比", size=9, color=ft.Colors.WHITE_54),
+            ], spacing=4),
+            ft.Row([
+                ft.Container(width=12, height=4, bgcolor=ft.Colors.CYAN_400, border_radius=2),
+                ft.Text("固定值", size=9, color=ft.Colors.WHITE_54),
+            ], spacing=4),
+        ], spacing=16)
 
         return ft.Container(
             content=ft.Column([
+                # 标题行
                 ft.Row([
-                    ft.Text(f"🔍 {selected_stat} 审计详情", size=14, weight=ft.FontWeight.W_800, expand=True),
-                    result_panel
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                formula_panel,
-                modifiers_panel,
-            ], spacing=10),
+                    ft.Column([
+                        ft.Row([
+                            ft.Icon(ft.Icons.SEARCH, size=16, color=theme_color),
+                            ft.Text(f"{selected_stat} 审计详情", size=14, weight=ft.FontWeight.W_800),
+                            ft.Container(
+                                content=ft.Text(paradigm_label, size=9, color=paradigm_color, weight=ft.FontWeight.W_600),
+                                padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+                                bgcolor=ft.Colors.WHITE_12,
+                                border_radius=4
+                            ),
+                        ], spacing=8),
+                        legend_row,
+                    ], spacing=4, expand=True),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.START),
+                
+                # 融合式公式链（包含嵌入式卡片）
+                formula_chain,
+                
+            ], spacing=15),
             padding=ft.Padding.all(15),
             bgcolor="#1A1822",
             border_radius=12,
