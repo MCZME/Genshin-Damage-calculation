@@ -24,61 +24,82 @@ class ArtifactPieceViewModel(BaseViewModel[ArtifactDataModel]):
 
     @property
     def main_stat(self) -> str:
-        return self.model.main_stat if self.model else ""
+        """主词条名称"""
+        return self.model.main_stat_name if self.model else ""
 
     def set_main_stat(self, value: str):
+        """设置主词条（名称和当前值）"""
         if self.model:
-            self.model.main_stat = value
+            current_val = self.model.main_stat_value
+            self.model.main_stat = {value: current_val}
             self.notify_update()
 
     @property
     def main_val(self) -> str:
+        """主词条数值"""
         if not self.model:
             return "0"
-        return str(self.model.raw_data.get("main_val", "0"))
+        return str(self.model.main_stat_value)
 
     def set_main_val(self, value: str):
+        """设置主词条数值"""
         if self.model:
-            self.model.main_val = value
+            current_name = self.model.main_stat_name
+            if current_name:
+                try:
+                    self.model.main_stat = {current_name: float(value)}
+                except (ValueError, TypeError):
+                    self.model.main_stat = {current_name: 0.0}
             self.notify_update()
 
     @property
     def sub_stats(self) -> list[list[str]]:
         """暴露副词条列表供 UI 循环渲染"""
-        return self.model.sub_stats if self.model else []
+        return self.model.sub_stats_list if self.model else []
 
     def update_sub_stat_key(self, index: int, new_key: str):
         """仅更新副词条的属性名"""
-        if self.model and 0 <= index < len(self.model.sub_stats):
-            current_val = self.model.sub_stats[index][1]
-            self.model.set_sub_stat(index, new_key, current_val)
-            self.notify_update()
+        if self.model:
+            sub_stats = self.model.sub_stats
+            keys = list(sub_stats.keys())
+            if 0 <= index < len(keys):
+                old_key = keys[index]
+                current_val = sub_stats[old_key]
+                # 使用新的设置方法
+                self.model.set_sub_stat_by_index(index, new_key, str(current_val))
+                self.notify_update()
 
     def update_sub_stat_value(self, index: int, new_val: str):
         """仅更新副词条的数值"""
-        if self.model and 0 <= index < len(self.model.sub_stats):
-            current_key = self.model.sub_stats[index][0]
-            self.model.set_sub_stat(index, current_key, new_val)
-            self.notify_update()
+        if self.model:
+            sub_stats = self.model.sub_stats
+            keys = list(sub_stats.keys())
+            if 0 <= index < len(keys):
+                current_key = keys[index]
+                self.model.set_sub_stat_by_index(index, current_key, new_val)
+                self.notify_update()
 
     def set_sub_stat(self, index: int, key: str, value: str):
         """同时更新属性名和数值"""
         if self.model:
-            self.model.set_sub_stat(index, key, value)
+            self.model.set_sub_stat_by_index(index, key, value)
             self.notify_update()
 
     def add_sub_stat(self):
         """添加一个新的空副词条，上限 4 个"""
         if self.model:
-            current_subs = self.model.sub_stats
-            if len(current_subs) < 4:
-                self.model.set_sub_stat(len(current_subs), "", "0")
+            sub_stats = self.model.sub_stats
+            if len(sub_stats) < 4:
+                # 添加一个空词条
+                self.model.set_sub_stat("", 0.0)
                 self.notify_update()
 
     def remove_sub_stat(self, index: int):
         """移除指定索引的副词条"""
         if self.model:
-            current_subs = self.model.sub_stats
-            if 0 <= index < len(current_subs):
-                current_subs.pop(index)
+            sub_stats = self.model.sub_stats
+            keys = list(sub_stats.keys())
+            if 0 <= index < len(keys):
+                del sub_stats[keys[index]]
+                self.model.sub_stats = sub_stats
                 self.notify_update()
