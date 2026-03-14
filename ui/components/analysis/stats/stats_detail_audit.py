@@ -8,7 +8,6 @@
 import flet as ft
 
 from ui.view_models.analysis.tile_vms.stats_vm import StatsViewModel, STAT_GROUPS, DEFAULT_STATS
-from ui.view_models.analysis.tile_vms.types import ModifierZone
 from ui.components.analysis.stats.status_capsule import StatusCapsuleGrid
 from ui.components.analysis.stats.status_indicator import AdaptiveStatusCluster
 from ui.components.analysis.stats.formula_chain import InlineFormulaChain
@@ -288,28 +287,14 @@ def StatsDetailAudit(vm: StatsViewModel):
 
     def render_stat_audit() -> ft.Control:
         """[V9.9] 渲染属性审计详情（来源分组）"""
-        
+
         # 获取结构化分解数据
         audit_result, zoned_mods = vm.get_stat_breakdown(selected_stat)
-
-        # 本地状态：高亮乘区 (使用 Any 类型避免 Flet 泛型限制)
-        highlight_zone: ModifierZone | None
-        highlight_zone, set_highlight_zone = ft.use_state(None)  # type: ignore[assignment]
-
-        def handle_zone_click(zone: ModifierZone):
-            """点击乘区切换高亮"""
-            set_highlight_zone(None if highlight_zone == zone else zone)
-
-        # 判断是否为百分比属性
-        is_pct = audit_result.is_pct_stat
-        suffix = "%" if is_pct else ""
 
         # 内联式公式链组件（融合卡片）
         formula_chain = InlineFormulaChain(
             result=audit_result,
-            zoned_mods=zoned_mods,
-            highlight_zone=highlight_zone,
-            on_zone_click=handle_zone_click
+            zoned_mods=zoned_mods
         )
 
 

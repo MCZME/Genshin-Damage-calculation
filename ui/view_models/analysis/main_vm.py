@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from core.persistence.adapter import ReviewDataAdapter
 from core.logger import get_ui_logger
+from ui.view_models.analysis.tile_vms.types import DEFAULT_STATS
 
 if TYPE_CHECKING:
     from ui.states.app_state import AppState
@@ -423,7 +424,8 @@ class AnalysisViewModel:
         COMPONENT_KEYS = ["血条", "能量条", "状态效果"]
 
         if char_id not in self.char_display_preferences:
-            self.char_display_preferences[char_id] = []
+            # [V9.12] 修复：初次设置时应基于默认列表进行切换，防止“崩溃式添加”
+            self.char_display_preferences[char_id] = list(DEFAULT_STATS)
 
         prefs = self.char_display_preferences[char_id]
         if stat_key in prefs:
@@ -446,7 +448,8 @@ class AnalysisViewModel:
             selection: 要切换的状态项名称
         """
         if instance_id not in self.status_bar_selection:
-            self.status_bar_selection[instance_id] = []
+            # [V9.11] 修复：初次从全显状态切换时，应初始化为全选，确保点击是“取消”逻辑
+            self.status_bar_selection[instance_id] = ["血条", "能量条"]
         
         prefs = self.status_bar_selection[instance_id]
         if selection in prefs:

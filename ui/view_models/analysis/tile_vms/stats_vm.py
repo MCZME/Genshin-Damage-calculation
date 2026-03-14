@@ -18,7 +18,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from ui.theme import GenshinTheme
 from ui.assets.descriptions import EFFECT_DESCRIPTIONS
-from ui.view_models.analysis.tile_vms.types import AuditResult, ZonedModifier, ModifierZone, CUMULATIVE_STATS, PCT_ADDITIVE_STATS
+from ui.view_models.analysis.tile_vms.types import (
+    AuditResult, ZonedModifier, ModifierZone, 
+    CUMULATIVE_STATS, PCT_ADDITIVE_STATS, DEFAULT_STATS
+)
 
 if TYPE_CHECKING:
     from ui.states.analysis_state import AnalysisState
@@ -707,7 +710,8 @@ class StatsViewModel:
         actual_selection = selection or []
 
         # HP 指示器
-        hp_checked = "血条" in actual_selection
+        # [V9.11] 修复：Default 状态 (None) 下应视为选中
+        hp_checked = show_all or ("血条" in actual_selection)
         indicators.append({
             "name": "HP",
             "current": self.current_hp,
@@ -719,7 +723,8 @@ class StatsViewModel:
         })
 
         # 能量指示器
-        energy_checked = "能量条" in actual_selection
+        # [V9.11] 修复：Default 状态 (None) 下应视为选中
+        energy_checked = show_all or ("能量条" in actual_selection)
         indicators.append({
             "name": "Energy",
             "current": self.current_energy,

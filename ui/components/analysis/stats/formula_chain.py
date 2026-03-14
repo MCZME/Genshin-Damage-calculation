@@ -4,8 +4,6 @@
 提供融合式的计算链展示，修饰符卡片直接嵌入公式中。
 """
 import flet as ft
-from typing import Callable
-
 from ui.view_models.analysis.tile_vms.types import AuditResult, ZonedModifier, ModifierZone
 
 
@@ -16,13 +14,6 @@ ZONE_COLORS: dict[ModifierZone, str] = {
     ModifierZone.FLAT: ft.Colors.CYAN_400,       # 青蓝色 - 固定值区
 }
 
-# 高亮颜色方案（选中状态）
-ZONE_HIGHLIGHT_COLORS: dict[ModifierZone, str] = {
-    ModifierZone.BASE: ft.Colors.AMBER_200,
-    ModifierZone.PERCENT: ft.Colors.GREEN_200,
-    ModifierZone.FLAT: ft.Colors.CYAN_200,
-}
-
 # 负值颜色
 NEGATIVE_COLOR = ft.Colors.RED_400
 
@@ -30,8 +21,7 @@ NEGATIVE_COLOR = ft.Colors.RED_400
 @ft.component
 def ModifierInlineCard(
     modifier: ZonedModifier,
-    is_highlighted: bool = False,
-    on_click: Callable[[ModifierZone], None] | None = None
+    is_highlighted: bool = False
 ) -> ft.Control:
     """
     内联修饰符卡片 - 紧凑设计，嵌入公式链中
@@ -46,7 +36,6 @@ def ModifierInlineCard(
     Args:
         modifier: 修饰符数据
         is_highlighted: 是否高亮
-        on_click: 点击回调（传递乘区）
     """
     zone_color = ZONE_COLORS.get(modifier.zone, ft.Colors.WHITE)
 
@@ -61,11 +50,7 @@ def ModifierInlineCard(
     value_text = f"{value_sign}{value_abs:.1f}{'%' if is_pct else ''}"
 
     # 高亮边框
-    border = ft.border.all(2, zone_color) if is_highlighted else ft.border.all(1, ft.Colors.WHITE_24)
-
-    def handle_click(_):
-        if on_click:
-            on_click(modifier.zone)
+    border = ft.Border.all(2, zone_color) if is_highlighted else ft.Border.all(1, ft.Colors.WHITE_24)
 
     return ft.Container(
         content=ft.Column([
@@ -89,8 +74,7 @@ def ModifierInlineCard(
         bgcolor=ft.Colors.WHITE_12 if is_highlighted else ft.Colors.WHITE_10,
         border_radius=4,
         width=72,
-        border=border,
-        on_click=handle_click
+        border=border
     )
 
 
@@ -123,9 +107,7 @@ def ZoneSummaryRow(
 @ft.component
 def InlineFormulaChain(
     result: AuditResult,
-    zoned_mods: list[ZonedModifier],
-    highlight_zone: ModifierZone | None = None,
-    on_zone_click: Callable[[ModifierZone], None] | None = None
+    zoned_mods: list[ZonedModifier]
 ) -> ft.Control:
     """
     内联式公式链 - 卡片直接嵌入公式中
@@ -137,8 +119,6 @@ def InlineFormulaChain(
     Args:
         result: 审计计算结果
         zoned_mods: 分区后的修饰符列表
-        highlight_zone: 当前高亮的乘区
-        on_zone_click: 乘区点击回调
     """
     # 按乘区分组修饰符
     flat_mods = [m for m in zoned_mods if m.zone == ModifierZone.FLAT]
@@ -167,11 +147,7 @@ def InlineFormulaChain(
         for i, m in enumerate(mods[:6]):
             if i > 0:
                 card_row_controls.append(ft.Text("+", size=10, color=ft.Colors.WHITE_24))
-            card_row_controls.append(ModifierInlineCard(
-                m,
-                highlight_zone == zone,
-                on_zone_click
-            ))
+            card_row_controls.append(ModifierInlineCard(m))
 
         # 2. 域的总和行 (自带上边框作为分割线)
         domain_color = ZONE_COLORS.get(zone, ft.Colors.WHITE)
@@ -183,7 +159,7 @@ def InlineFormulaChain(
                 ft.Text("总和:", size=10, color=ft.Colors.WHITE_54),
                 ft.Text(sum_text, size=13, color=domain_color, weight=ft.FontWeight.W_800),
             ], spacing=4, alignment=ft.MainAxisAlignment.CENTER, tight=True),
-            border=ft.border.only(top=ft.BorderSide(1, ft.Colors.WHITE_10)),
+            border=ft.Border.only(top=ft.BorderSide(1, ft.Colors.WHITE_10)),
             padding=ft.padding.only(top=6),
             margin=ft.margin.only(top=2)
         )
@@ -196,7 +172,7 @@ def InlineFormulaChain(
                     sum_section
                 ], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
                 padding=ft.Padding.all(8),
-                border=ft.border.all(1, ft.Colors.WHITE_10),
+                border=ft.Border.all(1, ft.Colors.WHITE_10),
                 border_radius=8,
                 bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
             )
@@ -211,8 +187,7 @@ def InlineFormulaChain(
         domain_blocks.append(ft.Column([
             ft.Container(
                 content=ft.Text(f"{result.base:.0f}{suffix}", size=14, color=ZONE_COLORS[ModifierZone.BASE], weight=ft.FontWeight.BOLD),
-                padding=ft.Padding(left=4, right=4, top=2, bottom=2),
-                on_click=lambda _: on_zone_click(ModifierZone.BASE) if on_zone_click else None
+                padding=ft.Padding(left=4, right=4, top=2, bottom=2)
             ),
             ft.Text("基础白值", size=10, color=ft.Colors.WHITE_38)
         ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True))
@@ -245,8 +220,7 @@ def InlineFormulaChain(
         domain_blocks.append(ft.Column([
             ft.Container(
                 content=ft.Text(f"{result.base:.1f}{suffix}", size=14, color=ZONE_COLORS[ModifierZone.BASE], weight=ft.FontWeight.BOLD),
-                padding=ft.Padding(left=4, right=4, top=2, bottom=2),
-                on_click=lambda _: on_zone_click(ModifierZone.BASE) if on_zone_click else None
+                padding=ft.Padding(left=4, right=4, top=2, bottom=2)
             ),
             ft.Text("基础值", size=10, color=ft.Colors.WHITE_38)
         ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True))
@@ -264,8 +238,7 @@ def InlineFormulaChain(
         domain_blocks.append(ft.Column([
             ft.Container(
                 content=ft.Text(f"{result.base:.1f}{suffix}", size=14, color=ZONE_COLORS[ModifierZone.BASE], weight=ft.FontWeight.BOLD),
-                padding=ft.Padding(left=4, right=4, top=2, bottom=2),
-                on_click=lambda _: on_zone_click(ModifierZone.BASE) if on_zone_click else None
+                padding=ft.Padding(left=4, right=4, top=2, bottom=2)
             ),
             ft.Text("基础值", size=10, color=ft.Colors.WHITE_38)
         ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True))
@@ -333,7 +306,7 @@ def ZonedModifierCard(
     value_text = f"{value_sign}{value_abs:.1f}{'%' if is_pct else ''}"
 
     # 高亮边框
-    border = ft.border.all(2, zone_color) if is_highlighted else None
+    border = ft.Border.all(2, zone_color) if is_highlighted else None
 
     return ft.Container(
         content=ft.Row([
