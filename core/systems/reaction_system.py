@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+﻿from typing import Any, Dict, List, Tuple
 
 from core.systems.contract.attack import AttackConfig
 from core.systems.contract.damage import Damage
@@ -13,7 +13,6 @@ from core.logger import get_emulation_logger
 from core.mechanics.aura import Element
 from core.systems.base_system import GameSystem
 from core.tool import get_current_time, get_reaction_multiplier
-from core.action.attack_tag_resolver import AttackCategory
 
 
 class ReactionSystem(GameSystem):
@@ -76,7 +75,7 @@ class ReactionSystem(GameSystem):
             damage_multiplier=(0.0,),
             element=(Element.PYRO, 0.0),
             config=AttackConfig(
-                attack_tag=AttackCategory.REACTION.name,
+                attack_tag="燃烧伤害",
                 hitbox=HitboxConfig(shape=AOEShape.SPHERE, radius=1.0),
             ),
             name="燃烧伤害",
@@ -106,10 +105,15 @@ class ReactionSystem(GameSystem):
 
         level_mult = get_reaction_multiplier(source_char.level)
 
+        # 构建符合物理定义的攻击标签
+        tag = f"{r_type.value}伤害"
+        if r_type == ElementalReactionType.SWIRL:
+            tag = f"扩散{element.value}伤害"
+
         dmg = Damage(
             damage_multiplier=(0.0,),
             element=(element, 0.0),
-            config=AttackConfig(attack_tag=AttackCategory.REACTION.name),
+            config=AttackConfig(attack_tag=tag),
             name=r_type.value,
         )
         dmg.add_data("等级系数", level_mult)
