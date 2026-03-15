@@ -1,47 +1,63 @@
-from enum import Enum, auto
-from typing import Sequence, Set, Optional, Union
-
-class AttackCategory(Enum):
-    """攻击所属的高级分类。"""
-    NORMAL = auto()
-    CHARGED = auto()
-    PLUNGING = auto()
-    SKILL = auto()
-    BURST = auto()
-    REACTION = auto()
-    ELEMENTAL = auto()  # 只要带元素都算
-    PHYSICAL = auto()   # 纯物理
+from typing import Sequence, Optional
 
 class AttackTagResolver:
     """
-    负责解析攻击标签 (attack_tag) 并将其映射到逻辑分类。
+    [V2.5] 攻击标签判定器：仅针对普通攻击序列执行语义归约。
+    提供剧变反应判定与标准标签判定功能。
     """
     
+    # 极简归约映射表：仅处理普通攻击的连段标签
+    _STRICT_MAP = {
+        "普通攻击1": "普通攻击",
+        "普通攻击2": "普通攻击",
+        "普通攻击3": "普通攻击",
+        "普通攻击4": "普通攻击",
+        "普通攻击5": "普通攻击",
+        "普通攻击6": "普通攻击",
+    }
+
+    # 剧变反应物理标签全集 (基于 V2.5 规范)
+    TRANSFORMATIVE_TAGS = {
+        "超导伤害",
+        "自身扩散火伤害", "自身扩散水伤害", "自身扩散雷伤害", "自身扩散冰伤害",
+        "扩散火伤害", "扩散水伤害", "扩散雷伤害", "扩散冰伤害",
+        "碎冰伤害",
+        "超载伤害",
+        "感电伤害",
+        "燃烧伤害",
+        "撞击伤害",
+        "绽放伤害",
+        "烈绽放伤害",
+        "超绽放伤害",
+        "另类绽放伤害"
+    }
+
     @staticmethod
-    def resolve_categories(main_tag: Union[str, AttackCategory], extra_tags: Optional[Sequence[Union[str, AttackCategory]]] = None) -> Set[AttackCategory]:
+    def check(target_tag: str, main_tag: str, extra_tags: Optional[Sequence[str]] = None) -> bool:
         """
-        根据标签列表解析出所属的分类集合。
-        支持传入原生字符串标签或已解析的 AttackCategory 枚举。
+        判断目标标准标签 (target_tag) 是否匹配输入的原始标签集。
         """
-        raw_tags = [main_tag]
+        if AttackTagResolver._STRICT_MAP.get(main_tag, main_tag) == target_tag:
+            return True
+            
         if extra_tags:
-            raw_tags.extend(extra_tags)
+            for tag in extra_tags:
+                if AttackTagResolver._STRICT_MAP.get(tag, tag) == target_tag:
+                    return True
+                    
+        return False
+
+    @staticmethod
+    def is_transformative(main_tag: str, extra_tags: Optional[Sequence[str]] = None) -> bool:
+        """
+        判断当前伤害是否属于剧变反应路径。
+        用于 DamagePipeline Stage 5 的公式路由决策。
+        """
+        if main_tag in AttackTagResolver.TRANSFORMATIVE_TAGS:
+            return True
             
-        categories: Set[AttackCategory] = set()
-        
-        for tag in raw_tags:
-            if isinstance(tag, AttackCategory):
-                categories.add(tag)
-                continue
-                
-            # 字符串解析逻辑
-            if not isinstance(tag, str):
-                continue
-                
-            if "普通攻击" in tag: categories.add(AttackCategory.NORMAL)
-            if "重击" in tag: categories.add(AttackCategory.CHARGED)
-            if "下落攻击" in tag: categories.add(AttackCategory.PLUNGING)
-            if "元素战技" in tag: categories.add(AttackCategory.SKILL)
-            if "元素爆发" in tag: categories.add(AttackCategory.BURST)
-            
-        return categories
+        if extra_tags:
+            for tag in extra_tags:
+                if tag in AttackTagResolver.TRANSFORMATIVE_TAGS:
+                    return True
+        return False
