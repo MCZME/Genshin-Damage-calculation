@@ -7,6 +7,7 @@ from core.systems.utils import AttributeCalculator
 from core.mechanics.aura import Element
 from core.systems.contract.healing import Healing, HealingType
 from core.tool import get_current_time
+from core.action.attack_tag_resolver import AttackTagResolver
 from character.FONTAINE.furina.data import ELEMENTAL_BURST_DATA
 
 
@@ -56,6 +57,7 @@ class FurinaFanfareEffect(BaseEffect):
         self.owner.event_engine.unsubscribe(EventType.BEFORE_CALCULATE, self)
         self.owner.event_engine.unsubscribe(EventType.BEFORE_HEAL, self)
 
+        # 清理 C2 修饰符
         self.owner.dynamic_modifiers = [
             m for m in self.owner.dynamic_modifiers if m.source != "芙宁娜C2生命加成"
         ]
@@ -94,7 +96,8 @@ class FurinaFanfareEffect(BaseEffect):
         if amount <= 0:
             return
 
-        max_hp = AttributeCalculator.get_final_hp(target)
+        # 适配 V2.5: 统一获取动态最大生命值
+        max_hp = AttributeCalculator.get_val_by_name(target, "生命值")
         if max_hp <= 0:
             return
 
@@ -103,10 +106,12 @@ class FurinaFanfareEffect(BaseEffect):
         old_points = self.points
         self.points += change_points
 
+        # C2 溢出转化逻辑
         if self.owner.constellation_level >= 2:
             if self.points > self.max_points:
                 overflow = self.points - self.max_points
                 hp_bonus = min(140.0, overflow * 0.35)
+                # 更新角色面板修饰符
                 self.owner.dynamic_modifiers = [
                     m
                     for m in self.owner.dynamic_modifiers
@@ -149,7 +154,7 @@ class FurinaCenterOfAttentionHeal(BaseEffect):
             self.timer = 0
 
     def _do_team_heal(self):
-        hp = AttributeCalculator.get_final_hp(self.owner)
+        hp = AttributeCalculator.get_val_by_name(self.owner, "生命值")
         heal_val = hp * 0.04
 
         if self.owner.ctx.space and self.owner.ctx.space.team:
@@ -217,19 +222,17 @@ class FurinaCenterOfAttentionEffect(BaseEffect):
         if not dmg_ctx:
             return
 
-        from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
-
-        tags = AttackTagResolver.resolve_categories(
-            dmg_ctx.config.attack_tag, dmg_ctx.config.extra_attack_tags
+        # 适配 V2.5: 使用 AttackTagResolver.check
+        is_normal_type = (
+            AttackTagResolver.check("普通攻击", dmg_ctx.damage.config.attack_tag, dmg_ctx.damage.config.extra_attack_tags) or
+            AttackTagResolver.check("重击", dmg_ctx.damage.config.attack_tag, dmg_ctx.damage.config.extra_attack_tags) or
+            AttackTagResolver.check("下落攻击", dmg_ctx.damage.config.attack_tag, dmg_ctx.damage.config.extra_attack_tags)
         )
-        if not (
-            AttackCategory.NORMAL in tags
-            or AttackCategory.CHARGED in tags
-            or AttackCategory.PLUNGING in tags
-        ):
+        
+        if not is_normal_type:
             return
 
-        max_hp = AttributeCalculator.get_final_hp(self.owner)
+        max_hp = AttributeCalculator.get_val_by_name(self.owner, "生命值")
         bonus_val = max_hp * 0.18
         if self.owner.arkhe_mode == "芒":
             bonus_val = max_hp * 0.43
@@ -243,16 +246,14 @@ class FurinaCenterOfAttentionEffect(BaseEffect):
         if not dmg or dmg.source != self.owner:
             return
 
-        from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
-
-        tags = AttackTagResolver.resolve_categories(
-            dmg.config.attack_tag, dmg.config.extra_attack_tags
+        # 适配 V2.5: 使用 AttackTagResolver.check
+        is_normal_type = (
+            AttackTagResolver.check("普通攻击", dmg.config.attack_tag, dmg.config.extra_attack_tags) or
+            AttackTagResolver.check("重击", dmg.config.attack_tag, dmg.config.extra_attack_tags) or
+            AttackTagResolver.check("下落攻击", dmg.config.attack_tag, dmg.config.extra_attack_tags)
         )
-        if not (
-            AttackCategory.NORMAL in tags
-            or AttackCategory.CHARGED in tags
-            or AttackCategory.PLUNGING in tags
-        ):
+
+        if not is_normal_type:
             return
 
         mode = self.owner.arkhe_mode
