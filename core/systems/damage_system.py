@@ -10,13 +10,14 @@ from core.mechanics.aura import Element
 from core.config import Config
 from core.logger import get_emulation_logger
 from core.tool import get_current_time
+from core.action.attack_tag_resolver import AttackTagResolver
 
 if TYPE_CHECKING:
     from core.context import EventEngine
     from core.systems.contract.damage import Damage
 
 class DamageContext:
-    """伤害计算上下文 (支持全过程审计)。"""
+    """伤害计算上下文 (V2.5 审计状态机)。"""
 
     def __init__(self, damage: Damage, source: Any, target: Any | None = None):
         self.damage = damage
@@ -24,29 +25,36 @@ class DamageContext:
         self.target = target
         self.config = damage.config
 
+        # 核心代数槽位 (根据 V2.5 审计规范定义)
         self.stats: dict[str, float] = {
-            "攻击力": 0.0,
-            "生命值": 0.0,
-            "防御力": 0.0,
-            "元素精通": 0.0,
             "固定伤害值加成": 0.0,
             "伤害加成": 0.0,
             "暴击率": 0.0,
             "暴击伤害": 0.0,
-            "防御区系数": 0.0,
-            "抗性区系数": 0.0,
-            "反应基础倍率": 0.0,
+            "暴击乘数": 1.0,
+            "防御区系数": 1.0,
+            "抗性区系数": 1.0,
+            "反应基础倍率": 1.0,
             "反应加成系数": 0.0,
+            "元素精通": 0.0,
+            "减防%": 0.0,
+            "无视防御%": 0.0,
+            "减抗%": 0.0,
+            "抗性穿透%": 0.0,
+            "独立乘区%": 0.0,  # 对应规范 2.2 中的 【独立乘区%】
+            "倍率加值%": 0.0,  # 对应规范 2.2 中的 【倍率加值%】
         }
         self.audit_trail: list[ModifierRecord] = []
         self.final_result: float = 0.0
         self.is_crit: bool = False
 
     def add_modifier(
-        self, source: str, stat: str, value: float, op: str = "ADD"
+        self, source: str, stat: str, value: float, op: str = "ADD", audit: bool = True
     ) -> None:
+        """更新数值并同步审计。"""
         if stat not in self.stats:
             self.stats[stat] = 0.0 if op == "ADD" else 1.0
+            
         if op == "ADD":
             self.stats[stat] += value
         elif op == "MULT":
@@ -54,7 +62,9 @@ class DamageContext:
         elif op == "SET":
             self.stats[stat] = value
             
-        # 从上下文获取唯一 ID
+        if not audit:
+            return
+
         from core.context import get_context
         m_id = 0
         try:
@@ -66,14 +76,78 @@ class DamageContext:
 
 
 class DamagePipeline:
+    """[V2.5.5] 严格对齐审计规范的五阶段伤害流水线。"""
+
     def __init__(self, engine: EventEngine):
         self.engine = engine
 
     def run(self, ctx: DamageContext):
-        # 2. 建立基础引用
-        ctx.damage.set_source(ctx.source)
+        # 阶段一：意图与目标准备
+        if not self._stage_1_preparation(ctx):
+            return
 
-        # 3. 发布事件 (允许外部系统注入修正)
+        # 阶段二：基础面板与契约快照 (Foundation)
+        self._stage_2_foundation(ctx)
+
+        # 阶段三：动态增益注入 (Evolution)
+        self._stage_3_evolution(ctx)
+
+        # 阶段四：环境与决策结算 (Resolution)
+        self._stage_4_resolution(ctx)
+
+        # 阶段五：终期聚合 (Synthesis)
+        self._stage_5_synthesis(ctx)
+
+        # 交付结果
+        ctx.damage.damage = ctx.final_result
+        ctx.damage.data["audit_trail"] = ctx.audit_trail
+
+    def _stage_1_preparation(self, ctx: DamageContext) -> bool:
+        ctx.damage.set_source(ctx.source)
+        if not ctx.target:
+            from core.context import get_context
+            sim_ctx = get_context()
+            if sim_ctx.space:
+                sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
+        else:
+            ctx.damage.set_target(ctx.target)
+
+        if not ctx.damage.target:
+            return False
+        ctx.target = ctx.damage.target
+        ctx.target.handle_damage(ctx.damage)
+        return True
+
+    def _stage_2_foundation(self, ctx: DamageContext):
+        """阶段二：抓取基础面板与技能倍率。"""
+        src = ctx.source
+        scaling_stats = cast(list[str], ctx.damage.scaling_stat)
+
+        # 1. 抓取每一个缩放属性的快照 (不入库 [R])
+        for s_name in scaling_stats:
+            if s_name == "固定值": continue
+            val = AttributeCalculator.get_val_by_name(src, s_name)
+            ctx.add_modifier("[面板快照]", s_name, val, "SET", audit=False)
+
+        # 2. 抓取技能倍率向量 (入库 [S])
+        mults = ctx.damage.damage_multiplier
+        for i, s_name in enumerate(scaling_stats):
+            m_val = mults[i] if i < len(mults) else 0.0
+            # stat 命名对齐规范：技能倍率%
+            ctx.add_modifier("[技能契约]", f"{s_name}技能倍率%", m_val, "SET", audit=True)
+
+        # 3. 全局基础属性快照 (不入库 [R])
+        em = AttributeCalculator.get_val_by_name(src, "元素精通")
+        ctx.add_modifier("[面板快照]", "元素精通", em, "SET", audit=False)
+
+        el = ctx.damage.element[0]
+        el_name = el.value if isinstance(el, Element) else str(el)
+        bonus = AttributeCalculator.get_final_damage_bonus(src, el_name)
+        ctx.add_modifier("[面板快照]", "基础增伤", bonus, "SET", audit=False)
+        ctx.stats["伤害加成"] = bonus
+
+    def _stage_3_evolution(self, ctx: DamageContext):
+        """阶段三：允许外部系统注入 Buff。"""
         self.engine.publish(
             GameEvent(
                 EventType.BEFORE_CALCULATE,
@@ -83,170 +157,107 @@ class DamagePipeline:
             )
         )
 
-        # 4. 目标锁定与空间广播
-        if not ctx.target:
-            self._dispatch_broadcast(ctx)
-        else:
-            ctx.damage.set_target(ctx.target)
-            ctx.target.handle_damage(ctx.damage)
+    def _stage_4_resolution(self, ctx: DamageContext):
+        """阶段四：处理环境系数与随机决策。"""
+        # 1. 反应乘数
+        for res in ctx.damage.reaction_results:
+            ctx.add_modifier(f"反应:{res.reaction_type.name}", "反应基础倍率", res.multiplier, "SET", audit=False)
+            if res.reaction_type.name in ("VAPORIZE", "MELT"):
+                em = ctx.stats["元素精通"]
+                em_inc = (2.78 * em) / (em + 1400)
+                ctx.add_modifier("[精通转化]", "反应加成系数", em_inc, "ADD", audit=True)
 
-        if not ctx.damage.target:
-            return
-        ctx.target = ctx.damage.target
+        # 2. 防御与抗性
+        self._resolve_def_res_coeffs(ctx)
 
-        # 5. 即时契约快照 (捕捉经过事件修改后的最终值)。
-        self._snapshot_instant(ctx)
+        # 3. 暴击预判定
+        if Config.get("emulation.open_critical"):
+            final_crit_rate = AttributeCalculator.get_final_crit_rate(ctx.source) + ctx.stats.get("暴击率", 0)
+            if random.uniform(0, 100) <= final_crit_rate:
+                ctx.is_crit = True
+                crit_dmg = AttributeCalculator.get_final_crit_dmg(ctx.source) + ctx.stats.get("暴击伤害", 0)
+                ctx.stats["暴击乘数"] = 1 + crit_dmg / 100.0
+                ctx.add_modifier("[随机判定]", "暴击乘数", ctx.stats["暴击乘数"], "SET", audit=True)
+            else:
+                ctx.stats["暴击乘数"] = 1.0
 
-        # 6. 后续结算
-        self._preprocess_reaction_stats(ctx)
-        self._calculate_def_res(ctx)
-        self._calculate(ctx)
+    def _resolve_def_res_coeffs(self, ctx: DamageContext):
+        # 防御区 (执行用户指定的原始公式)
+        l_src = float(ctx.source.level)
+        k_src = l_src * 5 + 500
+        
+        base_def_target = AttributeCalculator.get_val_by_name(ctx.target, "防御力")
+        # 减防与无视防御加法堆叠
+        def_debuff = (ctx.stats.get("减防%", 0) + ctx.stats.get("无视防御%", 0)) / 100.0
+        final_def_target = base_def_target * (1.0 - def_debuff)
+        
+        # 你的公式：防御减免率 = Def / (Def + K)
+        def_reduction_rate = final_def_target / (final_def_target + k_src)
+        # 乘数 = 1 - 减免率
+        coeff_def = 1.0 - def_reduction_rate
+        ctx.add_modifier("[环境结算]", "防御区系数", coeff_def, "SET", audit=False)
 
-        ctx.damage.damage = ctx.final_result
-        ctx.damage.data["audit_trail"] = ctx.audit_trail
-
-    def _snapshot_instant(self, ctx: DamageContext):
-        """阶段 2: 即时契约快照 (捕捉经过事件修改后的最终值)。"""
-        src = ctx.source
-        scaling_stats = cast(list[str], ctx.damage.scaling_stat)
-
-        # 按需注入主属性向量
-        for s_name in scaling_stats:
-            if s_name == "固定值": 
-                continue
-            val = AttributeCalculator.get_val_by_name(src, s_name)
-            ctx.add_modifier("[实体面板]", s_name, val, "ADD")
-
-        # 记录暴击面板 (作为基础)
-        ctx.add_modifier(
-            "[实体面板]", "暴击率", AttributeCalculator.get_val_by_name(src, "暴击率"), "ADD"
-        )
-
-        # 1. 捕捉最终倍率向量 (可能被 BEFORE_CALCULATE 修改)
-        mults = ctx.damage.damage_multiplier
-        for i, s_name in enumerate(scaling_stats):
-            m_val = mults[i] if i < len(mults) else 0.0
-            ctx.add_modifier("[技能契约]", f"{s_name}倍率", m_val, "ADD")
-
-        # 2. 反应所需精通 (只有可能触发反应时注入)
+        # 抗性区
         el = ctx.damage.element[0]
         el_name = el.value if isinstance(el, Element) else str(el)
-        if "元素精通" not in scaling_stats and el_name not in ("无", "物理"):
-            em_val = AttributeCalculator.get_val_by_name(src, "元素精通")
-            ctx.add_modifier("[实体面板同步]", "元素精通", em_val, "ADD")
-
-        # 3. 动态增伤区汇总 (此时已包含 BEFORE_CALCULATE 注入的所有 Buff)
-        bonus = AttributeCalculator.get_final_damage_bonus(src, el_name)
-
-        ctx.add_modifier("[最终增伤区]", "伤害加成", bonus, "ADD")
-
-    def _calculate_def_res(self, ctx: DamageContext):
-        if not ctx.target:
-            return
-            
-        target_def = float(ctx.target.attribute_data.get("防御力", 0))
-        coeff_def = (5 * float(ctx.source.level) + 500) / (
-            target_def + 5 * float(ctx.source.level) + 500
-        )
-        ctx.add_modifier("防御减免结算", "防御区系数", coeff_def, "ADD")
-
-        el = ctx.damage.element[0]
-        el_name = el.value if isinstance(el, Element) else str(el)
-
-        res = float(ctx.target.attribute_data.get(f"{el_name}元素抗性", 10.0))
-        coeff_res = 1.0
-        if res > 75:
-            coeff_res = 1 / (1 + 4 * res / 100)
-        elif res < 0:
-            coeff_res = 1 - res / 2 / 100
+        base_res = AttributeCalculator.get_val_by_name(ctx.target, f"{el_name}元素抗性")
+        res_debuff = (ctx.stats.get("减抗%", 0) + ctx.stats.get("抗性穿透%", 0)) / 100.0
+        final_res_val = (base_res / 100.0) - res_debuff
+        
+        if final_res_val < 0:
+            coeff_res = 1.0 - final_res_val / 2.0
+        elif final_res_val > 0.75:
+            coeff_res = 1.0 / (1.0 + 4.0 * final_res_val)
         else:
-            coeff_res = 1 - res / 100
-        ctx.add_modifier(f"{el_name}抗性结算", "抗性区系数", coeff_res, "ADD")
+            coeff_res = 1.0 - final_res_val
+        ctx.add_modifier("[抗性结算]", "抗性区系数", coeff_res, "SET", audit=False)
 
-    def _calculate(self, ctx: DamageContext):
+    def _stage_5_synthesis(self, ctx: DamageContext):
+        """阶段五：纯函数合算。"""
         s = ctx.stats
-        from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
-
-        categories = AttackTagResolver.resolve_categories(
-            ctx.config.attack_tag, ctx.config.extra_attack_tags
-        )
-
-        # 剧变反应结算
-        if AttackCategory.REACTION in categories:
-            em_inc = (16 * s["元素精通"]) / (s["元素精通"] + 2000)
+        
+        # 路径 A: 剧变反应路径
+        if AttackTagResolver.is_transformative(ctx.damage.config.attack_tag, ctx.damage.config.extra_attack_tags):
             level_coeff = float(ctx.damage.data.get("等级系数", 0))
             react_base = float(ctx.damage.data.get("反应系数", 1.0))
-            bonus = float(ctx.damage.data.get("反应伤害提高", 0))
-            ctx.final_result = (
-                level_coeff * react_base * (1 + em_inc + bonus) * s["抗性区系数"]
-            )
-            ctx.add_modifier("剧变反应基础", "最终伤害", ctx.final_result, "SET")
+            em = s["元素精通"]
+            em_inc = (16 * em) / (em + 2000)
+            special_bonus = s.get("反应伤害提高", 0)
+            ctx.final_result = level_coeff * react_base * (1 + em_inc + special_bonus) * s["抗性区系数"]
             return
 
-        # 基础增伤区合算 (向量点积结果)
-        base_val = self._get_base_value(ctx)
-
-        bonus_mult = 1 + s["伤害加成"] / 100
-        crit_mult = self._get_crit_mult(ctx)
-
-        react_mult = 1.0
-        if s["反应基础倍率"] > 1.0:
-            react_mult = s["反应基础倍率"] * (1 + s["反应加成系数"])
-
+        # 路径 B: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 1. 核心伤害合算
+        base_dmg = 0.0
+        scaling_stats = cast(list[str], ctx.damage.scaling_stat)
+        for s_name in scaling_stats:
+            if s_name == "固定值": continue
+            attr_val = s.get(s_name, 0.0)
+            skill_mult = s.get(f"{s_name}技能倍率%", 0.0)
+            
+            # Final_Mult = 技能倍率% * (1 + 独立乘区%/100) + 倍率加值%
+            final_mult = skill_mult * (1.0 + s["独立乘区%"] / 100.0) + s["倍率加值%"]
+            
+            # (基础属性 * Final_Mult / 100)
+            base_dmg += attr_val * (final_mult / 100.0)
+            
+        # Core_DMG = base_dmg + 固定伤害值加成
+        core_dmg = base_dmg + s["固定伤害值加成"]
+        
+        # 2. 全乘区聚合 (Synthesis)
         ctx.final_result = (
-            (base_val + s["固定伤害值加成"])
-            * bonus_mult
-            * crit_mult
-            * react_mult
+            core_dmg 
+            * (1.0 + s["伤害加成"] / 100.0)
+            * s["暴击乘数"]
+            * (s["反应基础倍率"] * (1.0 + s["反应加成系数"]))
             * s["防御区系数"]
             * s["抗性区系数"]
         )
-
-    def _get_base_value(self, ctx: DamageContext) -> float:
-        d = ctx.damage
-        stats = cast(list[str], d.scaling_stat)
-        mults = d.damage_multiplier
-        
-        total_base = 0.0
-        for i, s_name in enumerate(stats):
-            m_val = mults[i] if i < len(mults) else 0.0
-            # 从 ctx.stats 中获取之前 _snapshot 注入的数值
-            val = ctx.stats.get(s_name, 0.0)
-            total_base += val * (m_val / 100.0) if s_name != "固定值" else m_val
-            
-        return total_base
-
-    def _get_crit_mult(self, ctx: DamageContext) -> float:
-        if Config.get("emulation.open_critical"):
-            if random.uniform(0, 100) <= ctx.stats["暴击率"]:
-                ctx.is_crit = True
-                # [FIX] 修正方法名 get_final_crit_dmg
-                crit_dmg = AttributeCalculator.get_final_crit_dmg(ctx.source)
-                ctx.add_modifier(
-                    "暴击区", "暴击伤害", 100 + crit_dmg, "ADD"
-                )
-                return 1 + ctx.stats["暴击伤害"] / 100
-        return 1.0
-
-    def _dispatch_broadcast(self, ctx: DamageContext):
-        from core.context import get_context
-
-        sim_ctx = get_context()
-        # [FIX] 检查 space 是否为 None
-        if sim_ctx.space:
-            sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
-
-    def _preprocess_reaction_stats(self, ctx: DamageContext):
-        for res in ctx.damage.reaction_results:
-            ctx.add_modifier(
-                f"反应:{res.reaction_type.name}", "反应基础倍率", res.multiplier, "SET"
-            )
 
 
 class DamageSystem(GameSystem):
     def initialize(self, context: Any):
         super().initialize(context)
-        # [FIX] 使用 cast 确保 engine 不为 None
         if self.engine:
             self.pipeline = DamagePipeline(self.engine)
 
@@ -258,14 +269,13 @@ class DamageSystem(GameSystem):
             char = event.data["character"]
             dmg = cast('Damage', event.data["damage"])
             target = event.data.get("target")
-            ctx = DamageContext(dmg, char, target)
             
+            ctx = DamageContext(dmg, char, target)
             if hasattr(self, "pipeline"):
                 self.pipeline.run(ctx)
 
             if dmg.target:
                 get_emulation_logger().log_damage(char, dmg.target, dmg)
-                # [FIX] 检查 self.engine
                 if self.engine:
                     self.engine.publish(
                         GameEvent(

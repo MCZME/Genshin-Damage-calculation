@@ -25,6 +25,11 @@ class AttributeCalculator:
         }
         if stat_name in mapping:
             return mapping[stat_name](entity)
+        
+        # 针对抗性类属性的动态路由
+        if "抗性" in stat_name:
+            return AttributeCalculator.get_final_res(entity, stat_name)
+            
         return float(entity.attribute_data.get(stat_name, 0.0))
 
     @staticmethod
@@ -132,6 +137,15 @@ class AttributeCalculator:
         val = float(entity.attribute_data.get('护盾强效', 0.0))
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '护盾强效':
+                val += m.value
+        return val
+
+    @staticmethod
+    def get_final_res(entity: Any, stat_name: str) -> float:
+        """合算最终抗性 (%)"""
+        val = float(entity.attribute_data.get(stat_name, 10.0))
+        for m in getattr(entity, 'dynamic_modifiers', []):
+            if m.stat == stat_name:
                 val += m.value
         return val
 
