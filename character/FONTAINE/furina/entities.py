@@ -1,4 +1,4 @@
-from typing import Any
+﻿from typing import Any
 
 from core.entities.base_entity import CombatEntity, Faction
 from core.systems.contract.attack import (
@@ -11,6 +11,7 @@ from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from core.mechanics.aura import Element
+from core.systems.utils import AttributeCalculator
 from character.FONTAINE.furina.data import (
     ATTACK_DATA,
     ELEMENTAL_SKILL_DATA,
@@ -30,10 +31,6 @@ class FurinaSummonBase(CombatEntity):
         )
         self.owner = owner
         self.skill_lv = owner.skill_params[1]
-
-    # 这又是什么
-    def get_owner_attr(self, attr_name: str) -> float:
-        return self.owner.attribute_data.get(attr_name, 0.0)
 
     def _build_attack_config(self, name: str) -> AttackConfig:
         """从原生数据构建物理契约。"""
@@ -91,6 +88,30 @@ class SalonMember(FurinaSummonBase):
 
         # 预载配置
         self.attack_config = self._build_attack_config(attack_name)
+        
+        # 订阅审计事件以注入加成
+        if self.event_engine:
+            self.event_engine.subscribe(EventType.BEFORE_CALCULATE, self)
+
+    def on_finish(self) -> None:
+        if self.event_engine:
+            self.event_engine.unsubscribe(EventType.BEFORE_CALCULATE, self)
+        super().on_finish()
+
+    def handle_event(self, event: GameEvent) -> None:
+        if event.event_type == EventType.BEFORE_CALCULATE:
+            dmg_ctx = event.data.get("damage_context")
+            # 识别是否为本实体的攻击
+            if dmg_ctx and dmg_ctx.damage.name == self.attack_name:
+                bonus_ratio = dmg_ctx.damage.data.get("hp_consume_bonus_ratio", 0.0)
+                if bonus_ratio > 0:
+                    # 修正：归类为“伤害加成” (增伤区)，执行加法堆叠
+                    dmg_ctx.add_modifier(
+                        source=f"{self.name}-消耗加成", 
+                        stat="伤害加成", 
+                        value=bonus_ratio * 100.0, 
+                        op="ADD"
+                    )
 
     def _perform_tick(self) -> None:
         self.timer += 1
@@ -99,19 +120,23 @@ class SalonMember(FurinaSummonBase):
             self.timer = 0
 
     def execute_attack(self) -> None:
-        bonus = self._process_hp_consumption()
+        # 处理全队生命值消耗并获取伤害提升比例 (0.1 ~ 0.4)
+        bonus_ratio = self._process_hp_consumption_ratio()
 
-        # 获取倍率
+        # 获取技能等级对应的纯净基础倍率
         multiplier = ELEMENTAL_SKILL_DATA[self.attack_name][1][self.skill_lv - 1]
 
-        # 构造伤害对象，Key 即是 Name
+        # 构造伤害对象
         dmg_obj = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=(multiplier * bonus,),
+            damage_multiplier=(multiplier,),
             scaling_stat=("生命值",),
             config=self.attack_config,
             name=self.attack_name,
         )
+        dmg_obj.set_source(self.owner)
+        # 将加成比例存入 data 供审计逻辑提取
+        dmg_obj.data["hp_consume_bonus_ratio"] = bonus_ratio
 
         # 注入 element_u (从原生数据读取)
         dmg_obj.set_element(Element.HYDRO, ATTACK_DATA[self.attack_name]["element_u"])
@@ -125,16 +150,18 @@ class SalonMember(FurinaSummonBase):
             )
         )
 
-    def _process_hp_consumption(self) -> float:
+    def _process_hp_consumption_ratio(self) -> float:
+        """消耗全队生命值并返回加成比例 (0.1x 每人)。"""
         if not self.ctx.space or not self.ctx.space.team:
-            return 1.0
+            return 0.0
 
         healthy_count = 0
         consume_key = self.attack_name.replace("伤害", "消耗生命值")
         ratio = ELEMENTAL_SKILL_DATA[consume_key][1][0] / 100.0
 
         for m in self.ctx.space.team.get_members():
-            max_hp = m.attribute_data.get("生命值", 1.0)
+            # 适配 V2.5: 使用 AttributeCalculator 获取动态生命值
+            max_hp = AttributeCalculator.get_val_by_name(m, "生命值")
             if m.current_hp / max_hp > 0.5:
                 healthy_count += 1
                 consume_val = max_hp * ratio
@@ -152,7 +179,7 @@ class SalonMember(FurinaSummonBase):
                     )
                 )
 
-        return 1.0 + min(4, healthy_count) * 0.1
+        return min(4, healthy_count) * 0.1
 
 
 class SingerOfManyWaters(FurinaSummonBase):

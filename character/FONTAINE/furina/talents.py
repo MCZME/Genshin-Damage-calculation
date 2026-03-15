@@ -26,7 +26,6 @@ class EndlessWaltz(TalentEffect):
 
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.AFTER_HEAL:
-            # 条件：来源非芙宁娜 且 是当前场上角色 且 产生溢出
             heal_obj: Healing | None = event.data.get("healing")
             target = event.data.get("target")
             if (
@@ -58,13 +57,15 @@ class EndlessWaltz(TalentEffect):
 
         members = ctx.team.get_members()
         for m in members:
-            max_hp = AttributeCalculator.get_final_hp(m)
+            max_hp = AttributeCalculator.get_val_by_name(m, "生命值")
             heal_val = max_hp * 0.02
 
             heal_obj = Healing(
-                base_multiplier=0, healing_type=HealingType.PASSIVE, name=self.name
+                base_multiplier=(0, heal_val), 
+                healing_type=HealingType.PASSIVE, 
+                name=self.name
             )
-            heal_obj.final_value = heal_val
+            heal_obj.set_scaling_stat("生命值")
 
             if self.character and self.character.event_engine:
                 self.character.event_engine.publish(
@@ -84,11 +85,17 @@ class EndlessWaltz(TalentEffect):
 class UnheardConfession(TalentEffect):
     """
     固有天赋二：无人听的自白。
-    基于 HP 上限提升沙龙成员伤害，缩短歌者治疗间隔。
+    基于 HP 上上限提升沙龙成员伤害，缩短歌者治疗间隔。
     """
 
     def __init__(self):
         super().__init__("无人听的自白", unlock_level=60)
+        # 定义沙龙成员伤害的白名单
+        self.salon_member_dmg_names = {
+            "乌瑟勋爵伤害",
+            "海薇玛夫人伤害",
+            "谢贝蕾妲小姐伤害"
+        }
 
     def on_apply(self):
         if self.character and self.character.event_engine:
@@ -97,16 +104,14 @@ class UnheardConfession(TalentEffect):
     def handle_event(self, event: GameEvent):
         if event.event_type == EventType.BEFORE_CALCULATE:
             dmg_ctx = event.data.get("damage_context")
-            if dmg_ctx and dmg_ctx.damage.config.icd_group in [
-                "FurinaSalonShared",
-                "None",
-            ]:
+            # 修正：通过白名单精确匹配沙龙成员伤害，避免错误作用于初始施放伤害
+            if dmg_ctx and dmg_ctx.damage.name in self.salon_member_dmg_names:
                 bonus = self._calculate_dmg_bonus()
                 dmg_ctx.add_modifier(
                     source="固有天赋：无人听的自白",
-                    stat="独立乘区系数",
-                    value=1 + bonus,
-                    op="MULT",
+                    stat="伤害加成",
+                    value=bonus * 100.0,
+                    op="ADD",
                 )
 
     def on_frame_update(self):
@@ -123,12 +128,12 @@ class UnheardConfession(TalentEffect):
 
     def _calculate_dmg_bonus(self) -> float:
         """每 1000 点提升 0.7%，上限 28%。"""
-        hp = AttributeCalculator.get_final_hp(self.character)
+        hp = AttributeCalculator.get_val_by_name(self.character, "生命值")
         bonus = (hp // 1000) * 0.007
         return min(0.28, bonus)
 
     def _calculate_heal_interval_reduction(self) -> float:
         """每 1000 点降低 0.4%，上限 16%。"""
-        hp = AttributeCalculator.get_final_hp(self.character)
+        hp = AttributeCalculator.get_val_by_name(self.character, "生命值")
         reduction = (hp // 1000) * 0.004
         return min(0.16, reduction)
