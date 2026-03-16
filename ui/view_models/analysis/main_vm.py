@@ -294,9 +294,14 @@ class AnalysisViewModel:
         adapter = ReviewDataAdapter()
 
         async def _task():
-            self.sessions_history = await adapter.get_all_sessions()
-            self.history_dialog_visible = True
-            self._notify_update()
+            try:
+                self.sessions_history = await adapter.get_all_sessions()
+                self.history_dialog_visible = True
+            except Exception as e:
+                get_ui_logger().log_warning(f"Failed to load history: {e}")
+                self.sessions_history = []
+            finally:
+                self._notify_update()
 
         asyncio.create_task(_task())
 
@@ -371,128 +376,14 @@ class AnalysisViewModel:
     # ============================================================
 
     async def load_audit_detail(self, event_id: int):
-        """[V12.0] 异步加载 L2 审计详情（支持伤害类型感知）
+        """[V4.1] 异步加载 L2 审计详情
 
-        流程：
-        1. 获取事件元数据（frame_id, source_id, target_id, is_crit, reaction_name）
-        2. 通过 REACTION_CLASSIFICATION 判断是否为剧变反应
-        3. 根据类型调用不同的处理方法：
-           - 剧变反应: 调用 process_transformative() 处理 4 桶模型
-           - 常规伤害: 调用 process_detail() 处理 7 桶模型
-        4. 拉取审计链 [S] 项和帧快照 [R] 项
-        5. 返回处理后的桶数据
+        简化版本：委托给 DataService.load_audit_detail()
         """
-        if not self.adapter or not self.data_service:
+        if not self.data_service:
             return
 
-        from core.persistence.processors.audit import AuditProcessor
-        from core.persistence.processors.audit.types import DamageType, DamageTypeContext
-        from core.systems.contract.reaction import ElementalReactionType, REACTION_CLASSIFICATION, ReactionCategory
-
-        slot = self.data_service.get_slot("audit")
-        if not slot:
-            return
-
-        slot.loading = True
-        self._notify_update()
-
-        try:
-            # [V2.5.5] Step 1: 获取事件元数据
-            event_meta = await self.adapter.get_event_metadata(event_id)
-
-            if event_meta:
-                frame_id = event_meta.get("frame_id", 0)
-                source_id = event_meta.get("source_id")
-                # target_id 预留用于后续获取目标快照
-                _target_id = event_meta.get("target_id")
-                is_crit = event_meta.get("is_crit", False)
-                reaction_name = event_meta.get("reaction_name")
-
-                # [V12.0] Step 2: 通过 REACTION_CLASSIFICATION 判断是否为剧变反应
-                is_transformative = False
-                if reaction_name:
-                    try:
-                        reaction_type = ElementalReactionType[reaction_name]
-                        is_transformative = REACTION_CLASSIFICATION.get(reaction_type) == ReactionCategory.TRANSFORMATIVE
-                    except KeyError:
-                        pass
-
-                # [V2.5.5] Step 3: 拉取审计链 [S] 项
-                raw_trail = await self.adapter.get_damage_audit(event_id)
-
-                # [V2.5.5] Step 4: 拉取帧快照 [R] 项
-                frame_snapshot = None
-                if source_id is not None:
-                    frame_snapshot = await self.adapter.get_entity_snapshot(frame_id, source_id)
-
-                # [V12.0] Step 5: 根据类型选择处理方法
-                if is_transformative:
-                    # 剧变反应路径：构建 DamageTypeContext
-                    damage_type_ctx = DamageTypeContext(
-                        damage_type=DamageType.TRANSFORMATIVE,
-                        attack_tag=reaction_name or "",
-                        level_coeff=0.0,  # 从审计链或帧快照获取
-                        reaction_coeff=1.0,
-                        elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0,
-                        special_bonus=0.0,
-                    )
-                    processed = AuditProcessor.process_transformative(
-                        damage_type_ctx=damage_type_ctx,
-                        raw_trail=raw_trail,
-                        frame_snapshot=frame_snapshot
-                    )
-                    processed["_damage_type_ctx"] = damage_type_ctx
-                else:
-                    # 常规伤害路径
-                    processed = AuditProcessor.process_detail(
-                        raw_trail=raw_trail,
-                        frame_snapshot=frame_snapshot,
-                        is_crit=is_crit
-                    )
-                    processed["_damage_type_ctx"] = DamageTypeContext()
-
-                    # [V14.0] 获取增伤/暴击伤害分项来源（仅常规伤害）
-                    # 增伤相关属性名列表
-                    bonus_stat_names = [
-                        "伤害加成",
-                        "火元素伤害加成", "水元素伤害加成", "冰元素伤害加成",
-                        "雷元素伤害加成", "风元素伤害加成", "岩元素伤害加成",
-                        "草元素伤害加成", "物理伤害加成",
-                    ]
-                    bonus_modifiers = await self.adapter.get_entity_modifiers_for_stat(
-                        event_id, bonus_stat_names
-                    )
-                    processed["bonus"]["modifiers"] = bonus_modifiers
-
-                    # 暴击伤害分项来源
-                    crit_stat_names = ["暴击伤害", "暴击率"]
-                    crit_modifiers = await self.adapter.get_entity_modifiers_for_stat(
-                        event_id, crit_stat_names
-                    )
-                    processed["crit"]["modifiers"] = crit_modifiers
-            else:
-                # 回退到旧逻辑
-                dist_slot = self.data_service.get_slot("damage_dist")
-                is_crit = False
-                if dist_slot and dist_slot.data:
-                    for f_data in dist_slot.data.get("frame_map", {}).values():
-                        for ev in f_data.get("events", []):
-                            if ev['event_id'] == event_id:
-                                is_crit = ev.get('is_crit', False)
-                                break
-
-                raw_trail = await self.adapter.get_damage_audit(event_id)
-                processed = AuditProcessor.process_detail(raw_trail, is_crit=is_crit)
-                processed["_damage_type_ctx"] = DamageTypeContext()
-
-            slot.data = processed
-
-            get_ui_logger().log_debug(f"Audit: Event {event_id} processed (V12.0).")
-        except Exception as e:
-            get_ui_logger().log_error(f"Audit Detail Error: {str(e)}")
-        finally:
-            slot.loading = False
-            self._notify_update()
+        await self.data_service.load_audit_detail(event_id)
 
     # ============================================================
     # 角色焦点管理
