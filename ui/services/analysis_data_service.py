@@ -332,9 +332,22 @@ class AnalysisDataService:
             bonus_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, bonus_stat_names)
             processed["bonus"]["modifiers"] = bonus_modifiers
 
-            crit_stat_names = ["暴击伤害", "暴击率"]
+            crit_stat_names = ["暴击伤害", "暴击率", "暴击伤害%", "暴击率%"]
             crit_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, crit_stat_names)
-            processed["crit"]["modifiers"] = crit_modifiers
+
+            # [V4.2] 分离暴击率和暴击伤害修饰符
+            crit_rate_modifiers = [m for m in crit_modifiers if "暴击率" in m.get("stat", "")]
+            crit_dmg_modifiers = [m for m in crit_modifiers if "暴击伤害" in m.get("stat", "")]
+
+            processed["crit"]["modifiers"] = crit_dmg_modifiers  # 仅暴击伤害
+            processed["crit"]["crit_rate_modifiers"] = crit_rate_modifiers  # 仅暴击率
+
+            # 从帧快照提取暴击率，支持域展示
+            if frame_snapshot:
+                base_crit_rate = frame_snapshot.get("stats", {}).get("暴击率", 0.0)
+                # 从修饰符中累加暴击率加成
+                rate_bonus = sum(m.get("value", 0) for m in crit_rate_modifiers)
+                processed["crit"]["crit_rate"] = base_crit_rate + rate_bonus
 
         return processed
 

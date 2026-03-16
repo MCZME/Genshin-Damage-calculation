@@ -183,36 +183,41 @@ def build_bonus_crit(
     total_color: str | None = None
 
     if bucket_key == "CRIT":
-        # 暴击区
+        # [V4.2] 暴击区：显示暴击率和暴击伤害
+        crit_rate = bucket_data.get('crit_rate', 0.0)
+        cd_pct = (mult_val - 1) * 100
+
         if mult_val > 1.0:
-            # 暴击：添加星号，使用金色
-            cd_pct = (mult_val - 1) * 100
+            # 暴击：显示 CR: XX% | 1+CD%，添加星号，使用金色
             formula_parts.extend([
-                _text("1+"),
+                _text("CR:"),
+                _domain_value(crit_rate, "crit_rate", bucket_key, bucket_color, selected_domain, on_domain_click),
+                _text("% | 1+"),
                 _domain_value(cd_pct, "crit_dmg", bucket_key, bucket_color, selected_domain, on_domain_click),
                 _text("%"),
             ])
             total_text = f"{mult_val:.2f}*"
             total_color = ft.Colors.AMBER_400  # 暴击时使用金色
         else:
-            # 未暴击
-            formula_parts.append(_text("1.00", color=ft.Colors.WHITE_70))
+            # 未暴击：仍显示可点击的域值（0%），允许查看暴击修饰符来源
+            formula_parts.extend([
+                _text("CR:"),
+                _domain_value(crit_rate, "crit_rate", bucket_key, bucket_color, selected_domain, on_domain_click),
+                _text("% | 1+"),
+                _domain_value(0.0, "crit_dmg", bucket_key, bucket_color, selected_domain, on_domain_click),
+                _text("%"),
+            ])
             total_text = "1.00"
     else:
         # 增伤区
         bonus_pct = (mult_val - 1) * 100
-        if bonus_pct > 0:
-            # 有增伤
-            formula_parts.extend([
-                _text("1+"),
-                _domain_value(bonus_pct, "bonus_pct", bucket_key, bucket_color, selected_domain, on_domain_click),
-                _text("%"),
-            ])
-            total_text = f"{mult_val:.2f}"
-        else:
-            # 无增伤
-            formula_parts.append(_text("1.00", color=ft.Colors.WHITE_70))
-            total_text = "1.00"
+        # 始终显示可点击的域值，允许查看增伤修饰符来源
+        formula_parts.extend([
+            _text("1+"),
+            _domain_value(bonus_pct, "bonus_pct", bucket_key, bucket_color, selected_domain, on_domain_click),
+            _text("%"),
+        ])
+        total_text = f"{mult_val:.2f}" if bonus_pct != 0 else "1.00"
 
     return FormulaResult(formula_parts, total_text, total_color)
 
