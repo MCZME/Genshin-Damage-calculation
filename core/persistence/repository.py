@@ -104,3 +104,88 @@ class SimulationRepository:
             async with db.execute(sql, (event_id,)) as cursor:
                 rows = await cursor.fetchall()
                 return [{"mid": r[0], "src": r[1], "stat": r[2], "val": r[3], "op": r[4]} for r in rows]
+
+    async def fetch_entity_modifiers(
+        self,
+        session_id: int,
+        entity_id: int,
+        frame: int,
+        stat_filter: list[str] | None = None
+    ) -> list[dict[str, Any]]:
+        """查询指定实体在指定帧的活跃修饰符
+
+        Args:
+            session_id: 会话ID
+            entity_id: 实体ID
+            frame: 帧编号
+            stat_filter: 可选，筛选特定属性类型
+
+        Returns:
+            修饰符列表 [{"source": str, "stat": str, "value": float, "op": str}, ...]
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            sql = """
+                SELECT source_name, stat_type, value, op_type
+                FROM modifier_lifecycles
+                WHERE session_id = ? AND entity_id = ?
+                AND start_frame <= ?
+                AND (end_frame IS NULL OR end_frame > ?)
+            """
+            params: list[Any] = [session_id, entity_id, frame, frame]
+
+            if stat_filter:
+                placeholders = ",".join("?" * len(stat_filter))
+                sql += f" AND stat_type IN ({placeholders})"
+                params.extend(stat_filter)
+
+            cursor = await db.execute(sql, params)
+            rows = await cursor.fetchall()
+
+            return [
+                {"source": r[0], "stat": r[1], "value": r[2], "op": r[3]}
+                for r in rows
+            ]
+
+    async def fetch_event_with_damage(self, event_id: int) -> dict[str, Any] | None:
+        """[V2.5.5] 获取事件元数据（用于审计详情加载）
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            事件元数据字典，包含：
+            - session_id: 会话 ID
+            - event_id: 事件 ID
+            - frame_id: 帧编号
+            - source_id: 来源实体 ID
+            - target_id: 目标 ID
+            - event_type: 事件类型
+            - is_crit: 是否暴击
+            - final_damage: 最终伤害
+            - element_type: 元素类型
+            - reaction_name: 反应名称（用于判断剧变反应）
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            sql = """
+                SELECT l.session_id, l.event_id, l.frame_id, l.source_id, d.target_id, l.event_type,
+                       d.is_crit, d.final_damage, d.element_type, d.reaction_name
+                FROM simulation_event_log l
+                LEFT JOIN event_damage_data d ON l.event_id = d.event_id
+                WHERE l.event_id = ?
+            """
+            async with db.execute(sql, (event_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "session_id": row[0],
+                        "event_id": row[1],
+                        "frame_id": row[2],
+                        "source_id": row[3],
+                        "target_id": row[4],
+                        "event_type": row[5],
+                        "is_crit": bool(row[6]) if row[6] is not None else False,
+                        "final_damage": row[7],
+                        "element_type": row[8],
+                        "reaction_name": row[9]
+                    }
+                return None

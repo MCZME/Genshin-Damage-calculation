@@ -20,7 +20,7 @@ from typing import Any, Callable
 
 from ui.states.analysis_state import AnalysisState
 from ui.components.analysis.scrubber import GlobalScrubber
-from ui.components.analysis.floating_drawer import FloatingDrawer
+from ui.components.analysis.bottom_panel import DamageAuditBottomPanel
 from ui.components.analysis.tile_container import TileContainer
 from ui.components.analysis.history_dialog import HistoryDialog
 from ui.components.analysis.toolbox import AnalysisToolbox
@@ -260,15 +260,10 @@ class AnalysisView:
                 ], spacing=0, expand=True)
             ], spacing=0, expand=True),
 
-            # 侧边审计抽屉
-            FloatingDrawer(
+            # 底部审计面板
+            DamageAuditBottomPanel(
                 state=state,
-                model=vm,
-                dist_slot=dist_slot,
                 detail_slot=audit_slot,
-                on_fetch_detail=lambda eid: asyncio.create_task(
-                    state.load_audit_detail(eid)
-                ),
                 on_close=lambda: state.close_drawer()
             ),
 
