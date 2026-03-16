@@ -127,26 +127,25 @@ async def test_persistence_full_flow():
         
         # V2: 验证增量还原 (第 60 帧)
         frame_60 = await adapter.get_frame(60)
-        # 输入 [1, 0, 1] -> Projector 存 (1, 1, 0) -> Adapter 出 [1, 1, 0]
-        assert frame_60["team"][0]["pos"] == [1.0, 1.0, 0.0]
-        assert frame_60["team"][0]["energy"] == 40.0
+        # [V9.3] 坐标已移除，验证能量值
+        assert frame_60["team"][0]["current_energy"] == 40.0
         # 验证审计明细中 Buff 关联 (Mid 501 在 60 帧应该 Active)
         mods = frame_60["team"][0]["active_modifiers"]
-        assert any(m["modifier_id"] == 501 for m in mods)
-        
+        # modifier_id 现在以 name 字段表示 source_name
+        assert any(m["name"] == "测试增益" for m in mods)
+
         # V3: 验证伤害特化与明细
         dps_data = await adapter.get_dps_data()
         assert len(dps_data) == 1
         assert dps_data[0]["value"] == 5000.0
-        
+
         # 验证审计瀑布图数据
         audit_steps = await adapter.get_damage_audit(1) # event_id 应该为 1
         assert len(audit_steps) == 2
         assert audit_steps[1]["modifier_id"] == 501
-        
-        # V4: 验证增量 Pulse (120 帧位置没变，应继承 60 帧位置)
+
+        # V4: 验证增量 Pulse (120 帧 Buff 应该已失效)
         frame_120 = await adapter.get_frame(120)
-        assert frame_120["team"][0]["pos"] == [1.0, 1.0, 0.0]
         # Buff 应该已失效
         assert len(frame_120["team"][0]["active_modifiers"]) == 0
 

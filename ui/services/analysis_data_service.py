@@ -165,7 +165,7 @@ class AnalysisDataService:
             elif key == "summary":
                 slot.data = await adapter.get_summary_stats()
             elif key == "damage_dist":
-                raw_events = await adapter.get_raw_damage_events()
+                raw_events = await adapter.get_damage_events_ui()
                 slot.data = DamageDistProcessor.process(raw_events)
                 if slot.data:
                     slot.data["total_frames"] = self.vm.total_frames
@@ -240,3 +240,131 @@ class AnalysisDataService:
         if not adapter:
             return {}
         return await adapter.get_summary_stats()
+
+    # ============================================================
+    # [V4.1] Audit 数据装填
+    # ============================================================
+
+    async def _fetch_audit_detail(self, event_id: int) -> dict[str, Any]:
+        """
+        获取审计详情数据（内部方法）
+
+        流程：
+        1. 获取事件元数据 -> 判断伤害类型
+        2. 拉取审计链 [S] 项
+        3. 拉取帧快照 [R] 项
+        4. 调用 AuditProcessor 处理
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            处理后的审计详情字典
+        """
+        from core.persistence.processors.audit import AuditProcessor
+        from core.persistence.processors.audit.types import DamageType, DamageTypeContext
+        from core.systems.contract.reaction import ElementalReactionType, REACTION_CLASSIFICATION, ReactionCategory
+
+        adapter = self.adapter
+        if not adapter:
+            return {}
+
+        # Step 1: 获取事件元数据
+        event_meta = await adapter.get_event_metadata(event_id)
+        if not event_meta:
+            return {}
+
+        frame_id = event_meta.get("frame_id", 0)
+        source_id = event_meta.get("source_id")
+        is_crit = event_meta.get("is_crit", False)
+        reaction_name = event_meta.get("reaction_name")
+
+        # Step 2: 判断是否为剧变反应
+        is_transformative = False
+        if reaction_name:
+            try:
+                reaction_type = ElementalReactionType[reaction_name]
+                is_transformative = REACTION_CLASSIFICATION.get(reaction_type) == ReactionCategory.TRANSFORMATIVE
+            except KeyError:
+                pass
+
+        # Step 3: 拉取审计链 [S] 项
+        raw_trail = await adapter.get_damage_audit(event_id)
+
+        # Step 4: 拉取帧快照 [R] 项
+        frame_snapshot = None
+        if source_id is not None:
+            frame_snapshot = await adapter.get_entity_snapshot(frame_id, source_id)
+
+        # Step 5: 根据类型选择处理方法
+        if is_transformative:
+            # 剧变反应路径
+            damage_type_ctx = DamageTypeContext(
+                damage_type=DamageType.TRANSFORMATIVE,
+                attack_tag=reaction_name or "",
+                level_coeff=0.0,
+                reaction_coeff=1.0,
+                elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0,
+                special_bonus=0.0,
+            )
+            processed = AuditProcessor.process_transformative(
+                damage_type_ctx=damage_type_ctx,
+                raw_trail=raw_trail,
+                frame_snapshot=frame_snapshot
+            )
+            processed["_damage_type_ctx"] = damage_type_ctx
+        else:
+            # 常规伤害路径
+            processed = AuditProcessor.process_detail(
+                raw_trail=raw_trail,
+                frame_snapshot=frame_snapshot,
+                is_crit=is_crit
+            )
+            processed["_damage_type_ctx"] = DamageTypeContext()
+
+            # 获取增伤/暴击伤害分项来源（仅常规伤害）
+            bonus_stat_names = [
+                "伤害加成",
+                "火元素伤害加成", "水元素伤害加成", "冰元素伤害加成",
+                "雷元素伤害加成", "风元素伤害加成", "岩元素伤害加成",
+                "草元素伤害加成", "物理伤害加成",
+            ]
+            bonus_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, bonus_stat_names)
+            processed["bonus"]["modifiers"] = bonus_modifiers
+
+            crit_stat_names = ["暴击伤害", "暴击率"]
+            crit_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, crit_stat_names)
+            processed["crit"]["modifiers"] = crit_modifiers
+
+        return processed
+
+    async def load_audit_detail(self, event_id: int) -> dict[str, Any]:
+        """
+        公开接口：加载审计详情并填充到 audit slot
+
+        替代 ViewModel 中的 load_audit_detail 逻辑
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            处理后的审计详情字典
+        """
+        slot = self._slots.get("audit")
+        if not slot:
+            return {}
+
+        slot.loading = True
+        self.vm._notify_update()
+
+        try:
+            processed = await self._fetch_audit_detail(event_id)
+            slot.data = processed
+            get_ui_logger().log_debug(f"Audit: Event {event_id} processed (V4.1).")
+            return processed
+        except Exception as e:
+            get_ui_logger().log_error(f"Audit Detail Error: {str(e)}")
+            return {}
+        finally:
+            slot.loading = False
+            self.vm._notify_update()

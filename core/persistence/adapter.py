@@ -1,7 +1,6 @@
 import json
 from typing import Any, cast
 
-import aiosqlite
 from core.persistence.repository import SimulationRepository
 
 class ReviewDataAdapter:
@@ -57,20 +56,29 @@ class ReviewDataAdapter:
             "action": r['action'] or "伤害触发"
         } for r in raw]
 
-    async def get_raw_damage_events(self) -> list[dict[str, Any]]:
-        """[V6.6] 获取用于加工的原始伤害事件"""
-        sid = await self.repo.get_latest_session_id()
-        if not sid:
-            return []
-        await self._ensure_name_map(sid)
-        return await self.get_dps_data()
+    async def get_damage_events_raw(self) -> list[dict[str, Any]]:
+        """[V4.1] 获取原始伤害事件数据（纯 DB 数据，无名称映射）
 
-    async def get_stacked_dps_data_raw(self) -> list[dict[str, Any]]:
-        """获取用于堆叠 DPS 加工的原始事件"""
+        用于需要原始数据的场景，如堆叠 DPS 图表
+        """
         sid = await self.repo.get_latest_session_id()
         if not sid:
             return []
         return await self.repo.fetch_raw_damage_events(sid)
+
+    async def get_damage_events_ui(self) -> list[dict[str, Any]]:
+        """[V4.1] 获取 UI 展示用伤害事件数据（含名称映射）
+
+        用于 UI 展示场景，如伤害分布图表
+        """
+        return await self.get_dps_data()
+
+    async def get_stacked_dps_data_raw(self) -> list[dict[str, Any]]:
+        """获取用于堆叠 DPS 加工的原始事件
+
+        [V4.1] 内部调用 get_damage_events_raw()
+        """
+        return await self.get_damage_events_raw()
 
     async def get_action_tracks_raw(self) -> list[dict[str, Any]]:
         sid = await self.repo.get_latest_session_id()
@@ -86,28 +94,22 @@ class ReviewDataAdapter:
         return [{"frame": r['f'], "aura": json.loads(r['aura'])} for r in raw]
 
     async def get_all_characters_base_stats(self) -> dict[int, dict[str, Any]]:
-        """[V8.3] 批量获取所有角色的初始面板快照（包含名称映射）"""
+        """[V8.3] 批量获取所有角色的初始面板快照（包含名称映射）
+
+        [V4.1] 重构：调用 Repository 方法，消除直连 SQL
+        """
         sid = await self.repo.get_latest_session_id()
         if not sid:
             return {}
-        
-        import aiosqlite
+
+        rows = await self.repo.fetch_all_characters_base_stats(sid)
         results = {}
-        async with aiosqlite.connect(self.repo.db_path) as db:
-            # 使用 JOIN 关联注册表获取实体的真实名称
-            sql = """
-                SELECT sc.entity_id, r.name, sc.base_attributes 
-                FROM simulation_characters sc
-                JOIN simulation_entity_registry r ON sc.session_id = r.session_id AND sc.entity_id = r.entity_id
-                WHERE sc.session_id = ?
-            """
-            async with db.execute(sql, (sid,)) as cursor:
-                async for row in cursor:
-                    eid, name, base_json = row
-                    stats = json.loads(base_json)
-                    # 显式注入名称字段供 UI 直接读取
-                    stats["名称"] = name
-                    results[eid] = stats
+        for row in rows:
+            eid = row["entity_id"]
+            name = row["name"]
+            stats = json.loads(row["base_attributes"])
+            stats["名称"] = name
+            results[eid] = stats
         return results
 
     async def get_reaction_logs_raw(self) -> list[str]:
@@ -179,6 +181,8 @@ class ReviewDataAdapter:
 
         用于审计系统的脱水存储机制，从帧快照检索基础属性、面板百分比等数据。
 
+        [V4.1] 重构：调用 Repository 方法，消除直连 SQL
+
         Args:
             frame_id: 帧编号
             entity_id: 实体 ID
@@ -195,66 +199,47 @@ class ReviewDataAdapter:
         if not sid:
             return None
 
-        async with aiosqlite.connect(self.repo.db_path) as db:
-            snapshot: dict[str, Any] = {
-                "entity_id": entity_id,
-                "frame": frame_id,
-                "stats": {},
-                "active_modifiers": [],
-                "metrics": {}
-            }
+        snapshot: dict[str, Any] = {
+            "entity_id": entity_id,
+            "frame": frame_id,
+            "stats": {},
+            "active_modifiers": [],
+            "metrics": {}
+        }
 
-            # 1. 加载基础面板 (仅角色)
-            async with db.execute(
-                "SELECT base_attributes FROM simulation_characters WHERE session_id=? AND entity_id=?",
-                (sid, entity_id)
-            ) as sc:
-                row = await sc.fetchone()
-                if row:
-                    snapshot["stats"] = json.loads(row[0])
+        # 1. 加载基础面板 (仅角色)
+        base_attr = await self.repo.fetch_entity_base_attributes(sid, entity_id)
+        if base_attr and base_attr.get("base_attributes"):
+            snapshot["stats"] = json.loads(base_attr["base_attributes"])
 
-            # 2. 资源跳变还原 (HP, ENERGY)
-            async with db.execute(
-                "SELECT jump_type, new_value FROM simulation_state_jumps "
-                "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
-                "GROUP BY jump_type HAVING frame_id = MAX(frame_id)",
-                (sid, entity_id, frame_id)
-            ) as sc:
-                async for row in sc:
-                    jtype, jval = row[0], row[1]
-                    snapshot["stats"][jtype] = round(jval, 1)
-                    if jtype == "HP":
-                        snapshot["current_hp"] = jval
-                    if jtype == "ENERGY":
-                        snapshot["current_energy"] = jval
+        # 2. 资源跳变还原 (HP, ENERGY)
+        state_jumps = await self.repo.fetch_entity_state_jumps(sid, entity_id, frame_id)
+        for jump in state_jumps:
+            jtype, jval = jump["jump_type"], jump["new_value"]
+            snapshot["stats"][jtype] = round(jval, 1)
+            if jtype == "HP":
+                snapshot["current_hp"] = jval
+            if jtype == "ENERGY":
+                snapshot["current_energy"] = jval
 
-            # 3. 属性修饰符还原
-            async with db.execute(
-                "SELECT source_name, stat_type, value, op_type FROM modifier_lifecycles "
-                "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)",
-                (sid, entity_id, frame_id, frame_id)
-            ) as sc:
-                async for r in sc:
-                    snapshot["active_modifiers"].append({
-                        "name": r[0], "stat": r[1], "value": r[2], "op": r[3]
-                    })
+        # 3. 属性修饰符还原
+        modifiers = await self.repo.fetch_active_modifiers(sid, entity_id, frame_id)
+        for m in modifiers:
+            snapshot["active_modifiers"].append({
+                "name": m["source_name"], "stat": m["stat_type"], "value": m["value"], "op": m["op_type"]
+            })
 
-            # 4. 机制指标
-            async with db.execute(
-                "SELECT metric_key, value FROM simulation_mechanism_metrics "
-                "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
-                "GROUP BY metric_key HAVING frame_id = MAX(frame_id)",
-                (sid, entity_id, frame_id)
-            ) as sc:
-                async for row in sc:
-                    snapshot["metrics"][row[0]] = row[1]
+        # 4. 机制指标
+        snapshot["metrics"] = await self.repo.fetch_entity_mechanism_metrics(sid, entity_id, frame_id)
 
-            return snapshot if snapshot["stats"] else None
+        return snapshot if snapshot["stats"] else None
 
     async def get_target_snapshot(self, frame_id: int, target_id: int) -> dict | None:
         """[V2.5.5] 获取目标在该帧的状态快照 [R] 项
 
         用于审计系统获取目标的抗性、防御等属性。
+
+        [V4.1] 重构：调用 Repository 方法，消除直连 SQL
 
         Args:
             frame_id: 帧编号
@@ -271,163 +256,145 @@ class ReviewDataAdapter:
         if not sid:
             return None
 
-        async with aiosqlite.connect(self.repo.db_path) as db:
-            snapshot: dict[str, Any] = {
-                "target_id": target_id,
-                "frame": frame_id,
-                "aura": {},
-                "resistance": {}
-            }
+        snapshot: dict[str, Any] = {
+            "target_id": target_id,
+            "frame": frame_id,
+            "aura": {},
+            "resistance": {}
+        }
 
-            # 1. 获取元素附着状态
-            async with db.execute(
-                "SELECT aura_state FROM target_aura_pulses "
-                "WHERE session_id = ? AND frame_id <= ? "
-                "ORDER BY frame_id DESC LIMIT 1",
-                (sid, frame_id)
-            ) as sc:
-                row = await sc.fetchone()
-                if row and row[0]:
-                    snapshot["aura"] = json.loads(row[0])
+        # 1. 获取元素附着状态
+        aura_data = await self.repo.fetch_target_aura_state(sid, frame_id)
+        if aura_data and aura_data.get("aura_state"):
+            snapshot["aura"] = json.loads(aura_data["aura_state"])
 
-            # 2. 获取目标基础属性（如果有存储）
-            # 注：目标属性通常存储在 simulation_entity_registry 或其他表中
-            async with db.execute(
-                "SELECT name, entity_type FROM simulation_entity_registry "
-                "WHERE session_id = ? AND entity_id = ?",
-                (sid, target_id)
-            ) as sc:
-                row = await sc.fetchone()
-                if row:
-                    snapshot["name"] = row[0]
-                    snapshot["type"] = row[1]
+        # 2. 获取目标基础属性（如果有存储）
+        registry_info = await self.repo.fetch_entity_registry_info(sid, target_id)
+        if registry_info:
+            snapshot["name"] = registry_info["name"]
+            snapshot["type"] = registry_info["entity_type"]
 
-            return snapshot
+        return snapshot
 
     async def get_frame(self, frame_id: int) -> dict | None:
-        """重建第 T 帧的全量快照 (包含 HP/能量/效果/护盾的离散还原)"""
+        """重建第 T 帧的全量快照 (包含 HP/能量/效果/护盾的离散还原)
+
+        [V4.1] 重构：调用 Repository 方法，消除直连 SQL
+        """
         sid = await self.repo.get_latest_session_id()
         if not sid:
             return None
         await self._ensure_name_map(sid)
-        
-        async with aiosqlite.connect(self.repo.db_path) as db:
-            snapshot: dict[str, Any] = {
-                "frame": frame_id,
-                "team": [],
-                "entities": [],
-                "events": []
+
+        snapshot: dict[str, Any] = {
+            "frame": frame_id,
+            "team": [],
+            "entities": [],
+            "events": []
+        }
+
+        active_entities = await self.repo.fetch_entity_registry(sid)
+
+        for ent in active_entities:
+            eid, name, etype = ent['id'], ent['name'], ent['type']
+            entity_snapshot: dict[str, Any] = {
+                "entity_id": eid,
+                "name": name,
+                "stats": {},
+                "active_modifiers": [],
+                "active_effects": [],  # [V9.2] 活跃效果列表
+                "shields": [],         # [V9.2] 活跃护盾列表
+                "metrics": {}          # [V9.6] 机制指标字典
             }
 
-            active_entities = await self.repo.fetch_entity_registry(sid)
+            # 1. 加载基础面板 (仅角色)
+            if etype == "CHARACTER":
+                base_attr = await self.repo.fetch_entity_base_attributes(sid, eid)
+                if base_attr and base_attr.get("base_attributes"):
+                    entity_snapshot["stats"] = json.loads(base_attr["base_attributes"])
 
-            for ent in active_entities:
-                eid, name, etype = ent['id'], ent['name'], ent['type']
-                entity_snapshot: dict[str, Any] = {
-                    "entity_id": eid,
-                    "name": name,
-                    "stats": {},
-                    "active_modifiers": [],
-                    "active_effects": [], # [V9.2] 活跃效果列表
-                    "shields": [],        # [V9.2] 活跃护盾列表
-                    "metrics": {}         # [V9.6] 机制指标字典
+            # 2. 资源跳变还原 (HP, ENERGY)
+            state_jumps = await self.repo.fetch_entity_state_jumps(sid, eid, frame_id)
+            for jump in state_jumps:
+                jtype, jval = jump["jump_type"], jump["new_value"]
+                entity_snapshot["stats"][jtype] = round(jval, 1)
+                if jtype == "HP":
+                    entity_snapshot["current_hp"] = jval
+                if jtype == "ENERGY":
+                    entity_snapshot["current_energy"] = jval
+
+            # 3. 属性修饰符还原 (Lifecycles)
+            modifiers = await self.repo.fetch_active_modifiers(sid, eid, frame_id)
+            for m in modifiers:
+                entity_snapshot["active_modifiers"].append({
+                    "name": m["source_name"], "stat": m["stat_type"],
+                    "value": m["value"], "op": m["op_type"]
+                })
+
+            # 4. 效果与护盾还原 (Effect Lifecycles)
+            effects = await self.repo.fetch_active_effects(sid, eid, frame_id)
+            for eff in effects:
+                eff_data = {
+                    "instance_id": eff["instance_id"],
+                    "name": eff["name"],
+                    "start_frame": eff["start_frame"],
+                    "end_frame": eff["end_frame"],
+                    "duration": eff["duration"]
                 }
-                # 1. 加载基础面板 (仅角色)
-                if etype == "CHARACTER":
-                    async with db.execute("SELECT base_attributes FROM simulation_characters WHERE session_id=? AND entity_id=?", (sid, eid)) as sc:
-                        row = await sc.fetchone()
-                        if row:
-                            entity_snapshot["stats"] = json.loads(row[0])
-                    
-                    # [V9.3] 移除坐标等非核心数据查询，精简数据传输
 
-                # 3. 资源跳变还原 (HP, ENERGY)
-                # 针对每种跳变类型取最近的一条记录
-                async with db.execute(
-                    "SELECT jump_type, new_value FROM simulation_state_jumps "
-                    "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
-                    "GROUP BY jump_type HAVING frame_id = MAX(frame_id)", (sid, eid, frame_id)
-                ) as sc:
-                    async for row in sc: 
-                        jtype, jval = row[0], row[1]
-                        entity_snapshot["stats"][jtype] = round(jval, 1)
-                        # 同时提升到顶层方便 UI 访问
-                        if jtype == "HP":
-                            entity_snapshot["current_hp"] = jval
-                        if jtype == "ENERGY":
-                            entity_snapshot["current_energy"] = jval
-
-                # 4. 属性修饰符还原 (Lifecycles)
-                async with db.execute(
-                    "SELECT source_name, stat_type, value, op_type FROM modifier_lifecycles "
-                    "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)", (sid, eid, frame_id, frame_id)
-                ) as sc:
-                    async for r in sc:
-                        entity_snapshot["active_modifiers"].append({"name": r[0], "stat": r[1], "value": r[2], "op": r[3]})
-
-                # 5. 效果与护盾还原 (Effect Lifecycles)
-                async with db.execute(
-                    "SELECT instance_id, effect_type, name, start_frame, end_frame, duration FROM simulation_effect_lifecycles "
-                    "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)", (sid, eid, frame_id, frame_id)
-                ) as sc:
-                    async for r in sc:
-                        inst_id, eff_type, eff_name, start_f, end_f, duration = r
-                        eff_data = {
-                            "instance_id": inst_id,
-                            "name": eff_name,
-                            "start_frame": start_f,
-                            "end_frame": end_f,
-                            "duration": duration
-                        }
-                        
-                        if eff_type == "SHIELD":
-                            # 进一步查询护盾剩余量
-                            async with db.execute(
-                                "SELECT current_shield_hp FROM simulation_shield_jumps "
-                                "WHERE session_id = ? AND instance_id = ? AND frame_id <= ? "
-                                "ORDER BY frame_id DESC LIMIT 1", (sid, inst_id, frame_id)
-                            ) as sj:
-                                s_row = await sj.fetchone()
-                                eff_data["current_hp"] = s_row[0] if s_row else 0
-                            entity_snapshot["shields"].append(eff_data)
-                        else:
-                            entity_snapshot["active_effects"].append(eff_data)
-
-                # [V9.6] 查询机制指标（用于效果描述动态数据）
-                async with db.execute(
-                    "SELECT metric_key, value FROM simulation_mechanism_metrics "
-                    "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
-                    "GROUP BY metric_key HAVING frame_id = MAX(frame_id)",
-                    (sid, eid, frame_id)
-                ) as sc:
-                    async for row in sc:
-                        entity_snapshot["metrics"][row[0]] = row[1]
-
-                if etype == "CHARACTER":
-                    snapshot["team"].append(entity_snapshot)
+                if eff["effect_type"] == "SHIELD":
+                    # 查询护盾剩余量
+                    shield_hp = await self.repo.fetch_shield_state(sid, eff["instance_id"], frame_id)
+                    eff_data["current_hp"] = shield_hp
+                    entity_snapshot["shields"].append(eff_data)
                 else:
-                    snapshot["entities"].append(entity_snapshot)
+                    entity_snapshot["active_effects"].append(eff_data)
 
-            # 6. 事件日志同步
-            async with db.execute(
-                "SELECT event_id, event_type, source_id FROM simulation_event_log WHERE session_id = ? AND frame_id = ?", (sid, frame_id)
-            ) as cursor:
-                async for row in cursor:
-                    snapshot["events"].append({"event_id": row[0], "type": row[1], "source_name": self._name_map.get(row[2], "Unknown")})
+            # 5. 机制指标
+            entity_snapshot["metrics"] = await self.repo.fetch_entity_mechanism_metrics(sid, eid, frame_id)
 
-            return snapshot
+            if etype == "CHARACTER":
+                snapshot["team"].append(entity_snapshot)
+            else:
+                snapshot["entities"].append(entity_snapshot)
+
+        # 6. 事件日志同步
+        event_logs = await self.repo.fetch_event_log_by_frame(sid, frame_id)
+        for ev in event_logs:
+            snapshot["events"].append({
+                "event_id": ev["event_id"],
+                "type": ev["event_type"],
+                "source_name": self._name_map.get(ev["source_id"], "Unknown")
+            })
+
+        return snapshot
 
     async def get_full_lifecycles(self) -> list[dict[str, Any]]:
+        """[V4.1] 重构：调用 Repository 方法，消除直连 SQL"""
         sid = await self.repo.get_latest_session_id()
         if not sid:
             return []
-        import aiosqlite
-        async with aiosqlite.connect(self.repo.db_path) as db:
-            results = []
-            async with db.execute("SELECT source_name, start_frame, end_frame, stat_type FROM modifier_lifecycles WHERE session_id=?", (sid,)) as cur:
-                async for r in cur:
-                    results.append({'name': f"{r[0]} ({r[3]})", 'start': r[1], 'end': r[2], 'type': 'MODIFIER'})
-            async with db.execute("SELECT name, start_frame, end_frame, effect_type FROM simulation_effect_lifecycles WHERE session_id=?", (sid,)) as cur:
-                async for r in cur:
-                    results.append({'name': r[0], 'start': r[1], 'end': r[2], 'type': r[3]})
-            return results
+
+        results = []
+
+        # 修饰符生命周期
+        modifier_cycles = await self.repo.fetch_modifier_lifecycles(sid)
+        for m in modifier_cycles:
+            results.append({
+                'name': f"{m['source_name']} ({m['stat_type']})",
+                'start': m['start_frame'],
+                'end': m['end_frame'],
+                'type': 'MODIFIER'
+            })
+
+        # 效果生命周期
+        effect_cycles = await self.repo.fetch_effect_lifecycles(sid)
+        for e in effect_cycles:
+            results.append({
+                'name': e['name'],
+                'start': e['start_frame'],
+                'end': e['end_frame'],
+                'type': e['effect_type']
+            })
+
+        return results
