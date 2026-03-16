@@ -414,18 +414,24 @@ def DomainDetailSection(
                 domain_label = "全部来源"
 
         elif active_bucket == "CRIT":
-            if selected_domain == "crit_dmg":
-                # [V14.0] 优先从 modifiers 字段获取，回退到 steps 过滤
+            # [V14.2] CRIT 区支持暴击率和暴击伤害分开展示
+            if selected_domain == "crit_rate":
+                # 显示暴击率来源
+                modifiers = buckets_data.get(data_key, {}).get('crit_rate_modifiers', [])
+                if not modifiers:
+                    modifiers = [s for s in steps if "暴击率" in s.get("stat", "")]
+                if not modifiers:
+                    modifiers = [{"stat": "暴击率", "value": 0.0, "source": "面板聚合值（含基础+装备+天赋）"}]
+                domain_label = "暴击率来源"
+            else:
+                # 显示暴击伤害来源（仅暴击伤害，排除暴击率）
                 modifiers = buckets_data.get(data_key, {}).get('modifiers', [])
                 if not modifiers:
-                    # 从 steps 中过滤暴击相关
-                    modifiers = [s for s in steps if "暴击" in s.get("stat", "")]
+                    # 从 steps 中过滤暴击伤害（排除暴击率）
+                    modifiers = [s for s in steps if "暴击伤害" in s.get("stat", "")]
                 if not modifiers:
                     modifiers = [{"stat": "暴击伤害", "value": 0.0, "source": "面板聚合值（含基础+装备+天赋）"}]
                 domain_label = "暴击伤害来源"
-            else:
-                modifiers = steps
-                domain_label = "全部来源"
 
         else:
             # 其他乘区使用原有逻辑
