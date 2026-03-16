@@ -1,0 +1,94 @@
+"""[V11.0] 审计处理数据类型定义
+
+提供审计处理器的数据结构定义。
+"""
+from __future__ import annotations
+from dataclasses import dataclass, field
+from enum import Enum
+
+
+class DamageType(Enum):
+    """[V12.0] 伤害类型枚举
+
+    区分常规伤害路径和剧变反应路径：
+    - NORMAL: 常规伤害路径，使用 6 乘区模型
+    - TRANSFORMATIVE: 剧变反应路径，使用 4 桶模型
+    """
+    NORMAL = "normal"
+    TRANSFORMATIVE = "transformative"
+
+
+@dataclass
+class DamageTypeContext:
+    """[V12.0] 伤害类型上下文
+
+    存储伤害类型及其相关元数据，用于 UI 展示路径选择。
+
+    Attributes:
+        damage_type: 伤害类型（常规/剧变）
+        attack_tag: 攻击标签（如 "超载", "感电", "扩散"）
+        level_coeff: 等级系数（剧变反应专用）
+        reaction_coeff: 反应系数（剧变反应专用，如超载 2.75、超导 0.5）
+        elemental_mastery: 元素精通值
+        special_bonus: 特殊加成（如魔女套等）
+    """
+    damage_type: DamageType = DamageType.NORMAL
+    attack_tag: str = ""
+    level_coeff: float = 0.0
+    reaction_coeff: float = 1.0
+    elemental_mastery: float = 0.0
+    special_bonus: float = 0.0
+
+
+@dataclass
+class ScalingAttributeInfo:
+    """[V13.0] 单属性缩放信息
+
+    用于混合倍率技能（如阿贝多 E、诺艾尔 Q）的属性-倍率对应展示。
+
+    Attributes:
+        attr_name: 属性名（如 "攻击力", "防御力"）
+        base_val: 基础值（角色面板基础属性）
+        pct_bonus: 百分比加成总和
+        flat_bonus: 固定值加成总和
+        total_val: 最终属性值 = base_val * (1 + pct_bonus/100) + flat_bonus
+        skill_mult: 技能倍率%（百分比形式，如 120.0 表示 120%）
+        contribution: 对核心伤害的贡献值 = total_val * skill_mult / 100
+        pct_modifiers: 百分比加成修饰符列表
+        flat_modifiers: 固定值加成修饰符列表
+    """
+    attr_name: str = ""
+    base_val: float = 0.0
+    pct_bonus: float = 0.0
+    flat_bonus: float = 0.0
+    total_val: float = 0.0
+    skill_mult: float = 0.0
+    contribution: float = 0.0
+    pct_modifiers: list = field(default_factory=list)
+    flat_modifiers: list = field(default_factory=list)
+
+
+@dataclass
+class DomainValues:
+    """[V11.0] 域值数据结构
+
+    用于乘区公式中的三个域值展示。
+
+    Attributes:
+        domain1: 固定值域（不带 % 的属性修饰符总和）
+        domain2: 百分比域（带 % 的属性修饰符总和）
+        domain3: 其他域（预留）
+        domain1_modifiers: 固定值修饰符列表
+        domain2_modifiers: 百分比修饰符列表
+    """
+    domain1: float = 0.0
+    domain2: float = 0.0
+    domain3: float = 0.0
+    domain1_modifiers: list[dict] | None = None
+    domain2_modifiers: list[dict] | None = None
+
+    def __post_init__(self):
+        if self.domain1_modifiers is None:
+            self.domain1_modifiers = []
+        if self.domain2_modifiers is None:
+            self.domain2_modifiers = []

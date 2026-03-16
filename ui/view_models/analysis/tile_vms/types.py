@@ -72,3 +72,43 @@ DEFAULT_STATS: list[str] = [
     "攻击力", "生命值", "防御力", "元素精通",
     "暴击率", "暴击伤害", "元素充能效率", "伤害加成"
 ]
+
+
+@dataclass
+class FrameRangeSelection:
+    """帧范围选择数据结构
+
+    用于脉冲图的框选交互，收集一定时间范围内的所有伤害事件。
+
+    Attributes:
+        center_frame: 点击中心帧
+        start_frame: 范围起始帧
+        end_frame: 范围结束帧
+        events: 范围内所有伤害事件（按伤害降序排序）
+        total_damage: 范围总伤害
+        time_range_seconds: 时间范围（固定 0.5s = 30帧）
+    """
+    center_frame: int
+    start_frame: int
+    end_frame: int
+    events: list[dict]
+    total_damage: float
+    time_range_seconds: float = 0.5
+
+
+@dataclass
+class MultiplierDomain:
+    """乘区域数据结构
+
+    将单个乘区内的步骤按来源分组为域，用于横向展示。
+
+    Attributes:
+        name: 域名称（如 "武器加成"、"圣遗物加成"）
+        source_type: 来源类型（Weapon, Artifact, Talent, Constellation, Resonance）
+        steps: 该域的计算步骤
+        total: 域小计
+    """
+    name: str
+    source_type: str
+    steps: list[dict]
+    total: float

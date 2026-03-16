@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from core.persistence.adapter import ReviewDataAdapter
 from core.logger import get_ui_logger
-from ui.view_models.analysis.tile_vms.types import DEFAULT_STATS
+from ui.view_models.analysis.tile_vms.types import DEFAULT_STATS, FrameRangeSelection
 
 if TYPE_CHECKING:
     from ui.states.app_state import AppState
@@ -75,6 +75,16 @@ class AnalysisViewModel:
         # [V9.5 Pro V2] 状态条选中状态
         # ============================================================
         self.status_bar_selection: dict[str, list[str]] = {}  # instance_id -> ["血条", "能量条"]
+
+        # ============================================================
+        # [V10.0] 帧范围选择状态
+        # ============================================================
+        self.frame_range_selection: FrameRangeSelection | None = None
+
+        # ============================================================
+        # [V11.0] 面板模式状态
+        # ============================================================
+        self.panel_mode: str = "selection"  # "selection" | "audit"
 
         # ============================================================
         # 布局状态
@@ -361,11 +371,23 @@ class AnalysisViewModel:
     # ============================================================
 
     async def load_audit_detail(self, event_id: int):
-        """异步加载 L2 审计详情"""
+        """[V12.0] 异步加载 L2 审计详情（支持伤害类型感知）
+
+        流程：
+        1. 获取事件元数据（frame_id, source_id, target_id, is_crit, reaction_name）
+        2. 通过 REACTION_CLASSIFICATION 判断是否为剧变反应
+        3. 根据类型调用不同的处理方法：
+           - 剧变反应: 调用 process_transformative() 处理 4 桶模型
+           - 常规伤害: 调用 process_detail() 处理 7 桶模型
+        4. 拉取审计链 [S] 项和帧快照 [R] 项
+        5. 返回处理后的桶数据
+        """
         if not self.adapter or not self.data_service:
             return
 
-        from core.persistence.processors.audit_processor import AuditProcessor
+        from core.persistence.processors.audit import AuditProcessor
+        from core.persistence.processors.audit.types import DamageType, DamageTypeContext
+        from core.systems.contract.reaction import ElementalReactionType, REACTION_CLASSIFICATION, ReactionCategory
 
         slot = self.data_service.get_slot("audit")
         if not slot:
@@ -375,24 +397,97 @@ class AnalysisViewModel:
         self._notify_update()
 
         try:
-            # 查找基础事件信息 (用于判断是否暴击)
-            dist_slot = self.data_service.get_slot("damage_dist")
-            is_crit = False
-            if dist_slot and dist_slot.data:
-                for f_data in dist_slot.data.get("frame_map", {}).values():
-                    for ev in f_data.get("events", []):
-                        if ev['event_id'] == event_id:
-                            is_crit = ev.get('is_crit', False)
-                            break
+            # [V2.5.5] Step 1: 获取事件元数据
+            event_meta = await self.adapter.get_event_metadata(event_id)
 
-            # 拉取原始审计链
-            raw_trail = await self.adapter.get_damage_audit(event_id)
+            if event_meta:
+                frame_id = event_meta.get("frame_id", 0)
+                source_id = event_meta.get("source_id")
+                # target_id 预留用于后续获取目标快照
+                _target_id = event_meta.get("target_id")
+                is_crit = event_meta.get("is_crit", False)
+                reaction_name = event_meta.get("reaction_name")
 
-            # 聚合加工
-            processed = AuditProcessor.process_detail(raw_trail, is_crit=is_crit)
+                # [V12.0] Step 2: 通过 REACTION_CLASSIFICATION 判断是否为剧变反应
+                is_transformative = False
+                if reaction_name:
+                    try:
+                        reaction_type = ElementalReactionType[reaction_name]
+                        is_transformative = REACTION_CLASSIFICATION.get(reaction_type) == ReactionCategory.TRANSFORMATIVE
+                    except KeyError:
+                        pass
+
+                # [V2.5.5] Step 3: 拉取审计链 [S] 项
+                raw_trail = await self.adapter.get_damage_audit(event_id)
+
+                # [V2.5.5] Step 4: 拉取帧快照 [R] 项
+                frame_snapshot = None
+                if source_id is not None:
+                    frame_snapshot = await self.adapter.get_entity_snapshot(frame_id, source_id)
+
+                # [V12.0] Step 5: 根据类型选择处理方法
+                if is_transformative:
+                    # 剧变反应路径：构建 DamageTypeContext
+                    damage_type_ctx = DamageTypeContext(
+                        damage_type=DamageType.TRANSFORMATIVE,
+                        attack_tag=reaction_name or "",
+                        level_coeff=0.0,  # 从审计链或帧快照获取
+                        reaction_coeff=1.0,
+                        elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0,
+                        special_bonus=0.0,
+                    )
+                    processed = AuditProcessor.process_transformative(
+                        damage_type_ctx=damage_type_ctx,
+                        raw_trail=raw_trail,
+                        frame_snapshot=frame_snapshot
+                    )
+                    processed["_damage_type_ctx"] = damage_type_ctx
+                else:
+                    # 常规伤害路径
+                    processed = AuditProcessor.process_detail(
+                        raw_trail=raw_trail,
+                        frame_snapshot=frame_snapshot,
+                        is_crit=is_crit
+                    )
+                    processed["_damage_type_ctx"] = DamageTypeContext()
+
+                    # [V14.0] 获取增伤/暴击伤害分项来源（仅常规伤害）
+                    # 增伤相关属性名列表
+                    bonus_stat_names = [
+                        "伤害加成",
+                        "火元素伤害加成", "水元素伤害加成", "冰元素伤害加成",
+                        "雷元素伤害加成", "风元素伤害加成", "岩元素伤害加成",
+                        "草元素伤害加成", "物理伤害加成",
+                    ]
+                    bonus_modifiers = await self.adapter.get_entity_modifiers_for_stat(
+                        event_id, bonus_stat_names
+                    )
+                    processed["bonus"]["modifiers"] = bonus_modifiers
+
+                    # 暴击伤害分项来源
+                    crit_stat_names = ["暴击伤害", "暴击率"]
+                    crit_modifiers = await self.adapter.get_entity_modifiers_for_stat(
+                        event_id, crit_stat_names
+                    )
+                    processed["crit"]["modifiers"] = crit_modifiers
+            else:
+                # 回退到旧逻辑
+                dist_slot = self.data_service.get_slot("damage_dist")
+                is_crit = False
+                if dist_slot and dist_slot.data:
+                    for f_data in dist_slot.data.get("frame_map", {}).values():
+                        for ev in f_data.get("events", []):
+                            if ev['event_id'] == event_id:
+                                is_crit = ev.get('is_crit', False)
+                                break
+
+                raw_trail = await self.adapter.get_damage_audit(event_id)
+                processed = AuditProcessor.process_detail(raw_trail, is_crit=is_crit)
+                processed["_damage_type_ctx"] = DamageTypeContext()
+
             slot.data = processed
 
-            get_ui_logger().log_debug(f"Audit: Event {event_id} processed.")
+            get_ui_logger().log_debug(f"Audit: Event {event_id} processed (V12.0).")
         except Exception as e:
             get_ui_logger().log_error(f"Audit Detail Error: {str(e)}")
         finally:
@@ -473,6 +568,50 @@ class AnalysisViewModel:
     def set_selected_event(self, event: dict[str, Any] | None):
         """设置当前选中的伤害事件"""
         self.selected_event = event
+        self._notify_update()
+
+    def set_frame_range_selection(self, selection: FrameRangeSelection | None):
+        """[V10.0] 设置帧范围选择"""
+        self.frame_range_selection = selection
+        self._notify_update()
+
+    def clear_frame_range_selection(self):
+        """[V10.0] 清除帧范围选择"""
+        self.frame_range_selection = None
+        self._notify_update()
+
+    # ============================================================
+    # [V11.0] 面板模式控制
+    # ============================================================
+
+    def set_panel_mode(self, mode: str):
+        """设置面板模式
+
+        Args:
+            mode: "selection" 或 "audit"
+        """
+        if mode in ("selection", "audit"):
+            self.panel_mode = mode
+            self._notify_update()
+
+    def switch_to_audit(self, event: dict):
+        """切换到审计面板并加载事件详情
+
+        Args:
+            event: 选中的伤害事件
+        """
+        self.selected_event = event
+        self.panel_mode = "audit"
+        self._notify_update()
+
+        # 异步加载审计详情
+        event_id = event.get('event_id')
+        if event_id is not None:
+            asyncio.create_task(self.load_audit_detail(int(event_id)))
+
+    def switch_to_selection(self):
+        """返回选择面板"""
+        self.panel_mode = "selection"
         self._notify_update()
 
     # ============================================================

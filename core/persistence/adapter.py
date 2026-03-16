@@ -132,6 +132,178 @@ class ReviewDataAdapter:
         raw = await self.repo.fetch_damage_audit_trail(event_id)
         return [{"modifier_id": r['mid'], "source": r['src'], "stat": r['stat'], "value": r['val'], "op": r['op']} for r in raw]
 
+    async def get_event_metadata(self, event_id: int) -> dict | None:
+        """[V2.5.5] 获取事件元数据（用于审计详情加载）
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            事件元数据字典
+        """
+        return await self.repo.fetch_event_with_damage(event_id)
+
+    async def get_entity_modifiers_for_stat(
+        self,
+        event_id: int,
+        stat_names: list[str]
+    ) -> list[dict[str, Any]]:
+        """获取指定事件相关实体的修饰符分项来源
+
+        Args:
+            event_id: 事件ID
+            stat_names: 要筛选的属性名列表（如 ["伤害加成", "暴击伤害"]）
+
+        Returns:
+            修饰符分项列表 [{"source": str, "stat": str, "value": float, "op": str}, ...]
+        """
+        # 1. 获取事件元数据（包含 session_id, source_id, frame_id）
+        meta = await self.get_event_metadata(event_id)
+        if not meta:
+            return []
+
+        session_id = meta.get("session_id")
+        entity_id = meta.get("source_id")
+        frame = meta.get("frame_id")
+
+        if session_id is None or entity_id is None or frame is None:
+            return []
+
+        # 2. 查询修饰符
+        return await self.repo.fetch_entity_modifiers(
+            int(session_id), int(entity_id), int(frame), stat_names
+        )
+
+    async def get_entity_snapshot(self, frame_id: int, entity_id: int) -> dict | None:
+        """[V2.5.5] 获取实体在该帧的属性快照 [R] 项
+
+        用于审计系统的脱水存储机制，从帧快照检索基础属性、面板百分比等数据。
+
+        Args:
+            frame_id: 帧编号
+            entity_id: 实体 ID
+
+        Returns:
+            实体属性快照字典，包含：
+            - stats: 属性字典
+            - current_hp: 当前 HP
+            - current_energy: 当前能量
+            - active_modifiers: 活跃修饰符列表
+            - metrics: 机制指标字典
+        """
+        sid = await self.repo.get_latest_session_id()
+        if not sid:
+            return None
+
+        async with aiosqlite.connect(self.repo.db_path) as db:
+            snapshot: dict[str, Any] = {
+                "entity_id": entity_id,
+                "frame": frame_id,
+                "stats": {},
+                "active_modifiers": [],
+                "metrics": {}
+            }
+
+            # 1. 加载基础面板 (仅角色)
+            async with db.execute(
+                "SELECT base_attributes FROM simulation_characters WHERE session_id=? AND entity_id=?",
+                (sid, entity_id)
+            ) as sc:
+                row = await sc.fetchone()
+                if row:
+                    snapshot["stats"] = json.loads(row[0])
+
+            # 2. 资源跳变还原 (HP, ENERGY)
+            async with db.execute(
+                "SELECT jump_type, new_value FROM simulation_state_jumps "
+                "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
+                "GROUP BY jump_type HAVING frame_id = MAX(frame_id)",
+                (sid, entity_id, frame_id)
+            ) as sc:
+                async for row in sc:
+                    jtype, jval = row[0], row[1]
+                    snapshot["stats"][jtype] = round(jval, 1)
+                    if jtype == "HP":
+                        snapshot["current_hp"] = jval
+                    if jtype == "ENERGY":
+                        snapshot["current_energy"] = jval
+
+            # 3. 属性修饰符还原
+            async with db.execute(
+                "SELECT source_name, stat_type, value, op_type FROM modifier_lifecycles "
+                "WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)",
+                (sid, entity_id, frame_id, frame_id)
+            ) as sc:
+                async for r in sc:
+                    snapshot["active_modifiers"].append({
+                        "name": r[0], "stat": r[1], "value": r[2], "op": r[3]
+                    })
+
+            # 4. 机制指标
+            async with db.execute(
+                "SELECT metric_key, value FROM simulation_mechanism_metrics "
+                "WHERE session_id = ? AND entity_id = ? AND frame_id <= ? "
+                "GROUP BY metric_key HAVING frame_id = MAX(frame_id)",
+                (sid, entity_id, frame_id)
+            ) as sc:
+                async for row in sc:
+                    snapshot["metrics"][row[0]] = row[1]
+
+            return snapshot if snapshot["stats"] else None
+
+    async def get_target_snapshot(self, frame_id: int, target_id: int) -> dict | None:
+        """[V2.5.5] 获取目标在该帧的状态快照 [R] 项
+
+        用于审计系统获取目标的抗性、防御等属性。
+
+        Args:
+            frame_id: 帧编号
+            target_id: 目标 ID
+
+        Returns:
+            目标状态快照字典，包含：
+            - target_id: 目标 ID
+            - frame: 帧编号
+            - aura: 元素附着状态
+            - resistance: 抗性字典
+        """
+        sid = await self.repo.get_latest_session_id()
+        if not sid:
+            return None
+
+        async with aiosqlite.connect(self.repo.db_path) as db:
+            snapshot: dict[str, Any] = {
+                "target_id": target_id,
+                "frame": frame_id,
+                "aura": {},
+                "resistance": {}
+            }
+
+            # 1. 获取元素附着状态
+            async with db.execute(
+                "SELECT aura_state FROM target_aura_pulses "
+                "WHERE session_id = ? AND frame_id <= ? "
+                "ORDER BY frame_id DESC LIMIT 1",
+                (sid, frame_id)
+            ) as sc:
+                row = await sc.fetchone()
+                if row and row[0]:
+                    snapshot["aura"] = json.loads(row[0])
+
+            # 2. 获取目标基础属性（如果有存储）
+            # 注：目标属性通常存储在 simulation_entity_registry 或其他表中
+            async with db.execute(
+                "SELECT name, entity_type FROM simulation_entity_registry "
+                "WHERE session_id = ? AND entity_id = ?",
+                (sid, target_id)
+            ) as sc:
+                row = await sc.fetchone()
+                if row:
+                    snapshot["name"] = row[0]
+                    snapshot["type"] = row[1]
+
+            return snapshot
+
     async def get_frame(self, frame_id: int) -> dict | None:
         """重建第 T 帧的全量快照 (包含 HP/能量/效果/护盾的离散还原)"""
         sid = await self.repo.get_latest_session_id()

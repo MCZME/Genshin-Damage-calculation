@@ -5,6 +5,7 @@
 - 数据转换逻辑已迁移至 DamageDistViewModel
 - 组件仅负责 UI 渲染
 - 使用统一签名 state: AnalysisState
+- [V10.0] 添加范围高亮层组件
 """
 import flet as ft
 import flet.canvas as cv
@@ -192,6 +193,35 @@ def DamageCursorLayer(state: 'AnalysisState', canvas_height: int):
 
 
 @ft.component
+def RangeHighlightLayer(state: 'AnalysisState', canvas_height: int):
+    """[V10.0] 范围高亮层 - 显示选中帧范围的半透明蓝色区域"""
+    selection = state.vm.frame_range_selection
+    if not selection:
+        return ft.Container()
+
+    total_frames = max(state.vm.total_frames, 1)
+
+    # 计算范围的像素位置
+    start_ratio = selection.start_frame / total_frames
+    end_ratio = selection.end_frame / total_frames
+
+    start_x = start_ratio * STD_WIDTH
+    width = (end_ratio - start_ratio) * STD_WIDTH
+
+    return ft.Container(
+        bgcolor=ft.Colors.with_opacity(0.15, "#6495ED"),
+        width=max(width, 4),  # 最小宽度 4px
+        height=canvas_height - 6,
+        left=start_x,
+        top=0,
+        border_radius=2,
+        border=ft.Border.all(1, ft.Colors.with_opacity(0.4, "#6495ED")),
+        animate_position=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
+        animate_size=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
+    )
+
+
+@ft.component
 def TimeAxis(total_frames: int, width: float):
     """时间轴"""
     total_seconds = total_frames / 60
@@ -361,6 +391,7 @@ class DamageDistributionTile(AnalysisTile):
                         ft.Container(
                             content=ft.Stack([
                                 isolated_canvas,
+                                RangeHighlightLayer(state=self.state, canvas_height=self.canvas_height),
                                 DamageCursorLayer(state=self.state, canvas_height=self.canvas_height),
                                 # 读数面板
                                 ft.Container(

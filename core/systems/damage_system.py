@@ -143,8 +143,7 @@ class DamagePipeline:
         el = ctx.damage.element[0]
         el_name = el.value if isinstance(el, Element) else str(el)
         bonus = AttributeCalculator.get_final_damage_bonus(src, el_name)
-        ctx.add_modifier("[面板快照]", "基础增伤", bonus, "SET", audit=False)
-        ctx.stats["伤害加成"] = bonus
+        ctx.add_modifier("[面板快照]", "伤害加成", bonus, "SET", audit=False)
 
     def _stage_3_evolution(self, ctx: DamageContext):
         """阶段三：允许外部系统注入 Buff。"""
@@ -177,7 +176,7 @@ class DamagePipeline:
                 ctx.is_crit = True
                 crit_dmg = AttributeCalculator.get_final_crit_dmg(ctx.source) + ctx.stats.get("暴击伤害", 0)
                 ctx.stats["暴击乘数"] = 1 + crit_dmg / 100.0
-                ctx.add_modifier("[随机判定]", "暴击乘数", ctx.stats["暴击乘数"], "SET", audit=True)
+                ctx.add_modifier("[随机判定]", "暴击乘数", ctx.stats["暴击乘数"], "SET", audit=False)
             else:
                 ctx.stats["暴击乘数"] = 1.0
 
