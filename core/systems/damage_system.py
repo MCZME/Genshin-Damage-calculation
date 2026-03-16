@@ -100,6 +100,7 @@ class DamagePipeline:
 
         # 交付结果
         ctx.damage.damage = ctx.final_result
+        ctx.damage.is_crit = ctx.is_crit  # 同步暴击状态
         ctx.damage.data["audit_trail"] = ctx.audit_trail
 
     def _stage_1_preparation(self, ctx: DamageContext) -> bool:
