@@ -24,6 +24,7 @@ def create_empty_buckets() -> dict[str, Any]:
     """创建空的乘区桶结构（常规伤害 6 桶模型）
 
     [V13.0] BASE + MULT 融合为 core_dmg
+    [V14.0] 简化防御区和抗性区结构，移除冗余字段
     """
     return {
         "core_dmg": {
@@ -36,8 +37,8 @@ def create_empty_buckets() -> dict[str, Any]:
         "bonus": {"multiplier": 1.0, "steps": []},
         "crit": {"multiplier": 1.0, "steps": []},
         "reaction": {"multiplier": 1.0, "steps": []},
-        "defense": {"multiplier": 1.0, "def_reduction_pct": 0.0, "def_ignore_pct": 0.0, "steps": []},
-        "resistance": {"multiplier": 1.0, "res_reduction_pct": 0.0, "res_penetration_pct": 0.0, "steps": []}
+        "defense": {"multiplier": 1.0, "def_ignore_pct": 0.0, "steps": []},
+        "resistance": {"multiplier": 1.0, "base_resistance": 0.0, "final_resistance": 0.0, "steps": []}
     }
 
 
@@ -46,6 +47,8 @@ def create_transformative_buckets() -> dict[str, Any]:
 
     剧变反应伤害公式：
     伤害 = 等级系数 × 反应系数 × (1 + 精通收益 + 特殊加成) × 抗性区
+
+    [V14.0] 简化抗性区结构
     """
     return {
         "level_coeff": {"value": 0.0, "steps": []},
@@ -57,7 +60,7 @@ def create_transformative_buckets() -> dict[str, Any]:
             "special_bonus": 0.0,
             "steps": []
         },
-        "resistance": {"multiplier": 1.0, "res_reduction_pct": 0.0, "res_penetration_pct": 0.0, "steps": []}
+        "resistance": {"multiplier": 1.0, "base_resistance": 0.0, "final_resistance": 0.0, "steps": []}
     }
 
 
@@ -94,11 +97,7 @@ STAT_TO_BUCKET: dict[str, str] = {
     "反应加成系数": "reaction",
     "剧变反应基础": "reaction",
     # DEFENSE
-    "减防%": "defense",
     "无视防御%": "defense",
-    # RESISTANCE
-    "减抗%": "resistance",
-    "抗性穿透%": "resistance",
 }
 
 
@@ -129,9 +128,7 @@ def find_target_bucket(stat: str) -> str | None:
         return "bonus"
     if "暴击" in stat:
         return "crit"
-    if "减抗" in stat or "抗性穿透" in stat:
-        return "resistance"
-    if "减防" in stat or "无视防御" in stat:
+    if "无视防御" in stat:
         return "defense"
     if "反应" in stat:
         return "reaction"
@@ -360,15 +357,39 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
     else:
         buckets["crit"]["multiplier"] = 1.0 if not is_crit else 1.5
 
-    # [Reaction] 反应区
+    # [Reaction] 反应区 - [V4.2] 提取反应类型、分离精通加成
     r_base = 1.0
     r_bonus = 0.0
+    em_bonus = 0.0
+    other_bonus = 0.0
+    reaction_type = ""
+    # 反应类型名称映射
+    reaction_type_map = {
+        "VAPORIZE": "蒸发", "MELT": "融化",
+        "AGGRAVATE": "激化", "SPREAD": "超绽放",
+    }
+
     for s in buckets["reaction"]["steps"]:
         if s["stat"] == "反应基础倍率":
             r_base = s["value"]
+            # 从 source 提取反应类型名称，格式为 "反应:VAPORIZE"
+            source = s.get("source", "")
+            if ":" in source:
+                rt_key = source.split(":")[1]
+                reaction_type = reaction_type_map.get(rt_key, rt_key)
         elif s["stat"] == "反应加成系数":
             r_bonus += s["value"]
+            # 分离精通转化加成
+            if s.get("source") == "[精通转化]":
+                em_bonus += s["value"]
+            else:
+                other_bonus += s["value"]
+
     buckets["reaction"]["multiplier"] = r_base * (1.0 + r_bonus) if r_base > 0 else 1.0
+    buckets["reaction"]["reaction_type"] = reaction_type
+    buckets["reaction"]["reaction_base"] = r_base
+    buckets["reaction"]["em_bonus"] = em_bonus
+    buckets["reaction"]["other_bonus"] = other_bonus
 
     # [Defense] 防御区
     d_coeff = 0.0
@@ -376,8 +397,6 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
         stat_name = s["stat"]
         if stat_name == "防御区系数":
             d_coeff = s["value"]
-        elif stat_name == "减防%":
-            buckets["defense"]["def_reduction_pct"] += s["value"]
         elif stat_name == "无视防御%":
             buckets["defense"]["def_ignore_pct"] += s["value"]
     buckets["defense"]["multiplier"] = d_coeff if d_coeff > 0 else 1.0
@@ -388,8 +407,163 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
         stat_name = s["stat"]
         if stat_name == "抗性区系数":
             res_coeff = s["value"]
-        elif stat_name == "减抗%":
-            buckets["resistance"]["res_reduction_pct"] += s["value"]
-        elif stat_name == "抗性穿透%":
-            buckets["resistance"]["res_penetration_pct"] += s["value"]
     buckets["resistance"]["multiplier"] = res_coeff if res_coeff > 0 else 1.0
+
+
+# ============================================================
+# 目标修饰符注入
+# ============================================================
+
+def inject_target_modifiers(
+    target_snapshot: dict[str, Any] | None,
+    buckets: dict[str, Any]
+) -> None:
+    """从目标快照注入减防/减抗修饰符
+
+    [V14.0] 新增：处理目标侧修饰符（减防、减抗等）
+
+    减防效果：作用于目标实体的 `防御力%` 负值
+    减抗效果：作用于目标实体的 `{元素}元素抗性` 负值
+
+    Args:
+        target_snapshot: 目标实体快照，包含 `active_modifiers` 列表
+        buckets: 乘区桶数据结构
+    """
+    if not target_snapshot:
+        return
+
+    modifiers = target_snapshot.get("active_modifiers", [])
+    if not modifiers:
+        return
+
+    for mod in modifiers:
+        stat = mod.get("stat", "")
+        val = mod.get("value", 0.0)
+        source = mod.get("name", mod.get("source", "目标修饰符"))
+
+        # 减防修饰符：防御力% 的负值
+        if stat == "防御力%" and val < 0:
+            buckets["defense"]["steps"].append({
+                "stat": "减防%",
+                "value": abs(val),
+                "op": "SET",
+                "source": source
+            })
+
+        # 固定防御力减益
+        elif stat == "固定防御力" and val < 0:
+            buckets["defense"]["steps"].append({
+                "stat": "固定防御力减益",
+                "value": abs(val),
+                "op": "ADD",
+                "source": source
+            })
+
+        # 减抗修饰符：{元素}元素抗性
+        elif "抗性" in stat:
+            buckets["resistance"]["steps"].append({
+                "stat": stat,
+                "value": val,
+                "op": "ADD",
+                "source": source
+            })
+
+
+# ============================================================
+# [V14.1] 防御区/抗性区原始数据收集
+# ============================================================
+
+def collect_def_res_raw_data(
+    frame_snapshot: dict[str, Any] | None,
+    target_snapshot: dict[str, Any] | None,
+    buckets: dict[str, Any],
+    element_type: str = ""
+) -> None:
+    """收集防御区和抗性区计算所需的原始参数
+
+    [V14.1] 为 UI 端计算提供原始数据
+
+    背景问题：
+    - damage_system.py 中计算防御区/抗性区系数时设置 audit=False，不入库
+    - aggregate_buckets 从审计链提取系数失败，默认为 1.0
+    - 本函数收集原始参数，供 UI 端工具类重新计算
+
+    Args:
+        frame_snapshot: 攻击者帧快照（含等级、基础属性）
+        target_snapshot: 目标实体快照（含防御力、修饰符）
+        buckets: 乘区桶数据结构
+        element_type: 元素类型（如 "火", "水", "PHYSICAL" 等）
+    """
+    # ========== 防御区原始数据 ==========
+    # 从帧快照获取攻击者等级
+    attacker_level = 90  # 默认值
+    if frame_snapshot:
+        stats = frame_snapshot.get("stats", {})
+        attacker_level = stats.get("等级", 90)
+
+    # 从目标快照获取目标防御力
+    target_defense = 500  # 默认值（史莱姆约 500）
+    def_reduction_pct = 0.0  # 减防百分比
+
+    if target_snapshot:
+        target_stats = target_snapshot.get("stats", {})
+        target_defense = target_stats.get("防御力", 500)
+
+        # 从目标修饰符提取减防百分比
+        for mod in target_snapshot.get("active_modifiers", []):
+            mod_stat = mod.get("stat", "")
+            mod_val = mod.get("value", 0.0)
+            if mod_stat == "防御力%" and mod_val < 0:
+                def_reduction_pct += abs(mod_val)
+
+    # 从审计链获取无视防御百分比
+    def_ignore_pct = buckets["defense"].get("def_ignore_pct", 0.0)
+
+    buckets["defense"]["raw_data"] = {
+        "attacker_level": attacker_level,
+        "target_defense": target_defense,
+        "def_reduction_pct": def_reduction_pct,
+        "def_ignore_pct": def_ignore_pct,
+    }
+
+    # ========== 抗性区原始数据 ==========
+    # 元素名称映射（用于匹配抗性属性）
+    element_name_map = {
+        "PHYSICAL": "物理",
+        "PYRO": "火",
+        "HYDRO": "水",
+        "ELECTRO": "雷",
+        "CRYO": "冰",
+        "ANEMO": "风",
+        "GEO": "岩",
+        "DENDRO": "草",
+    }
+    el_name = element_name_map.get(element_type, element_type)
+
+    # 计算最终抗性值
+    final_resistance = 0.0
+    base_resistance = buckets["resistance"].get("base_resistance", 0.0)
+
+    if target_snapshot:
+        # 从目标修饰符累加对应元素的抗性
+        for mod in target_snapshot.get("active_modifiers", []):
+            mod_stat = mod.get("stat", "")
+            mod_val = mod.get("value", 0.0)
+
+            # 匹配元素抗性属性
+            if f"{el_name}元素抗性" in mod_stat or mod_stat == "物理元素抗性":
+                final_resistance += mod_val
+            elif mod_stat == "抗性" or "抗性" in mod_stat:
+                # 通用抗性或匹配元素
+                final_resistance += mod_val
+
+    # 如果没有修饰符，使用基础抗性
+    if final_resistance == 0.0 and base_resistance != 0.0:
+        final_resistance = base_resistance
+
+    buckets["resistance"]["raw_data"] = {
+        "element_type": element_type,
+        "element_name": el_name,
+        "base_resistance": base_resistance,
+        "final_resistance": final_resistance,
+    }

@@ -240,6 +240,7 @@ class ReviewDataAdapter:
         用于审计系统获取目标的抗性、防御等属性。
 
         [V4.1] 重构：调用 Repository 方法，消除直连 SQL
+        [V14.0] 新增：获取目标修饰符（减防、减抗等）
 
         Args:
             frame_id: 帧编号
@@ -251,6 +252,7 @@ class ReviewDataAdapter:
             - frame: 帧编号
             - aura: 元素附着状态
             - resistance: 抗性字典
+            - active_modifiers: 活跃修饰符列表
         """
         sid = await self.repo.get_latest_session_id()
         if not sid:
@@ -260,7 +262,8 @@ class ReviewDataAdapter:
             "target_id": target_id,
             "frame": frame_id,
             "aura": {},
-            "resistance": {}
+            "resistance": {},
+            "active_modifiers": []
         }
 
         # 1. 获取元素附着状态
@@ -273,6 +276,28 @@ class ReviewDataAdapter:
         if registry_info:
             snapshot["name"] = registry_info["name"]
             snapshot["type"] = registry_info["entity_type"]
+
+        # 3. [V14.0] 获取目标修饰符（减防、减抗等）
+        # 需要获取的属性类型列表
+        target_modifier_stats = [
+            "防御力%", "固定防御力", "防御力",
+            "火元素抗性", "水元素抗性", "冰元素抗性", "雷元素抗性",
+            "风元素抗性", "岩元素抗性", "草元素抗性", "物理元素抗性"
+        ]
+        modifiers = await self.repo.fetch_entity_modifiers(
+            sid, target_id, frame_id, target_modifier_stats
+        )
+        if modifiers:
+            # 转换格式以适配审计处理器
+            snapshot["active_modifiers"] = [
+                {
+                    "name": m.get("source", "未知来源"),
+                    "stat": m.get("stat", ""),
+                    "value": m.get("value", 0.0),
+                    "op": m.get("op", "ADD")
+                }
+                for m in modifiers
+            ]
 
         return snapshot
 

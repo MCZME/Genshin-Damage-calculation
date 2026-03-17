@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from .constants import PANEL_BG_COLOR
 from .selection_panel import SelectionPanel
 from .audit_panel import AuditPanel
+from core.persistence.processors.audit.types import DamageType
 
 if TYPE_CHECKING:
     from ui.states.analysis_state import AnalysisState
@@ -119,6 +120,10 @@ def DamageAuditBottomPanel(
     # 计算面板高度
     panel_height = 420 if panel_mode == "selection" else 320
 
+    # 从 buckets_data 提取伤害类型
+    damage_type_ctx = buckets_data.get("_damage_type_ctx") if buckets_data else None
+    damage_type = damage_type_ctx.damage_type if damage_type_ctx else DamageType.NORMAL
+
     # 根据面板模式渲染不同内容
     if panel_mode == "selection":
         panel_content = SelectionPanel(
@@ -136,6 +141,7 @@ def DamageAuditBottomPanel(
             on_domain_click=handle_domain_click,
             on_back=handle_back,
             on_close=on_close,
+            damage_type=damage_type,
         )
 
     return ft.Container(

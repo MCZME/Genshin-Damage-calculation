@@ -16,7 +16,9 @@ from .bucket_processor import (
     create_transformative_buckets,
     classify_trail_entry,
     inject_frame_snapshot,
+    inject_target_modifiers,
     aggregate_buckets,
+    collect_def_res_raw_data,
 )
 from .domain_calculator import (
     get_source_type,
@@ -42,15 +44,22 @@ class AuditProcessor:
     def process_detail(
         raw_trail: list[dict[str, Any]],
         frame_snapshot: dict[str, Any] | None = None,
-        is_crit: bool = False
+        target_snapshot: dict[str, Any] | None = None,
+        is_crit: bool = False,
+        element_type: str = ""
     ) -> dict[str, Any]:
         """
         [V13.0] 聚合原始审计链为 6 大乘区大类。
 
+        [V14.0] 新增 target_snapshot 参数，用于处理目标侧修饰符（减防、减抗等）
+        [V14.1] 新增 element_type 参数，用于抗性区原始数据收集
+
         Args:
             raw_trail: 审计链 [S] 项（脱水存储的动态 Buff、技能倍率、随机暴击判定）
-            frame_snapshot: 帧快照 [R] 项（基础属性、面板百分比、等级、抗性）
+            frame_snapshot: 帧快照 [R] 项（攻击者的基础属性、面板百分比、等级、抗性）
+            target_snapshot: 目标快照 [R] 项（目标的修饰符，如减防、减抗等）
             is_crit: 是否暴击（用于兼容旧逻辑）
+            element_type: 元素类型（用于抗性区数据收集）
 
         Returns:
             聚合后的 6 大乘区数据结构
@@ -64,8 +73,14 @@ class AuditProcessor:
         # 2. 从帧快照获取基础属性并构建 scaling_info（需要在 aggregate 之前）
         inject_frame_snapshot(frame_snapshot, buckets)
 
-        # 3. 内部合算逻辑
+        # 3. [V14.0] 从目标快照注入减防/减抗修饰符
+        inject_target_modifiers(target_snapshot, buckets)
+
+        # 4. 内部合算逻辑
         aggregate_buckets(buckets, is_crit)
+
+        # 5. [V14.1] 收集防御区和抗性区原始数据（供 UI 端计算系数）
+        collect_def_res_raw_data(frame_snapshot, target_snapshot, buckets, element_type)
 
         return buckets
 
@@ -73,7 +88,9 @@ class AuditProcessor:
     def process_transformative(
         damage_type_ctx: DamageTypeContext,
         raw_trail: list[dict[str, Any]],
-        frame_snapshot: dict[str, Any] | None = None
+        frame_snapshot: dict[str, Any] | None = None,
+        target_snapshot: dict[str, Any] | None = None,
+        element_type: str = ""
     ) -> dict[str, Any]:
         """[V12.0] 处理剧变反应审计数据
 
@@ -83,10 +100,15 @@ class AuditProcessor:
         - em_bonus: 精通加成
         - resistance: 抗性区
 
+        [V14.0] 新增 target_snapshot 参数，用于处理目标侧修饰符
+        [V14.1] 新增 element_type 参数，用于抗性区原始数据收集
+
         Args:
             damage_type_ctx: 伤害类型上下文
             raw_trail: 审计链
             frame_snapshot: 帧快照
+            target_snapshot: 目标快照
+            element_type: 元素类型（用于抗性区数据收集）
 
         Returns:
             剧变反应 4 桶数据结构
@@ -154,6 +176,12 @@ class AuditProcessor:
             if target_res != 0:
                 buckets["resistance"]["base_resistance"] = target_res
                 buckets["resistance"]["final_resistance"] = target_res / 100.0
+
+        # 6. [V14.0] 从目标快照注入减抗修饰符
+        inject_target_modifiers(target_snapshot, buckets)
+
+        # 7. [V14.1] 收集防御区和抗性区原始数据
+        collect_def_res_raw_data(frame_snapshot, target_snapshot, buckets, element_type)
 
         return buckets
 

@@ -214,7 +214,7 @@ class ResultDatabase:
                     element_type TEXT,
                     attack_tag TEXT, -- NORMAL, SKILL, BURST, etc.
                     is_crit INTEGER, -- 0/1
-                    reaction_name TEXT, -- 可为 NULL
+                    reaction TEXT, -- JSON: {"type": "VAPORIZE", "multiplier": 2.0, "source_element": "Hydro", ...}
                     FOREIGN KEY (event_id) REFERENCES simulation_event_log(event_id) ON DELETE CASCADE
                 )
             """)
