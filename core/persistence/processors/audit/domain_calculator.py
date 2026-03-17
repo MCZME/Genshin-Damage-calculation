@@ -1,13 +1,33 @@
 """[V10.0] 审计域计算器
 
 负责将步骤按来源分组并计算域值。
-"""
-from __future__ import annotations
 
-from ui.view_models.analysis.tile_vms.types import MultiplierDomain
+[V15.0] 移除对 UI 层类型的依赖，使用本地类型定义
+"""
+
+from __future__ import annotations
+from dataclasses import dataclass, field
 
 from .constants import SOURCE_TYPE_MAP, SOURCE_ORDER
 from .types import DomainValues
+
+
+# ============================================================
+# [V15.0] 本地类型定义（替代 UI 层依赖）
+# ============================================================
+
+
+@dataclass
+class MultiplierDomain:
+    """乘区域数据
+
+    [V15.0] 从 ui.view_models.analysis.tile_vms.types 移动到处理器层
+    """
+
+    name: str  # 域名称
+    source_type: str  # 来源类型（Weapon, Artifact, Talent 等）
+    steps: list[dict] = field(default_factory=list)  # 步骤列表
+    total: float = 0.0  # 域小计
 
 
 def get_source_type(source: str) -> str:
@@ -68,12 +88,11 @@ def group_steps_by_source(steps: list[dict]) -> list[MultiplierDomain]:
             else:
                 domain_name = f"{first_source[:6]}..."
 
-        domains.append(MultiplierDomain(
-            name=domain_name,
-            source_type=stype,
-            steps=domain_steps,
-            total=total
-        ))
+        domains.append(
+            MultiplierDomain(
+                name=domain_name, source_type=stype, steps=domain_steps, total=total
+            )
+        )
 
     return domains
 
@@ -96,16 +115,16 @@ def calculate_domains(steps: list[dict]) -> DomainValues:
     pct_modifiers = []
 
     for step in steps:
-        stat = step.get('stat', '')
+        stat = step.get("stat", "")
 
-        if '%' in stat:
+        if "%" in stat:
             pct_modifiers.append(step)
         else:
             flat_modifiers.append(step)
 
     return DomainValues(
-        domain1=sum(s.get('value', 0) for s in flat_modifiers),
-        domain2=sum(s.get('value', 0) for s in pct_modifiers),
+        domain1=sum(s.get("value", 0) for s in flat_modifiers),
+        domain2=sum(s.get("value", 0) for s in pct_modifiers),
         domain3=0.0,
         domain1_modifiers=flat_modifiers,
         domain2_modifiers=pct_modifiers,
