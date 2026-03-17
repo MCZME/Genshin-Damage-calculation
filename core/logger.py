@@ -206,6 +206,9 @@ class SimulationLogger:
     def log_info(self, msg: str, sender: str = "System") -> None:
         self._log(logging.INFO, msg, sender=sender)
 
+    def log_warning(self, msg: str, sender: str = "Warning") -> None:
+        self._log(logging.WARNING, msg, sender=sender)
+
     def log_error(self, msg: str, sender: str = "Error") -> None:
         self._log(logging.ERROR, msg, sender=sender)
 
