@@ -286,8 +286,13 @@ class AnalysisDataService:
         is_crit = event_meta.get("is_crit", False)
         attack_tag = event_meta.get("attack_tag", "")
         reaction_data = event_meta.get("reaction")
-        element_type = event_meta.get("element_type", "")
+        element_type_raw = event_meta.get("element_type", "")
         final_damage = event_meta.get("final_damage", 0)
+
+        # [V16.0] 解析 element_type，格式可能是 '火:0.0' 或 'PYRO' 或 '火'
+        element_type = element_type_raw
+        if ":" in element_type_raw:
+            element_type = element_type_raw.split(":")[0]
 
         # Step 2: 拉取原始数据
         raw_trail = await adapter.get_damage_audit(event_id)
@@ -306,14 +311,30 @@ class AnalysisDataService:
         # Step 4: 根据类型选择处理方法
         if damage_type == DamageType.TRANSFORMATIVE:
             # 剧变反应路径
+            # [V16.0] 从 reaction_data 获取等级系数和反应系数
+            level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0
+            reaction_coeff = reaction_data.get("reaction_coeff", 1.0) if reaction_data else 1.0
+
+            # [V16.0] 计算精通：基础面板 + 活跃修饰符
+            em_base = frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0
+            em_bonus = 0.0
+            if frame_snapshot:
+                for mod in frame_snapshot.get("active_modifiers", []):
+                    if mod.get("stat") in ("元素精通", "元素精通%"):
+                        val = mod.get("value", 0.0)
+                        if mod.get("op") == "PCT":
+                            # 百分比加成：基于基础精通计算
+                            em_bonus += em_base * val / 100.0
+                        else:
+                            em_bonus += val
+            elemental_mastery = em_base + em_bonus
+
             damage_type_ctx = DamageTypeContext(
                 damage_type=DamageType.TRANSFORMATIVE,
                 attack_tag=attack_tag,
-                level_coeff=0.0,
-                reaction_coeff=1.0,
-                elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0)
-                if frame_snapshot
-                else 0.0,
+                level_coeff=level_coeff,
+                reaction_coeff=reaction_coeff,
+                elemental_mastery=elemental_mastery,
                 special_bonus=0.0,
             )
             processed = AuditProcessor.process_transformative(
@@ -377,15 +398,13 @@ class AnalysisDataService:
             # [V4.3] 从数据库注入反应数据
             if reaction_data:
                 rt_name = reaction_data.get("type", "")
-                reaction_type_map = {
-                    "VAPORIZE": "蒸发",
-                    "MELT": "融化",
-                    "AGGRAVATE": "激化",
-                    "SPREAD": "超绽放",
-                }
-                processed["reaction"]["reaction_type"] = reaction_type_map.get(
-                    rt_name, rt_name
-                )
+                # 使用枚举获取中文名称
+                from core.systems.contract.reaction import ElementalReactionType
+                try:
+                    reaction_type = ElementalReactionType[rt_name].value
+                except KeyError:
+                    reaction_type = rt_name  # 未知类型保持原样
+                processed["reaction"]["reaction_type"] = reaction_type
                 processed["reaction"]["reaction_base"] = reaction_data.get(
                     "multiplier", 1.0
                 )

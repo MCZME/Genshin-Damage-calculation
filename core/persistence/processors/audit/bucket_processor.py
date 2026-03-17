@@ -50,21 +50,23 @@ def create_empty_buckets() -> dict[str, Any]:
 
 
 def create_transformative_buckets() -> dict[str, Any]:
-    """创建空的剧变反应桶结构（4 桶模型）
+    """创建空的剧变反应桶结构（3 桶模型）
 
     剧变反应伤害公式：
-    伤害 = 等级系数 × 反应系数 × (1 + 精通收益 + 特殊加成) × 抗性区
+    伤害 = 等级系数 × 反应系数×(1+精通收益+特殊加成) × 抗性区
 
     [V14.0] 简化抗性区结构
+    [V16.0] 合并 reaction_coeff + em_bonus 为 reaction 桶
     """
     return {
         "level_coeff": {"value": 0.0, "steps": []},
-        "reaction_coeff": {"value": 1.0, "steps": []},
-        "em_bonus": {
-            "value": 1.0,
-            "em": 0.0,
-            "em_bonus_pct": 0.0,
-            "special_bonus": 0.0,
+        "reaction": {
+            "reaction_type": "",  # 反应类型中文名称（如 "超载"）
+            "reaction_base": 1.0,  # 反应系数（如 2.75）
+            "em": 0.0,  # 元素精通
+            "em_bonus_pct": 0.0,  # 精通加成%
+            "special_bonus": 0.0,  # 特殊加成%
+            "multiplier": 1.0,  # 总乘数
             "steps": [],
         },
         "resistance": {
@@ -384,13 +386,6 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
     em_bonus = 0.0
     other_bonus = 0.0
     reaction_type = ""
-    # 反应类型名称映射
-    reaction_type_map = {
-        "VAPORIZE": "蒸发",
-        "MELT": "融化",
-        "AGGRAVATE": "激化",
-        "SPREAD": "超绽放",
-    }
 
     for s in buckets["reaction"]["steps"]:
         if s["stat"] == "反应基础倍率":
@@ -399,7 +394,12 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
             source = s.get("source", "")
             if ":" in source:
                 rt_key = source.split(":")[1]
-                reaction_type = reaction_type_map.get(rt_key, rt_key)
+                # 使用枚举获取中文名称
+                from core.systems.contract.reaction import ElementalReactionType
+                try:
+                    reaction_type = ElementalReactionType[rt_key].value
+                except KeyError:
+                    reaction_type = rt_key  # 未知类型保持原样
         elif s["stat"] == "反应加成系数":
             r_bonus += s["value"]
             # 分离精通转化加成
@@ -570,26 +570,28 @@ def collect_def_res_raw_data(
     }
     el_name = element_name_map.get(element_type, element_type)
 
+    # [V16.0] 从目标快照获取基础抗性
+    base_resistance = 0.0
+    if target_snapshot:
+        target_resistance = target_snapshot.get("resistance", {})
+        base_resistance = target_resistance.get(el_name, 0.0)
+        # 同时设置到 buckets 中（供域点击展示）
+        buckets["resistance"]["base_resistance"] = base_resistance
+
     # 计算最终抗性值
-    final_resistance = 0.0
-    base_resistance = buckets["resistance"].get("base_resistance", 0.0)
+    final_resistance = base_resistance
 
     if target_snapshot:
-        # 从目标修饰符累加对应元素的抗性
+        # 从目标修饰符累加对应元素的抗性变化
         for mod in target_snapshot.get("active_modifiers", []):
             mod_stat = mod.get("stat", "")
             mod_val = mod.get("value", 0.0)
 
-            # 匹配元素抗性属性
-            if f"{el_name}元素抗性" in mod_stat or mod_stat == "物理元素抗性":
+            # [V16.0] 精确匹配元素抗性属性
+            # 匹配格式: "火元素抗性"、"物理元素抗性" 等
+            target_res_key = f"{el_name}元素抗性"
+            if mod_stat == target_res_key:
                 final_resistance += mod_val
-            elif mod_stat == "抗性" or "抗性" in mod_stat:
-                # 通用抗性或匹配元素
-                final_resistance += mod_val
-
-    # 如果没有修饰符，使用基础抗性
-    if final_resistance == 0.0 and base_resistance != 0.0:
-        final_resistance = base_resistance
 
     buckets["resistance"]["raw_data"] = {
         "element_type": element_type,
@@ -646,25 +648,21 @@ def collect_resistance_raw_data(
     el_name = element_name_map.get(element_type, element_type)
 
     # 计算最终抗性值
-    final_resistance = 0.0
+    # [V16.0] 修复：初始化为基础抗性，然后累加修饰符变化
     base_resistance = buckets["resistance"].get("base_resistance", 0.0)
+    final_resistance = base_resistance
 
     if target_snapshot:
-        # 从目标修饰符累加对应元素的抗性
+        # 从目标修饰符累加对应元素的抗性变化
         for mod in target_snapshot.get("active_modifiers", []):
             mod_stat = mod.get("stat", "")
             mod_val = mod.get("value", 0.0)
 
-            # 匹配元素抗性属性
-            if f"{el_name}元素抗性" in mod_stat or mod_stat == "物理元素抗性":
+            # [V16.0] 精确匹配元素抗性属性
+            # 匹配格式: "火元素抗性"、"物理元素抗性" 等
+            target_res_key = f"{el_name}元素抗性"
+            if mod_stat == target_res_key:
                 final_resistance += mod_val
-            elif mod_stat == "抗性" or "抗性" in mod_stat:
-                # 通用抗性或匹配元素
-                final_resistance += mod_val
-
-    # 如果没有修饰符，使用基础抗性
-    if final_resistance == 0.0 and base_resistance != 0.0:
-        final_resistance = base_resistance
 
     buckets["resistance"]["raw_data"] = {
         "element_type": element_type,

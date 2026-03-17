@@ -251,12 +251,29 @@ class DataProjector:
                     reaction_json = None
                     if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results:
                         rr = dmg_obj.reaction_results[0]
-                        reaction_json = json.dumps({
+                        reaction_data = {
                             "type": rr.reaction_type.name,
                             "multiplier": getattr(rr, "multiplier", 1.0),
                             "source_element": getattr(rr.source_element, "name", str(rr.source_element)) if rr.source_element else None,
                             "target_element": getattr(rr.target_element, "name", str(rr.target_element)) if rr.target_element else None,
-                        })
+                        }
+                        reaction_json = json.dumps(reaction_data)
+
+                    # [V16.0] 对于剧变反应，从 dmg.data 提取等级系数和反应系数
+                    dmg_data = getattr(dmg_obj, "data", {})
+                    level_coeff = dmg_data.get("等级系数")
+                    react_coeff = dmg_data.get("反应系数")
+                    if level_coeff is not None or react_coeff is not None:
+                        # 更新或创建 reaction_json
+                        if reaction_json:
+                            reaction_data = json.loads(reaction_json)
+                        else:
+                            reaction_data = {}
+                        if level_coeff is not None:
+                            reaction_data["level_coeff"] = level_coeff
+                        if react_coeff is not None:
+                            reaction_data["reaction_coeff"] = react_coeff
+                        reaction_json = json.dumps(reaction_data)
 
                     # 使用专门的序列化工具处理元素类型
                     elem_str = self._serialize_element(getattr(dmg_obj, "element", "Neutral"))

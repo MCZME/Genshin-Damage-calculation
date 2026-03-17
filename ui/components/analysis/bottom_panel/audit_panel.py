@@ -4,7 +4,12 @@
 
 [V12.0] 支持两种伤害路径：
 - 常规伤害路径：6 桶模型
-- 剧变反应路径：4 桶模型
+- 剧变反应路径：3 桶模型
+
+[V16.0] 剧变反应 3 桶模型：
+- LEVEL: 等级系数
+- REACT: 反应乘区（反应系数 × 精通加成）
+- RES: 抗性区
 """
 import flet as ft
 from collections.abc import Callable
@@ -200,8 +205,10 @@ def DamageChainRow(
 ):
     """[V12.0] 伤害链行 - 根据伤害类型显示不同的桶结构
 
-    常规伤害：7 个乘区卡片横向排列，用 × 连接
-    剧变反应：4 个桶卡片横向排列，用 × 连接
+    [V16.0] 更新剧变反应为 3 桶模型
+
+    常规伤害：6 个乘区卡片横向排列，用 × 连接
+    剧变反应：3 个桶卡片横向排列，用 × 连接
 
     Args:
         active_bucket: 当前激活的乘区
@@ -311,6 +318,9 @@ def DomainDetailSection(
     [V13.0] 适配新的 6 桶模型：
     - CORE: 支持属性特定域（pct:攻击力）、技能倍率域（skill_mult:攻击力）、独立乘区等
 
+    [V16.0] 支持剧变反应 3 桶模型：
+    - REACT: 支持反应系数、精通加成、特殊加成域
+
     Args:
         active_bucket: 当前激活的乘区
         selected_domain: 选中的域
@@ -319,8 +329,10 @@ def DomainDetailSection(
     if not active_bucket:
         return ft.Container()
 
-    # 获取当前乘区的数据键
+    # 合并常规伤害和剧变反应的桶配置映射
     bucket_data_map = {key: data_key for key, _, data_key in NORMAL_BUCKET_CONFIGS}
+    bucket_data_map.update({key: data_key for key, _, data_key in TRANSFORMATIVE_BUCKET_CONFIGS})
+
     data_key = bucket_data_map.get(active_bucket, "core_dmg")
     bucket_color = BUCKET_COLORS.get(active_bucket, ft.Colors.WHITE)
 
@@ -434,23 +446,29 @@ def DomainDetailSection(
                 domain_label = "暴击伤害来源"
 
         elif active_bucket == "REACT":
-            # [V14.2] REACT 区专属处理
+            # [V14.2] REACT 区专属处理（支持常规伤害和剧变反应）
             if selected_domain == "em_bonus":
                 # 显示精通加成来源
-                modifiers = [s for s in steps if s.get("source") == "[精通转化]"]
+                modifiers = [s for s in steps if s.get("stat") == "精通转化"]
                 if not modifiers:
                     modifiers = [s for s in steps if "精通" in s.get("source", "")]
                 if not modifiers:
                     modifiers = [{"stat": "精通转化", "value": 0.0, "source": "无精通加成"}]
                 domain_label = "精通转化加成"
+            elif selected_domain == "special":
+                # [V16.0] 显示特殊加成来源（剧变反应专用）
+                modifiers = [s for s in steps if s.get("stat") == "特殊加成"]
+                if not modifiers:
+                    modifiers = [{"stat": "特殊加成", "value": 0.0, "source": "无特殊加成"}]
+                domain_label = "特殊加成来源"
             elif selected_domain == "other_bonus":
                 # 显示其他加成来源
                 modifiers = [s for s in steps if s["stat"] == "反应加成系数" and s.get("source") != "[精通转化]"]
                 domain_label = "反应加成来源"
             elif selected_domain == "reaction_base":
-                # 显示反应基础倍率来源
-                modifiers = [s for s in steps if s["stat"] == "反应基础倍率"]
-                domain_label = "反应类型"
+                # 显示反应基础倍率来源（常规伤害）或反应系数（剧变反应）
+                modifiers = [s for s in steps if s["stat"] in ("反应基础倍率", "反应系数")]
+                domain_label = "反应系数"
             else:
                 modifiers = steps
                 domain_label = "全部来源"
@@ -511,9 +529,11 @@ def AuditPanel(
 ):
     """[V12.0] 审计面板 - 两行布局（伤害链 + 域详情）
 
+    [V16.0] 更新剧变反应为 3 桶模型
+
     支持两种伤害路径：
-    - 常规伤害：7 桶模型
-    - 剧变反应：4 桶模型
+    - 常规伤害：6 桶模型
+    - 剧变反应：3 桶模型
 
     Args:
         event: 当前事件数据

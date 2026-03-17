@@ -30,12 +30,11 @@ BUCKET_CONFIGS = [
     ("RES", "抗性削减", "resistance"),
 ]
 
-# [V12.0] 剧变反应 4 桶配置
-# 公式：等级系数 × 反应系数 × (1 + 精通收益 + 特殊加成) × 抗性区
+# [V16.0] 剧变反应 3 桶配置
+# 公式：等级系数 × 反应系数×(1+精通收益+特殊加成) × 抗性区
 TRANSFORMATIVE_BUCKET_CONFIGS = [
     ("LEVEL", "等级系数", "level_coeff"),
-    ("REACT_BASE", "反应系数", "reaction_coeff"),
-    ("EM_BONUS", "精通加成", "em_bonus"),
+    ("REACT", "反应乘区", "reaction"),
     ("RES", "抗性区", "resistance"),
 ]
 
