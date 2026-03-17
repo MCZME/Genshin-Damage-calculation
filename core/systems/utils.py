@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any
-from core.mechanics.aura import Element
 
 class AttributeCalculator:
     """
@@ -64,18 +63,48 @@ class AttributeCalculator:
 
     @staticmethod
     def get_final_def(entity: Any) -> float:
-        """合算最终防御力"""
+        """合算最终防御力（含减防效果）"""
         base = float(entity.attribute_data.get('防御力', 0.0))
         percent = float(entity.attribute_data.get('防御力%', 0.0))
         flat = float(entity.attribute_data.get('固定防御力', 0.0))
-        
+
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '防御力%':
                 percent += m.value
             if m.stat == '固定防御力':
                 flat += m.value
-        
+
         return base * (1 + percent / 100) + flat
+
+    @staticmethod
+    def get_base_def_before_reduction(entity: Any) -> tuple[float, float]:
+        """
+        获取减防前的面板防御力和减防百分比。
+
+        Returns:
+            tuple[float, float]: (面板防御力, 减防百分比)
+            - 面板防御力：base * (1 + 正值防御力%/100) + flat
+            - 减防百分比：所有负值防御力%的绝对值之和
+        """
+        base = float(entity.attribute_data.get('防御力', 0.0))
+        percent = float(entity.attribute_data.get('防御力%', 0.0))
+        flat = float(entity.attribute_data.get('固定防御力', 0.0))
+
+        # 分离正值（面板加成）和负值（减防）
+        positive_percent = max(0, percent)
+        reduction_pct = 0.0
+
+        for m in getattr(entity, 'dynamic_modifiers', []):
+            if m.stat == '防御力%':
+                if m.value >= 0:
+                    positive_percent += m.value
+                else:
+                    reduction_pct += abs(m.value)
+            if m.stat == '固定防御力':
+                flat += m.value
+
+        panel_def = base * (1 + positive_percent / 100) + flat
+        return panel_def, reduction_pct
 
     @staticmethod
     def get_final_em(entity: Any) -> float:

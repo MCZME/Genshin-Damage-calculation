@@ -31,28 +31,27 @@ class ShieldEffect(BaseEffect):
 class StatModifierEffect(BaseEffect):
     """
     通用属性修改效果。
-    在生效期间直接修改 owner 的 attribute_data。
+    在生效期间通过 add_modifier 修改 owner 的属性，支持审计追踪。
     """
 
     def __init__(self, owner: Any, name: str, stats: Dict[str, float], duration: float):
         super().__init__(owner, name, duration)
         self.stats = stats
+        self.modifier_records: List[Any] = []
 
     def on_apply(self):
-        if not hasattr(self.owner, "attribute_data"):
+        if not hasattr(self.owner, "add_modifier"):
             return
         for key, value in self.stats.items():
-            self.owner.attribute_data[key] = (
-                self.owner.attribute_data.get(key, 0.0) + value
-            )
+            modifier = self.owner.add_modifier(self.name, key, value, "ADD")
+            self.modifier_records.append(modifier)
 
     def on_remove(self):
-        if not hasattr(self.owner, "attribute_data"):
+        if not hasattr(self.owner, "remove_modifier"):
             return
-        for key, value in self.stats.items():
-            self.owner.attribute_data[key] = (
-                self.owner.attribute_data.get(key, 0.0) - value
-            )
+        for modifier in self.modifier_records:
+            self.owner.remove_modifier(modifier)
+        self.modifier_records.clear()
 
 
 class ResistanceDebuffEffect(StatModifierEffect):
@@ -83,7 +82,7 @@ class TalentEffect:
 
     def apply(self, character: Any):
         self.character = character
-        if self.character.level >= self.unlock_level:
+        if self.character and self.character.level >= self.unlock_level:
             self.is_active = True
             self.on_apply()
 
@@ -115,7 +114,7 @@ class ConstellationEffect:
         仅在角色已激活该命座层级时生效。
         """
         self.character = character
-        if self.character.constellation_level >= self.unlock_constellation:
+        if self.character and self.character.constellation_level >= self.unlock_constellation:
             self.is_active = True
             self.on_apply()
 
