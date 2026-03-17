@@ -12,6 +12,7 @@
 
 此服务层替代原有的 AnalysisDataManager，提供更清晰的数据访问抽象。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 @dataclass
 class DataSlot:
     """[V9.1] 响应式数据槽位：支持基于订阅者集合的自动清理"""
+
     key: str
     data: Any = None
     loading: bool = False
@@ -54,7 +56,7 @@ class AnalysisDataService:
     3. 统一数据访问接口
     """
 
-    def __init__(self, vm: 'AnalysisViewModel'):
+    def __init__(self, vm: "AnalysisViewModel"):
         self.vm = vm
         self._slots: dict[str, DataSlot] = {
             "dps": DataSlot(key="dps"),
@@ -81,7 +83,7 @@ class AnalysisDataService:
     # ============================================================
 
     @property
-    def state(self) -> 'AnalysisViewModel':
+    def state(self) -> "AnalysisViewModel":
         """[兼容性] 返回 vm，支持 data_service.state.xxx 访问模式"""
         return self.vm
 
@@ -159,8 +161,8 @@ class AnalysisDataService:
                 stacked_pts = await adapter.get_stacked_dps_data_raw()
                 slot.data = {
                     "raw_events": raw_events,
-                    "frame_indices": [p['frame'] for p in raw_events],
-                    "stacked_points": stacked_pts
+                    "frame_indices": [p["frame"] for p in raw_events],
+                    "stacked_points": stacked_pts,
                 }
             elif key == "summary":
                 slot.data = await adapter.get_summary_stats()
@@ -202,7 +204,7 @@ class AnalysisDataService:
             return {}
         return {
             "raw_events": await adapter.get_dps_data(),
-            "stacked_points": await adapter.get_stacked_dps_data_raw()
+            "stacked_points": await adapter.get_stacked_dps_data_raw(),
         }
 
     async def query_frame_snapshot(self, frame_id: int) -> dict[str, Any] | None:
@@ -225,7 +227,7 @@ class AnalysisDataService:
         adapter = self.adapter
         if not adapter:
             return {}
-        return await adapter.get_all_characters_base_stats().get(char_id, {})
+        return (await adapter.get_all_characters_base_stats()).get(char_id, {})
 
     async def query_damage_audit(self, event_id: int) -> list[dict[str, Any]]:
         """查询伤害审计详情"""
@@ -249,12 +251,13 @@ class AnalysisDataService:
         """
         获取审计详情数据（内部方法）
 
+        [V15.0] 重构：业务逻辑移到处理器层，服务层只负责数据协调
+
         流程：
-        1. 获取事件元数据 -> 判断伤害类型
-        2. 拉取审计链 [S] 项
-        3. 拉取帧快照 [R] 项
-        4. 拉取目标快照 [R] 项（V14.0 新增）
-        5. 调用 AuditProcessor 处理
+        1. 获取事件元数据
+        2. 拉取原始数据
+        3. 调用处理器处理（业务逻辑在处理器层）
+        4. 验证（验证逻辑在处理器层）
 
         Args:
             event_id: 事件 ID
@@ -263,7 +266,10 @@ class AnalysisDataService:
             处理后的审计详情字典
         """
         from core.persistence.processors.audit import AuditProcessor
-        from core.persistence.processors.audit.types import DamageType, DamageTypeContext
+        from core.persistence.processors.audit.types import (
+            DamageType,
+            DamageTypeContext,
+        )
 
         adapter = self.adapter
         if not adapter:
@@ -279,38 +285,35 @@ class AnalysisDataService:
         target_id = event_meta.get("target_id")
         is_crit = event_meta.get("is_crit", False)
         attack_tag = event_meta.get("attack_tag", "")
-        reaction_data = event_meta.get("reaction")  # [V14.0] 修复：从 event_meta 获取 reaction_data
-        element_type = event_meta.get("element_type", "")  # [V14.1] 新增：获取元素类型
+        reaction_data = event_meta.get("reaction")
+        element_type = event_meta.get("element_type", "")
+        final_damage = event_meta.get("final_damage", 0)
 
-        # Step 2: 根据 attack_tag 判断是否为剧变反应伤害
-        # 剧变反应伤害的 attack_tag 格式："超载伤害"、"感电伤害"、"超导伤害"、"碎冰伤害"、
-        # "扩散火元素伤害"、"超绽放伤害"、"烈绽放伤害" 等
-        TRANSFORMATIVE_TAGS = ("超载伤害", "感电伤害", "超导伤害", "碎冰伤害",
-                               "扩散", "超绽放伤害", "烈绽放伤害")
-        is_transformative = any(tag in attack_tag for tag in TRANSFORMATIVE_TAGS)
-
-        # Step 3: 拉取审计链 [S] 项
+        # Step 2: 拉取原始数据
         raw_trail = await adapter.get_damage_audit(event_id)
 
-        # Step 4: 拉取帧快照 [R] 项（攻击者）
         frame_snapshot = None
         if source_id is not None:
             frame_snapshot = await adapter.get_entity_snapshot(frame_id, source_id)
 
-        # Step 4.5: [V14.0] 拉取目标快照 [R] 项（用于防御区/抗性区）
         target_snapshot = None
         if target_id is not None:
             target_snapshot = await adapter.get_target_snapshot(frame_id, target_id)
 
-        # Step 5: 根据类型选择处理方法
-        if is_transformative:
+        # Step 3: 使用处理器检测伤害类型
+        damage_type = AuditProcessor.detect_damage_type(attack_tag)
+
+        # Step 4: 根据类型选择处理方法
+        if damage_type == DamageType.TRANSFORMATIVE:
             # 剧变反应路径
             damage_type_ctx = DamageTypeContext(
                 damage_type=DamageType.TRANSFORMATIVE,
                 attack_tag=attack_tag,
                 level_coeff=0.0,
                 reaction_coeff=1.0,
-                elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0,
+                elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0)
+                if frame_snapshot
+                else 0.0,
                 special_bonus=0.0,
             )
             processed = AuditProcessor.process_transformative(
@@ -318,7 +321,7 @@ class AnalysisDataService:
                 raw_trail=raw_trail,
                 frame_snapshot=frame_snapshot,
                 target_snapshot=target_snapshot,
-                element_type=element_type
+                element_type=element_type,
             )
             processed["_damage_type_ctx"] = damage_type_ctx
         else:
@@ -328,55 +331,81 @@ class AnalysisDataService:
                 frame_snapshot=frame_snapshot,
                 target_snapshot=target_snapshot,
                 is_crit=is_crit,
-                element_type=element_type
+                element_type=element_type,
             )
             processed["_damage_type_ctx"] = DamageTypeContext()
 
             # 获取增伤/暴击伤害分项来源（仅常规伤害）
             bonus_stat_names = [
                 "伤害加成",
-                "火元素伤害加成", "水元素伤害加成", "冰元素伤害加成",
-                "雷元素伤害加成", "风元素伤害加成", "岩元素伤害加成",
-                "草元素伤害加成", "物理伤害加成",
+                "火元素伤害加成",
+                "水元素伤害加成",
+                "冰元素伤害加成",
+                "雷元素伤害加成",
+                "风元素伤害加成",
+                "岩元素伤害加成",
+                "草元素伤害加成",
+                "物理伤害加成",
             ]
-            bonus_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, bonus_stat_names)
+            bonus_modifiers = await adapter.get_entity_modifiers_for_stat(
+                event_id, bonus_stat_names
+            )
             processed["bonus"]["modifiers"] = bonus_modifiers
 
             crit_stat_names = ["暴击伤害", "暴击率", "暴击伤害%", "暴击率%"]
-            crit_modifiers = await adapter.get_entity_modifiers_for_stat(event_id, crit_stat_names)
+            crit_modifiers = await adapter.get_entity_modifiers_for_stat(
+                event_id, crit_stat_names
+            )
 
             # [V4.2] 分离暴击率和暴击伤害修饰符
-            crit_rate_modifiers = [m for m in crit_modifiers if "暴击率" in m.get("stat", "")]
-            crit_dmg_modifiers = [m for m in crit_modifiers if "暴击伤害" in m.get("stat", "")]
+            crit_rate_modifiers = [
+                m for m in crit_modifiers if "暴击率" in m.get("stat", "")
+            ]
+            crit_dmg_modifiers = [
+                m for m in crit_modifiers if "暴击伤害" in m.get("stat", "")
+            ]
 
-            processed["crit"]["modifiers"] = crit_dmg_modifiers  # 仅暴击伤害
-            processed["crit"]["crit_rate_modifiers"] = crit_rate_modifiers  # 仅暴击率
+            processed["crit"]["modifiers"] = crit_dmg_modifiers
+            processed["crit"]["crit_rate_modifiers"] = crit_rate_modifiers
 
             # 从帧快照提取暴击率，支持域展示
             if frame_snapshot:
                 base_crit_rate = frame_snapshot.get("stats", {}).get("暴击率", 0.0)
-                # 从修饰符中累加暴击率加成
                 rate_bonus = sum(m.get("value", 0) for m in crit_rate_modifiers)
                 processed["crit"]["crit_rate"] = base_crit_rate + rate_bonus
 
-            # [V4.3] 从数据库注入反应数据（补充审计链缺失的数据）
+            # [V4.3] 从数据库注入反应数据
             if reaction_data:
                 rt_name = reaction_data.get("type", "")
-                # 反应类型名称映射
                 reaction_type_map = {
-                    "VAPORIZE": "蒸发", "MELT": "融化",
-                    "AGGRAVATE": "激化", "SPREAD": "超绽放",
+                    "VAPORIZE": "蒸发",
+                    "MELT": "融化",
+                    "AGGRAVATE": "激化",
+                    "SPREAD": "超绽放",
                 }
-                processed["reaction"]["reaction_type"] = reaction_type_map.get(rt_name, rt_name)
-                processed["reaction"]["reaction_base"] = reaction_data.get("multiplier", 1.0)
+                processed["reaction"]["reaction_type"] = reaction_type_map.get(
+                    rt_name, rt_name
+                )
+                processed["reaction"]["reaction_base"] = reaction_data.get(
+                    "multiplier", 1.0
+                )
 
-                # 从审计链分离精通加成（如果存在）
                 em_bonus = sum(
-                    s.get("value", 0) for s in processed["reaction"]["steps"]
+                    s.get("value", 0)
+                    for s in processed["reaction"]["steps"]
                     if s.get("source") == "[精通转化]"
                 )
                 if em_bonus > 0:
                     processed["reaction"]["em_bonus"] = em_bonus
+
+        # Step 5: [V15.0] 验证（验证逻辑在处理器层）
+        validation = AuditProcessor.validate(
+            buckets=processed,
+            db_damage=final_damage,
+            damage_type=damage_type,
+            event_id=event_id,
+        )
+        processed["_validation"] = validation
 
         return processed
 

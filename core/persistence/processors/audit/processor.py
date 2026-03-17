@@ -5,11 +5,14 @@
 [V12.0] 支持两种伤害路径：
 - 常规伤害路径：6 桶模型（CORE + BONUS + CRIT + REACT + DEF + RES）
 - 剧变反应路径：4 桶模型
+
+[V15.0] 新增验证功能
 """
+
 from __future__ import annotations
 from typing import Any
 
-from .types import DomainValues, DamageTypeContext
+from .types import DomainValues, DamageTypeContext, DamageType
 from .constants import BUCKET_MAP, SOURCE_TYPE_MAP
 from .bucket_processor import (
     create_empty_buckets,
@@ -19,12 +22,14 @@ from .bucket_processor import (
     inject_target_modifiers,
     aggregate_buckets,
     collect_def_res_raw_data,
+    collect_resistance_raw_data,
 )
 from .domain_calculator import (
     get_source_type,
     group_steps_by_source,
     calculate_domains,
 )
+from .validator import AuditValidator, ValidationResult, DEFAULT_TOLERANCE
 
 
 class AuditProcessor:
@@ -46,7 +51,7 @@ class AuditProcessor:
         frame_snapshot: dict[str, Any] | None = None,
         target_snapshot: dict[str, Any] | None = None,
         is_crit: bool = False,
-        element_type: str = ""
+        element_type: str = "",
     ) -> dict[str, Any]:
         """
         [V13.0] 聚合原始审计链为 6 大乘区大类。
@@ -90,7 +95,7 @@ class AuditProcessor:
         raw_trail: list[dict[str, Any]],
         frame_snapshot: dict[str, Any] | None = None,
         target_snapshot: dict[str, Any] | None = None,
-        element_type: str = ""
+        element_type: str = "",
     ) -> dict[str, Any]:
         """[V12.0] 处理剧变反应审计数据
 
@@ -120,12 +125,14 @@ class AuditProcessor:
 
         # 2. 填充反应系数
         buckets["reaction_coeff"]["value"] = damage_type_ctx.reaction_coeff
-        buckets["reaction_coeff"]["steps"].append({
-            "stat": "反应系数",
-            "value": damage_type_ctx.reaction_coeff,
-            "op": "SET",
-            "source": damage_type_ctx.attack_tag
-        })
+        buckets["reaction_coeff"]["steps"].append(
+            {
+                "stat": "反应系数",
+                "value": damage_type_ctx.reaction_coeff,
+                "op": "SET",
+                "source": damage_type_ctx.attack_tag,
+            }
+        )
 
         # 3. 计算精通加成
         em = damage_type_ctx.elemental_mastery
@@ -139,20 +146,24 @@ class AuditProcessor:
         buckets["em_bonus"]["value"] = total_em_bonus
 
         if em > 0:
-            buckets["em_bonus"]["steps"].append({
-                "stat": "精通转化",
-                "value": em_bonus_pct,
-                "op": "ADD",
-                "source": f"元素精通 {em:.0f}"
-            })
+            buckets["em_bonus"]["steps"].append(
+                {
+                    "stat": "精通转化",
+                    "value": em_bonus_pct,
+                    "op": "ADD",
+                    "source": f"元素精通 {em:.0f}",
+                }
+            )
 
         if special_bonus > 0:
-            buckets["em_bonus"]["steps"].append({
-                "stat": "特殊加成",
-                "value": special_bonus,
-                "op": "ADD",
-                "source": "装备/天赋"
-            })
+            buckets["em_bonus"]["steps"].append(
+                {
+                    "stat": "特殊加成",
+                    "value": special_bonus,
+                    "op": "ADD",
+                    "source": "装备/天赋",
+                }
+            )
 
         # 4. 处理抗性区（从审计链提取）
         for entry in raw_trail:
@@ -162,12 +173,9 @@ class AuditProcessor:
 
             if stat == "抗性区系数":
                 buckets["resistance"]["multiplier"] = val
-                buckets["resistance"]["steps"].append({
-                    "stat": stat,
-                    "value": val,
-                    "op": "SET",
-                    "source": source
-                })
+                buckets["resistance"]["steps"].append(
+                    {"stat": stat, "value": val, "op": "SET", "source": source}
+                )
 
         # 5. 从帧快照获取目标抗性信息
         if frame_snapshot:
@@ -180,8 +188,10 @@ class AuditProcessor:
         # 6. [V14.0] 从目标快照注入减抗修饰符
         inject_target_modifiers(target_snapshot, buckets)
 
-        # 7. [V14.1] 收集防御区和抗性区原始数据
-        collect_def_res_raw_data(frame_snapshot, target_snapshot, buckets, element_type)
+        # 7. [V15.0] 仅收集抗性区原始数据（剧变反应无防御区）
+        collect_resistance_raw_data(
+            frame_snapshot, target_snapshot, buckets, element_type
+        )
 
         return buckets
 
@@ -199,3 +209,69 @@ class AuditProcessor:
     def calculate_domains(steps: list[dict]) -> DomainValues:
         """[V11.0] 计算域值并分组修饰符"""
         return calculate_domains(steps)
+
+    # ============================================================
+    # [V15.0] 验证功能
+    # ============================================================
+
+    # 剧变反应攻击标签
+    TRANSFORMATIVE_TAGS = (
+        "超载伤害",
+        "感电伤害",
+        "超导伤害",
+        "碎冰伤害",
+        "扩散",
+        "超绽放伤害",
+        "烈绽放伤害",
+    )
+
+    @staticmethod
+    def detect_damage_type(attack_tag: str) -> DamageType:
+        """[V15.0] 从攻击标签检测伤害类型
+
+        Args:
+            attack_tag: 攻击标签（如 "超载伤害", "普通攻击"）
+
+        Returns:
+            DamageType 枚举值
+        """
+        if any(tag in attack_tag for tag in AuditProcessor.TRANSFORMATIVE_TAGS):
+            return DamageType.TRANSFORMATIVE
+        return DamageType.NORMAL
+
+    @staticmethod
+    def validate(
+        buckets: dict[str, Any],
+        db_damage: float,
+        damage_type: DamageType,
+        tolerance: float = DEFAULT_TOLERANCE,
+        event_id: int | None = None,
+    ) -> ValidationResult:
+        """验证伤害计算结果
+
+        [V15.0] 新增：验证审计链计算结果与数据库真值的一致性
+
+        Args:
+            buckets: 乘区桶数据
+            db_damage: 数据库中的最终伤害值（真值）
+            damage_type: 伤害类型（常规/剧变）
+            tolerance: 偏差容忍度（默认 0.1%）
+            event_id: 事件 ID（用于日志）
+
+        Returns:
+            ValidationResult 验证结果
+        """
+        if damage_type == DamageType.TRANSFORMATIVE:
+            return AuditValidator.validate_transformative_damage(
+                buckets=buckets,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )
+        else:
+            return AuditValidator.validate_normal_damage(
+                buckets=buckets,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )

@@ -1,11 +1,8 @@
-"""[V14.1] 防御区/抗性区系数计算工具类
+"""[V15.0] 防御区/抗性区系数计算器
 
-为 UI 端提供防御区和抗性区的系数计算功能。
+负责计算防御区和抗性区的乘区系数。
 
-背景：
-- damage_system.py 中计算防御区/抗性区系数时设置 audit=False，不入库
-- bucket_processor.py 的 aggregate_buckets 从审计链提取系数失败，默认为 1.0
-- 本工具类在 UI 端根据原始参数重新计算系数
+[V15.0] 从 ui/utils/coefficient_calculator.py 移动到处理器层
 """
 
 

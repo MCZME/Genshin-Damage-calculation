@@ -1,10 +1,6 @@
-"""UI 工具类模块"""
-from .coefficient_calculator import (
-    calculate_defense_coefficient,
-    calculate_resistance_coefficient,
-)
+"""UI 工具类模块
 
-__all__ = [
-    "calculate_defense_coefficient",
-    "calculate_resistance_coefficient",
-]
+[V15.0] 系数计算器已移动到 core/persistence/processors/audit/coefficient_calculator.py
+"""
+
+__all__: list[str] = []
