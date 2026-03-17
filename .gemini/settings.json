@@ -15,7 +15,7 @@
     "enableNotifications": true
   },
   "experimental": {
-    "plan": true,
-    "enableAgents": true
+    "enableAgents": true,
+    "modelSteering": true
   }
 }
