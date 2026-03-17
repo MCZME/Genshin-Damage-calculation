@@ -301,11 +301,11 @@ class AnalysisViewModel:
         async def _task():
             try:
                 self.sessions_history = await adapter.get_all_sessions()
-                self.history_dialog_visible = True
             except Exception as e:
                 get_ui_logger().log_warning(f"Failed to load history: {e}")
                 self.sessions_history = []
             finally:
+                self.history_dialog_visible = True
                 self._notify_update()
 
         asyncio.create_task(_task())
