@@ -16,6 +16,10 @@ from dataclasses import dataclass
 from collections.abc import Callable
 
 from .utils import format_val
+from ui.utils.coefficient_calculator import (
+    calculate_defense_coefficient,
+    calculate_resistance_coefficient,
+)
 
 
 # ============================================================
@@ -233,24 +237,34 @@ def build_react(
     selected_domain: str | None,
     on_domain_click: Callable[[str, str], None]
 ) -> FormulaResult:
-    """反应区模板：基础 × (1 + 加成%)
+    """[V4.2] 反应区模板：反应类型 + 基础倍率 × (1 + 加成%)
 
-    显示反应类型（如蒸发、融化）和加成系数
+    显示反应类型（如蒸发、融化）和基础倍率，精通加成可点击查看来源
+    无反应时显示简洁的 1.00
     """
     mult_val = bucket_data.get('multiplier', 1.0)
+    reaction_type = bucket_data.get('reaction_type', '')
+    reaction_base = bucket_data.get('reaction_base', 1.0)
     em_bonus = bucket_data.get('em_bonus', 0.0)
     other_bonus = bucket_data.get('other_bonus', 0.0)
-    reaction_type = bucket_data.get('reaction_type', '')
 
     formula_parts: list[ft.Control] = []
 
-    # 反应类型标签
+    # 无反应时显示简洁的 1.00
+    if not reaction_type and mult_val == 1.0:
+        return FormulaResult([_text("1.00", color=ft.Colors.WHITE_70)], "1.00")
+
+    # 有反应：显示反应类型 + 基础倍率（如「蒸发2.0」）
     if reaction_type:
-        formula_parts.append(_text(f"{reaction_type} ", size=9))
+        formula_parts.extend([
+            _text(f"{reaction_type}", size=10, color=bucket_color),
+            _domain_value(reaction_base, "reaction_base", bucket_key, bucket_color, selected_domain, on_domain_click, format_spec=".1f"),
+            _text("×(1+", size=9),
+        ])
+    else:
+        formula_parts.append(_text("基础×(1+"))
 
-    formula_parts.append(_text("基础×(1+"))
-
-    # 精通加成
+    # 精通加成（可点击）
     if em_bonus > 0:
         formula_parts.extend([
             _domain_value(em_bonus, "em_bonus", bucket_key, bucket_color, selected_domain, on_domain_click),
@@ -282,36 +296,32 @@ def build_def(
     selected_domain: str | None,
     on_domain_click: Callable[[str, str], None]
 ) -> FormulaResult:
-    """防御区模板：系数 + (减防% + 无视%)
+    """防御区模板：系数
 
-    显示防御系数及修正来源
+    [V14.0] 简洁显示：仅显示防御系数，修饰符详情通过点击查看
+    [V14.1] 支持从 raw_data 计算防御系数
+
+    Args:
+        bucket_data: 防御区数据，包含：
+            - multiplier: 防御系数（审计链提供，可能为默认值 1.0）
+            - raw_data: 原始参数字典（V14.1 新增）
+                - attacker_level: 攻击者等级
+                - target_defense: 目标防御力
+                - def_reduction_pct: 减防%
+                - def_ignore_pct: 无视防御%
+            - def_ignore_pct: 无视防御%
+            - steps: 步骤列表（含减防%等）
     """
-    mult_val = bucket_data.get('multiplier', 1.0)
-    def_reduction = bucket_data.get('def_reduction_pct', 0.0)
-    def_ignore = bucket_data.get('def_ignore_pct', 0.0)
+    # [V14.1] 优先从 raw_data 计算系数
+    raw_data = bucket_data.get('raw_data', {})
+    if raw_data:
+        mult_val = calculate_defense_coefficient(raw_data)
+    else:
+        mult_val = bucket_data.get('multiplier', 1.0)
 
     formula_parts: list[ft.Control] = [
-        _text(f"{mult_val:.2f}", color=ft.Colors.WHITE_70),
+        _domain_value(mult_val, "def_coeff", bucket_key, bucket_color, selected_domain, on_domain_click, format_spec=".2f"),
     ]
-
-    if def_reduction > 0 or def_ignore > 0:
-        formula_parts.append(_text(" ("))
-
-        if def_reduction > 0:
-            formula_parts.extend([
-                _domain_value(def_reduction, "def_reduction", bucket_key, bucket_color, selected_domain, on_domain_click),
-                _text("%减防", size=8, color=ft.Colors.WHITE_38),
-            ])
-
-        if def_ignore > 0:
-            if def_reduction > 0:
-                formula_parts.append(_text("+", color=ft.Colors.WHITE_38))
-            formula_parts.extend([
-                _domain_value(def_ignore, "def_ignore", bucket_key, bucket_color, selected_domain, on_domain_click),
-                _text("%无视", size=8, color=ft.Colors.WHITE_38),
-            ])
-
-        formula_parts.append(_text(")"))
 
     return FormulaResult(formula_parts, f"{mult_val:.2f}")
 
@@ -327,36 +337,33 @@ def build_res(
     selected_domain: str | None,
     on_domain_click: Callable[[str, str], None]
 ) -> FormulaResult:
-    """抗性区模板：系数 + (减抗% + 穿透%)
+    """抗性区模板：系数
 
-    显示抗性系数及修正来源
+    [V14.0] 简洁显示：仅显示抗性系数，修饰符详情通过点击查看
+    [V14.1] 支持从 raw_data 计算抗性系数
+
+    Args:
+        bucket_data: 抗性区数据，包含：
+            - multiplier: 抗性系数（审计链提供，可能为默认值 1.0）
+            - raw_data: 原始参数字典（V14.1 新增）
+                - element_type: 元素类型
+                - element_name: 元素名称
+                - base_resistance: 基础抗性%
+                - final_resistance: 最终抗性%
+            - base_resistance: 基础抗性%
+            - final_resistance: 最终抗性%
+            - steps: 步骤列表（含减抗修饰符）
     """
-    mult_val = bucket_data.get('multiplier', 1.0)
-    res_reduction = bucket_data.get('res_reduction_pct', 0.0)
-    res_penetration = bucket_data.get('res_penetration_pct', 0.0)
+    # [V14.1] 优先从 raw_data 计算系数
+    raw_data = bucket_data.get('raw_data', {})
+    if raw_data:
+        mult_val = calculate_resistance_coefficient(raw_data)
+    else:
+        mult_val = bucket_data.get('multiplier', 1.0)
 
     formula_parts: list[ft.Control] = [
-        _text(f"{mult_val:.2f}", color=ft.Colors.WHITE_70),
+        _domain_value(mult_val, "res_coeff", bucket_key, bucket_color, selected_domain, on_domain_click, format_spec=".2f"),
     ]
-
-    if res_reduction > 0 or res_penetration > 0:
-        formula_parts.append(_text(" ("))
-
-        if res_reduction > 0:
-            formula_parts.extend([
-                _domain_value(res_reduction, "res_reduction", bucket_key, bucket_color, selected_domain, on_domain_click),
-                _text("%减抗", size=8, color=ft.Colors.WHITE_38),
-            ])
-
-        if res_penetration > 0:
-            if res_reduction > 0:
-                formula_parts.append(_text("+", color=ft.Colors.WHITE_38))
-            formula_parts.extend([
-                _domain_value(res_penetration, "res_penetration", bucket_key, bucket_color, selected_domain, on_domain_click),
-                _text("%穿透", size=8, color=ft.Colors.WHITE_38),
-            ])
-
-        formula_parts.append(_text(")"))
 
     return FormulaResult(formula_parts, f"{mult_val:.2f}")
 

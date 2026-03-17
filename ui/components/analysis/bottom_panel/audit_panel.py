@@ -433,6 +433,28 @@ def DomainDetailSection(
                     modifiers = [{"stat": "暴击伤害", "value": 0.0, "source": "面板聚合值（含基础+装备+天赋）"}]
                 domain_label = "暴击伤害来源"
 
+        elif active_bucket == "REACT":
+            # [V14.2] REACT 区专属处理
+            if selected_domain == "em_bonus":
+                # 显示精通加成来源
+                modifiers = [s for s in steps if s.get("source") == "[精通转化]"]
+                if not modifiers:
+                    modifiers = [s for s in steps if "精通" in s.get("source", "")]
+                if not modifiers:
+                    modifiers = [{"stat": "精通转化", "value": 0.0, "source": "无精通加成"}]
+                domain_label = "精通转化加成"
+            elif selected_domain == "other_bonus":
+                # 显示其他加成来源
+                modifiers = [s for s in steps if s["stat"] == "反应加成系数" and s.get("source") != "[精通转化]"]
+                domain_label = "反应加成来源"
+            elif selected_domain == "reaction_base":
+                # 显示反应基础倍率来源
+                modifiers = [s for s in steps if s["stat"] == "反应基础倍率"]
+                domain_label = "反应类型"
+            else:
+                modifiers = steps
+                domain_label = "全部来源"
+
         else:
             # 其他乘区使用原有逻辑
             domain_values = AuditProcessor.calculate_domains(steps)

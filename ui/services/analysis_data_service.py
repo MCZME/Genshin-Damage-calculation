@@ -253,7 +253,8 @@ class AnalysisDataService:
         1. 获取事件元数据 -> 判断伤害类型
         2. 拉取审计链 [S] 项
         3. 拉取帧快照 [R] 项
-        4. 调用 AuditProcessor 处理
+        4. 拉取目标快照 [R] 项（V14.0 新增）
+        5. 调用 AuditProcessor 处理
 
         Args:
             event_id: 事件 ID
@@ -263,7 +264,6 @@ class AnalysisDataService:
         """
         from core.persistence.processors.audit import AuditProcessor
         from core.persistence.processors.audit.types import DamageType, DamageTypeContext
-        from core.systems.contract.reaction import ElementalReactionType, REACTION_CLASSIFICATION, ReactionCategory
 
         adapter = self.adapter
         if not adapter:
@@ -276,32 +276,38 @@ class AnalysisDataService:
 
         frame_id = event_meta.get("frame_id", 0)
         source_id = event_meta.get("source_id")
+        target_id = event_meta.get("target_id")
         is_crit = event_meta.get("is_crit", False)
-        reaction_name = event_meta.get("reaction_name")
+        attack_tag = event_meta.get("attack_tag", "")
+        reaction_data = event_meta.get("reaction")  # [V14.0] 修复：从 event_meta 获取 reaction_data
+        element_type = event_meta.get("element_type", "")  # [V14.1] 新增：获取元素类型
 
-        # Step 2: 判断是否为剧变反应
-        is_transformative = False
-        if reaction_name:
-            try:
-                reaction_type = ElementalReactionType[reaction_name]
-                is_transformative = REACTION_CLASSIFICATION.get(reaction_type) == ReactionCategory.TRANSFORMATIVE
-            except KeyError:
-                pass
+        # Step 2: 根据 attack_tag 判断是否为剧变反应伤害
+        # 剧变反应伤害的 attack_tag 格式："超载伤害"、"感电伤害"、"超导伤害"、"碎冰伤害"、
+        # "扩散火元素伤害"、"超绽放伤害"、"烈绽放伤害" 等
+        TRANSFORMATIVE_TAGS = ("超载伤害", "感电伤害", "超导伤害", "碎冰伤害",
+                               "扩散", "超绽放伤害", "烈绽放伤害")
+        is_transformative = any(tag in attack_tag for tag in TRANSFORMATIVE_TAGS)
 
         # Step 3: 拉取审计链 [S] 项
         raw_trail = await adapter.get_damage_audit(event_id)
 
-        # Step 4: 拉取帧快照 [R] 项
+        # Step 4: 拉取帧快照 [R] 项（攻击者）
         frame_snapshot = None
         if source_id is not None:
             frame_snapshot = await adapter.get_entity_snapshot(frame_id, source_id)
+
+        # Step 4.5: [V14.0] 拉取目标快照 [R] 项（用于防御区/抗性区）
+        target_snapshot = None
+        if target_id is not None:
+            target_snapshot = await adapter.get_target_snapshot(frame_id, target_id)
 
         # Step 5: 根据类型选择处理方法
         if is_transformative:
             # 剧变反应路径
             damage_type_ctx = DamageTypeContext(
                 damage_type=DamageType.TRANSFORMATIVE,
-                attack_tag=reaction_name or "",
+                attack_tag=attack_tag,
                 level_coeff=0.0,
                 reaction_coeff=1.0,
                 elemental_mastery=frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0,
@@ -310,7 +316,9 @@ class AnalysisDataService:
             processed = AuditProcessor.process_transformative(
                 damage_type_ctx=damage_type_ctx,
                 raw_trail=raw_trail,
-                frame_snapshot=frame_snapshot
+                frame_snapshot=frame_snapshot,
+                target_snapshot=target_snapshot,
+                element_type=element_type
             )
             processed["_damage_type_ctx"] = damage_type_ctx
         else:
@@ -318,7 +326,9 @@ class AnalysisDataService:
             processed = AuditProcessor.process_detail(
                 raw_trail=raw_trail,
                 frame_snapshot=frame_snapshot,
-                is_crit=is_crit
+                target_snapshot=target_snapshot,
+                is_crit=is_crit,
+                element_type=element_type
             )
             processed["_damage_type_ctx"] = DamageTypeContext()
 
@@ -348,6 +358,25 @@ class AnalysisDataService:
                 # 从修饰符中累加暴击率加成
                 rate_bonus = sum(m.get("value", 0) for m in crit_rate_modifiers)
                 processed["crit"]["crit_rate"] = base_crit_rate + rate_bonus
+
+            # [V4.3] 从数据库注入反应数据（补充审计链缺失的数据）
+            if reaction_data:
+                rt_name = reaction_data.get("type", "")
+                # 反应类型名称映射
+                reaction_type_map = {
+                    "VAPORIZE": "蒸发", "MELT": "融化",
+                    "AGGRAVATE": "激化", "SPREAD": "超绽放",
+                }
+                processed["reaction"]["reaction_type"] = reaction_type_map.get(rt_name, rt_name)
+                processed["reaction"]["reaction_base"] = reaction_data.get("multiplier", 1.0)
+
+                # 从审计链分离精通加成（如果存在）
+                em_bonus = sum(
+                    s.get("value", 0) for s in processed["reaction"]["steps"]
+                    if s.get("source") == "[精通转化]"
+                )
+                if em_bonus > 0:
+                    processed["reaction"]["em_bonus"] = em_bonus
 
         return processed
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from core.persistence.database import GenshinJSONEncoder
 
 
@@ -245,14 +246,24 @@ class DataProjector:
                     attack_tag = "None"
                     if hasattr(dmg_obj, "config") and dmg_obj.config:
                         attack_tag = getattr(dmg_obj.config.attack_tag, "name", str(dmg_obj.config.attack_tag))
-                    reaction_name = dmg_obj.reaction_results[0].reaction_type.name if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results else None
+
+                    # 存储完整的反应数据为 JSON
+                    reaction_json = None
+                    if hasattr(dmg_obj, "reaction_results") and dmg_obj.reaction_results:
+                        rr = dmg_obj.reaction_results[0]
+                        reaction_json = json.dumps({
+                            "type": rr.reaction_type.name,
+                            "multiplier": getattr(rr, "multiplier", 1.0),
+                            "source_element": getattr(rr.source_element, "name", str(rr.source_element)) if rr.source_element else None,
+                            "target_element": getattr(rr.target_element, "name", str(rr.target_element)) if rr.target_element else None,
+                        })
 
                     # 使用专门的序列化工具处理元素类型
                     elem_str = self._serialize_element(getattr(dmg_obj, "element", "Neutral"))
 
                     commands.append((
-                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction_name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
-                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_name)
+                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
+                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_json)
                     ))
 
                     audit_trail = getattr(dmg_obj, "data", {}).get("audit_trail", [])
@@ -303,6 +314,3 @@ class DataProjector:
             self.active_modifiers.add((entity_id, mid))
 
         return commands
-
-
-from typing import Any
