@@ -205,8 +205,16 @@ def RangeHighlightLayer(state: 'AnalysisState', canvas_height: int):
     start_ratio = selection.start_frame / total_frames
     end_ratio = selection.end_frame / total_frames
 
-    start_x = start_ratio * STD_WIDTH
-    width = (end_ratio - start_ratio) * STD_WIDTH
+    # 如果选择范围已经完全超出了当前会话的总帧数（例如切换会话后旧数据残留），不渲染
+    if selection.start_frame >= total_frames:
+        return ft.Container()
+
+    start_x = max(0.0, start_ratio * STD_WIDTH)
+    # 限制宽度不超出画布右边缘
+    width = min(STD_WIDTH - start_x, (end_ratio - start_ratio) * STD_WIDTH)
+
+    if width <= 0:
+        return ft.Container()
 
     return ft.Container(
         bgcolor=ft.Colors.with_opacity(0.15, "#6495ED"),

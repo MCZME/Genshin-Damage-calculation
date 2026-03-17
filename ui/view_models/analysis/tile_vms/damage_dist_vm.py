@@ -130,8 +130,8 @@ class DamageDistViewModel:
         if not e.local_position:
             return
 
-        logical_x = e.local_position.x - 10
-        clicked_f = (logical_x / self.STD_WIDTH) * self.total_frames
+        logical_x = max(0, min(e.local_position.x - 10, self.STD_WIDTH))
+        clicked_f = max(0, min((logical_x / self.STD_WIDTH) * self.total_frames, float(self.total_frames)))
 
         if not self.sorted_frames:
             return
@@ -189,8 +189,8 @@ class DamageDistViewModel:
             set_hover_frame(None)
             return
 
-        logical_x = e.local_position.x - 10
-        clicked_f = (logical_x / self.STD_WIDTH) * self.total_frames
+        logical_x = max(0, min(e.local_position.x - 10, self.STD_WIDTH))
+        clicked_f = max(0, min((logical_x / self.STD_WIDTH) * self.total_frames, float(self.total_frames)))
 
         if not self.sorted_frames:
             return
