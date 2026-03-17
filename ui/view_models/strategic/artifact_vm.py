@@ -1,8 +1,11 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 import flet as ft
 from dataclasses import dataclass
 from ui.view_models.base_vm import BaseViewModel
 from core.data_models.team_data_model import ArtifactDataModel
+if TYPE_CHECKING:
+    from ui.view_models.strategic.character_vm import CharacterViewModel
 
 @ft.observable
 @dataclass
@@ -12,10 +15,17 @@ class ArtifactPieceViewModel(BaseViewModel[ArtifactDataModel]):
     支持 model 为 None 的空槽位状态。
     """
     slot_name: str # Flower, Plume, etc.
+    parent: CharacterViewModel | None = None # 引用父 VM，便于更新通知
 
     @property
     def set_name(self) -> str:
         return self.model.set_name if self.model else ""
+    
+    def notify_update(self) -> None:
+        super().notify_update()
+        # 级联通知父 VM 更新（如果存在）
+        if self.parent:
+            self.parent.notify_update()
 
     def set_set_name(self, value: str):
         if self.model:
