@@ -20,7 +20,13 @@ class ReviewDataAdapter:
             self._name_map = {e['id']: e['name'] for e in entities}
 
     async def get_all_sessions(self) -> list[dict[str, Any]]:
-        return await self.repo.fetch_all_sessions()
+        try:
+            return await self.repo.fetch_all_sessions()
+        except Exception as e:
+            # 捕获如 "no such table" 等数据库异常，返回空列表
+            from core.logger import get_ui_logger
+            get_ui_logger().log_warning(f"ReviewDataAdapter: Failed to fetch sessions: {e}")
+            return []
 
     async def get_summary_stats(self) -> dict[str, Any]:
         sid = await self.repo.get_latest_session_id()

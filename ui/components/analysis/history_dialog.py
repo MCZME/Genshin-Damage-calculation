@@ -7,18 +7,30 @@ def HistoryDialog(sessions, on_select, on_close):
     仿真历史记录选择组件 (声明式版)。
     """
     # 1. 构建列表内容
-    list_items = []
-    for s in sessions:
-        list_items.append(
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.DASHBOARD_ROUNDED, color=GenshinTheme.GOLD_DARK),
-                title=ft.Text(f"仿真会话 #{s['id']}", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                subtitle=ft.Text(f"时间: {s['time']} | 伤害: {s['damage']:,.0f}", color=ft.Colors.with_opacity(0.7, ft.Colors.WHITE)),
-                trailing=ft.Text(f"{s['duration']:.1f}s", color=ft.Colors.with_opacity(0.4, ft.Colors.WHITE)),
-                on_click=lambda _, sid=s['id']: on_select(sid),
-                hover_color=ft.Colors.with_opacity(0.05, ft.Colors.WHITE)
-            )
+    if not sessions:
+        content_view = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.HISTORY_ROUNDED, size=64, color=ft.Colors.with_opacity(0.2, GenshinTheme.GOLD_DARK)),
+                ft.Text("暂无仿真历史记录", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.with_opacity(0.5, ft.Colors.WHITE)),
+                ft.Text("完成一次仿真后，结果将自动保存至此处", size=14, color=ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            alignment=ft.alignment.center,
+            expand=True
         )
+    else:
+        list_items = []
+        for s in sessions:
+            list_items.append(
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.DASHBOARD_ROUNDED, color=GenshinTheme.GOLD_DARK),
+                    title=ft.Text(f"仿真会话 #{s['id']}", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                    subtitle=ft.Text(f"时间: {s['time']} | 伤害: {s['damage']:,.0f}", color=ft.Colors.with_opacity(0.7, ft.Colors.WHITE)),
+                    trailing=ft.Text(f"{s['duration']:.1f}s", color=ft.Colors.with_opacity(0.4, ft.Colors.WHITE)),
+                    on_click=lambda _, sid=s['id']: on_select(sid),
+                    hover_color=ft.Colors.with_opacity(0.05, ft.Colors.WHITE)
+                )
+            )
+        content_view = ft.ListView(list_items, expand=True, spacing=5, item_extent=70)
 
     # 2. 内层核心视图 (紫色核心)
     inner_content = ft.Container(
@@ -58,7 +70,7 @@ def HistoryDialog(sessions, on_select, on_close):
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 ),
                 ft.Container(
-                    content=ft.ListView(list_items, expand=True, spacing=5, item_extent=70),
+                    content=content_view,
                     expand=True,
                     padding=ft.Padding(20, 10, 20, 20)
                 )
