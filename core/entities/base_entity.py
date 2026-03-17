@@ -5,6 +5,7 @@ from typing import Any, TYPE_CHECKING
 from core.context import get_context
 from core.mechanics.aura import AuraManager
 from core.mechanics.icd import ICDManager
+from core.systems.contract.modifier import ModifierRecord
 
 if TYPE_CHECKING:
     from core.effect.common import ShieldEffect
@@ -174,16 +175,14 @@ class CombatEntity(BaseEntity):
         self.custom_metrics: dict[str, float] = {}
 
         # [新] 属性审计链支持
-        from core.systems.contract.modifier import ModifierRecord
 
         self.dynamic_modifiers: list[ModifierRecord] = []
         self.attribute_data: dict[str, float] = {}
 
     def add_modifier(
         self, source: str, stat: str, value: float, op: str = "ADD"
-    ) -> None:
+    ) -> ModifierRecord:
         """向实体注入一个带来源的属性修饰符。"""
-        from core.systems.contract.modifier import ModifierRecord
         from core.event import GameEvent, EventType
         from core.tool import get_current_time
 
@@ -205,6 +204,7 @@ class CombatEntity(BaseEntity):
                     data={"modifier": modifier}
                 )
             )
+        return modifier
 
     def remove_modifier(self, modifier: Any) -> None:
         """从实体移除一个属性修饰符。"""

@@ -37,10 +37,7 @@ class DamageContext:
             "反应基础倍率": 1.0,
             "反应加成系数": 0.0,
             "元素精通": 0.0,
-            "减防%": 0.0,
             "无视防御%": 0.0,
-            "减抗%": 0.0,
-            "抗性穿透%": 0.0,
             "独立乘区%": 0.0,  # 对应规范 2.2 中的 【独立乘区%】
             "倍率加值%": 0.0,  # 对应规范 2.2 中的 【倍率加值%】
         }
@@ -126,7 +123,8 @@ class DamagePipeline:
 
         # 1. 抓取每一个缩放属性的快照 (不入库 [R])
         for s_name in scaling_stats:
-            if s_name == "固定值": continue
+            if s_name == "固定值":
+                continue
             val = AttributeCalculator.get_val_by_name(src, s_name)
             ctx.add_modifier("[面板快照]", s_name, val, "SET", audit=False)
 
@@ -176,34 +174,45 @@ class DamagePipeline:
             if random.uniform(0, 100) <= final_crit_rate:
                 ctx.is_crit = True
                 crit_dmg = AttributeCalculator.get_final_crit_dmg(ctx.source) + ctx.stats.get("暴击伤害", 0)
-                ctx.stats["暴击乘数"] = 1 + crit_dmg / 100.0
-                ctx.add_modifier("[随机判定]", "暴击乘数", ctx.stats["暴击乘数"], "SET", audit=False)
+                crit_mult = 1 + crit_dmg / 100.0
             else:
-                ctx.stats["暴击乘数"] = 1.0
+                crit_mult = 1.0
+
+            # 统一入口：通过 add_modifier 写入，但不入库
+            ctx.add_modifier(
+                source="[随机判定]",
+                stat="暴击乘数",
+                value=crit_mult,
+                op="SET",
+                audit=False,  # 暴击乘数不需要审计链记录
+            )
 
     def _resolve_def_res_coeffs(self, ctx: DamageContext):
-        # 防御区 (执行用户指定的原始公式)
+        # 防御区：统一处理减防和无视防御
         l_src = float(ctx.source.level)
         k_src = l_src * 5 + 500
-        
-        base_def_target = AttributeCalculator.get_val_by_name(ctx.target, "防御力")
-        # 减防与无视防御加法堆叠
-        def_debuff = (ctx.stats.get("减防%", 0) + ctx.stats.get("无视防御%", 0)) / 100.0
-        final_def_target = base_def_target * (1.0 - def_debuff)
-        
-        # 你的公式：防御减免率 = Def / (Def + K)
+
+        # 获取面板防御力和减防百分比（效果作用于目标的防御力%负值）
+        panel_def, def_reduction_pct = AttributeCalculator.get_base_def_before_reduction(ctx.target)
+
+        # 无视防御%（攻击者侧属性，通过 DamageContext 注入）
+        ignore_def_pct = ctx.stats.get("无视防御%", 0)
+
+        # 总防御削减 = 减防% + 无视防御%
+        total_reduction = (def_reduction_pct + ignore_def_pct) / 100.0
+        final_def_target = panel_def * (1.0 - total_reduction)
+
+        # 公式：防御减免率 = Def / (Def + K)
         def_reduction_rate = final_def_target / (final_def_target + k_src)
         # 乘数 = 1 - 减免率
         coeff_def = 1.0 - def_reduction_rate
         ctx.add_modifier("[环境结算]", "防御区系数", coeff_def, "SET", audit=False)
 
-        # 抗性区
+        # 抗性区：AttributeCalculator 已返回包含减抗效果的最终抗性值
         el = ctx.damage.element[0]
         el_name = el.value if isinstance(el, Element) else str(el)
-        base_res = AttributeCalculator.get_val_by_name(ctx.target, f"{el_name}元素抗性")
-        res_debuff = (ctx.stats.get("减抗%", 0) + ctx.stats.get("抗性穿透%", 0)) / 100.0
-        final_res_val = (base_res / 100.0) - res_debuff
-        
+        final_res_val = AttributeCalculator.get_val_by_name(ctx.target, f"{el_name}元素抗性") / 100.0
+
         if final_res_val < 0:
             coeff_res = 1.0 - final_res_val / 2.0
         elif final_res_val > 0.75:
@@ -231,7 +240,8 @@ class DamagePipeline:
         base_dmg = 0.0
         scaling_stats = cast(list[str], ctx.damage.scaling_stat)
         for s_name in scaling_stats:
-            if s_name == "固定值": continue
+            if s_name == "固定值":
+                continue
             attr_val = s.get(s_name, 0.0)
             skill_mult = s.get(f"{s_name}技能倍率%", 0.0)
             

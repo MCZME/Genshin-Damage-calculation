@@ -105,13 +105,25 @@ class ResonanceSystem(GameSystem):
         if "冰" in self.active_resonances:
             target = ctx.target
             if target and (target.has_aura("冰") or target.has_aura("冻结")):
-                ctx.stats["暴击率"] += 15.0
+                ctx.add_modifier(
+                    source="粉碎之冰-共鸣",
+                    stat="暴击率",
+                    value=15.0,
+                    op="ADD",
+                    audit=True,
+                )
 
         # 2. 坚定之岩 (岩): 处于护盾保护下时，造成的伤害提升15%
         if "岩" in self.active_resonances:
             # 简单判定：检查 source 是否挂载了护盾对象
             if getattr(ctx.source, "shield_effects", []):
-                ctx.stats["伤害加成"] += 15.0
+                ctx.add_modifier(
+                    source="坚定之岩-共鸣",
+                    stat="伤害加成",
+                    value=15.0,
+                    op="ADD",
+                    audit=True,
+                )
 
     def _handle_after_reaction(self, event: GameEvent) -> None:
         """处理反应触发后的效果 (如双雷掉球、双草精通)。"""

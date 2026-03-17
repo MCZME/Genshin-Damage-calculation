@@ -146,22 +146,6 @@ class AuditProcessor:
                     "op": "SET",
                     "source": source
                 })
-            elif stat == "减抗%":
-                buckets["resistance"]["res_reduction_pct"] += val
-                buckets["resistance"]["steps"].append({
-                    "stat": stat,
-                    "value": val,
-                    "op": "ADD",
-                    "source": source
-                })
-            elif stat == "抗性穿透%":
-                buckets["resistance"]["res_penetration_pct"] += val
-                buckets["resistance"]["steps"].append({
-                    "stat": stat,
-                    "value": val,
-                    "op": "ADD",
-                    "source": source
-                })
 
         # 5. 从帧快照获取目标抗性信息
         if frame_snapshot:
@@ -169,11 +153,7 @@ class AuditProcessor:
             target_res = frame_snapshot.get("target_resistance", 0.0)
             if target_res != 0:
                 buckets["resistance"]["base_resistance"] = target_res
-                buckets["resistance"]["final_resistance"] = (
-                    target_res / 100.0
-                    - buckets["resistance"]["res_reduction_pct"] / 100.0
-                    - buckets["resistance"]["res_penetration_pct"] / 100.0
-                )
+                buckets["resistance"]["final_resistance"] = target_res / 100.0
 
         return buckets
 
