@@ -291,6 +291,47 @@ class SimulationRepository:
                     return {"name": row[0], "entity_type": row[1]}
                 return None
 
+    async def fetch_target_attributes(self, sid: int, entity_id: int) -> dict | None:
+        """[V16.0] 获取战斗目标的基础属性
+
+        从 simulation_targets 表获取目标的等级、防御力和各元素抗性。
+
+        Args:
+            sid: 会话 ID
+            entity_id: 实体 ID
+
+        Returns:
+            目标属性字典，包含：
+            - level: 等级
+            - defense: 防御力
+            - resistance: 抗性字典 {"火": 10.0, "水": 10.0, ...}
+            或 None
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            sql = """
+                SELECT level, base_defense, res_phys, res_fire, res_water, res_wind, res_elec, res_grass, res_ice, res_rock
+                FROM simulation_targets
+                WHERE session_id = ? AND entity_id = ?
+            """
+            async with db.execute(sql, (sid, entity_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "level": row[0] or 90,
+                        "defense": row[1] or 500,
+                        "resistance": {
+                            "物理": row[2] or 0.0,
+                            "火": row[3] or 0.0,
+                            "水": row[4] or 0.0,
+                            "风": row[5] or 0.0,
+                            "雷": row[6] or 0.0,
+                            "草": row[7] or 0.0,
+                            "冰": row[8] or 0.0,
+                            "岩": row[9] or 0.0,
+                        }
+                    }
+                return None
+
     async def fetch_active_effects(self, sid: int, entity_id: int, frame_id: int) -> list[dict]:
         """获取实体在指定帧的活跃效果
 

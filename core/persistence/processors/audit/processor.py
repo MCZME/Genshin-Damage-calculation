@@ -99,14 +99,14 @@ class AuditProcessor:
     ) -> dict[str, Any]:
         """[V12.0] 处理剧变反应审计数据
 
-        剧变反应使用 4 桶模型：
+        剧变反应使用 3 桶模型：
         - level_coeff: 等级系数
-        - reaction_coeff: 反应系数
-        - em_bonus: 精通加成
+        - reaction: 反应乘区（反应系数 × 精通加成）
         - resistance: 抗性区
 
         [V14.0] 新增 target_snapshot 参数，用于处理目标侧修饰符
         [V14.1] 新增 element_type 参数，用于抗性区原始数据收集
+        [V16.0] 合并 reaction_coeff + em_bonus 为 reaction 桶
 
         Args:
             damage_type_ctx: 伤害类型上下文
@@ -116,37 +116,65 @@ class AuditProcessor:
             element_type: 元素类型（用于抗性区数据收集）
 
         Returns:
-            剧变反应 4 桶数据结构
+            剧变反应 3 桶数据结构
         """
+        from core.systems.contract.reaction import ElementalReactionType
+
         buckets = create_transformative_buckets()
 
         # 1. 填充等级系数
         buckets["level_coeff"]["value"] = damage_type_ctx.level_coeff
 
-        # 2. 填充反应系数
-        buckets["reaction_coeff"]["value"] = damage_type_ctx.reaction_coeff
-        buckets["reaction_coeff"]["steps"].append(
+        # 2. 填充反应乘区（反应系数 × 精通加成）
+        # 2.1 从 attack_tag 提取反应类型中文名称
+        attack_tag = damage_type_ctx.attack_tag
+        reaction_type = attack_tag.replace("伤害", "").replace("扩散", "扩散")
+        # 尝试从枚举获取更准确的中文名称
+        reaction_type_map = {
+            "超载": ElementalReactionType.OVERLOAD,
+            "感电": ElementalReactionType.ELECTRO_CHARGED,
+            "超导": ElementalReactionType.SUPERCONDUCT,
+            "碎冰": ElementalReactionType.SHATTER,
+            "扩散": ElementalReactionType.SWIRL,
+            "超绽放": ElementalReactionType.HYPERBLOOM,
+            "烈绽放": ElementalReactionType.BURGEON,
+            "绽放": ElementalReactionType.BLOOM,
+        }
+        for tag, rt_enum in reaction_type_map.items():
+            if tag in attack_tag:
+                reaction_type = rt_enum.value
+                break
+
+        buckets["reaction"]["reaction_type"] = reaction_type
+        buckets["reaction"]["reaction_base"] = damage_type_ctx.reaction_coeff
+
+        # 2.2 计算精通加成
+        em = damage_type_ctx.elemental_mastery
+        em_bonus_pct = (16 * em) / (em + 2000) * 100 if em > 0 else 0.0
+        special_bonus = damage_type_ctx.special_bonus
+
+        buckets["reaction"]["em"] = em
+        buckets["reaction"]["em_bonus_pct"] = em_bonus_pct
+        buckets["reaction"]["special_bonus"] = special_bonus
+
+        # 2.3 计算总乘数
+        total_multiplier = damage_type_ctx.reaction_coeff * (
+            1 + em_bonus_pct / 100 + special_bonus / 100
+        )
+        buckets["reaction"]["multiplier"] = total_multiplier
+
+        # 2.4 添加步骤（用于域详情展示）
+        buckets["reaction"]["steps"].append(
             {
                 "stat": "反应系数",
                 "value": damage_type_ctx.reaction_coeff,
                 "op": "SET",
-                "source": damage_type_ctx.attack_tag,
+                "source": attack_tag,
             }
         )
 
-        # 3. 计算精通加成
-        em = damage_type_ctx.elemental_mastery
-        em_bonus_pct = (16 * em) / (em + 2000) * 100 if em > 0 else 0.0
-        special_bonus = damage_type_ctx.special_bonus
-        total_em_bonus = 1 + em_bonus_pct / 100 + special_bonus / 100
-
-        buckets["em_bonus"]["em"] = em
-        buckets["em_bonus"]["em_bonus_pct"] = em_bonus_pct
-        buckets["em_bonus"]["special_bonus"] = special_bonus
-        buckets["em_bonus"]["value"] = total_em_bonus
-
         if em > 0:
-            buckets["em_bonus"]["steps"].append(
+            buckets["reaction"]["steps"].append(
                 {
                     "stat": "精通转化",
                     "value": em_bonus_pct,
@@ -156,7 +184,7 @@ class AuditProcessor:
             )
 
         if special_bonus > 0:
-            buckets["em_bonus"]["steps"].append(
+            buckets["reaction"]["steps"].append(
                 {
                     "stat": "特殊加成",
                     "value": special_bonus,
@@ -165,7 +193,7 @@ class AuditProcessor:
                 }
             )
 
-        # 4. 处理抗性区（从审计链提取）
+        # 3. 处理抗性区（从审计链提取）
         for entry in raw_trail:
             stat = entry.get("stat", "")
             val = entry.get("value", 0.0)
@@ -177,18 +205,34 @@ class AuditProcessor:
                     {"stat": stat, "value": val, "op": "SET", "source": source}
                 )
 
-        # 5. 从帧快照获取目标抗性信息
-        if frame_snapshot:
-            # 获取目标抗性
-            target_res = frame_snapshot.get("target_resistance", 0.0)
-            if target_res != 0:
-                buckets["resistance"]["base_resistance"] = target_res
-                buckets["resistance"]["final_resistance"] = target_res / 100.0
+        # 4. 从目标快照获取目标抗性信息
+        if target_snapshot:
+            # 从目标快照的 resistance 字段获取基础抗性
+            # resistance 格式: {"火": 10.0, "水": 10.0, ...}
+            target_resistance = target_snapshot.get("resistance", {})
 
-        # 6. [V14.0] 从目标快照注入减抗修饰符
+            # 元素名称映射
+            element_name_map = {
+                "PHYSICAL": "物理",
+                "PYRO": "火",
+                "HYDRO": "水",
+                "ELECTRO": "雷",
+                "CRYO": "冰",
+                "ANEMO": "风",
+                "GEO": "岩",
+                "DENDRO": "草",
+            }
+            el_name = element_name_map.get(element_type, element_type)
+
+            base_res = target_resistance.get(el_name, 0.0)
+            if base_res != 0:
+                buckets["resistance"]["base_resistance"] = base_res
+                buckets["resistance"]["final_resistance"] = base_res / 100.0
+
+        # 5. [V14.0] 从目标快照注入减抗修饰符
         inject_target_modifiers(target_snapshot, buckets)
 
-        # 7. [V15.0] 仅收集抗性区原始数据（剧变反应无防御区）
+        # 6. [V15.0] 仅收集抗性区原始数据（剧变反应无防御区）
         collect_resistance_raw_data(
             frame_snapshot, target_snapshot, buckets, element_type
         )

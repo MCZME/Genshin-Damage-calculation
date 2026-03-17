@@ -284,6 +284,15 @@ class ReviewDataAdapter:
             snapshot["name"] = registry_info["name"]
             snapshot["type"] = registry_info["entity_type"]
 
+        # [V16.0] 获取目标基础属性（从 simulation_targets 表）
+        target_attr = await self.repo.fetch_target_attributes(sid, target_id)
+        if target_attr:
+            snapshot["stats"] = {
+                "等级": target_attr.get("level", 90),
+                "防御力": target_attr.get("defense", 500),
+            }
+            snapshot["resistance"] = target_attr.get("resistance", {})
+
         # 3. [V14.0] 获取目标修饰符（减防、减抗等）
         # 需要获取的属性类型列表
         target_modifier_stats = [

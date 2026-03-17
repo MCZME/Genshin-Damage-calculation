@@ -523,61 +523,79 @@ def build_level_react_base(
     selected_domain: str | None,
     on_domain_click: Callable[[str, str], None],
 ) -> FormulaResult:
-    """等级系数/反应系数模板：固定值显示
+    """等级系数模板：固定值显示
 
     LEVEL: 等级系数（如 1446）
-    REACT_BASE: 反应系数（如超载 2.75）
     """
     value = bucket_data.get("value", 0.0)
 
     formula_parts: list[ft.Control] = []
-    if bucket_key == "LEVEL":
-        # 等级系数：整数显示
-        formula_parts.append(_text(f"{value:.0f}", color=ft.Colors.WHITE_70))
-        total_text = f"{value:.0f}"
-    else:
-        # 反应系数：两位小数
-        formula_parts.append(
-            _domain_value(
-                value,
-                "react_coeff",
-                bucket_key,
-                bucket_color,
-                selected_domain,
-                on_domain_click,
-                False,
-                ".2f",
-            )
-        )
-        total_text = f"{value:.2f}"
+    # 等级系数：整数显示
+    formula_parts.append(_text(f"{value:.0f}", color=ft.Colors.WHITE_70))
+    total_text = f"{value:.0f}"
 
     return FormulaResult(formula_parts, total_text)
 
 
 # ============================================================
-# 模板 7: EM_BONUS - 精通加成
+# 模板 7: TRANSFORMATIVE_REACT - 剧变反应反应乘区
 # ============================================================
 
 
-def build_em_bonus(
+def build_transformative_react(
     bucket_data: dict,
     bucket_key: str,
     bucket_color: str,
     selected_domain: str | None,
     on_domain_click: Callable[[str, str], None],
 ) -> FormulaResult:
-    """精通加成模板：1 + 精通收益% + 特殊加成%
+    """[V16.0] 剧变反应反应乘区模板：反应类型 + 反应系数×(1+精通加成%)
 
-    公式：1 + 16×EM/(EM+2000) + 特殊加成
+    显示格式：超载2.75×(1+15%)
     """
-    em = bucket_data.get("em", 0.0)
+    reaction_type = bucket_data.get("reaction_type", "")
+    reaction_base = bucket_data.get("reaction_base", 1.0)
     em_bonus_pct = bucket_data.get("em_bonus_pct", 0.0)
     special_bonus = bucket_data.get("special_bonus", 0.0)
-    total_value = bucket_data.get("value", 1.0)
+    multiplier = bucket_data.get("multiplier", 1.0)
 
-    formula_parts: list[ft.Control] = [_text("1+")]
+    formula_parts: list[ft.Control] = []
 
-    if em > 0:
+    # 显示反应类型 + 反应系数（如「超载2.75」）
+    if reaction_type:
+        formula_parts.extend(
+            [
+                _text(f"{reaction_type}", size=10, color=bucket_color),
+                _domain_value(
+                    reaction_base,
+                    "reaction_base",
+                    bucket_key,
+                    bucket_color,
+                    selected_domain,
+                    on_domain_click,
+                    format_spec=".2f",
+                ),
+                _text("×(1+", size=9),
+            ]
+        )
+    else:
+        formula_parts.extend(
+            [
+                _domain_value(
+                    reaction_base,
+                    "reaction_base",
+                    bucket_key,
+                    bucket_color,
+                    selected_domain,
+                    on_domain_click,
+                    format_spec=".2f",
+                ),
+                _text("×(1+", size=9),
+            ]
+        )
+
+    # 精通加成（可点击）
+    if em_bonus_pct > 0:
         formula_parts.extend(
             [
                 _domain_value(
@@ -592,8 +610,9 @@ def build_em_bonus(
             ]
         )
 
+    # 特殊加成
     if special_bonus > 0:
-        if em > 0:
+        if em_bonus_pct > 0:
             formula_parts.append(_text("+", color=ft.Colors.WHITE_38))
         formula_parts.extend(
             [
@@ -609,10 +628,9 @@ def build_em_bonus(
             ]
         )
 
-    total_text = f"{total_value:.2f} (EM:{em:.0f})" if em > 0 else f"{total_value:.2f}"
+    formula_parts.append(_text(")"))
 
-    return FormulaResult(formula_parts, total_text)
-
+    return FormulaResult(formula_parts, f"{multiplier:.2f}")
 
 # ============================================================
 # 模板映射与入口函数
@@ -629,10 +647,10 @@ NORMAL_TEMPLATE_MAP: dict[str, Callable] = {
 }
 
 # 剧变反应路径模板映射
+# [V16.0] 更新为 3 桶模型
 TRANSFORMATIVE_TEMPLATE_MAP: dict[str, Callable] = {
     "LEVEL": build_level_react_base,
-    "REACT_BASE": build_level_react_base,
-    "EM_BONUS": build_em_bonus,
+    "REACT": build_transformative_react,
     "RES": build_res,  # 复用常规的 RES 模板
 }
 
@@ -688,8 +706,10 @@ def build_transformative_formula(
 ) -> FormulaResult:
     """构建剧变反应桶公式
 
+    [V16.0] 更新为 3 桶模型
+
     Args:
-        bucket_key: 乘区键（LEVEL/REACT_BASE/EM_BONUS/RES）
+        bucket_key: 乘区键（LEVEL/REACT/RES）
         bucket_data: 乘区数据
         bucket_color: 乘区颜色
         selected_domain: 选中的域

@@ -92,13 +92,17 @@ class AuditValidator:
     ) -> ValidationResult:
         """验证剧变反应伤害
 
-        公式：伤害 = 等级系数 × 反应系数 × (1 + 精通收益) × 抗性区
+        [V16.0] 更新为 3 桶模型
+        公式：伤害 = 等级系数 × 反应乘区 × 抗性区
+        其中反应乘区 = 反应系数 × (1 + 精通收益 + 特殊加成)
         """
         from .coefficient_calculator import calculate_resistance_coefficient
 
         level_coeff = buckets.get("level_coeff", {}).get("value", 0.0)
-        reaction_coeff = buckets.get("reaction_coeff", {}).get("value", 1.0)
-        em_bonus = buckets.get("em_bonus", {}).get("value", 1.0)
+
+        # [V16.0] 从 reaction 桶获取反应乘区数据
+        reaction_bucket = buckets.get("reaction", {})
+        reaction_mult = reaction_bucket.get("multiplier", 1.0)
 
         res_bucket = buckets.get("resistance", {})
         res_raw = res_bucket.get("raw_data", {})
@@ -108,7 +112,7 @@ class AuditValidator:
             else res_bucket.get("multiplier", 1.0)
         )
 
-        calc_damage = level_coeff * reaction_coeff * em_bonus * res_mult
+        calc_damage = level_coeff * reaction_mult * res_mult
 
         return AuditValidator._perform_validation(
             calc_damage=calc_damage,
