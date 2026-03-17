@@ -127,11 +127,10 @@ def MemberSlot(
     weapon_row = ft.Row(controls=weapon_row_controls, spacing=5)
 
     # 圣遗物摘要逻辑 (可以进一步移入 VM)
-    artifact_count = len([a for a in vm.artifacts.values() if a.set_name])
     artifact_row_controls: list[ft.Control] = [
         ft.Icon(ft.Icons.AUTO_AWESOME, size=11, color=ft.Colors.with_opacity(0.45, ft.Colors.WHITE)),
         ft.Text(
-            f"已装备 {artifact_count} 件圣遗物", 
+            vm.artifact_set_summary, 
             size=10, 
             color=ft.Colors.with_opacity(0.65, ft.Colors.WHITE), 
             no_wrap=True, 

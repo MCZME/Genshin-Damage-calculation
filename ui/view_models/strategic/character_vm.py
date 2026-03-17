@@ -23,7 +23,8 @@ class CharacterViewModel(BaseViewModel[CharacterDataModel]):
             for slot in slots:
                 self._artifact_vms[slot] = ArtifactPieceViewModel(
                     self.model.artifacts.get_slot(slot), 
-                    slot_name=slot
+                    slot_name=slot,
+                    parent = self
                 )
         else:
             # 构造空槽位专用的子 VM
@@ -99,3 +100,29 @@ class CharacterViewModel(BaseViewModel[CharacterDataModel]):
     @property
     def is_empty(self) -> bool:
         return self.model is None or self.model.id is None
+
+    @property
+    def artifact_set_summary(self) -> str:
+        """获取圣遗物套装摘要信息"""
+        if self.is_empty:
+            return "未装备圣遗物"
+            
+        sets = {}
+        for a in self._artifact_vms.values():
+            if a.set_name:
+                sets[a.set_name] = sets.get(a.set_name, 0) + 1
+        
+        active_sets = []
+        for set_name, count in sets.items():
+            if count >= 4:
+                active_sets.append(f"{set_name[:4]} 4")
+            elif count >= 2:
+                active_sets.append(f"{set_name[:4]} 2")
+                
+        if active_sets:
+            return " + ".join(active_sets)
+        elif sets:
+            return "散件"
+        else:
+            return "未装备圣遗物"
+
