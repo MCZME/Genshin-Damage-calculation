@@ -53,7 +53,8 @@ class ReviewDataAdapter:
             "source": self._name_map.get(r['source_id'], f"ID:{r['source_id']}"),
             "element": r['element'],
             "event_id": r['event_id'],
-            "action": r['action'] or "伤害触发"
+            "action": r['action'] or "伤害触发",
+            "name": r['name']
         } for r in raw]
 
     async def get_damage_events_raw(self) -> list[dict[str, Any]]:

@@ -261,9 +261,12 @@ class DataProjector:
                     # 使用专门的序列化工具处理元素类型
                     elem_str = self._serialize_element(getattr(dmg_obj, "element", "Neutral"))
 
+                    # 提取伤害名称
+                    dmg_name = getattr(dmg_obj, "name", "Unknown Damage")
+
                     commands.append((
-                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?)",
-                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_json)
+                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction, name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?, ?)",
+                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_json, dmg_name)
                     ))
 
                     audit_trail = getattr(dmg_obj, "data", {}).get("audit_trail", [])

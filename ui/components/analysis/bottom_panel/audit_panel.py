@@ -530,7 +530,7 @@ def AuditPanel(
         elem_color = GenshinTheme.get_element_color(event.get('element', 'Neutral'))
         # [V12.0] 显示伤害类型标签
         type_label = "剧变" if damage_type == DamageType.TRANSFORMATIVE else "常规"
-        header_content = ft.Row([
+        header_content = ft.Row(controls=[
             ft.IconButton(
                 icon=ft.Icons.ARROW_BACK_ROUNDED,
                 icon_size=18,
@@ -539,31 +539,41 @@ def AuditPanel(
                 tooltip="返回选择",
                 style=ft.ButtonStyle(padding=ft.Padding.all(4)),
             ),
-            ft.Text(
-                event.get('source', '未知来源'),
-                size=14,
-                weight=ft.FontWeight.W_600,
-                color=ft.Colors.WHITE,
-            ),
-            ft.Container(
-                width=6,
-                height=6,
-                bgcolor=elem_color,
-                border_radius=3,
-            ),
-            ft.Text(
-                f"[{type_label}] #{event.get('event_id')} F{event.get('frame')}",
-                size=11,
-                color=ft.Colors.WHITE_54,
-                font_family="Consolas",
-            ),
+            # 角色名称 + 伤害名称（左侧，同一行）
+            ft.Row([
+                ft.Text(
+                    event.get('source', '未知来源'),
+                    size=13,
+                    color=ft.Colors.WHITE_70,
+                    no_wrap=True,
+                    overflow=ft.TextOverflow.ELLIPSIS,
+                ),
+                ft.Text(
+                    event.get('name', '未知伤害'),
+                    size=13,
+                    weight=ft.FontWeight.W_600,
+                    color=ft.Colors.WHITE,
+                    no_wrap=True,
+                    overflow=ft.TextOverflow.ELLIPSIS,
+                ),
+            ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            # 填充空间
             ft.Container(expand=True),
-            ft.Text(
-                format_val(event.get('dmg', 0)),
-                size=18,
-                weight=ft.FontWeight.W_900,
-                color=elem_color,
-            ),
+            # 右侧：元素图标 + 类型标签 + 事件ID
+            ft.Row([
+                ft.Container(
+                    width=6,
+                    height=6,
+                    bgcolor=elem_color,
+                    border_radius=3,
+                ),
+                ft.Text(
+                    f"[{type_label}] #{event.get('event_id')} F{event.get('frame')}",
+                    size=11,
+                    color=ft.Colors.WHITE_54,
+                    font_family="Consolas",
+                ),
+            ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
     else:
         header_content = ft.Row([
