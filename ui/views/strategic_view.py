@@ -28,6 +28,8 @@ class StrategicView:
         from typing import cast
         picker_type, set_picker_type = ft.use_state(cast(str | None, None))
         picker_index, set_picker_index = ft.use_state(0)
+        # [V4.6] 活跃滑块键：同一时刻只有一个滑块可以处于编辑态
+        focused_slider, set_focused_slider = ft.use_state(cast(str | None, None))
 
         # 2. 绑定核心 VM (直接从传入的 state 获取以激活 Flet 响应式)
         proxy = state.active_character_proxy
@@ -35,12 +37,15 @@ class StrategicView:
         current_index = state.current_index
 
         # 3. 内部组件工厂
-        def create_managed_slider(label: str, value: Any, on_change: Any, **kwargs):
+        def create_managed_slider(label: str, value: Any, on_change: Any, key: str = "", **kwargs):
             return PropertySlider(
-                label=label, 
-                value=value, 
+                label=label,
+                value=value,
                 element=proxy.element,
                 on_change=on_change,
+                slider_key=key,
+                focused_key=focused_slider or "",
+                on_focus=lambda: set_focused_slider(key),
                 **kwargs
             )
 
@@ -113,19 +118,19 @@ class StrategicView:
 
                 ft.Row(
                     controls=[
-                        create_managed_slider("等级", proxy.level, proxy.set_level, discrete_values=[1, 20, 40, 50, 60, 70, 80, 90, 95, 100]),
-                        create_managed_slider("命之座", proxy.constellation, proxy.set_constellation, min_val=0, max_val=6, divisions=6)
-                    ], 
+                        create_managed_slider("等级", proxy.level, proxy.set_level, key="level", discrete_values=[1, 20, 40, 50, 60, 70, 80, 90, 95, 100]),
+                        create_managed_slider("命之座", proxy.constellation, proxy.set_constellation, key="constellation", min_val=0, max_val=6, divisions=6)
+                    ],
                     spacing=20
                 ),
                 ft.Divider(height=10, color="transparent"),
                 ft.Text("天赋等级配置", size=16, weight=ft.FontWeight.BOLD, opacity=0.8),
                 ft.Row(
                     controls=[
-                        create_managed_slider("普攻", proxy.talent_na, proxy.set_talent_na, min_val=1, max_val=10, divisions=9),
-                        create_managed_slider("战技", proxy.talent_e, proxy.set_talent_e, min_val=1, max_val=10, divisions=9),
-                        create_managed_slider("爆发", proxy.talent_q, proxy.set_talent_q, min_val=1, max_val=10, divisions=9),
-                    ], 
+                        create_managed_slider("普攻", proxy.talent_na, proxy.set_talent_na, key="talent_na", min_val=1, max_val=10, divisions=9),
+                        create_managed_slider("战技", proxy.talent_e, proxy.set_talent_e, key="talent_e", min_val=1, max_val=10, divisions=9),
+                        create_managed_slider("爆发", proxy.talent_q, proxy.set_talent_q, key="talent_q", min_val=1, max_val=10, divisions=9),
+                    ],
                     spacing=15
                 )
             ]
