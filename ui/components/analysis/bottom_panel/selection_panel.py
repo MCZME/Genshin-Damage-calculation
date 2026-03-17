@@ -27,9 +27,18 @@ def EventCard(
 
     return ft.Container(
         content=ft.Column([
-            # 来源名称
+            # 角色名称（灰色小字）
             ft.Text(
                 event.get('source', '未知'),
+                size=9,
+                color=ft.Colors.WHITE_54,
+                no_wrap=True,
+                overflow=ft.TextOverflow.ELLIPSIS,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            # 伤害名称（主标题）
+            ft.Text(
+                event.get('name', '未知伤害'),
                 size=11,
                 weight=ft.FontWeight.W_600,
                 color=ft.Colors.WHITE,
@@ -61,7 +70,7 @@ def EventCard(
                 text_align=ft.TextAlign.CENTER,
             ),
         ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        width=100,
+        width=110,
         padding=ft.Padding.all(8),
         bgcolor=ft.Colors.with_opacity(0.15, elem_color) if is_selected else ft.Colors.WHITE_10,
         border_radius=8,

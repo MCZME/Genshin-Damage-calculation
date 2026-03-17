@@ -215,6 +215,7 @@ class ResultDatabase:
                     attack_tag TEXT, -- NORMAL, SKILL, BURST, etc.
                     is_crit INTEGER, -- 0/1
                     reaction TEXT, -- JSON: {"type": "VAPORIZE", "multiplier": 2.0, "source_element": "Hydro", ...}
+                    name TEXT, -- 伤害名称（如"普通攻击·一段"、"元素战技·沙龙舞"）
                     FOREIGN KEY (event_id) REFERENCES simulation_event_log(event_id) ON DELETE CASCADE
                 )
             """)

@@ -40,7 +40,8 @@ class DamageDistProcessor:
                 "element": elem_str,
                 "is_crit": "!" in ev.get('action', ''),
                 "event_id": ev['event_id'],
-                "source": ev['source']
+                "source": ev['source'],
+                "name": ev.get('name', 'Unknown Damage')
             })
             frame_map[f]["total"] += ev['value']
             frame_map[f]["hit_count"] += 1

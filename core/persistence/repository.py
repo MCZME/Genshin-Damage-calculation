@@ -42,21 +42,21 @@ class SimulationRepository:
                 return [{"id": r[0], "name": r[1], "type": r[2]} for r in rows]
 
     async def fetch_raw_damage_events(self, sid: int) -> list[dict[str, Any]]:
-        """获取所有原始伤害记录，包含来源 ID"""
+        """获取所有原始伤害记录，包含来源 ID 和伤害名称"""
         async with aiosqlite.connect(self.db_path) as db:
             sql = """
-                SELECT l.frame_id, d.final_damage, l.source_id, d.element_type, l.event_id, p.action_id
+                SELECT l.frame_id, d.final_damage, l.source_id, d.element_type, l.event_id, p.action_id, d.name
                 FROM event_damage_data d
                 JOIN simulation_event_log l ON d.event_id = l.event_id
-                LEFT JOIN character_pulses p ON l.session_id = p.session_id 
-                    AND l.frame_id = p.frame_id 
+                LEFT JOIN character_pulses p ON l.session_id = p.session_id
+                    AND l.frame_id = p.frame_id
                     AND l.source_id = p.entity_id
-                WHERE l.session_id = ? 
+                WHERE l.session_id = ?
                 ORDER BY l.frame_id
             """
             async with db.execute(sql, (sid,)) as cursor:
                 rows = await cursor.fetchall()
-                return [{"frame": r[0], "dmg": r[1], "source_id": r[2], "element": r[3], "event_id": r[4], "action": r[5]} for r in rows]
+                return [{"frame": r[0], "dmg": r[1], "source_id": r[2], "element": r[3], "event_id": r[4], "action": r[5], "name": r[6]} for r in rows]
 
     async def fetch_character_pulses(self, sid: int) -> list[dict[str, Any]]:
         async with aiosqlite.connect(self.db_path) as db:
@@ -407,11 +407,12 @@ class SimulationRepository:
             - element_type: 元素类型
             - attack_tag: 攻击标签（如 "超载伤害"、"感电伤害"）
             - reaction: 反应数据字典 {"type": "VAPORIZE", "multiplier": 2.0, ...}
+            - name: 伤害名称（如 "普通攻击·一段"）
         """
         async with aiosqlite.connect(self.db_path) as db:
             sql = """
                 SELECT l.session_id, l.event_id, l.frame_id, l.source_id, d.target_id, l.event_type,
-                       d.is_crit, d.final_damage, d.element_type, d.attack_tag, d.reaction
+                       d.is_crit, d.final_damage, d.element_type, d.attack_tag, d.reaction, d.name
                 FROM simulation_event_log l
                 LEFT JOIN event_damage_data d ON l.event_id = d.event_id
                 WHERE l.event_id = ?
@@ -431,6 +432,7 @@ class SimulationRepository:
                         "final_damage": row[7],
                         "element_type": row[8],
                         "attack_tag": row[9],
-                        "reaction": reaction_data
+                        "reaction": reaction_data,
+                        "name": row[11]
                     }
                 return None
