@@ -258,6 +258,11 @@ class AnalysisViewModel:
         self.current_session_id = session_id
         self.loading = True
         self.adapter = ReviewDataAdapter(session_id=session_id)
+        
+        # 重置关键状态，防止会话残留
+        self.current_frame = 0
+        self.frame_range_selection = None
+        self.selected_event = None
 
         # 同步 adapter 到 data_service
         if self.data_service:
@@ -315,9 +320,12 @@ class AnalysisViewModel:
     # ============================================================
 
     def set_frame(self, frame_id: int):
-        """设置当前帧"""
-        if self.current_frame != frame_id:
-            self.current_frame = frame_id
+        """设置当前帧 (增加边界检查)"""
+        # 强制限制在 [0, total_frames] 范围内
+        safe_frame = max(0, min(frame_id, self.total_frames))
+        if self.current_frame != safe_frame:
+            self.current_frame = safe_frame
+            self._notify_update()
 
     # ============================================================
     # 抽屉控制
