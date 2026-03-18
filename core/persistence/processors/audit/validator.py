@@ -154,7 +154,7 @@ class AuditValidator:
         errors: list[str],
     ) -> ValidationResult:
         """执行验证"""
-        from core.logger import get_emulation_logger
+        from core.logger import get_ui_logger
 
         # 数据库值为空时跳过验证
         if not db_damage or db_damage == 0:
@@ -185,7 +185,7 @@ class AuditValidator:
 
         log_msg = f"[验证] {event_tag}: 计算值={calc_damage:,.2f}, 数据库={db_damage:,.2f}, 偏差={deviation_pct:.2f}% {status_icon}"
 
-        logger = get_emulation_logger()
+        logger = get_ui_logger()
         if passed:
             logger.log_info(log_msg)
         else:
