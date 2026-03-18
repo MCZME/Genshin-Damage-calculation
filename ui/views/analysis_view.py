@@ -197,17 +197,13 @@ class AnalysisView:
         # 10. 统计磁贴类型
         type_counts = _count_tiles_by_type(active_tiles)
 
-        # 11. 获取数据槽位
-        dist_slot = vm.data_service.get_slot("damage_dist") if vm.data_service else None
-        audit_slot = vm.data_service.get_slot("audit") if vm.data_service else None
-
-        # 12. 确保 char_base 数据在线
+        # 11. 确保 char_base 数据在线
         async def ensure_base_data():
             if vm.data_service:
                 await vm.data_service.subscribe("char_base", "GLOBAL_VIEW")
         ft.use_effect(lambda: [asyncio.create_task(ensure_base_data()), None][1], [])
 
-        # 13. 渲染
+        # 12. 渲染
         return ft.Stack([
             # 主内容区
             ft.Row([
@@ -263,7 +259,6 @@ class AnalysisView:
             # 底部审计面板
             DamageAuditBottomPanel(
                 state=state,
-                detail_slot=audit_slot,
                 on_close=lambda: state.close_drawer()
             ),
 

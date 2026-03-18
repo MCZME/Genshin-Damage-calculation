@@ -1,14 +1,19 @@
-"""[V11.0] 主面板组件
+"""[V19.0] 主面板组件
 
 提供底部弹出面板的主入口组件。
+
+[V19.0] 父子持有设计：
+- BottomPanelViewModel 在组件内部通过 use_state 创建
+- 管理面板切换和子 ViewModel
+- SelectionPanel/AuditPanel 消费各自的子 ViewModel
 """
 import flet as ft
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 from .constants import PANEL_BG_COLOR
 from .selection_panel import SelectionPanel
 from .audit_panel import AuditPanel
-from core.persistence.processors.audit.types import DamageType
+from ui.view_models.analysis.bottom_panel import BottomPanelViewModel
 
 if TYPE_CHECKING:
     from ui.states.analysis_state import AnalysisState
@@ -31,7 +36,7 @@ def DragHandle(on_close: Callable[[], None] | None):
         height=4,
         bgcolor=ft.Colors.WHITE_70 if hovered else ft.Colors.WHITE_30,
         border_radius=2,
-        animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+        animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT)
     )
 
     # 倒三角指示器（悬停时显示）
@@ -66,93 +71,114 @@ def DragHandle(on_close: Callable[[], None] | None):
 @ft.component
 def DamageAuditBottomPanel(
     state: 'AnalysisState',
-    detail_slot: Any,
     on_close: Callable[[], None] | None
 ):
     """伤害审计底部弹出面板
 
+    [V19.0] 父子持有设计：
+    - BottomPanelViewModel 在组件内部通过 use_state 创建
+    - 持有 selection 和 audit 两个子 ViewModel
+    - 面板切换逻辑由 BottomPanelViewModel 处理
+
     Args:
-        state: 分析状态
-        detail_slot: 详情槽位
+        state: 分析状态（外部状态，用于同步触发条件）
         on_close: 关闭回调
     """
-    vm = state.vm
-    visible = vm.drawer_visible
-    panel_mode = vm.panel_mode
-    selection = vm.frame_range_selection
-    selected_event = vm.selected_event
+    # 外部状态（触发条件）
+    external_vm = state.vm
+    selection_data = external_vm.frame_range_selection
+    selected_event = external_vm.selected_event
+    data_service = external_vm.data_service
 
-    # 本地状态：当前选中的乘区（不再默认选中，乘区不可点击）
-    active_bucket, set_active_bucket = ft.use_state(None)
-    # 本地状态：当前选中的域
-    selected_domain, set_selected_domain = ft.use_state(None)
+    # [V19.0] 局部状态：底部面板容器 ViewModel
+    # 直接传入实例，符合官方 @ft.observable 模式
+    panel_vm, _ = ft.use_state(BottomPanelViewModel())
 
-    # 获取审计数据
-    buckets_data = detail_slot.data if detail_slot and detail_slot.data else {}
+    # 缓存前值，用于比较是否变化
+    prev_selection_ref = ft.use_ref(None)
+    prev_event_ref = ft.use_ref(None)
+
+    # 同步外部触发条件
+    def _sync_external_state():
+        """同步外部状态到内部 ViewModel"""
+        # 确保子 ViewModel 已初始化
+        panel_vm.ensure_initialized()
+
+        # 同步 data_service
+        panel_vm.data_service = data_service
+
+        # 检查 selection_data 是否变化
+        prev_selection = prev_selection_ref.current
+        selection_changed = prev_selection is not selection_data
+
+        if selection_changed:
+            prev_selection_ref.current = selection_data
+
+            if selection_data:
+                panel_vm.visible = True
+                panel_vm.panel_mode = "selection"
+                panel_vm.update_selection(
+                    selection_data,
+                    selected_event,
+                    on_event_click=lambda ev: panel_vm.switch_to_audit(ev),
+                )
+            else:
+                panel_vm.visible = False
+            return
+
+        # 检查 selected_event 是否变化
+        prev_event = prev_event_ref.current
+        event_changed = prev_event is not selected_event
+
+        if event_changed:
+            prev_event_ref.current = selected_event
+
+            if selected_event and panel_vm.visible:
+                panel_vm.switch_to_audit(selected_event)
+
+    ft.use_effect(_sync_external_state, [selection_data, selected_event, data_service])
 
     def handle_event_click(ev: dict):
         """处理事件点击 - 切换到审计面板"""
-        state.switch_to_audit(ev)
-        set_active_bucket(None)
-        set_selected_domain(None)
-
-    def handle_domain_click(bucket_key: str, domain_key: str):
-        """处理域值点击
-
-        Args:
-            bucket_key: 所属乘区键
-            domain_key: 域键名
-        """
-        # 判断是否点击已选中的域（toggle 行为）
-        if active_bucket == bucket_key and selected_domain == domain_key:
-            # 取消选中
-            set_active_bucket(None)
-            set_selected_domain(None)
-        else:
-            # 选中新域
-            set_active_bucket(bucket_key)
-            set_selected_domain(domain_key)
+        panel_vm.switch_to_audit(ev)
 
     def handle_back():
         """返回选择面板"""
-        state.switch_to_selection()
+        panel_vm.switch_to_selection()
+
+    def handle_close():
+        """关闭面板"""
+        panel_vm.hide()
+        if on_close:
+            on_close()
 
     # 计算面板高度
-    panel_height = 420 if panel_mode == "selection" else 320
-
-    # 从 buckets_data 提取伤害类型
-    damage_type_ctx = buckets_data.get("_damage_type_ctx") if buckets_data else None
-    damage_type = damage_type_ctx.damage_type if damage_type_ctx else DamageType.NORMAL
+    panel_height = 420 if panel_vm.panel_mode == "selection" else 320
 
     # 根据面板模式渲染不同内容
-    if panel_mode == "selection":
+    if panel_vm.panel_mode == "selection":
         panel_content = SelectionPanel(
-            selection=selection,
+            selection=selection_data,
             selected_event=selected_event,
             on_event_click=handle_event_click,
-            on_close=on_close,
+            on_close=handle_close,
         )
     else:
         panel_content = AuditPanel(
-            event=selected_event,
-            active_bucket=active_bucket,
-            selected_domain=selected_domain,
-            buckets_data=buckets_data,
-            on_domain_click=handle_domain_click,
+            vm=panel_vm.audit,
             on_back=handle_back,
-            on_close=on_close,
-            damage_type=damage_type,
+            on_close=handle_close,
         )
 
     return ft.Container(
         content=ft.Column([
-            DragHandle(on_close),  # 横条在最顶部
-            panel_content,          # SelectionPanel 或 AuditPanel
+            DragHandle(handle_close),
+            panel_content,
         ], spacing=0, expand=True),
         bgcolor=PANEL_BG_COLOR,
         border_radius=ft.BorderRadius(top_left=20, top_right=20, bottom_left=0, bottom_right=0),
         height=panel_height,
-        bottom=0 if visible else -panel_height,
+        bottom=0 if panel_vm.visible else -panel_height,
         left=0,
         right=0,
         shadow=ft.BoxShadow(

@@ -27,41 +27,83 @@
 
 ---
 
-## 2. ViewModel 要负责“状态 + 变更通知”
+## 2. ViewModel 要负责”状态 + 变更通知”
 
 项目里统一使用 `@ft.observable` + `dataclass` 的方式定义 VM。
 
-典型模式是：
+### 2.1 基本模式
 
 ```python
 @ft.observable
 @dataclass
 class ExampleViewModel:
-    value: str = ""
-
-    def notify_update(self):
-        cast(Any, self).notify()
+    value: str = “”
 
     def set_value(self, value: str):
         self.value = value
-        self.notify_update()
+        # 修改属性后 Flet 会自动触发重渲染，无需手动调用 notify()
 ```
 
-要点：
-- 所有会影响 UI 的状态，都应通过 VM 持有
-- 修改状态后要显式调用 `notify_update()` 或 `notify()`
+**要点**：
+- `@ft.observable` 装饰的类，属性修改会**自动触发**绑定组件的重渲染
+- 不需要手动调用 `notify()`（除非有特殊需求）
 - 组件只读 VM 属性，不直接读写底层 `dict`
+
+### 2.2 官方推荐的嵌套 observable 模式
+
+当父 VM 需要持有**多个同类型**子 VM 时，可以使用 `list` 或 `dict`：
+
+```python
+@ft.observable
+@dataclass
+class User:
+    first_name: str
+    last_name: str
+
+    def update(self, first_name: str, last_name: str):
+        self.first_name = first_name
+        self.last_name = last_name
+
+
+@ft.observable
+@dataclass
+class App:
+    users: list[User] = field(default_factory=list)
+
+    def add_user(self, first_name: str, last_name: str):
+        self.users.append(User(first_name, last_name))
+
+    def delete_user(self, user: User):
+        self.users.remove(user)
+
+
+@ft.component
+def AppView():
+    # 直接传入实例
+    app, _ = ft.use_state(App(users=[
+        User(“John”, “Doe”),
+        User(“Jane”, “Doe”),
+    ]))
+
+    # 列表变化会自动触发重渲染
+    return [UserView(user, app.delete_user) for user in app.users]
+```
+
+**关键点**：
+- `list[ObservableClass]` 或 `dict[str, ObservableClass]` 可以正常工作
+- 单独的嵌套 observable 字段需要延迟初始化（见 3.2 节）
+- `use_state` 直接传入实例，不要传入类
 
 参考实现：
 - `ui/view_models/base_vm.py`
 - `ui/view_models/layout_vm.py`
-- `ui/view_models/strategic/weapon_vm.py`
+- `ui/view_models/analysis/bottom_panel/bottom_panel_vm.py`
 
 ---
 
 ## 3. 嵌套状态要特别小心
 
-Flet 的响应式更新不是“自动深度追踪所有嵌套对象”的。  
+Flet 的响应式更新不是”自动深度追踪所有嵌套对象”的。
 如果你的数据结构是：
 
 - 数据类 A 里嵌套数据类 B
@@ -71,12 +113,76 @@ Flet 的响应式更新不是“自动深度追踪所有嵌套对象”的。
 
 ### 3.1 为什么会这样
 
-Flet 识别的是“当前绑定的可观察对象”是否发生变化，而不是无限深度地跟踪普通 Python 对象内部字段。
+Flet 识别的是”当前绑定的可观察对象”是否发生变化，而不是无限深度地跟踪普通 Python 对象内部字段。
 
 换句话说：
 - 你改了 B 的内部字段
 - 但 A 没有 notify
 - 那么绑定在 A 上的组件可能不会重绘
+
+### 3.2 嵌套 @ft.observable 的初始化陷阱
+
+**重要**：当一个 `@ft.observable` dataclass 包含另一个 `@ft.observable` 类型的字段时，**不要在 `field(default_factory=...)` 或 `__post_init__` 中直接初始化**。
+
+这会导致组件初始化时卡住或无限循环：
+
+```python
+# ❌ 错误：会导致初始化卡住
+@ft.observable
+@dataclass
+class ParentViewModel:
+    # 问题：default_factory 会在 dataclass 创建时立即执行
+    child: ChildViewModel = field(default_factory=ChildViewModel)
+
+    # 问题：__post_init__ 也会在创建时立即执行
+    def __post_init__(self):
+        self.child = ChildViewModel()
+
+# ✅ 正确：延迟初始化
+@ft.observable
+@dataclass
+class ParentViewModel:
+    child: ChildViewModel | None = field(default=None, init=False)
+
+    def ensure_initialized(self):
+        “””确保子 ViewModel 已初始化”””
+        if self.child is None:
+            self.child = ChildViewModel()
+```
+
+在组件中使用：
+
+```python
+@ft.component
+def MyComponent():
+    vm, _ = ft.use_state(ParentViewModel())
+
+    def _init():
+        vm.ensure_initialized()
+
+    ft.use_effect(_init, [])
+
+    # ...
+```
+
+### 3.3 use_state 的正确用法
+
+**重要**：`ft.use_state` 应该传入**实例**，而不是**类**。
+
+```python
+# ❌ 错误：每次渲染都会触发新实例创建
+vm, _ = ft.use_state(MyViewModel)
+
+# ✅ 正确：直接传入实例
+vm, _ = ft.use_state(MyViewModel())
+
+# ✅ 正确：如果需要参数化初始化，使用工厂函数
+vm, _ = ft.use_state(lambda: MyViewModel(param=value))
+```
+
+参考实现：
+- `ui/view_models/analysis/bottom_panel/bottom_panel_vm.py`
+- `ui/components/analysis/bottom_panel/main_panel.py`
 
 ---
 
@@ -239,5 +345,5 @@ Flet 识别的是“当前绑定的可观察对象”是否发生变化，而不
 
 *适用范围: 本项目的 Flet MVVM 组件开发*
 *参考实现: `ui/view_models/`、`ui/components/`*
-*版本: v1.0*
+*版本: v1.1*
 *Date: 2026-03-18*
