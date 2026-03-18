@@ -440,12 +440,15 @@ def aggregate_buckets(buckets: dict[str, Any], is_crit: bool = False) -> None:
 
 
 def inject_target_modifiers(
-    target_snapshot: dict[str, Any] | None, buckets: dict[str, Any]
+    target_snapshot: dict[str, Any] | None,
+    buckets: dict[str, Any],
+    element_type: str = "",
 ) -> None:
     """从目标快照注入减防/减抗修饰符
 
     [V14.0] 新增：处理目标侧修饰符（减防、减抗等）
     [V15.0] 适配剧变反应路径（无 defense 桶）
+    [V20.1] 修复：根据 element_type 精确过滤抗性修饰符
 
     减防效果：作用于目标实体的 `防御力%` 负值
     减抗效果：作用于目标实体的 `{元素}元素抗性` 负值
@@ -453,6 +456,7 @@ def inject_target_modifiers(
     Args:
         target_snapshot: 目标实体快照，包含 `active_modifiers` 列表
         buckets: 乘区桶数据结构
+        element_type: 元素类型（用于过滤相关抗性修饰符）
     """
     if not target_snapshot:
         return
@@ -460,6 +464,20 @@ def inject_target_modifiers(
     modifiers = target_snapshot.get("active_modifiers", [])
     if not modifiers:
         return
+
+    # 元素名称映射（用于精准匹配抗性修饰符）
+    element_name_map = {
+        "PHYSICAL": "物理",
+        "PYRO": "火",
+        "HYDRO": "水",
+        "ELECTRO": "雷",
+        "CRYO": "冰",
+        "ANEMO": "风",
+        "GEO": "岩",
+        "DENDRO": "草",
+    }
+    el_name = element_name_map.get(element_type, element_type)
+    target_res_key = f"{el_name}元素抗性"
 
     # 检查是否为剧变反应路径（无 defense 桶）
     has_defense = "defense" in buckets
@@ -486,11 +504,21 @@ def inject_target_modifiers(
                 }
             )
 
-        # 减抗修饰符：{元素}元素抗性
+        # 减抗修饰符：精确匹配当前元素的抗性修饰符
+        # 支持 "火元素抗性"、"所有元素抗性" 等包含关键词且匹配当前元素的属性
         elif "抗性" in stat:
-            buckets["resistance"]["steps"].append(
-                {"stat": stat, "value": val, "op": "ADD", "source": source}
-            )
+            is_relevant = False
+            if stat == target_res_key:
+                is_relevant = True
+            elif "所有元素抗性" in stat or "全元素抗性" in stat:
+                is_relevant = True
+            elif stat == "抗性" and element_type:  # 某些通用抗性
+                is_relevant = True
+
+            if is_relevant:
+                buckets["resistance"]["steps"].append(
+                    {"stat": stat, "value": val, "op": "ADD", "source": source}
+                )
 
 
 # ============================================================
@@ -583,14 +611,22 @@ def collect_def_res_raw_data(
 
     if target_snapshot:
         # 从目标修饰符累加对应元素的抗性变化
+        target_res_key = f"{el_name}元素抗性"
         for mod in target_snapshot.get("active_modifiers", []):
             mod_stat = mod.get("stat", "")
             mod_val = mod.get("value", 0.0)
 
             # [V16.0] 精确匹配元素抗性属性
-            # 匹配格式: "火元素抗性"、"物理元素抗性" 等
-            target_res_key = f"{el_name}元素抗性"
+            # [V20.1] 修复：支持全元素/所有元素抗性，并确保与 inject_target_modifiers 逻辑一致
+            is_relevant = False
             if mod_stat == target_res_key:
+                is_relevant = True
+            elif "所有元素抗性" in mod_stat or "全元素抗性" in mod_stat:
+                is_relevant = True
+            elif mod_stat == "抗性" and element_type:
+                is_relevant = True
+
+            if is_relevant:
                 final_resistance += mod_val
 
     buckets["resistance"]["raw_data"] = {
@@ -654,14 +690,22 @@ def collect_resistance_raw_data(
 
     if target_snapshot:
         # 从目标修饰符累加对应元素的抗性变化
+        target_res_key = f"{el_name}元素抗性"
         for mod in target_snapshot.get("active_modifiers", []):
             mod_stat = mod.get("stat", "")
             mod_val = mod.get("value", 0.0)
 
             # [V16.0] 精确匹配元素抗性属性
-            # 匹配格式: "火元素抗性"、"物理元素抗性" 等
-            target_res_key = f"{el_name}元素抗性"
+            # [V20.1] 修复：支持全元素/所有元素抗性，并确保与 inject_target_modifiers 逻辑一致
+            is_relevant = False
             if mod_stat == target_res_key:
+                is_relevant = True
+            elif "所有元素抗性" in mod_stat or "全元素抗性" in mod_stat:
+                is_relevant = True
+            elif mod_stat == "抗性" and element_type:
+                is_relevant = True
+
+            if is_relevant:
                 final_resistance += mod_val
 
     buckets["resistance"]["raw_data"] = {

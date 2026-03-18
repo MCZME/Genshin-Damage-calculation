@@ -44,10 +44,11 @@ class ModifierCardViewModel:
         self.is_percentage = '%' in self.stat or self.stat.endswith(pct_keywords)
 
         # 生成显示文本
+        # 使用 + 格式说明符自动处理正负号：正数显示 +，负数显示 -
         if self.is_percentage:
-            self.display_text = f"+{self.value:.1f}%"
+            self.display_text = f"{self.value:+.1f}%"
         else:
-            self.display_text = f"+{self.value:.0f}"
+            self.display_text = f"{self.value:+.0f}"
 
     @classmethod
     def from_dict(cls, modifier: dict, bucket_color: str) -> 'ModifierCardViewModel':

@@ -79,7 +79,7 @@ class AuditProcessor:
         inject_frame_snapshot(frame_snapshot, buckets)
 
         # 3. [V14.0] 从目标快照注入减防/减抗修饰符
-        inject_target_modifiers(target_snapshot, buckets)
+        inject_target_modifiers(target_snapshot, buckets, element_type)
 
         # 4. 内部合算逻辑
         aggregate_buckets(buckets, is_crit)
@@ -230,7 +230,7 @@ class AuditProcessor:
                 buckets["resistance"]["final_resistance"] = base_res / 100.0
 
         # 5. [V14.0] 从目标快照注入减抗修饰符
-        inject_target_modifiers(target_snapshot, buckets)
+        inject_target_modifiers(target_snapshot, buckets, element_type)
 
         # 6. [V15.0] 仅收集抗性区原始数据（剧变反应无防御区）
         collect_resistance_raw_data(
