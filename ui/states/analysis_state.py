@@ -184,19 +184,3 @@ class AnalysisState:
     def set_selected_event(self, event: dict[str, Any] | None):
         """设置当前选中的伤害事件"""
         self.vm.set_selected_event(event)
-
-    # ============================================================
-    # [V11.0] 面板模式控制代理方法
-    # ============================================================
-
-    def set_panel_mode(self, mode: str):
-        """设置面板模式"""
-        self.vm.set_panel_mode(mode)
-
-    def switch_to_audit(self, event: dict):
-        """切换到审计面板并加载事件详情"""
-        self.vm.switch_to_audit(event)
-
-    def switch_to_selection(self):
-        """返回选择面板"""
-        self.vm.switch_to_selection()

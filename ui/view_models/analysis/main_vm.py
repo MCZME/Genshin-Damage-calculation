@@ -82,11 +82,6 @@ class AnalysisViewModel:
         self.frame_range_selection: FrameRangeSelection | None = None
 
         # ============================================================
-        # [V11.0] 面板模式状态
-        # ============================================================
-        self.panel_mode: str = "selection"  # "selection" | "audit"
-
-        # ============================================================
         # 布局状态
         # ============================================================
         self.container_width: float = 1200.0
@@ -347,12 +342,25 @@ class AnalysisViewModel:
     # ============================================================
 
     def handle_drill_down(self, point: dict):
-        """下钻：切换帧并打开审计抽屉"""
+        """下钻：切换帧并打开审计抽屉
+
+        [V19.0] 只设置 selected_event，面板切换由 BottomPanelViewModel 处理
+        """
         self.set_frame(int(point['frame']))
         self.open_drawer(side="right")
 
+        # 设置选中事件，BottomPanelViewModel 会检测并切换到审计模式
         if 'event_id' in point:
-            asyncio.create_task(self.load_audit_detail(point['event_id']))
+            simulated_event = {
+                'event_id': point['event_id'],
+                'frame': point['frame'],
+                'source': point.get('source', '未知来源'),
+                'name': point.get('name', '伤害下钻'),
+                'element': point.get('element', 'Neutral'),
+                'dmg': point.get('dmg', 0)
+            }
+            self.selected_event = simulated_event
+            self._notify_update()
 
     def handle_toolbox_action(
         self,
@@ -383,15 +391,21 @@ class AnalysisViewModel:
     # 审计详情
     # ============================================================
 
-    async def load_audit_detail(self, event_id: int):
-        """[V4.1] 异步加载 L2 审计详情
+    async def load_audit_detail(self, event_id: int) -> dict:
+        """[V19.0] 异步加载审计详情数据
 
-        简化版本：委托给 DataService.load_audit_detail()
+        由 BottomPanelViewModel 调用，返回原始数据。
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            审计详情数据字典
         """
         if not self.data_service:
-            return
+            return {}
 
-        await self.data_service.load_audit_detail(event_id)
+        return await self.data_service.load_audit_detail(event_id)
 
     # ============================================================
     # 角色焦点管理
@@ -477,40 +491,6 @@ class AnalysisViewModel:
     def clear_frame_range_selection(self):
         """[V10.0] 清除帧范围选择"""
         self.frame_range_selection = None
-        self._notify_update()
-
-    # ============================================================
-    # [V11.0] 面板模式控制
-    # ============================================================
-
-    def set_panel_mode(self, mode: str):
-        """设置面板模式
-
-        Args:
-            mode: "selection" 或 "audit"
-        """
-        if mode in ("selection", "audit"):
-            self.panel_mode = mode
-            self._notify_update()
-
-    def switch_to_audit(self, event: dict):
-        """切换到审计面板并加载事件详情
-
-        Args:
-            event: 选中的伤害事件
-        """
-        self.selected_event = event
-        self.panel_mode = "audit"
-        self._notify_update()
-
-        # 异步加载审计详情
-        event_id = event.get('event_id')
-        if event_id is not None:
-            asyncio.create_task(self.load_audit_detail(int(event_id)))
-
-    def switch_to_selection(self):
-        """返回选择面板"""
-        self.panel_mode = "selection"
         self._notify_update()
 
     # ============================================================
