@@ -231,60 +231,6 @@ def StatsDetailAudit(vm: StatsViewModel):
     # ============================================================
     # 第三层：底部审计面板 (Audit Panel)
     # ============================================================
-    def render_audit_panel() -> ft.Control:
-        """[V9.5 Pro V2] 根据选中项类型渲染审计面板"""
-        # 组件配置模式：血条
-        if selected_stat == "血条":
-            hp_pct = (curr_hp / max_hp * 100) if max_hp > 0 else 0
-            return ft.Container(
-                content=ft.Column([
-                    ft.Text("当前生命值", size=11, color=ft.Colors.WHITE_38),
-                    ft.Row([
-                        ft.Text(f"{curr_hp:.0f}", size=28, weight=ft.FontWeight.W_900, color=ft.Colors.GREEN_400),
-                        ft.Text(f"/ {max_hp:.0f}", size=18, color=ft.Colors.WHITE_54),
-                    ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
-                    ft.ProgressBar(
-                        value=hp_pct / 100,
-                        bar_height=10,
-                        color=ft.Colors.GREEN_400,
-                        bgcolor=ft.Colors.WHITE_10,
-                        expand=True
-                    ),
-                ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.START),
-                padding=ft.Padding.all(15),
-                bgcolor="#1A1822",
-                border_radius=12,
-                expand=2
-            )
-
-        # 组件配置模式：能量条
-        elif selected_stat == "能量条":
-            en_pct = (curr_en / max_en * 100) if max_en > 0 else 0
-            return ft.Container(
-                content=ft.Column([
-                    ft.Text("当前能量", size=11, color=ft.Colors.WHITE_38),
-                    ft.Row([
-                        ft.Text(f"{curr_en:.1f}", size=28, weight=ft.FontWeight.W_900, color=theme_color),
-                        ft.Text(f"/ {max_en:.0f}", size=18, color=ft.Colors.WHITE_54),
-                    ], vertical_alignment=ft.CrossAxisAlignment.END, spacing=4),
-                    ft.ProgressBar(
-                        value=en_pct / 100,
-                        bar_height=10,
-                        color=theme_color,
-                        bgcolor=ft.Colors.WHITE_10,
-                        expand=True
-                    ),
-                ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.START),
-                padding=ft.Padding.all(15),
-                bgcolor="#1A1822",
-                border_radius=12,
-                expand=2
-            )
-
-        # 面板属性审计模式
-        else:
-            return render_stat_audit()
-
     def render_stat_audit() -> ft.Control:
         """[V9.9] 渲染属性审计详情（来源分组）"""
 
@@ -296,7 +242,6 @@ def StatsDetailAudit(vm: StatsViewModel):
             result=audit_result,
             zoned_mods=zoned_mods
         )
-
 
         # 计算范式标签
         paradigm_label = "累乘型" if audit_result.paradigm == "cumulative" else "累加型"
@@ -357,7 +302,7 @@ def StatsDetailAudit(vm: StatsViewModel):
         create_split_monitor_matrix(),
         ft.Divider(height=1, color=ft.Colors.WHITE_10),
         # 第三层：底部审计面板 (比例分配)
-        render_audit_panel(),
+        render_stat_audit(),
     ]
 
     return ft.Column(

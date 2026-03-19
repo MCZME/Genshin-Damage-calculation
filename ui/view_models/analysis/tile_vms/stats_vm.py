@@ -49,6 +49,60 @@ DEFAULT_STATS: list[str] = [
 ]
 
 
+def _get_actual_stat_keys(key: str, element: str = "Neutral") -> list[str]:
+    """获取属性审计需要匹配的实际字段名列表。"""
+    actual_keys = [key]
+    if key == "伤害加成" and element not in ("Neutral", "无"):
+        element_dmg_key = "物理伤害加成" if element == "物理" else f"{element}元素伤害加成"
+        actual_keys.append(element_dmg_key)
+    return actual_keys
+
+
+def _get_base_panel_modifiers(
+    base_stats: dict[str, Any],
+    key: str,
+    element: str = "Neutral",
+) -> list[dict[str, Any]]:
+    """从基础面板快照提取 UI 审计需要展示的内置来源。"""
+    modifiers: list[dict[str, Any]] = []
+
+    pct_key = f"{key}%"
+    pct_val = float(base_stats.get(pct_key, 0.0))
+    if abs(pct_val) > 0.01:
+        modifiers.append({
+            "name": "[基础面板]",
+            "stat": pct_key,
+            "value": pct_val,
+            "op": "ADD",
+        })
+
+    flat_key = f"固定{key}"
+    flat_val = float(base_stats.get(flat_key, 0.0))
+    if abs(flat_val) > 0.01:
+        modifiers.append({
+            "name": "[基础面板]",
+            "stat": flat_key,
+            "value": flat_val,
+            "op": "ADD",
+        })
+
+    # "伤害加成" 的元素专属加成同样沉在基础面板里，需要补成可展示来源。
+    if key == "伤害加成":
+        for actual_key in _get_actual_stat_keys(key, element):
+            if actual_key == key:
+                continue
+            val = float(base_stats.get(actual_key, 0.0))
+            if abs(val) > 0.01:
+                modifiers.append({
+                    "name": "[基础面板]",
+                    "stat": actual_key,
+                    "value": val,
+                    "op": "ADD",
+                })
+
+    return modifiers
+
+
 def calculate_snapshot_stat(
     base_stats: dict[str, Any],
     mods: list[dict[str, Any]],
@@ -70,17 +124,17 @@ def calculate_snapshot_stat(
         AuditResult 结构化结果
     """
     base = float(base_stats.get(key, 0.0))
+    effective_base = base
     pct_bonus = float(base_stats.get(f"{key}%", 0.0))
     flat_bonus = float(base_stats.get(f"固定{key}", 0.0))
 
     # 针对"伤害加成"的特殊逻辑：合并全伤与元素伤
-    actual_keys = [key]
-    if key == "伤害加成" and element != "Neutral":
-        element_dmg_key = f"{element}元素伤害加成"
-        actual_keys.append(element_dmg_key)
+    actual_keys = _get_actual_stat_keys(key, element)
+    if key == "伤害加成" and len(actual_keys) > 1:
         # [V9.3] 自动合并基础属性中的元素伤害加成
-        element_dmg_base = float(base_stats.get(element_dmg_key, 0.0))
+        element_dmg_base = float(base_stats.get(actual_keys[1], 0.0))
         base += element_dmg_base
+        effective_base += element_dmg_base
 
     # 判断是否为百分比属性（用于公式格式化）
     is_pct_stat = any(x in key for x in ["率", "伤害", "充能", "加成", "效率"])
@@ -100,7 +154,10 @@ def calculate_snapshot_stat(
 
         # 匹配属性名或其百分比/固定变体
         if m_stat in actual_keys:
-            flat_bonus += m_val
+            if paradigm == "cumulative":
+                effective_base += m_val
+            else:
+                flat_bonus += m_val
         elif m_stat.replace("%", "") in actual_keys and "%" in m_stat:
             pct_bonus += m_val
         elif m_stat.replace("固定", "") in actual_keys and "固定" in m_stat:
@@ -108,9 +165,9 @@ def calculate_snapshot_stat(
 
     # 根据范式计算最终值
     if paradigm == "cumulative":
-        total = base * (1 + pct_bonus / 100) + flat_bonus
+        total = effective_base * (1 + pct_bonus / 100) + flat_bonus
         # 累乘型公式格式化
-        formula = _format_cumulative_formula(base, pct_bonus, flat_bonus, is_pct_stat)
+        formula = _format_cumulative_formula(effective_base, pct_bonus, flat_bonus, is_pct_stat)
     elif paradigm == "pct_additive":
         # 百分比累加型：基础值 + 百分比加成
         total = base + pct_bonus
@@ -537,14 +594,15 @@ class StatsViewModel:
 
     def get_relevant_mods(self, stat_key: str) -> list[dict[str, Any]]:
         """[V9.4] 获取与指定属性相关的修饰符（精简数据，用于 UI 展示）"""
-        search_keys = [stat_key, f"{stat_key}%", f"固定{stat_key}"]
-        if stat_key == "伤害加成":
-            search_keys.append(f"{self.element}元素伤害加成")
+        search_keys = [
+            *_get_actual_stat_keys(stat_key, self.element),
+            f"{stat_key}%",
+            f"固定{stat_key}",
+        ]
 
-        relevant: list[dict[str, Any]] = []
+        relevant = _get_base_panel_modifiers(self.char_base, stat_key, self.element)
         for m in self.active_mods:
             if m.get("stat") in search_keys:
-                # 只返回 UI 需要的字段
                 relevant.append({
                     "name": m.get("name", "Unknown"),
                     "stat": m.get("stat", ""),
@@ -588,11 +646,16 @@ class StatsViewModel:
 
         # 过滤修饰符并标记乘区
         zoned_mods: list[ZonedModifier] = []
-        search_keys = [stat_key, f"{stat_key}%", f"固定{stat_key}"]
-        if stat_key == "伤害加成":
-            search_keys.append(f"{self.element}元素伤害加成")
+        search_keys = [
+            *_get_actual_stat_keys(stat_key, self.element),
+            f"{stat_key}%",
+            f"固定{stat_key}",
+        ]
 
-        for m in self.active_mods:
+        for m in [
+            *_get_base_panel_modifiers(self.char_base, stat_key, self.element),
+            *self.active_mods,
+        ]:
             m_stat = m.get("stat", "")
             if m_stat in search_keys:
                 # 判断所属乘区
