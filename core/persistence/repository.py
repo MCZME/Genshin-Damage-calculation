@@ -111,7 +111,8 @@ class SimulationRepository:
         session_id: int,
         entity_id: int,
         frame: int,
-        stat_filter: list[str] | None = None
+        stat_filter: list[str] | None = None,
+        before_event_id: int | None = None,
     ) -> list[dict[str, Any]]:
         """查询指定实体在指定帧的活跃修饰符
 
@@ -120,6 +121,8 @@ class SimulationRepository:
             entity_id: 实体ID
             frame: 帧编号
             stat_filter: 可选，筛选特定属性类型
+            before_event_id: [V17.0] 可选，仅包含 start_event_id < before_event_id 的修饰符
+                            此参数用于排除同帧内晚于伤害事件施加的修饰符。
 
         Returns:
             修饰符列表 [{"source": str, "stat": str, "value": float, "op": str}, ...]
@@ -133,6 +136,11 @@ class SimulationRepository:
                 AND (end_frame IS NULL OR end_frame > ?)
             """
             params: list[Any] = [session_id, entity_id, frame, frame]
+
+            # [V17.0] 子帧精度过滤：排除同帧内晚于目标伤害事件的修饰符
+            if before_event_id is not None:
+                sql += " AND (start_event_id IS NULL OR start_event_id < ?)"
+                params.append(before_event_id)
 
             if stat_filter:
                 placeholders = ",".join("?" * len(stat_filter))
@@ -210,13 +218,17 @@ class SimulationRepository:
                 rows = await cursor.fetchall()
                 return [{"jump_type": r[0], "new_value": r[1]} for r in rows]
 
-    async def fetch_active_modifiers(self, sid: int, entity_id: int, frame_id: int) -> list[dict]:
+    async def fetch_active_modifiers(
+        self, sid: int, entity_id: int, frame_id: int,
+        before_event_id: int | None = None
+    ) -> list[dict]:
         """获取实体在指定帧的活跃修饰符
 
         Args:
             sid: 会话 ID
             entity_id: 实体 ID
             frame_id: 帧编号
+            before_event_id: [V17.0] 可选，仅包含 start_event_id < before_event_id 的修饰符
 
         Returns:
             [{"source_name": str, "stat_type": str, "value": float, "op_type": str}, ...]
@@ -226,7 +238,12 @@ class SimulationRepository:
                 SELECT source_name, stat_type, value, op_type FROM modifier_lifecycles
                 WHERE session_id = ? AND entity_id = ? AND start_frame <= ? AND (end_frame IS NULL OR end_frame > ?)
             """
-            async with db.execute(sql, (sid, entity_id, frame_id, frame_id)) as cursor:
+            params: list[Any] = [sid, entity_id, frame_id, frame_id]
+            # [V17.0] 子帧精度过滤
+            if before_event_id is not None:
+                sql += " AND (start_event_id IS NULL OR start_event_id < ?)"
+                params.append(before_event_id)
+            async with db.execute(sql, params) as cursor:
                 rows = await cursor.fetchall()
                 return [{"source_name": r[0], "stat_type": r[1], "value": r[2], "op_type": r[3]} for r in rows]
 

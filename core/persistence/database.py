@@ -165,10 +165,16 @@ class ResultDatabase:
                     stat_type TEXT,
                     value REAL,
                     op_type TEXT,
+                    start_event_id INTEGER, -- [V17.0] 子帧精度：记录修饰符添加时的关联事件 ID（可为 NULL，兼容旧数据）
                     PRIMARY KEY (session_id, modifier_id),
                     FOREIGN KEY (session_id) REFERENCES simulation_sessions(id) ON DELETE CASCADE
                 )
             """)
+            # [V17.0] 兼容旧数据库：如果 start_event_id 列不存在则添加
+            try:
+                await db.execute("ALTER TABLE modifier_lifecycles ADD COLUMN start_event_id INTEGER")
+            except Exception:
+                pass  # 列已存在，忽略
 
             # 8. 骨干事件表 (瞬时事件索引)
             await db.execute("""

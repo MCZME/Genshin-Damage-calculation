@@ -41,8 +41,10 @@ class AttributeCalculator:
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '攻击力%':
                 percent += m.value
-            if m.stat == '固定攻击力':
+            elif m.stat == '固定攻击力':
                 flat += m.value
+            elif m.stat == '攻击力':
+                base += m.value
         
         return base * (1 + percent / 100) + flat
 
@@ -56,8 +58,10 @@ class AttributeCalculator:
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '生命值%':
                 percent += m.value
-            if m.stat == '固定生命值':
+            elif m.stat == '固定生命值':
                 flat += m.value
+            elif m.stat == '生命值':
+                base += m.value
         
         return base * (1 + percent / 100) + flat
 
@@ -71,8 +75,10 @@ class AttributeCalculator:
         for m in getattr(entity, 'dynamic_modifiers', []):
             if m.stat == '防御力%':
                 percent += m.value
-            if m.stat == '固定防御力':
+            elif m.stat == '固定防御力':
                 flat += m.value
+            elif m.stat == '防御力':
+                base += m.value
 
         return base * (1 + percent / 100) + flat
 
@@ -100,8 +106,10 @@ class AttributeCalculator:
                     positive_percent += m.value
                 else:
                     reduction_pct += abs(m.value)
-            if m.stat == '固定防御力':
+            elif m.stat == '固定防御力':
                 flat += m.value
+            elif m.stat == '防御力':
+                base += m.value
 
         panel_def = base * (1 + positive_percent / 100) + flat
         return panel_def, reduction_pct

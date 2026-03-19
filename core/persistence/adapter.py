@@ -178,12 +178,12 @@ class ReviewDataAdapter:
         if session_id is None or entity_id is None or frame is None:
             return []
 
-        # 2. 查询修饰符
+        # 2. 查询修饰符 [V17.0] 传入 event_id 以排除同帧晚发效果
         return await self.repo.fetch_entity_modifiers(
-            int(session_id), int(entity_id), int(frame), stat_names
+            int(session_id), int(entity_id), int(frame), stat_names, before_event_id=event_id
         )
 
-    async def get_entity_snapshot(self, frame_id: int, entity_id: int) -> dict | None:
+    async def get_entity_snapshot(self, frame_id: int, entity_id: int, event_id: int | None = None) -> dict | None:
         """[V2.5.5] 获取实体在该帧的属性快照 [R] 项
 
         用于审计系统的脱水存储机制，从帧快照检索基础属性、面板百分比等数据。
@@ -193,6 +193,7 @@ class ReviewDataAdapter:
         Args:
             frame_id: 帧编号
             entity_id: 实体 ID
+            event_id: [V17.0] 可选，事件 ID（用于子帧时序精确过滤）
 
         Returns:
             实体属性快照字典，包含：
@@ -229,8 +230,8 @@ class ReviewDataAdapter:
             if jtype == "ENERGY":
                 snapshot["current_energy"] = jval
 
-        # 3. 属性修饰符还原
-        modifiers = await self.repo.fetch_active_modifiers(sid, entity_id, frame_id)
+        # 3. 属性修饰符还原 [V17.0] 支持子帧精度过滤
+        modifiers = await self.repo.fetch_active_modifiers(sid, entity_id, frame_id, before_event_id=event_id)
         for m in modifiers:
             snapshot["active_modifiers"].append({
                 "name": m["source_name"], "stat": m["stat_type"], "value": m["value"], "op": m["op_type"]
@@ -241,7 +242,7 @@ class ReviewDataAdapter:
 
         return snapshot if snapshot["stats"] else None
 
-    async def get_target_snapshot(self, frame_id: int, target_id: int) -> dict | None:
+    async def get_target_snapshot(self, frame_id: int, target_id: int, event_id: int | None = None) -> dict | None:
         """[V2.5.5] 获取目标在该帧的状态快照 [R] 项
 
         用于审计系统获取目标的抗性、防御等属性。
@@ -252,6 +253,7 @@ class ReviewDataAdapter:
         Args:
             frame_id: 帧编号
             target_id: 目标 ID
+            event_id: [V17.0] 可选，事件 ID（用于子帧时序精确过滤）
 
         Returns:
             目标状态快照字典，包含：
@@ -300,8 +302,9 @@ class ReviewDataAdapter:
             "火元素抗性", "水元素抗性", "冰元素抗性", "雷元素抗性",
             "风元素抗性", "岩元素抗性", "草元素抗性", "物理元素抗性"
         ]
+        # [V17.0] 传入 event_id 以实现子帧时序精确过滤
         modifiers = await self.repo.fetch_entity_modifiers(
-            sid, target_id, frame_id, target_modifier_stats
+            sid, target_id, frame_id, target_modifier_stats, before_event_id=event_id
         )
         if modifiers:
             # 转换格式以适配审计处理器

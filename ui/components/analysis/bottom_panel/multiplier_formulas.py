@@ -341,11 +341,11 @@ def build_react(
 
     parts: list[FormulaPartData] = []
 
-    # 无反应时显示简洁的 1.00
-    if not reaction_type and mult_val == 1.0:
+    # 逻辑区分：如果总倍率为 1.0 (包括无反应或仅触发剧变反应的情况)，显示简洁的 1.00
+    if mult_val == 1.0:
         return FormulaResult([_text("1.00", color="white70")], "1.00")
 
-    # 有反应：显示反应类型 + 基础倍率（如「蒸发2.0」）
+    # 有反应且有加成（如增幅反应 VAPORIZE/MELT）
     if reaction_type:
         parts.extend(
             [
@@ -357,43 +357,47 @@ def build_react(
                     bucket_color,
                     format_spec=".1f",
                 ),
-                _text("×(1+", size=9),
-            ]
-        )
-    else:
-        parts.append(_text("基础×(1+"))
-
-    # 精通加成（可点击）
-    if em_bonus > 0:
-        parts.extend(
-            [
-                _domain_value(
-                    em_bonus,
-                    "em_bonus",
-                    bucket_key,
-                    bucket_color,
-                ),
-                _text("%"),
             ]
         )
 
-    # 其他加成
-    if other_bonus > 0:
-        if em_bonus > 0:
-            parts.append(_text("+", color="white38"))
-        parts.extend(
-            [
-                _domain_value(
-                    other_bonus,
-                    "other_bonus",
-                    bucket_key,
-                    bucket_color,
-                ),
-                _text("%"),
-            ]
-        )
+        # 仅在有加成时显示后缀部分
+        bonus = em_bonus + other_bonus
+        if bonus > 0:
+            parts.append(_text("×(1+", size=9))
 
-    parts.append(_text(")"))
+            # 精通加成
+            if em_bonus > 0:
+                parts.extend(
+                    [
+                        _domain_value(
+                            em_bonus,
+                            "em_bonus",
+                            bucket_key,
+                            bucket_color,
+                        ),
+                        _text("%"),
+                    ]
+                )
+
+            # 其他加成
+            if other_bonus > 0:
+                if em_bonus > 0:
+                    parts.append(_text("+", color="white38"))
+                parts.extend(
+                    [
+                        _domain_value(
+                            other_bonus,
+                            "other_bonus",
+                            bucket_key,
+                            bucket_color,
+                        ),
+                        _text("%"),
+                    ]
+                )
+
+            parts.append(_text(")"))
+
+        return FormulaResult(parts, f"{mult_val:.2f}")
 
     return FormulaResult(parts, f"{mult_val:.2f}")
 
@@ -502,66 +506,56 @@ def build_transformative_react(
 
     parts: list[FormulaPartData] = []
 
-    # 显示反应类型 + 反应系数（如「超载2.75」）
+    # 显示反应类型 + 基础倍率（如「超载2.75」）
     if reaction_type:
-        parts.extend(
-            [
-                _text(f"{reaction_type}", size=10, color=bucket_color),
-                _domain_value(
-                    reaction_base,
-                    "reaction_base",
-                    bucket_key,
-                    bucket_color,
-                    format_spec=".2f",
-                ),
-                _text("×(1+", size=9),
-            ]
-        )
-    else:
-        parts.extend(
-            [
-                _domain_value(
-                    reaction_base,
-                    "reaction_base",
-                    bucket_key,
-                    bucket_color,
-                    format_spec=".2f",
-                ),
-                _text("×(1+", size=9),
-            ]
-        )
+        parts.append(_text(f"{reaction_type}", size=10, color=bucket_color))
 
-    # 精通加成（可点击）
-    if em_bonus_pct > 0:
-        parts.extend(
-            [
-                _domain_value(
-                    em_bonus_pct,
-                    "em_bonus",
-                    bucket_key,
-                    bucket_color,
-                ),
-                _text("%"),
-            ]
+    parts.append(
+        _domain_value(
+            reaction_base,
+            "reaction_base",
+            bucket_key,
+            bucket_color,
+            format_spec=".2f",
         )
+    )
 
-    # 特殊加成
-    if special_bonus > 0:
+    # 仅在有加成时显示括号部分
+    bonus = em_bonus_pct + special_bonus
+    if bonus > 0:
+        parts.append(_text("×(1+", size=9))
+
+        # 精通加成（可点击）
         if em_bonus_pct > 0:
-            parts.append(_text("+", color="white38"))
-        parts.extend(
-            [
-                _domain_value(
-                    special_bonus,
-                    "special",
-                    bucket_key,
-                    bucket_color,
-                ),
-                _text("%"),
-            ]
-        )
+            parts.extend(
+                [
+                    _domain_value(
+                        em_bonus_pct,
+                        "em_bonus",
+                        bucket_key,
+                        bucket_color,
+                    ),
+                    _text("%"),
+                ]
+            )
 
-    parts.append(_text(")"))
+        # 特殊加成
+        if special_bonus > 0:
+            if em_bonus_pct > 0:
+                parts.append(_text("+", color="white38"))
+            parts.extend(
+                [
+                    _domain_value(
+                        special_bonus,
+                        "special",
+                        bucket_key,
+                        bucket_color,
+                    ),
+                    _text("%"),
+                ]
+            )
+
+        parts.append(_text(")"))
 
     return FormulaResult(parts, f"{multiplier:.2f}")
 

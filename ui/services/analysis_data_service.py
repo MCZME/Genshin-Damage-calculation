@@ -299,11 +299,11 @@ class AnalysisDataService:
 
         frame_snapshot = None
         if source_id is not None:
-            frame_snapshot = await adapter.get_entity_snapshot(frame_id, source_id)
+            frame_snapshot = await adapter.get_entity_snapshot(frame_id, source_id, event_id=event_id)
 
         target_snapshot = None
         if target_id is not None:
-            target_snapshot = await adapter.get_target_snapshot(frame_id, target_id)
+            target_snapshot = await adapter.get_target_snapshot(frame_id, target_id, event_id=event_id)
 
         # Step 3: 使用处理器检测伤害类型
         damage_type = AuditProcessor.detect_damage_type(attack_tag)

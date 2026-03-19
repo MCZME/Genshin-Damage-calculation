@@ -35,6 +35,9 @@ class DataProjector:
         self.peak_dps: float = 0.0
         self._damage_in_last_window: float = 0.0
         self._last_dps_calc_frame: int = 0
+        # [V17.0] 子帧精度：追踪当前帧内已写入的最后一个 event_id
+        # 用于修饰符 start_event_id，确保同帧内的伤害事件先于修饰符被记录
+        self._last_event_id: int = 0
 
     def project_static_meta(self, snapshot: dict) -> list[tuple[str, tuple]]:
         """处理实体登记元数据。"""
@@ -195,8 +198,12 @@ class DataProjector:
             elif etype == "ON_MODIFIER_ADDED":
                 mod = payload.get("modifier")
                 mid = getattr(mod, "modifier_id", 0)
+                # [V17.0] 记录修饰符添加时的关联事件 ID（子帧精度）
+                # 使用 SELECT MAX(event_id) 子查询捕获当前帧内最新的伤害/反应事件 ID。
+                # 若本帧尚无伤害事件，MAX 返回全局最后 event_id，查询条件仍然准确。
+                # 此策略确保：修饰符的 start_event_id >= 同帧内所有先发伤害的 event_id。
                 commands.append((
-                    "INSERT INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type, start_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT MAX(event_id) FROM simulation_event_log))",
                     (self.session_id, mid, eid, frame_id, getattr(mod, "source", ""), getattr(mod, "stat", ""), getattr(mod, "value", 0.0), getattr(mod, "op", "ADD"))
                 ))
 
@@ -234,6 +241,9 @@ class DataProjector:
                     "INSERT INTO event_payloads (event_id, payload_json) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?)",
                     (json.dumps(payload, cls=GenshinJSONEncoder),)
                 ))
+                # [V17.0] 更新 _last_event_id：通过自增序列估算当前 event_id
+                # 注：此处用累加方式跟踪，与数据库 AUTOINCREMENT 保持同步
+                self._last_event_id += 1
 
                 if etype == "AFTER_DAMAGE":
                     dmg_obj = payload.get("damage")

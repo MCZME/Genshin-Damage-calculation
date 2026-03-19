@@ -260,12 +260,25 @@ def inject_frame_snapshot(
         # 从 base_stats 获取基础值
         base_val = float(base_stats.get(stat_name, 0.0))
 
-        # 从 active_modifiers 提取百分比和固定值加成
-        pct_bonus = 0.0
-        flat_bonus = 0.0
+        # 1. 优先从 base_stats（即 base_attributes JSON）提取面板百分比和固定加成
+        #    原因：角色面板固有的 攻击力%、固定攻击力 等字段直接存储在 base_attributes 中，
+        #    而不经由 modifier_lifecycles 的 active_modifiers 渠道传递。
+        pct_bonus = float(base_stats.get(f"{stat_name}%", 0.0))
+        flat_bonus = float(base_stats.get(f"固定{stat_name}", 0.0))
+
+        # 构建展示用修饰符列表（用于域详情）
         pct_modifiers: list[dict[str, Any]] = []
         flat_modifiers: list[dict[str, Any]] = []
 
+        # 将面板内置百分比加成记录为来源 [基础面板]
+        if pct_bonus != 0.0:
+            pct_modifiers.append({"name": "[基础面板]", "stat": f"{stat_name}%", "value": pct_bonus, "op": "ADD"})
+
+        # 将面板内置固定加成记录为来源 [基础面板]
+        if flat_bonus != 0.0:
+            flat_modifiers.append({"name": "[基础面板]", "stat": f"固定{stat_name}", "value": flat_bonus, "op": "ADD"})
+
+        # 2. 再叠加来自 active_modifiers 中的动态效果（Buff、装备、天赋等）
         for mod in active_modifiers:
             mod_stat = mod.get("stat", "")
             mod_val = float(mod.get("value", 0.0))
@@ -277,8 +290,8 @@ def inject_frame_snapshot(
                 flat_bonus += mod_val
                 flat_modifiers.append(mod)
             elif mod_stat == stat_name:
-                # 武器基础攻击力等
-                flat_bonus += mod_val
+                # 武器基础攻击力等（直接加法叠加）
+                base_val += mod_val
                 flat_modifiers.append(mod)
 
         # 计算最终属性值
@@ -340,6 +353,7 @@ def inject_frame_snapshot(
 
     # 存储 scaling_info
     buckets["core_dmg"]["scaling_info"] = scaling_info_list
+
 
     # 活跃修饰符合并到对应乘区
     for mod in active_modifiers:

@@ -127,21 +127,22 @@ class AuditValidator:
         """计算核心伤害"""
         scaling_info = core_bucket.get("scaling_info", [])
         independent_pct = core_bucket.get("independent_pct", 0.0)
-        bonus_pct = core_bucket.get("bonus_pct", 0.0)
+        bonus_pct = core_bucket.get("bonus_pct", 0.0)  # 严格对齐规范：倍率加值%
         flat = core_bucket.get("flat", 0.0)
 
         if scaling_info:
+            # 根据 V2.5 规范：最终倍率 = 技能倍率% * (1 + 独立乘区%/100) + 倍率加值%
             base_dmg = sum(
-                info.get("total_val", 0) * info.get("skill_mult", 0) / 100
-                for info in scaling_info
+                info.get("total_val", 0)* (info.get("skill_mult", 0) * (1.0 + independent_pct / 100.0)+ bonus_pct) / 100 for info in scaling_info
             )
         else:
+            # 兼容旧逻辑
             base_dmg = core_bucket.get("total", 0) * core_bucket.get("multiplier", 1.0)
-
-        if independent_pct > 0:
-            base_dmg *= 1 + independent_pct / 100
-        if bonus_pct > 0:
-            base_dmg *= 1 + bonus_pct / 100
+            if independent_pct > 0:
+                base_dmg *= 1 + independent_pct / 100
+            if bonus_pct > 0:
+                # 注：在旧的非 scaling_info 路径中，暂维持乘法逻辑以兼容
+                base_dmg *= 1 + bonus_pct / 100
 
         return base_dmg + flat
 
