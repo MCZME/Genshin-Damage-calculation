@@ -85,6 +85,6 @@ class EnergySystem(GameSystem):
         else:
             base = 1.0 if on_field else 0.6
 
-        # 充能效率加成
-        energy_rate = AttributeCalculator.get_final_er(character)
+        # 充能效率加成 (AttributeCalculator 返回的是百分数，如 100.0，需归一化)
+        energy_rate = AttributeCalculator.get_final_er(character) / 100.0
         return base * energy_rate

@@ -48,7 +48,7 @@ class TestCombatSpaceDispatch:
         hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=5.0)
         dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
         # 修正构造函数顺序: (element, damage_multiplier, scaling_stat, config, name)
-        dmg = Damage((Element.PYRO, 1.0), 100.0, "攻击力", dmg_config, "测试火球")
+        dmg = Damage((Element.PYRO, 1.0), (100.0,), ("攻击力",), dmg_config, "测试火球")
 
         event = GameEvent(
             EventType.BEFORE_DAMAGE,
@@ -89,7 +89,7 @@ class TestCombatSpaceDispatch:
         # 修正：将物理参数放入 HitboxConfig
         hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=5.0)
         dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
-        dmg = Damage((Element.PYRO, 1.0), 100.0, "攻击力", dmg_config, "打不到")
+        dmg = Damage((Element.PYRO, 1.0), (100.0,), ("攻击力",), dmg_config, "打不到")
 
         event = GameEvent(
             EventType.BEFORE_DAMAGE,

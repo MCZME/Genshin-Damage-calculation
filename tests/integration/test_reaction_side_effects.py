@@ -44,7 +44,7 @@ class TestReactionSideEffects:
         attacker.level = 90
 
         dmg = Damage(
-            element=(Element.ELECTRO, 1.0), damage_multiplier=0, name="触发超导"
+            element=(Element.ELECTRO, 1.0), damage_multiplier=(0.0,), scaling_stat=("攻击力",), name="触发超导"
         )
         dmg.set_source(attacker)
 
@@ -60,7 +60,8 @@ class TestReactionSideEffects:
 
         # 3. 验证抗性
         # 初始 10.0, 降低 40.0 -> 应为 -30.0
-        res = enemy.attribute_data.get("物理元素抗性")
+        from core.systems.utils import AttributeCalculator
+        res = AttributeCalculator.get_val_by_name(enemy, "物理元素抗性")
         assert res == -30.0
 
         # 4. 验证效果是否存在
@@ -84,7 +85,7 @@ class TestReactionSideEffects:
         attacker.faction = Faction.PLAYER
         attacker.level = 90
 
-        dmg = Damage(element=(Element.ANEMO, 1.0), damage_multiplier=100.0, name="风压")
+        dmg = Damage(element=(Element.ANEMO, 1.0), damage_multiplier=(100.0,), scaling_stat=("攻击力",), name="风压")
         dmg.set_source(attacker)
 
         # 触发流程

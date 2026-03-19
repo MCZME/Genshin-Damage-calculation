@@ -69,8 +69,8 @@ class TestDendroCoreLogic:
         ctx, player, enemy = setup_scene
         hydro_dmg = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=0,
-            scaling_stat="攻击力",
+            damage_multiplier=(0.0,),
+            scaling_stat=("攻击力",),
             name="挂水",
             config=AttackConfig(icd_tag="Independent"),  # 确保挂上
         )
@@ -85,8 +85,8 @@ class TestDendroCoreLogic:
         )
         dendro_dmg = Damage(
             element=(Element.DENDRO, 1.0),
-            damage_multiplier=100.0,
-            scaling_stat="攻击力",
+            damage_multiplier=(100.0,),
+            scaling_stat=("攻击力",),
             name="草攻击",
             config=config,
         )
@@ -118,8 +118,8 @@ class TestDendroCoreLogic:
         )
         fire_dmg = Damage(
             element=(Element.PYRO, 1.0),
-            damage_multiplier=100.0,
-            scaling_stat="攻击力",
+            damage_multiplier=(100.0,),
+            scaling_stat=("攻击力",),
             name="火攻击",
             config=fire_config,
         )

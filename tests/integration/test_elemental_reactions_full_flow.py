@@ -20,8 +20,8 @@ class TestElementalReactionsFullFlow:
 
         dmg = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=100.0,
-            scaling_stat="攻击力",
+            damage_multiplier=(100.0,),
+            scaling_stat=("攻击力",),
             name="水箭",
         )
         dmg.set_source(source_entity)
@@ -43,8 +43,8 @@ class TestElementalReactionsFullFlow:
         config = AttackConfig(is_deployable=True)
         dmg = Damage(
             element=(Element.HYDRO, 1.0),
-            damage_multiplier=100.0,
-            scaling_stat="攻击力",
+            damage_multiplier=(100.0,),
+            scaling_stat=("攻击力",),
             config=config,
             name="水波",
         )

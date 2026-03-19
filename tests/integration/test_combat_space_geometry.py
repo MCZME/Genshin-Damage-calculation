@@ -48,7 +48,7 @@ class TestCombatSpaceGeometry:
 
         hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=5.0)
         dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
-        dmg = Damage((Element.PHYSICAL, 1.0), 100.0, "攻击力", dmg_config, "圆擦边")
+        dmg = Damage((Element.PHYSICAL, 1.0), (100.0,), ("攻击力",), dmg_config, "圆擦边")
         sim_ctx.event_engine.publish(
             GameEvent(
                 EventType.BEFORE_DAMAGE,
@@ -77,7 +77,7 @@ class TestCombatSpaceGeometry:
 
         hitbox = HitboxConfig(shape=AOEShape.BOX, length=5.0, width=2.0)
         dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
-        dmg = Damage((Element.PHYSICAL, 1.0), 100.0, "攻击力", dmg_config, "矩形命中")
+        dmg = Damage((Element.PHYSICAL, 1.0), (100.0,), ("攻击力",), dmg_config, "矩形命中")
         sim_ctx.event_engine.publish(
             GameEvent(
                 EventType.BEFORE_DAMAGE,
@@ -107,7 +107,7 @@ class TestCombatSpaceGeometry:
 
         hitbox = HitboxConfig(shape=AOEShape.SPHERE, radius=1.0, offset=(5.0, 0.0))
         dmg_config = AttackConfig(attack_tag="普通攻击", hitbox=hitbox)
-        dmg = Damage((Element.PHYSICAL, 1.0), 100.0, "攻击力", dmg_config, "偏移攻击")
+        dmg = Damage((Element.PHYSICAL, 1.0), (100.0,), ("攻击力",), dmg_config, "偏移攻击")
 
         sim_ctx.event_engine.publish(
             GameEvent(
