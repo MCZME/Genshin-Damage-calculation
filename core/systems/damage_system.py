@@ -106,14 +106,16 @@ class DamagePipeline:
             from core.context import get_context
             sim_ctx = get_context()
             if sim_ctx.space:
+                # broadcast_damage 会为每个命中的目标调用 target.handle_damage(damage)
                 sim_ctx.space.broadcast_damage(ctx.source, ctx.damage)
         else:
             ctx.damage.set_target(ctx.target)
+            # 已明确指定目标，手动触发元素附着逻辑
+            ctx.target.handle_damage(ctx.damage)
 
         if not ctx.damage.target:
             return False
         ctx.target = ctx.damage.target
-        ctx.target.handle_damage(ctx.damage)
         return True
 
     def _stage_2_foundation(self, ctx: DamageContext):

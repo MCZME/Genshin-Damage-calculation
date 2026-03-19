@@ -121,7 +121,7 @@ ATTACK_DATA = {
         "shape": "球", "radius": 5.0, "strike_type": "默认",
     },
     "剧变反应测试": {
-        "attack_tag": "扩散水伤害", "element_u": 0.0, "is_ranged": False,
+        "attack_tag": "元素爆发", "element_u": 1.0, "is_ranged": False,
         "icd_tag": "None", "icd_group": "None",
         "shape": "球", "radius": 6.0, "strike_type": "默认",
     },

@@ -236,12 +236,6 @@ class TestCharElementalBurst(EnergySkill):
              # 为火/雷伤害设置默认元素附着强度
              dmg_obj.set_element(dmg_obj.element[0], 1.0)
         
-        # 如果是剧变测试，注入必要的等级系数
-        if test_mode == "剧变反应测试" and hit_index == 0:
-            from core.tool import get_reaction_multiplier
-            dmg_obj.add_data("等级系数", get_reaction_multiplier(self.caster.level))
-            dmg_obj.add_data("反应系数", 0.6) # 模拟扩散倍率
-        
         self.caster.event_engine.publish(
             GameEvent(
                 EventType.BEFORE_DAMAGE,

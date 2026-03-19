@@ -1,4 +1,4 @@
-﻿from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from core.systems.contract.attack import AttackConfig
 from core.systems.contract.damage import Damage
@@ -259,12 +259,26 @@ class ReactionSystem(GameSystem):
 
         # 产生剧变伤害
         if res.reaction_type != ElementalReactionType.BLOOM:
+            # 判定剧变伤害的元素属性 (严格对齐 V2.5 战斗物理规范)
+            dmg_el = res.source_element
+            if res.reaction_type == ElementalReactionType.SWIRL:
+                # 扩散反应伤害元素取决于被扩散的元素 (target_element)
+                dmg_el = res.target_element
+            elif res.reaction_type == ElementalReactionType.OVERLOAD:
+                dmg_el = Element.PYRO
+            elif res.reaction_type == ElementalReactionType.SUPERCONDUCT:
+                dmg_el = Element.CRYO
+            elif res.reaction_type == ElementalReactionType.SHATTER:
+                dmg_el = Element.PHYSICAL
+            elif res.reaction_type in {ElementalReactionType.HYPERBLOOM, ElementalReactionType.BURGEON}:
+                dmg_el = Element.DENDRO
+            
             self._generate_transformative_damage(
                 source_char=source_char,
                 target=target,
                 r_type=res.reaction_type,
                 multiplier=base_mult,
-                element=res.source_element,
+                element=dmg_el,
             )
 
     def _check_damage_icd(self, target: Any, r_type: ElementalReactionType) -> bool:
