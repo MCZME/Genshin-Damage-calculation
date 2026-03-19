@@ -13,10 +13,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.persistence.processors.audit.types import DamageType
-    from ui.components.analysis.bottom_panel.multiplier_formulas import (
-        FormulaPartData,
-        FormulaResult,
-    )
 
 
 @dataclass

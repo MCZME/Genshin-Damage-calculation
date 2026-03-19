@@ -43,11 +43,6 @@ STAT_GROUPS: dict[str, list[str]] = {
     ]
 }
 
-DEFAULT_STATS: list[str] = [
-    "攻击力", "生命值", "防御力", "元素精通",
-    "暴击率", "暴击伤害", "元素充能效率", "伤害加成"
-]
-
 
 def _get_actual_stat_keys(key: str, element: str = "Neutral") -> list[str]:
     """获取属性审计需要匹配的实际字段名列表。"""

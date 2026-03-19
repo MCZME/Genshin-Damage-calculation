@@ -1,7 +1,6 @@
 from __future__ import annotations
 import flet as ft
 from typing import Any
-from collections.abc import Callable
 from core.data_models.team_data_model import CharacterDataModel
 from core.data_models.scene_data_model import TargetDataModel
 from ui.view_models.strategic.character_vm import CharacterViewModel

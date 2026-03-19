@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Any
 
 from core.effect.common import TalentEffect
 from core.event import EventType, GameEvent

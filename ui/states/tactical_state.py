@@ -1,7 +1,6 @@
 from __future__ import annotations
 import flet as ft
 from typing import Any
-from collections.abc import Callable
 from core.data_models.action_data_model import ActionDataModel
 from ui.view_models.tactical.tactical_page_vm import TacticalPageViewModel
 

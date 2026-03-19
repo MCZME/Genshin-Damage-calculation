@@ -46,10 +46,6 @@ def StatsDetailAudit(vm: StatsViewModel):
     element = vm.element
     char_name = vm.char_name
     frame_id = vm.frame_id
-    curr_hp = vm.current_hp
-    max_hp = vm.max_hp
-    curr_en = vm.current_energy
-    max_en = vm.max_energy
 
     # 获取当前勾选偏好
     prefs_list = vm.get_display_stats() or DEFAULT_STATS

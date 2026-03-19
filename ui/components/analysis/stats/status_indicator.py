@@ -124,8 +124,6 @@ def AdaptiveStatusCluster(
     if not visible_indicators:
         return ft.Container()
 
-    n = len(visible_indicators)
-
     # 渲染指示器
     indicator_controls: list[ft.Control] = []
 

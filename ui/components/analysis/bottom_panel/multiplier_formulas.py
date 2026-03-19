@@ -13,7 +13,6 @@
 
 from dataclasses import dataclass, field
 from collections.abc import Callable
-from typing import Literal
 
 
 # ============================================================

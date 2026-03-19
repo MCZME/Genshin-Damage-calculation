@@ -196,7 +196,8 @@ def InlineFormulaChain(
         if base_mods:
             domain_blocks.append(ft.Text("+", size=16, color=ft.Colors.WHITE_54))
             base_domain = build_domain(base_mods, "基础加成", sum(m.value for m in base_mods), ModifierZone.BASE, is_pct)
-            if base_domain: domain_blocks.append(base_domain)
+            if base_domain:
+                domain_blocks.append(base_domain)
 
         # 3. 百分比域 (1 + %)
         if percent_mods and abs(result.pct_sum) > 0.01:
@@ -204,14 +205,16 @@ def InlineFormulaChain(
             domain_blocks.append(ft.Text("(", size=18, color=ft.Colors.WHITE_54))
             domain_blocks.append(ft.Text("1 +", size=14, color=ft.Colors.WHITE_54))
             pct_domain = build_domain(percent_mods, "百分比加成", result.pct_sum, ModifierZone.PERCENT, True)
-            if pct_domain: domain_blocks.append(pct_domain)
+            if pct_domain:
+                domain_blocks.append(pct_domain)
             domain_blocks.append(ft.Text(")", size=18, color=ft.Colors.WHITE_54))
 
         # 4. 固定值域
         if flat_mods and abs(result.flat_sum) > 0.01:
             domain_blocks.append(ft.Text("+", size=16, color=ft.Colors.WHITE_54))
             flat_domain = build_domain(flat_mods, "固定值加成", result.flat_sum, ModifierZone.FLAT, is_pct)
-            if flat_domain: domain_blocks.append(flat_domain)
+            if flat_domain:
+                domain_blocks.append(flat_domain)
 
     elif result.paradigm == "pct_additive":
         # ===== 百分比累加型公式: Base + PctSum =====
@@ -229,7 +232,8 @@ def InlineFormulaChain(
         if percent_mods and abs(result.pct_sum) > 0.01:
             domain_blocks.append(ft.Text("+", size=16, color=ft.Colors.WHITE_54))
             pct_domain = build_domain(percent_mods, "百分比加成", result.pct_sum, ModifierZone.PERCENT, True)
-            if pct_domain: domain_blocks.append(pct_domain)
+            if pct_domain:
+                domain_blocks.append(pct_domain)
 
     else:  # additive
         # ===== 纯累加型公式: Base + FlatSum =====
@@ -248,7 +252,8 @@ def InlineFormulaChain(
         if all_mods and abs(result.flat_sum) > 0.01:
             domain_blocks.append(ft.Text("+", size=16, color=ft.Colors.WHITE_54))
             flat_domain = build_domain(all_mods[:8], "加成", result.flat_sum, ModifierZone.FLAT, is_pct)
-            if flat_domain: domain_blocks.append(flat_domain)
+            if flat_domain:
+                domain_blocks.append(flat_domain)
 
     # 最终结果
     total_text = f"{result.total:.2f}{suffix}"
@@ -379,10 +384,14 @@ def ModifierCardGrid(
         
         mods = grouped[stype]
         icon = ft.Icons.SETTINGS
-        if stype == "Weapon": icon = ft.Icons.SAFETY_CHECK
-        elif stype == "Artifact": icon = ft.Icons.AUTO_AWESOME
-        elif stype == "Talent": icon = ft.Icons.SKATEBOARDING
-        elif stype == "Resonance": icon = ft.Icons.GROUPS
+        if stype == "Weapon":
+            icon = ft.Icons.SAFETY_CHECK
+        elif stype == "Artifact":
+            icon = ft.Icons.AUTO_AWESOME
+        elif stype == "Talent":
+            icon = ft.Icons.SKATEBOARDING
+        elif stype == "Resonance":
+            icon = ft.Icons.GROUPS
 
         sections.append(
             ft.Column([

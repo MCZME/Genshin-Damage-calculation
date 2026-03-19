@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import NormalAttackSkill, ChargedAttackSkill, PlungingAttackSkill
 from core.action.action_data import ActionFrameData

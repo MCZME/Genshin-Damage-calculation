@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, cast
 import time
 from core.data_models.team_data_model import BaseDataModel
 
@@ -60,5 +60,3 @@ class ActionDataModel(BaseDataModel):
             "action_key": action_key,
             "params": params if params is not None else {}
         })
-
-from typing import cast

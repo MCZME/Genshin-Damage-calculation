@@ -1,7 +1,7 @@
 from __future__ import annotations
 import flet as ft
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 from ui.view_models.base_vm import BaseViewModel
 from core.data_models.action_data_model import ActionDataModel
 

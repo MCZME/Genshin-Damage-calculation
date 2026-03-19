@@ -8,7 +8,6 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 
 import flet as ft
 
@@ -96,7 +95,6 @@ class DomainDetailSectionViewModel:
         from ui.components.analysis.bottom_panel.constants import (
             BUCKET_COLORS, NORMAL_BUCKET_CONFIGS, TRANSFORMATIVE_BUCKET_CONFIGS
         )
-        from core.persistence.processors.audit import AuditProcessor
 
         if not self.active_bucket:
             return

@@ -26,7 +26,6 @@ if TYPE_CHECKING:
         DomainDetailSectionViewModel,
     )
 
-from .constants import BUCKET_COLORS, NORMAL_BUCKET_CONFIGS, TRANSFORMATIVE_BUCKET_CONFIGS
 from .utils import format_val
 
 

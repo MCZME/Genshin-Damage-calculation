@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from character.character import Character
 from core.registry import register_character
 from core.skills.movement import DashSkill

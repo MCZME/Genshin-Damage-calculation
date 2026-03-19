@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 from core.context import create_context
 from core.factory.team_factory import TeamFactory
@@ -90,6 +91,3 @@ def create_simulator_from_config(
     assembler = SimulationAssembler(repository)
     simulator, _ = assembler.assemble(config, persistence_db=persistence_db)
     return simulator
-
-
-from typing import Any

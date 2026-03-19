@@ -81,7 +81,7 @@ def ActionCard(
         ),
         shadow=GenshinTheme.get_element_glow(element, 0.4) if is_selected else None,
         on_click=lambda _: on_click(index) if on_click else None,
-        on_hover=lambda e: [set_is_hovered(e.data == True)],
+        on_hover=lambda e: [set_is_hovered(e.data)],
         scale=1.05 if is_selected else 1.0,
         animate=ft.Animation(300, ft.AnimationCurve.DECELERATE),
         animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_OUT_BACK),
