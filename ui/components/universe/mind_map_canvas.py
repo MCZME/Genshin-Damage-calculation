@@ -8,6 +8,8 @@ from ui.components.universe.node_add_drawer import NodeAddDrawer
 from ui.components.universe.node_card import NodeCard
 from ui.view_models.universe.mind_map_canvas_data import MindMapCanvasData
 
+FREE_PAN_MARGIN = 100000
+
 
 @ft.component
 def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=None):
@@ -133,9 +135,10 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=N
 
     viewer = ft.InteractiveViewer(
         content=mind_map,
+        constrained=False,
         min_scale=0.45,
         max_scale=1.8,
-        boundary_margin=ft.Margin(600, 400, 600, 400),
+        boundary_margin=ft.Margin.all(FREE_PAN_MARGIN),
         clip_behavior=ft.ClipBehavior.NONE,
         expand=True,
     )
