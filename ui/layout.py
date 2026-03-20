@@ -125,6 +125,11 @@ class AppLayout:
         ]
         
         header_right_controls: list[ft.Control] = [
+            ft.IconButton(
+                ft.Icons.ACCOUNT_TREE_OUTLINED,
+                tooltip="打开批处理编辑器",
+                on_click=lambda _: self.page.run_task(self.page.open_batch_editor),
+            ),
             ft.IconButton(ft.Icons.SAVE_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.save_config)),
             ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.load_config)),
         ]

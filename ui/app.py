@@ -1,11 +1,31 @@
+from __future__ import annotations
+
+import json
+import multiprocessing
+
 import flet as ft
-import threading
-import time
-from ui.states.app_state import AppState
+
+from core.logger import get_ui_logger
 from ui.layout import AppLayout
 from ui.services.persistence_manager import PersistenceManager
-from core.logger import get_ui_logger
+from ui.states.app_state import AppState
+from ui.universe_launcher import start_universe_process
 
+
+def _sanitize_for_ipc(value):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _sanitize_for_ipc(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_for_ipc(item) for item in value]
+    if hasattr(value, "to_simulator_format"):
+        return _sanitize_for_ipc(value.to_simulator_format())
+    if hasattr(value, "raw_data"):
+        return _sanitize_for_ipc(value.raw_data)
+    if hasattr(value, "_data"):
+        return _sanitize_for_ipc(value._data)
+    return str(value)
 
 
 def main(page: ft.Page, main_to_branch, branch_to_main):
@@ -17,42 +37,43 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
 
     # 1.1 初始化持久化服务
     persistence = PersistenceManager(page, state)
-    # 将服务注入 Page，方便 View 一键调用
     setattr(page, "persistence", persistence)
-
     get_ui_logger().log_info("Genshin Workbench main window initialized.")
 
+    batch_process: multiprocessing.Process | None = None
 
-    # 2. 监听来自分支宇宙的“回传”指令
-    def result_listener():
-        while True:
-            try:
-                if not branch_to_main.empty():
-                    msg = branch_to_main.get()
-                    if msg.get("type") == "APPLY_CONFIG":
-                        get_ui_logger().log_info(
-                            "Received APPLY_CONFIG command from Batch Editor."
-                        )
-                        # 分支宇宙要求将某个节点的配置应用到主工作台
-                        config = msg.get("config")
-                        # 这里调用 state 的加载逻辑
-                        page.run_task(state.apply_external_config, config)
-            except Exception as e:
-                get_ui_logger().log_error(f"Result listener error: {e}")
-            time.sleep(0.5)
+    async def open_batch_editor():
+        nonlocal batch_process
+        if batch_process is None or not batch_process.is_alive():
+            batch_process = multiprocessing.Process(
+                target=start_universe_process,
+                args=(main_to_branch, branch_to_main),
+                daemon=True,
+            )
+            batch_process.start()
+            get_ui_logger().log_info("Batch editor process started.")
 
-    threading.Thread(target=result_listener, daemon=True).start()
+        sanitized_config = json.loads(
+            json.dumps(_sanitize_for_ipc(state.export_config()), ensure_ascii=False)
+        )
+        main_to_branch.put(
+            {
+                "type": "INIT_BATCH_EDITOR",
+                "config": sanitized_config,
+                "project_name": "工作台批处理项目",
+            }
+        )
+        get_ui_logger().log_info("Workbench config sent to batch editor.")
 
-    # 3. 窗口初始配置
+    setattr(page, "open_batch_editor", open_batch_editor)
+
+    # 2. 窗口初始配置
     page.window.width = 1500
     page.window.height = 950
     page.window.min_width = 1200
     page.window.min_height = 800
 
-    # 4. 实例化布局
+    # 3. 实例化布局
     layout = AppLayout(page, state, persistence)
-    # 将布局实例挂载到 Page 方便访问，但渲染使用声明式方式
     setattr(page, "app_layout", layout)
-    
-    # 建立声明式渲染根节点 (将 layout_vm 作为参数传入以确保响应式追踪)
     page.render(lambda: layout.build(state.layout_vm))

@@ -1,63 +1,42 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
 import flet as ft
-import threading
-import time
+
+from ui.states.batch_editor_state import BatchEditorState
 from ui.theme import GenshinTheme
 from ui.views.universe_view import UniverseView
-from ui.states.app_state import AppState
 
 
-def start_universe_process(main_to_branch, branch_to_main):
-    """分支宇宙进程入口"""
+def start_universe_process(main_to_branch, _branch_to_main=None):
+    """批处理编辑器独立进程入口。"""
 
     def main(page: ft.Page):
-        from core.logger import get_ui_logger
-
         page.title = "批处理编辑器"
-        # 应用全局主题设置
+        page.window.width = 1360
+        page.window.height = 860
+        page.window.min_width = 1100
+        page.window.min_height = 760
         GenshinTheme.apply_page_settings(page)
-        get_ui_logger().log_info("Batch Editor sub-process window initialized.")
 
-        # 1. 在子进程中创建一个独立的状态
-        local_state = AppState()
-        local_state.register_page(page)
-        local_state.main_to_branch = main_to_branch
-        local_state.branch_to_main = branch_to_main
+        state = BatchEditorState()
+        state.page = page
+        view = UniverseView()
 
-        # 加载视图
-        view = UniverseView(local_state)
-        page.add(view)
-
-        # 2. 监听来自主进程的初始化或同步信号
-        def main_listener():
+        async def listen_for_init() -> None:
             while True:
-                try:
-                    if not main_to_branch.empty():
-                        msg = main_to_branch.get()
-                        if msg.get("type") == "INIT_UNIVERSE":
-                            get_ui_logger().log_info(
-                                "Batch Editor received INIT_UNIVERSE signal."
-                            )
-                            # 接收到主进程发送的基准配置
-                            config = msg.get("config")
-                            # 将其存为本进程状态的 root_config
-                            local_state.root_config = config
-                            local_state.universe_root.name = "工作台基准"
-                            page.run_task(view.refresh)
-                except Exception as e:
-                    get_ui_logger().log_error(f"Batch Editor listener error: {e}")
-                time.sleep(0.5)
+                if not main_to_branch.empty():
+                    message: dict[str, Any] = main_to_branch.get()
+                    if message.get("type") == "INIT_BATCH_EDITOR":
+                        state.initialize_project(
+                            message.get("config", {}),
+                            message.get("project_name", "批处理项目"),
+                        )
+                await asyncio.sleep(0.3)
 
-        threading.Thread(target=main_listener, daemon=True).start()
+        page.run_task(listen_for_init)
+        page.render(lambda: view.build(state))
 
-        # 3. 初始刷新延迟 (确保窗口完全挂载)
-        async def initial_refresh():
-            await asyncio.sleep(0.2)
-            view.refresh()
-
-        import asyncio
-
-        page.run_task(initial_refresh)
-
-        page.update()
-
-    ft.run(main)
+    ft.run(main, view=ft.AppView.FLET_APP)

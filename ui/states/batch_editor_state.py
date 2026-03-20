@@ -1,0 +1,395 @@
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from typing import Any, Optional
+
+try:
+    import flet as ft
+except ModuleNotFoundError:  # pragma: no cover - test fallback
+    class _ObservableShim:
+        @staticmethod
+        def observable(cls):
+            cls.notify = lambda self: None
+            return cls
+
+    ft = _ObservableShim()
+
+from core.batch import (
+    BatchCompileError,
+    BatchExecutionService,
+    BatchNode,
+    BatchNodeKind,
+    BatchProject,
+    BatchProjectCompiler,
+    BatchProjectStorage,
+    BatchRunSummary,
+    MutationRule,
+    RangeMutationConfig,
+)
+from ui.view_models.universe import (
+    MindMapCanvasData,
+    NodeInspectorPanelViewModel,
+    NodeViewModel,
+)
+
+
+@ft.observable
+class BatchEditorState:
+    """独立批处理编辑器状态。"""
+
+    def __init__(self) -> None:
+        self.page = None
+        self.storage = BatchProjectStorage()
+        self.executor = BatchExecutionService()
+        self.project = BatchProject()
+        self.selected_node_id = self.project.root.id
+        self.node_vms: dict[str, NodeViewModel] = {}
+        self.inspector_vm = NodeInspectorPanelViewModel()
+        self.canvas_data = MindMapCanvasData(
+            root=self.project.root,
+            selected_node_id=self.selected_node_id,
+            node_index=self.node_vms,
+        )
+        self.status_text = "等待初始化"
+        self.progress = 0.0
+        self.is_running = False
+        self.error_message = ""
+        self.last_summary: Optional[BatchRunSummary] = None
+        self._sync_view_models()
+
+    @property
+    def selected_node(self) -> BatchNode:
+        node = self.find_node(self.selected_node_id)
+        return node or self.project.root
+
+    @property
+    def leaf_count(self) -> int:
+        try:
+            return len(BatchProjectCompiler.compile(self.project))
+        except BatchCompileError:
+            return 0
+
+    def initialize_project(self, base_config: dict[str, Any], name: str = "批处理项目") -> None:
+        self.project = BatchProject(name=name, base_config=base_config or {})
+        self.selected_node_id = self.project.root.id
+        self.status_text = "已加载基准配置"
+        self.progress = 0.0
+        self.error_message = ""
+        self.last_summary = None
+        self._sync_view_models()
+        self.notify()
+
+    def list_projects(self) -> list[str]:
+        return self.storage.list_projects()
+
+    def save_project(self, filename: str) -> str:
+        if filename:
+            self.project.name = os.path.splitext(os.path.basename(filename))[0]
+        path = self.storage.save(self.project, filename)
+        self.status_text = f"已保存: {os.path.basename(path)}"
+        self._sync_view_models()
+        self.notify()
+        return path
+
+    def load_project(self, filename: str) -> None:
+        self.project = self.storage.load(filename)
+        self.selected_node_id = self.project.root.id
+        self.status_text = f"已加载: {filename}"
+        self.error_message = ""
+        self.last_summary = None
+        self._sync_view_models()
+        self.notify()
+
+    def select_node(self, node_id: str) -> None:
+        self.selected_node_id = node_id
+        self.error_message = ""
+        self._sync_view_models()
+        self.notify()
+
+    def rename_selected_node(self, name: str) -> None:
+        node = self.selected_node
+        node.name = name or node.name
+        self._sync_view_models()
+        self.notify()
+
+    def add_rule_child(self, parent_id: str | None = None) -> None:
+        parent = self.find_node(parent_id or self.selected_node_id)
+        if not parent:
+            return
+        new_node = BatchNode(
+            id=self._new_id(),
+            name="新规则节点",
+            kind=BatchNodeKind.RULE,
+        )
+        parent.children.append(new_node)
+        self.selected_node_id = new_node.id
+        self._sync_view_models()
+        self.notify()
+
+    def add_range_anchor(self, parent_id: str | None = None) -> None:
+        parent = self.find_node(parent_id or self.selected_node_id)
+        if not parent:
+            return
+        new_node = BatchNode(
+            id=self._new_id(),
+            name="新区间锚点",
+            kind=BatchNodeKind.RANGE_ANCHOR,
+        )
+        parent.children.append(new_node)
+        self.selected_node_id = new_node.id
+        self._sync_view_models()
+        self.notify()
+
+    def delete_selected_node(self) -> None:
+        target = self.selected_node
+        if target.kind == BatchNodeKind.ROOT or target.is_generated:
+            return
+
+        def prune(parent: BatchNode) -> bool:
+            for child in list(parent.children):
+                if child.id == target.id:
+                    parent.children.remove(child)
+                    return True
+                if prune(child):
+                    return True
+            return False
+
+        prune(self.project.root)
+        self.selected_node_id = self.project.root.id
+        self._sync_view_models()
+        self.notify()
+
+    def update_rule(self, path_text: str, value_text: str, label: str) -> None:
+        node = self.selected_node
+        if node.kind != BatchNodeKind.RULE:
+            return
+        node.rule = MutationRule(
+            target_path=self._parse_path(path_text),
+            value=self._parse_value(value_text),
+            label=label.strip(),
+        )
+        if label.strip():
+            node.name = label.strip()
+        self.error_message = ""
+        self._sync_view_models()
+        self.notify()
+
+    def configure_range_anchor(
+        self,
+        path_text: str,
+        start_text: str,
+        end_text: str,
+        step_text: str,
+        label: str,
+    ) -> None:
+        node = self.selected_node
+        if node.kind != BatchNodeKind.RANGE_ANCHOR:
+            return
+
+        start = float(start_text)
+        end = float(end_text)
+        step = float(step_text)
+        if step == 0:
+            raise ValueError("区间步长不能为 0。")
+
+        node.range_config = RangeMutationConfig(
+            target_path=self._parse_path(path_text),
+            start=start,
+            end=end,
+            step=step,
+            label=label.strip(),
+        )
+        node.name = label.strip() or "区间锚点"
+        node.children = self._build_range_children(node)
+        self.error_message = ""
+        self._sync_view_models()
+        self.notify()
+
+    async def run_batch(self) -> Optional[BatchRunSummary]:
+        if self.is_running:
+            return None
+
+        self.is_running = True
+        self.progress = 0.0
+        self.status_text = "编译批处理任务中..."
+        self.error_message = ""
+        self.last_summary = None
+        self.notify()
+
+        try:
+            requests = BatchProjectCompiler.compile(self.project)
+            if not requests:
+                self.status_text = "没有可执行的叶子任务"
+                self.notify()
+                return None
+
+            def on_progress(done: int, total: int) -> None:
+                self.progress = done / total if total else 0.0
+                self.status_text = f"批处理执行中 {done}/{total}"
+                self.notify()
+
+            summary = await self.executor.run(requests=requests, on_progress=on_progress)
+            self.last_summary = summary
+            self.progress = 1.0
+            self.status_text = (
+                f"完成 {summary.completed_runs}/{summary.total_runs}，"
+                f"失败 {summary.failed_runs}，平均 DPS {int(summary.avg_dps)}"
+            )
+            self.notify()
+            return summary
+        except (BatchCompileError, ValueError) as exc:
+            self.error_message = str(exc)
+            self.status_text = "批处理执行失败"
+            self.notify()
+            raise
+        finally:
+            self.is_running = False
+            self.notify()
+
+    def find_node(self, node_id: str) -> Optional[BatchNode]:
+        def walk(current: BatchNode) -> Optional[BatchNode]:
+            if current.id == node_id:
+                return current
+            for child in current.children:
+                found = walk(child)
+                if found:
+                    return found
+            return None
+
+        return walk(self.project.root)
+
+    def _sync_view_models(self) -> None:
+        selected = self.find_node(self.selected_node_id)
+        if not selected:
+            selected = self.project.root
+            self.selected_node_id = selected.id
+
+        node_vms: dict[str, NodeViewModel] = {}
+
+        def walk(node: BatchNode) -> None:
+            rule_label = node.rule.label if node.rule and node.rule.label else ""
+            vm = NodeViewModel(
+                id=node.id,
+                name=node.name,
+                kind=node.kind,
+                is_generated=node.is_generated,
+                children_count=len(node.children),
+                rule_label=rule_label,
+                range_child_count=len(node.children)
+                if node.kind == BatchNodeKind.RANGE_ANCHOR
+                else 0,
+            )
+            node_vms[node.id] = vm
+            for child in node.children:
+                walk(child)
+
+        walk(self.project.root)
+        self.node_vms = node_vms
+        self.canvas_data = MindMapCanvasData(
+            root=self.project.root,
+            selected_node_id=self.selected_node_id,
+            node_index=self.node_vms,
+        )
+        self.inspector_vm = self._build_inspector_vm(selected)
+
+    def _build_inspector_vm(self, node: BatchNode) -> NodeInspectorPanelViewModel:
+        config = node.range_config
+        return NodeInspectorPanelViewModel(
+            node_id=node.id,
+            node_name=node.name,
+            node_kind=node.kind,
+            is_generated=node.is_generated,
+            rule_path_text=self.get_rule_path_text(node),
+            rule_value_text=self.get_rule_value_text(node),
+            rule_label_text=node.rule.label if node.rule else node.name,
+            range_path_text=self.get_range_path_text(node),
+            range_start_text=str(config.start) if config else "0",
+            range_end_text=str(config.end) if config else "10",
+            range_step_text=str(config.step) if config else "1",
+            range_label_text=config.label if config else node.name,
+            range_children_count=len(node.children),
+            can_delete=node.kind != BatchNodeKind.ROOT and not node.is_generated,
+            show_rule_form=node.kind == BatchNodeKind.RULE,
+            show_range_form=node.kind == BatchNodeKind.RANGE_ANCHOR,
+            help_text=(
+                "根节点仅代表当前工作台导出的基准配置，右侧只负责定义结构和规则。"
+                if node.kind == BatchNodeKind.ROOT
+                else ""
+            ),
+        )
+
+    def get_rule_path_text(self, node: BatchNode) -> str:
+        if not node.rule:
+            return ""
+        return ".".join(map(str, node.rule.target_path))
+
+    def get_rule_value_text(self, node: BatchNode) -> str:
+        if not node.rule:
+            return ""
+        value = node.rule.value
+        if isinstance(value, (dict, list, bool, int, float)):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value)
+
+    def get_range_path_text(self, node: BatchNode) -> str:
+        if not node.range_config:
+            return ""
+        return ".".join(map(str, node.range_config.target_path))
+
+    def _build_range_children(self, anchor: BatchNode) -> list[BatchNode]:
+        assert anchor.range_config is not None
+        config = anchor.range_config
+        values: list[float] = []
+        current = config.start
+        if config.step > 0:
+            while current <= config.end + 1e-9:
+                values.append(round(current, 10))
+                current += config.step
+        else:
+            while current >= config.end - 1e-9:
+                values.append(round(current, 10))
+                current += config.step
+
+        children = []
+        for value in values:
+            text_value = int(value) if float(value).is_integer() else value
+            child = BatchNode(
+                id=self._new_id(),
+                name=str(text_value),
+                kind=BatchNodeKind.RULE,
+                rule=MutationRule(
+                    target_path=list(config.target_path),
+                    value=text_value,
+                    label=f"{config.label or 'range'}={text_value}",
+                ),
+                generated_from_anchor_id=anchor.id,
+            )
+            children.append(child)
+        return children
+
+    @staticmethod
+    def _parse_path(path_text: str) -> list[Any]:
+        pieces = [piece.strip() for piece in path_text.split(".") if piece.strip()]
+        parsed: list[Any] = []
+        for piece in pieces:
+            if piece.isdigit():
+                parsed.append(int(piece))
+            else:
+                parsed.append(piece)
+        return parsed
+
+    @staticmethod
+    def _parse_value(value_text: str) -> Any:
+        stripped = value_text.strip()
+        if not stripped:
+            return ""
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            return stripped
+
+    @staticmethod
+    def _new_id() -> str:
+        return uuid.uuid4().hex[:10]
