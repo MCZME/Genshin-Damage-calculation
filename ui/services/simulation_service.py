@@ -2,8 +2,6 @@ import time
 from typing import Dict, Any, Optional, Callable
 from core.factory.assembler import SimulationAssembler
 from core.persistence.database import ResultDatabase
-from core.batch.runner import BatchRunner
-from core.batch.generator import ConfigGenerator
 from core.batch.models import SimulationMetrics
 from core.logger import get_ui_logger
 
@@ -71,39 +69,6 @@ class SimulationService:
                 await db.stop_session()
             except Exception:
                 pass
-            raise e
-        finally:
-            self.is_simulating = False
-
-    async def run_batch(
-        self, 
-        root_config: Dict, 
-        universe_root: Any, 
-        on_progress: Callable[[str, float], None]
-    ) -> Any:
-        """执行批量仿真任务"""
-        if self.is_simulating:
-            return None
-        
-        self.is_simulating = True
-        try:
-            on_progress("BATCH PREPARING...", 0.05)
-            configs = list(ConfigGenerator.generate_from_tree(root_config, universe_root))
-            if not configs:
-                return None
-            
-            runner = BatchRunner()
-            
-            def progress_bridge(current, total):
-                on_progress(f"BATCH RUNNING ({current}/{total})...", current / total)
-
-            summary = await runner.run_batch(configs, on_progress=progress_bridge)
-            on_progress(f"BATCH FINISHED | AVG: {int(summary.avg_dps)}", 1.0)
-            return summary
-            
-        except Exception as e:
-            get_ui_logger().log_error(f"SimulationService: Batch run failed: {e}")
-            on_progress("BATCH FAILED", 0.0)
             raise e
         finally:
             self.is_simulating = False

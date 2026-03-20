@@ -5,14 +5,12 @@ from typing import Any
 from core.data.repository import MySQLDataRepository
 from core.data_models.team_data_model import CharacterDataModel
 from core.logger import get_ui_logger
-from core.batch.models import SimulationNode, ModifierRule
 from ui.services.metadata_service import MetadataService
 from ui.services.simulation_service import SimulationService
 from ui.view_models.library_vm import LibraryViewModel
 from ui.view_models.layout_vm import LayoutViewModel
 from ui.states.strategic_state import StrategicState
 from ui.states.tactical_state import TacticalState
-from ui.states.universe_state import UniverseState
 
 @ft.observable
 class AppState:
@@ -38,9 +36,6 @@ class AppState:
         self.strategic_state = StrategicState()
         self.tactical_state = TacticalState()
         self.tactical_state.clear_sequence()
-        
-        # 分支宇宙状态不再接收 events 引用
-        self.universe_state = UniverseState()
 
         # 4. 视图模型层
         self.library_vm = LibraryViewModel(self.repo)
@@ -191,11 +186,6 @@ class AppState:
             self.layout_vm.update_simulation(self.sim_status, self.sim_progress, False)
             self.notify()
 
-    # --- 其它代理方法 ---
-    @property
-    def universe_root(self):
-        return self.universe_state.universe_root
-
     def save_config(self, filename: str, data: dict | None = None):
         if not filename.endswith(".json"):
             filename += ".json"
@@ -213,35 +203,3 @@ class AppState:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         await self.apply_external_config(data)
-
-    # --- 变异树操作 (通过 UniverseState 代理) ---
-    @property
-    def selected_node(self) -> SimulationNode | None:
-        return self.universe_state.selected_node
-
-    def select_node(self, node: SimulationNode | None):
-        self.universe_state.select_node(node)
-
-    def add_branch(self, parent: SimulationNode, name: str = "新分支"):
-        self.universe_state.add_branch(parent, name)
-
-    def apply_range_to_node(self, node: SimulationNode, path: list, s: float, e: float, step: float, label: str):
-        self.universe_state.apply_range_to_node(node, path, s, e, step, label)
-
-    def remove_node(self, nid: str):
-        self.universe_state.remove_node(nid)
-
-    def update_node(self, nid: str, name: str | None = None, rule: ModifierRule | None = None):
-        self.universe_state.update_node(nid, name, rule)
-
-    def get_selected_node_config(self) -> dict | None:
-        return self.universe_state.get_selected_node_config()
-
-    def save_universe(self, filename):
-        self.universe_state.save_universe(filename)
-
-    def load_universe(self, filename):
-        self.universe_state.load_universe(filename)
-
-    def list_universes(self):
-        return self.universe_state.list_universes()
