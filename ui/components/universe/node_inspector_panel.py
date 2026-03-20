@@ -3,6 +3,7 @@ from __future__ import annotations
 import flet as ft
 
 from core.batch.models import BatchNodeKind, BatchRunSummary
+from ui.components.universe.node_add_drawer import NodeAddDrawer
 from ui.theme import GenshinTheme
 from ui.view_models.universe.node_inspector_panel_vm import NodeInspectorPanelViewModel
 
@@ -11,13 +12,13 @@ from ui.view_models.universe.node_inspector_panel_vm import NodeInspectorPanelVi
 def NodeInspectorPanel(
     vm: NodeInspectorPanelViewModel,
     on_rename,
-    on_add_rule,
-    on_add_range,
+    on_add_node,
     on_delete,
     on_apply_rule,
     on_apply_range,
     last_summary: BatchRunSummary | None = None,
 ) -> ft.Control:
+    drawer_open, set_drawer_open = ft.use_state(False)
     rule_path, set_rule_path = ft.use_state(vm.rule_path_text)
     rule_value, set_rule_value = ft.use_state(vm.rule_value_text)
     rule_label, set_rule_label = ft.use_state(vm.rule_label_text)
@@ -37,122 +38,256 @@ def NodeInspectorPanel(
         set_range_end(vm.range_end_text)
         set_range_step(vm.range_step_text)
         set_range_label(vm.range_label_text)
+        set_drawer_open(False)
 
     ft.use_effect(sync_inputs, [vm.node_id])
 
-    name_field = ft.TextField(
-        label="节点名称",
-        value=vm.node_name,
-        on_change=lambda e: on_rename(e.control.value),
-    )
+    kind_palette = {
+        BatchNodeKind.ROOT: {"accent": GenshinTheme.GOLD_LIGHT, "label": "BASE"},
+        BatchNodeKind.RULE: {"accent": GenshinTheme.PRIMARY, "label": "RULE"},
+        BatchNodeKind.RANGE_ANCHOR: {"accent": "#6AB3FF", "label": "RANGE"},
+    }[vm.node_kind]
 
-    node_meta = ft.Container(
-        content=ft.Row(
+    def soft_card(content: ft.Control, padding: int = 16) -> ft.Container:
+        return ft.Container(
+            content=content,
+            padding=padding,
+            border_radius=16,
+            bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.08, ft.Colors.WHITE)),
+        )
+
+    def styled_text_field(
+        *,
+        label: str,
+        value: str,
+        on_change,
+        hint_text: str | None = None,
+        dense: bool = False,
+        text_size: int = 15,
+        text_style: ft.TextStyle | None = None,
+        expand: bool = False,
+    ) -> ft.TextField:
+        return ft.TextField(
+            label=label,
+            value=value,
+            on_change=on_change,
+            hint_text=hint_text,
+            dense=dense,
+            text_size=text_size,
+            text_style=text_style,
+            label_style=ft.TextStyle(
+                size=12,
+                color=ft.Colors.with_opacity(0.78, GenshinTheme.TEXT_SECONDARY),
+            ),
+            hint_style=ft.TextStyle(
+                size=max(12, text_size - 2),
+                color=ft.Colors.with_opacity(0.50, GenshinTheme.TEXT_SECONDARY),
+            ),
+            bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+            border=ft.InputBorder.OUTLINE,
+            border_radius=14,
+            border_width=1.2,
+            border_color=ft.Colors.with_opacity(0.14, ft.Colors.WHITE),
+            focused_border_width=1.8,
+            focused_border_color=ft.Colors.with_opacity(0.65, kind_palette["accent"]),
+            content_padding=ft.Padding.symmetric(horizontal=14, vertical=12),
+            cursor_color=kind_palette["accent"],
+            selection_color=ft.Colors.with_opacity(0.25, kind_palette["accent"]),
+            expand=expand,
+        )
+
+    hero = ft.Container(
+        padding=18,
+        border_radius=18,
+        gradient=ft.LinearGradient(
+            begin=ft.Alignment(-1, -1),
+            end=ft.Alignment(1, 1),
+            colors=["#2F2943", "#231F33"],
+        ),
+        border=ft.Border.all(1, ft.Colors.with_opacity(0.09, ft.Colors.WHITE)),
+        content=ft.Column(
             [
-                ft.Text(f"类型: {vm.node_kind.value}", color=GenshinTheme.TEXT_SECONDARY),
+                ft.Row(
+                    [
+                        ft.Row(
+                            [
+                                ft.Container(
+                                    content=ft.Text(
+                                        kind_palette["label"],
+                                        size=9,
+                                        weight=ft.FontWeight.W_800,
+                                        color=GenshinTheme.ON_PRIMARY,
+                                    ),
+                                    bgcolor=kind_palette["accent"],
+                                    padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                                    border_radius=999,
+                                ),
+                                ft.Container(
+                                    content=ft.Text(
+                                        "受控生成" if vm.is_generated else "可编辑",
+                                        size=9,
+                                        color=ft.Colors.AMBER_200
+                                        if vm.is_generated
+                                        else GenshinTheme.TEXT_SECONDARY,
+                                        weight=ft.FontWeight.W_700,
+                                    ),
+                                    padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                                    border_radius=999,
+                                    bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE),
+                                    border=ft.Border.all(
+                                        1, ft.Colors.with_opacity(0.08, ft.Colors.WHITE)
+                                    ),
+                                ),
+                            ],
+                            spacing=8,
+                        ),
+                        ft.Row(
+                            [
+                                ft.IconButton(
+                                    icon=ft.Icons.ADD,
+                                    tooltip="新增子节点",
+                                    icon_color=kind_palette["accent"],
+                                    on_click=lambda _: set_drawer_open(True),
+                                    style=ft.ButtonStyle(
+                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                        side=ft.BorderSide(
+                                            width=1,
+                                            color=ft.Colors.with_opacity(
+                                                0.25, kind_palette["accent"]
+                                            ),
+                                        ),
+                                        shape=ft.RoundedRectangleBorder(radius=12),
+                                    ),
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.DELETE_OUTLINE,
+                                    tooltip="删除当前节点",
+                                    icon_color=ft.Colors.with_opacity(0.9, "#F6C0C8"),
+                                    disabled=not vm.can_delete,
+                                    on_click=lambda _: on_delete(),
+                                    style=ft.ButtonStyle(
+                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                        side=ft.BorderSide(
+                                            width=1,
+                                            color=ft.Colors.with_opacity(0.25, "#F6C0C8"),
+                                        ),
+                                        shape=ft.RoundedRectangleBorder(radius=12),
+                                    ),
+                                ),
+                            ],
+                            spacing=4,
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
+                ),
                 ft.Text(
-                    "受控子节点" if vm.is_generated else "可编辑",
-                    color=ft.Colors.AMBER_200 if vm.is_generated else GenshinTheme.TEXT_SECONDARY,
+                    f"节点类型: {vm.node_kind.value}",
+                    size=11,
+                    color=GenshinTheme.TEXT_SECONDARY,
+                ),
+                styled_text_field(
+                    label="节点名称",
+                    value=vm.node_name,
+                    hint_text="未命名节点",
+                    text_size=20,
+                    text_style=ft.TextStyle(weight=ft.FontWeight.W_900),
+                    on_change=lambda e: on_rename(e.control.value),
                 ),
             ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            spacing=10,
         ),
-        padding=ft.Padding.symmetric(horizontal=4),
     )
 
-    actions = ft.Row(
-        [
-            ft.OutlinedButton(
-                "新增规则子节点",
-                icon=ft.Icons.ADD_CIRCLE_OUTLINE,
-                on_click=lambda _: on_add_rule(vm.node_id),
-            ),
-            ft.OutlinedButton(
-                "新增区间锚点",
-                icon=ft.Icons.LINE_AXIS,
-                on_click=lambda _: on_add_range(vm.node_id),
-            ),
-            ft.TextButton(
-                "删除当前节点",
-                icon=ft.Icons.DELETE_OUTLINE,
-                disabled=not vm.can_delete,
-                on_click=lambda _: on_delete(),
-            ),
-        ],
-        wrap=True,
-    )
-
-    controls: list[ft.Control] = [name_field, node_meta, actions, ft.Divider()]
+    controls: list[ft.Control] = [
+        hero,
+        ft.Divider(height=14, color=ft.Colors.with_opacity(0.08, ft.Colors.WHITE)),
+    ]
 
     if vm.show_rule_form:
         controls.append(
-            ft.Container(
-                content=ft.Column(
+            soft_card(
+                ft.Column(
                     [
-                        ft.Text("规则编辑", weight=ft.FontWeight.BOLD),
+                        ft.Row(
+                            [
+                                ft.Icon(ft.Icons.TUNE, size=16, color=GenshinTheme.PRIMARY),
+                                ft.Text("规则编辑", weight=ft.FontWeight.BOLD),
+                            ],
+                            spacing=8,
+                        ),
                         ft.Text(
                             "路径使用点分隔，例如 context_config.team.0.character.level",
                             size=11,
                             color=GenshinTheme.TEXT_SECONDARY,
                         ),
-                        ft.TextField(
+                        styled_text_field(
                             label="目标路径",
                             value=rule_path,
                             on_change=lambda e: set_rule_path(e.control.value),
                         ),
-                        ft.TextField(
+                        styled_text_field(
                             label="替换值",
                             value=rule_value,
                             on_change=lambda e: set_rule_value(e.control.value),
                         ),
-                        ft.TextField(
+                        styled_text_field(
                             label="规则标签",
                             value=rule_label,
                             on_change=lambda e: set_rule_label(e.control.value),
                         ),
                         ft.ElevatedButton(
                             "应用规则",
+                            icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
                             bgcolor=GenshinTheme.PRIMARY,
                             color=ft.Colors.WHITE,
+                            expand=True,
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=18),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=14),
+                            ),
                             on_click=lambda _: on_apply_rule(
                                 rule_path, rule_value, rule_label
                             ),
                         ),
                     ],
                     spacing=10,
-                ),
-                padding=16,
-                border_radius=16,
-                bgcolor=GenshinTheme.SURFACE,
-                border=ft.border.all(1, GenshinTheme.GLASS_BORDER),
+                )
             )
         )
     elif vm.show_range_form:
         controls.append(
-            ft.Container(
-                content=ft.Column(
+            soft_card(
+                ft.Column(
                     [
-                        ft.Text("区间锚点", weight=ft.FontWeight.BOLD),
-                        ft.TextField(
+                        ft.Row(
+                            [
+                                ft.Icon(ft.Icons.MULTILINE_CHART, size=16, color="#6AB3FF"),
+                                ft.Text("区间锚点", weight=ft.FontWeight.BOLD),
+                            ],
+                            spacing=8,
+                        ),
+                        styled_text_field(
                             label="目标路径",
                             value=range_path,
                             on_change=lambda e: set_range_path(e.control.value),
                         ),
                         ft.Row(
                             [
-                                ft.TextField(
+                                styled_text_field(
                                     label="起始",
                                     value=range_start,
                                     on_change=lambda e: set_range_start(e.control.value),
                                     expand=True,
                                 ),
-                                ft.TextField(
+                                styled_text_field(
                                     label="终止",
                                     value=range_end,
                                     on_change=lambda e: set_range_end(e.control.value),
                                     expand=True,
                                 ),
-                                ft.TextField(
+                                styled_text_field(
                                     label="步长",
                                     value=range_step,
                                     on_change=lambda e: set_range_step(e.control.value),
@@ -161,15 +296,21 @@ def NodeInspectorPanel(
                             ],
                             spacing=10,
                         ),
-                        ft.TextField(
+                        styled_text_field(
                             label="区间标签",
                             value=range_label,
                             on_change=lambda e: set_range_label(e.control.value),
                         ),
                         ft.ElevatedButton(
                             "生成区间子节点",
+                            icon=ft.Icons.AUTO_AWESOME,
                             bgcolor=GenshinTheme.PRIMARY,
                             color=ft.Colors.WHITE,
+                            expand=True,
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=18),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=14),
+                            ),
                             on_click=lambda _: on_apply_range(
                                 range_path,
                                 range_start,
@@ -178,35 +319,101 @@ def NodeInspectorPanel(
                                 range_label,
                             ),
                         ),
-                        ft.Text(
-                            f"当前生成子节点数: {vm.range_children_count}",
-                            color=GenshinTheme.TEXT_SECONDARY,
-                            size=11,
+                        ft.Container(
+                            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+                            border_radius=999,
+                            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                            border=ft.Border.all(
+                                1, ft.Colors.with_opacity(0.08, ft.Colors.WHITE)
+                            ),
+                            content=ft.Text(
+                                f"当前生成子节点数: {vm.range_children_count}",
+                                color=GenshinTheme.TEXT_SECONDARY,
+                                size=11,
+                            ),
                         ),
                     ],
                     spacing=10,
-                ),
-                padding=16,
-                border_radius=16,
-                bgcolor=GenshinTheme.SURFACE,
-                border=ft.border.all(1, GenshinTheme.GLASS_BORDER),
+                )
             )
         )
     else:
-        controls.append(ft.Text(vm.help_text, color=GenshinTheme.TEXT_SECONDARY))
+        controls.append(
+            soft_card(
+                ft.Text(vm.help_text, color=GenshinTheme.TEXT_SECONDARY, size=12),
+                padding=14,
+            )
+        )
 
     if last_summary:
         controls.extend(
             [
-                ft.Divider(),
-                ft.Text("最近一次执行摘要", weight=ft.FontWeight.BOLD),
-                ft.Text(
-                    f"总数 {last_summary.total_runs} | 成功 {last_summary.completed_runs} | 失败 {last_summary.failed_runs}"
-                ),
-                ft.Text(
-                    f"平均 DPS {int(last_summary.avg_dps)} | 最高 {int(last_summary.max_dps)} | 最低 {int(last_summary.min_dps)}"
+                ft.Divider(height=14, color=ft.Colors.with_opacity(0.08, ft.Colors.WHITE)),
+                ft.Text("最近一次执行摘要", weight=ft.FontWeight.BOLD, size=13),
+                soft_card(
+                    ft.Column(
+                        [
+                            ft.Row(
+                                [
+                                    ft.Container(
+                                        content=ft.Text(
+                                            f"总数 {last_summary.total_runs}",
+                                            size=11,
+                                            color=GenshinTheme.TEXT_SECONDARY,
+                                        ),
+                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
+                                        border_radius=999,
+                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                    ),
+                                    ft.Container(
+                                        content=ft.Text(
+                                            f"成功 {last_summary.completed_runs}",
+                                            size=11,
+                                            color=GenshinTheme.TEXT_SECONDARY,
+                                        ),
+                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
+                                        border_radius=999,
+                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                    ),
+                                    ft.Container(
+                                        content=ft.Text(
+                                            f"失败 {last_summary.failed_runs}",
+                                            size=11,
+                                            color=GenshinTheme.TEXT_SECONDARY,
+                                        ),
+                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
+                                        border_radius=999,
+                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                    ),
+                                ],
+                                spacing=6,
+                                wrap=True,
+                            ),
+                            ft.Text(
+                                f"平均 DPS {int(last_summary.avg_dps)} | 最高 {int(last_summary.max_dps)} | 最低 {int(last_summary.min_dps)}"
+                            ),
+                        ],
+                        spacing=8,
+                    ),
                 ),
             ]
         )
 
-    return ft.Column(controls, spacing=14, scroll=ft.ScrollMode.AUTO)
+    return ft.Stack(
+        expand=True,
+        controls=[
+            ft.Column(controls, spacing=14, scroll=ft.ScrollMode.AUTO, tight=True),
+            NodeAddDrawer(
+                is_open=drawer_open,
+                anchor_x=332,
+                anchor_y=60,
+                viewport_width=372,
+                on_select_kind=lambda kind: [
+                    on_add_node(vm.node_id, kind),
+                    set_drawer_open(False),
+                ],
+                on_close=lambda: set_drawer_open(False),
+                preferred_direction="right",
+            ),
+        ],
+    )

@@ -4,12 +4,18 @@ import flet as ft
 import flet.canvas as cv
 
 from core.batch.models import BatchNode
+from ui.components.universe.node_add_drawer import NodeAddDrawer
 from ui.components.universe.node_card import NodeCard
 from ui.view_models.universe.mind_map_canvas_data import MindMapCanvasData
 
 
 @ft.component
-def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_rule, on_deselect=None):
+def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=None):
+    drawer_open, set_drawer_open = ft.use_state(False)
+    drawer_parent_id, set_drawer_parent_id = ft.use_state("root")
+    drawer_anchor_x, set_drawer_anchor_x = ft.use_state(0.0)
+    drawer_anchor_y, set_drawer_anchor_y = ft.use_state(0.0)
+
     root = data.root
     positions: dict[str, tuple[float, float]] = {}
     spans: dict[str, int] = {}
@@ -46,6 +52,9 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_rule, on_deselect=N
     line_shapes: list[cv.Shape] = []
     node_controls: list[ft.Control] = []
 
+    card_width = 236
+    card_mid_y = 46
+
     def walk(node: BatchNode) -> None:
         x, y = positions[node.id]
         vm = data.node_index.get(node.id)
@@ -59,7 +68,12 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_rule, on_deselect=N
                     vm=vm,
                     is_selected=node.id == data.selected_node_id,
                     on_select=lambda _, node_id=node.id: on_select(node_id),
-                    on_add_rule=lambda _, node_id=node.id: on_add_rule(node_id),
+                    on_open_add_drawer=lambda _, node_id=node.id, node_x=x, node_y=y: [
+                        set_drawer_parent_id(node_id),
+                        set_drawer_anchor_x(node_x + card_width - 6),
+                        set_drawer_anchor_y(node_y + 12),
+                        set_drawer_open(True),
+                    ],
                 ),
             )
         )
@@ -69,18 +83,18 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_rule, on_deselect=N
             line_shapes.append(
                 cv.Path(
                     [
-                        cv.Path.MoveTo(x + 220, y + 46),
+                        cv.Path.MoveTo(x + card_width, y + card_mid_y),
                         cv.Path.CubicTo(
                             x + 270,
-                            y + 46,
+                            y + card_mid_y,
                             child_x - 60,
-                            child_y + 46,
+                            child_y + card_mid_y,
                             child_x,
-                            child_y + 46,
+                            child_y + card_mid_y,
                         ),
                     ],
                     paint=ft.Paint(
-                        color="rgba(209,162,255,0.72)",
+                        color=ft.Colors.with_opacity(0.72, "#D1A2FF"),
                         style=ft.PaintingStyle.STROKE,
                         stroke_width=2.6,
                     ),
@@ -98,6 +112,18 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_rule, on_deselect=N
                 width=width,
                 height=height,
                 clip_behavior=ft.ClipBehavior.NONE,
+            ),
+            NodeAddDrawer(
+                is_open=drawer_open,
+                anchor_x=drawer_anchor_x,
+                anchor_y=drawer_anchor_y,
+                viewport_width=width,
+                on_select_kind=lambda kind: [
+                    on_add_node(drawer_parent_id, kind),
+                    set_drawer_open(False),
+                ],
+                on_close=lambda: set_drawer_open(False),
+                preferred_direction="right",
             ),
         ],
         width=width,

@@ -6,7 +6,6 @@ from ui.components.universe import (
     EditorHeader,
     MindMapCanvas,
     NodeInspectorPanel,
-    StatusBar,
 )
 from ui.states.batch_editor_state import BatchEditorState
 from ui.theme import GenshinTheme
@@ -35,28 +34,42 @@ class UniverseView:
             content=NodeInspectorPanel(
                 vm=state.inspector_vm,
                 on_rename=state.rename_selected_node,
-                on_add_rule=state.add_rule_child,
-                on_add_range=state.add_range_anchor,
+                on_add_node=lambda parent_id, kind: state.add_child(parent_id, kind),
                 on_delete=state.delete_selected_node,
                 on_apply_rule=state.update_rule,
                 on_apply_range=state.configure_range_anchor,
                 last_summary=state.last_summary,
             ),
             visible=show_inspector,
-            width=380,
-            right=24,
-            top=104,
-            bottom=84,
-            padding=20,
-            border_radius=24,
-            bgcolor="rgba(33, 29, 47, 0.86)",
-            border=ft.border.all(1, "rgba(255,255,255,0.08)"),
-        )
-
-        status_bar = StatusBar(
-            status_text=state.status_text,
-            error_message=state.error_message,
-            progress=state.progress,
+            width=408,
+            right=18,
+            top=88,
+            bottom=18,
+            padding=18,
+            border_radius=26,
+            gradient=ft.LinearGradient(
+                begin=ft.Alignment(-1, -1),
+                end=ft.Alignment(1, 1),
+                colors=[
+                    ft.Colors.with_opacity(0.93, "#2B243D"),
+                    ft.Colors.with_opacity(0.93, "#1E192B"),
+                ],
+            ),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.12, ft.Colors.WHITE)),
+            shadow=[
+                ft.BoxShadow(
+                    blur_radius=26,
+                    spread_radius=0,
+                    color=ft.Colors.with_opacity(0.35, ft.Colors.BLACK),
+                    offset=ft.Offset(0, 10),
+                ),
+                ft.BoxShadow(
+                    blur_radius=36,
+                    spread_radius=0,
+                    color=ft.Colors.with_opacity(0.14, GenshinTheme.PRIMARY),
+                    offset=ft.Offset(0, 0),
+                ),
+            ],
         )
 
         overlay = self._build_modal(
@@ -82,14 +95,13 @@ class UniverseView:
                         content=MindMapCanvas(
                             data=state.canvas_data,
                             on_select=state.select_node,
-                            on_add_rule=state.add_rule_child,
+                            on_add_node=lambda parent_id, kind: state.add_child(parent_id, kind),
                             on_deselect=lambda: state.select_node("root"),
                         ),
                         padding=ft.Padding(18, 110, 18, 70),
                     ),
                     header,
                     inspector_panel,
-                    status_bar,
                     overlay,
                 ],
                 expand=True,
@@ -103,7 +115,7 @@ class UniverseView:
                 top=100,
                 bottom=70,
                 width=1,
-                bgcolor="rgba(255,255,255,0.035)",
+                bgcolor=ft.Colors.with_opacity(0.035, ft.Colors.WHITE),
             )
             for index in range(8)
         ]
@@ -113,7 +125,7 @@ class UniverseView:
                 right=420,
                 top=130 + index * 140,
                 height=1,
-                bgcolor="rgba(255,255,255,0.03)",
+                bgcolor=ft.Colors.with_opacity(0.03, ft.Colors.WHITE),
             )
             for index in range(6)
         ]
@@ -162,7 +174,7 @@ class UniverseView:
                 padding=24,
                 bgcolor=GenshinTheme.SURFACE,
                 border_radius=18,
-                border=ft.border.all(1, GenshinTheme.GLASS_BORDER),
+                border=ft.Border.all(1, GenshinTheme.GLASS_BORDER),
             )
         elif modal_mode == "load":
             files = state.list_projects()
@@ -192,7 +204,7 @@ class UniverseView:
                 padding=24,
                 bgcolor=GenshinTheme.SURFACE,
                 border_radius=18,
-                border=ft.border.all(1, GenshinTheme.GLASS_BORDER),
+                border=ft.Border.all(1, GenshinTheme.GLASS_BORDER),
             )
 
         return ft.Container(
@@ -201,7 +213,7 @@ class UniverseView:
             content=ft.Stack(
                 [
                     ft.Container(
-                        bgcolor="rgba(0,0,0,0.78)",
+                        bgcolor=ft.Colors.with_opacity(0.78, ft.Colors.BLACK),
                         on_click=lambda _: set_modal_mode(None),
                     ),
                     ft.Container(content=dialog, alignment=ft.Alignment.CENTER),

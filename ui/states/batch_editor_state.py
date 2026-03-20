@@ -115,27 +115,23 @@ class BatchEditorState:
         self.notify()
 
     def add_rule_child(self, parent_id: str | None = None) -> None:
-        parent = self.find_node(parent_id or self.selected_node_id)
-        if not parent:
-            return
-        new_node = BatchNode(
-            id=self._new_id(),
-            name="新规则节点",
-            kind=BatchNodeKind.RULE,
-        )
-        parent.children.append(new_node)
-        self.selected_node_id = new_node.id
-        self._sync_view_models()
-        self.notify()
+        self.add_child(parent_id=parent_id, kind=BatchNodeKind.RULE)
 
     def add_range_anchor(self, parent_id: str | None = None) -> None:
+        self.add_child(parent_id=parent_id, kind=BatchNodeKind.RANGE_ANCHOR)
+
+    def add_child(self, parent_id: str | None, kind: BatchNodeKind) -> None:
         parent = self.find_node(parent_id or self.selected_node_id)
         if not parent:
             return
+        default_names = {
+            BatchNodeKind.RULE: "新规则节点",
+            BatchNodeKind.RANGE_ANCHOR: "新区间锚点",
+        }
         new_node = BatchNode(
             id=self._new_id(),
-            name="新区间锚点",
-            kind=BatchNodeKind.RANGE_ANCHOR,
+            name=default_names.get(kind, "新节点"),
+            kind=kind,
         )
         parent.children.append(new_node)
         self.selected_node_id = new_node.id
