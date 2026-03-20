@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - test fallback
     ft = _ObservableShim()
 
 from core.batch import (
+    BRANCH_RUN_BATCH_REQUEST,
     BatchCompileError,
     BatchExecutionService,
     BatchNode,
@@ -26,8 +27,12 @@ from core.batch import (
     BatchProjectStorage,
     BatchRunSummary,
     MutationRule,
+    MAIN_BATCH_FINISHED,
+    MAIN_BATCH_PROGRESS,
+    MAIN_BATCH_REJECTED,
     RangeMutationConfig,
 )
+from core.logger import get_ui_logger
 from ui.view_models.universe import (
     MindMapCanvasData,
     NodeInspectorPanelViewModel,
@@ -43,6 +48,7 @@ class BatchEditorState:
         self.page = None
         self.storage = BatchProjectStorage()
         self.executor = BatchExecutionService()
+        self.branch_to_main_queue = None
         self.project = BatchProject()
         self.selected_node_id = self.project.root.id
         self.node_vms: dict[str, NodeViewModel] = {}
@@ -55,6 +61,7 @@ class BatchEditorState:
         self.status_text = "等待初始化"
         self.progress = 0.0
         self.is_running = False
+        self.active_run_id: str | None = None
         self.error_message = ""
         self.last_summary: Optional[BatchRunSummary] = None
         self._sync_view_models()
@@ -218,31 +225,93 @@ class BatchEditorState:
             requests = BatchProjectCompiler.compile(self.project)
             if not requests:
                 self.status_text = "没有可执行的叶子任务"
+                self.is_running = False
                 self.notify()
                 return None
+            if self.branch_to_main_queue is None:
+                raise RuntimeError("IPC 未连接，无法提交到主进程执行。")
 
-            def on_progress(done: int, total: int) -> None:
-                self.progress = done / total if total else 0.0
-                self.status_text = f"批处理执行中 {done}/{total}"
-                self.notify()
+            run_id = uuid.uuid4().hex
+            self.active_run_id = run_id
+            payload = {
+                "type": BRANCH_RUN_BATCH_REQUEST,
+                "run_id": run_id,
+                "project_name": self.project.name,
+                "requests": [request.to_dict() for request in requests],
+            }
+            self.branch_to_main_queue.put(payload)
+            self.status_text = f"已提交主进程执行（{len(requests)} 个任务）"
+            self.notify()
+            return None
+        except (BatchCompileError, ValueError) as exc:
+            self.error_message = str(exc)
+            self.status_text = "批处理执行失败"
+            self.is_running = False
+            self.active_run_id = None
+            self.notify()
+            raise
+        except Exception as exc:
+            self.error_message = str(exc)
+            self.status_text = "批处理提交失败"
+            self.is_running = False
+            self.active_run_id = None
+            self.notify()
+            raise
 
-            summary = await self.executor.run(requests=requests, on_progress=on_progress)
+    def handle_main_message(self, message: dict[str, Any]) -> Optional[BatchRunSummary]:
+        msg_type = str(message.get("type", ""))
+        run_id = str(message.get("run_id", ""))
+
+        if not run_id or run_id != self.active_run_id:
+            return None
+
+        if msg_type == MAIN_BATCH_PROGRESS:
+            done = int(message.get("done", 0))
+            total = int(message.get("total", 0))
+            status_text = str(message.get("status_text", f"批处理执行中 {done}/{total}"))
+            self.progress = done / total if total else 0.0
+            self.status_text = status_text
+            self.notify()
+            return None
+
+        if msg_type == MAIN_BATCH_REJECTED:
+            reason = str(message.get("reason", "unknown"))
+            detail = str(message.get("message", "主进程拒绝执行请求。"))
+            self.error_message = detail
+            self.status_text = f"执行被拒绝（{reason}）"
+            self.is_running = False
+            self.active_run_id = None
+            self.notify()
+            return None
+
+        if msg_type == MAIN_BATCH_FINISHED:
+            summary_payload = message.get("summary", {})
+            summary = BatchRunSummary.from_dict(summary_payload)
             self.last_summary = summary
             self.progress = 1.0
+            first_error = str(message.get("first_error", "") or "")
+            if summary.failed_runs > 0:
+                self.error_message = first_error or "批处理中存在失败任务，请检查日志。"
             self.status_text = (
                 f"完成 {summary.completed_runs}/{summary.total_runs}，"
                 f"失败 {summary.failed_runs}，平均 DPS {int(summary.avg_dps)}"
             )
+            self.is_running = False
+            self.active_run_id = None
             self.notify()
             return summary
-        except (BatchCompileError, ValueError) as exc:
-            self.error_message = str(exc)
-            self.status_text = "批处理执行失败"
-            self.notify()
-            raise
-        finally:
-            self.is_running = False
-            self.notify()
+
+        return None
+
+    def handle_main_error(self, run_id: str | None, error_text: str) -> None:
+        if not run_id or run_id != self.active_run_id:
+            return
+        get_ui_logger().log_error(f"Batch editor main-side error: {error_text}")
+        self.error_message = error_text
+        self.status_text = "主进程执行失败"
+        self.is_running = False
+        self.active_run_id = None
+        self.notify()
 
     def find_node(self, node_id: str) -> Optional[BatchNode]:
         def walk(current: BatchNode) -> Optional[BatchNode]:
