@@ -53,10 +53,18 @@ class BatchEditorState:
         self.selected_node_id = self.project.root.id
         self.node_vms: dict[str, NodeViewModel] = {}
         self.inspector_vm = NodeInspectorPanelViewModel()
+        self.drawer_open = False
+        self.drawer_parent_id = "root"
+        self.drawer_anchor_x = 0.0
+        self.drawer_anchor_y = 0.0
         self.canvas_data = MindMapCanvasData(
             root=self.project.root,
             selected_node_id=self.selected_node_id,
             node_index=self.node_vms,
+            drawer_open=self.drawer_open,
+            drawer_parent_id=self.drawer_parent_id,
+            drawer_anchor_x=self.drawer_anchor_x,
+            drawer_anchor_y=self.drawer_anchor_y,
         )
         self.status_text = "等待初始化"
         self.progress = 0.0
@@ -142,6 +150,19 @@ class BatchEditorState:
         )
         parent.children.append(new_node)
         self.selected_node_id = new_node.id
+        self._sync_view_models()
+        self.notify()
+
+    def open_add_drawer(self, parent_id: str, x: float, y: float) -> None:
+        self.drawer_parent_id = parent_id
+        self.drawer_anchor_x = x
+        self.drawer_anchor_y = y
+        self.drawer_open = True
+        self._sync_view_models()
+        self.notify()
+
+    def close_add_drawer(self) -> None:
+        self.drawer_open = False
         self._sync_view_models()
         self.notify()
 
@@ -356,6 +377,10 @@ class BatchEditorState:
             root=self.project.root,
             selected_node_id=self.selected_node_id,
             node_index=self.node_vms,
+            drawer_open=self.drawer_open,
+            drawer_parent_id=self.drawer_parent_id,
+            drawer_anchor_x=self.drawer_anchor_x,
+            drawer_anchor_y=self.drawer_anchor_y,
         )
         self.inspector_vm = self._build_inspector_vm(selected)
 
@@ -382,6 +407,7 @@ class BatchEditorState:
                 if node.kind == BatchNodeKind.ROOT
                 else ""
             ),
+            base_config=self.project.base_config,
         )
 
     def get_rule_path_text(self, node: BatchNode) -> str:

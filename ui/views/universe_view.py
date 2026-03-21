@@ -96,6 +96,8 @@ class UniverseView:
                             data=state.canvas_data,
                             on_select=state.select_node,
                             on_add_node=lambda parent_id, kind: state.add_child(parent_id, kind),
+                            on_open_drawer=state.open_add_drawer,
+                            on_close_drawer=state.close_add_drawer,
                             on_deselect=lambda: state.select_node("root"),
                         ),
                         padding=ft.Padding(18, 110, 18, 70),

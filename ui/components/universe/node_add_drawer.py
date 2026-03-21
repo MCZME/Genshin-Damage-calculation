@@ -66,11 +66,12 @@ def NodeAddDrawer(
 
     return ft.Stack(
         visible=is_open,
-        expand=True,
         controls=[
-            ft.GestureDetector(
-                on_tap=lambda _: on_close(),
-                content=ft.Container(expand=True, bgcolor=ft.Colors.TRANSPARENT),
+            ft.Container(
+                width=viewport_width,
+                height=600,
+                on_click=lambda _: on_close(),
+                bgcolor=ft.Colors.TRANSPARENT,
             ),
             ft.Container(
                 left=left,

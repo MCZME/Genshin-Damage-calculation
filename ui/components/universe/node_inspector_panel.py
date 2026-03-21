@@ -4,6 +4,7 @@ import flet as ft
 
 from core.batch.models import BatchNodeKind, BatchRunSummary
 from ui.components.universe.node_add_drawer import NodeAddDrawer
+from ui.components.universe.path_selector_drawer import PathSelectorDrawer
 from ui.theme import GenshinTheme
 from ui.view_models.universe.node_inspector_panel_vm import NodeInspectorPanelViewModel
 
@@ -19,6 +20,7 @@ def NodeInspectorPanel(
     last_summary: BatchRunSummary | None = None,
 ) -> ft.Control:
     drawer_open, set_drawer_open = ft.use_state(False)
+    path_selector_open, set_path_selector_open = ft.use_state(False)
     rule_path, set_rule_path = ft.use_state(vm.rule_path_text)
     rule_value, set_rule_value = ft.use_state(vm.rule_value_text)
 
@@ -215,15 +217,36 @@ def NodeInspectorPanel(
                             ],
                             spacing=8,
                         ),
-                        ft.Text(
-                            "路径使用点分隔，例如 context_config.team.0.character.level",
-                            size=11,
-                            color=GenshinTheme.TEXT_SECONDARY,
-                        ),
-                        styled_text_field(
-                            label="目标路径",
-                            value=rule_path,
-                            on_change=lambda e: set_rule_path(e.control.value),
+                        ft.Container(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(ft.Icons.ACCOUNT_TREE, size=16, color=GenshinTheme.TEXT_SECONDARY),
+                                    ft.Text(
+                                        rule_path or "点击选择目标路径",
+                                        size=13,
+                                        color=GenshinTheme.TEXT_SECONDARY if not rule_path else ft.Colors.WHITE,
+                                        expand=True,
+                                        no_wrap=True,
+                                        overflow=ft.TextOverflow.ELLIPSIS,
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.Icons.EXPAND_MORE,
+                                        icon_size=16,
+                                        icon_color=kind_palette["accent"],
+                                        tooltip="选择路径",
+                                        on_click=lambda _: set_path_selector_open(True),
+                                        style=ft.ButtonStyle(
+                                            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
+                                        ),
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
+                            padding=ft.Padding(12, 10, 4, 10),
+                            border_radius=14,
+                            bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+                            border=ft.Border.all(1, ft.Colors.with_opacity(0.14, ft.Colors.WHITE)),
+                            on_click=lambda _: set_path_selector_open(True),
                         ),
                         styled_text_field(
                             label="替换值",
@@ -392,21 +415,44 @@ def NodeInspectorPanel(
             ]
         )
 
+    def handle_select_path(path: str) -> None:
+        set_rule_path(path)
+        set_path_selector_open(False)
+
     return ft.Stack(
         expand=True,
-        controls=[
-            ft.Column(controls, spacing=14, scroll=ft.ScrollMode.AUTO, tight=True),
-            NodeAddDrawer(
-                is_open=drawer_open,
-                anchor_x=332,
-                anchor_y=60,
-                viewport_width=372,
-                on_select_kind=lambda kind: [
-                    on_add_node(vm.node_id, kind),
-                    set_drawer_open(False),
-                ],
-                on_close=lambda: set_drawer_open(False),
-                preferred_direction="right",
-            ),
-        ],
+        controls=(
+            [
+                ft.Column(controls, spacing=14, scroll=ft.ScrollMode.AUTO, tight=True),
+            ]
+            + (
+                [
+                    NodeAddDrawer(
+                        is_open=drawer_open,
+                        anchor_x=332,
+                        anchor_y=60,
+                        viewport_width=372,
+                        on_select_kind=lambda kind: [
+                            on_add_node(vm.node_id, kind),
+                            set_drawer_open(False),
+                        ],
+                        on_close=lambda: set_drawer_open(False),
+                        preferred_direction="right",
+                    )
+                ] if drawer_open else []
+            )
+            + (
+                [
+                    PathSelectorDrawer(
+                        is_open=path_selector_open,
+                        anchor_x=332,
+                        anchor_y=120,
+                        viewport_width=372,
+                        base_config=vm.base_config,
+                        on_select_path=handle_select_path,
+                        on_close=lambda: set_path_selector_open(False),
+                    )
+                ] if path_selector_open else []
+            )
+        ),
     )

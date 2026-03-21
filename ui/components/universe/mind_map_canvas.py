@@ -12,11 +12,7 @@ FREE_PAN_MARGIN = 100000
 
 
 @ft.component
-def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=None):
-    drawer_open, set_drawer_open = ft.use_state(False)
-    drawer_parent_id, set_drawer_parent_id = ft.use_state("root")
-    drawer_anchor_x, set_drawer_anchor_x = ft.use_state(0.0)
-    drawer_anchor_y, set_drawer_anchor_y = ft.use_state(0.0)
+def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_open_drawer, on_close_drawer, on_deselect=None):
 
     root = data.root
     positions: dict[str, tuple[float, float]] = {}
@@ -62,6 +58,10 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=N
         vm = data.node_index.get(node.id)
         if vm is None:
             return
+
+        def handle_open_drawer(e, current_id=node.id, cx=x, cy=y):
+            on_open_drawer(current_id, cx + card_width - 6, cy + 12)
+
         node_controls.append(
             ft.Container(
                 left=x,
@@ -70,12 +70,7 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=N
                     vm=vm,
                     is_selected=node.id == data.selected_node_id,
                     on_select=lambda _, node_id=node.id: on_select(node_id),
-                    on_open_add_drawer=lambda _, node_id=node.id, node_x=x, node_y=y: [
-                        set_drawer_parent_id(node_id),
-                        set_drawer_anchor_x(node_x + card_width - 6),
-                        set_drawer_anchor_y(node_y + 12),
-                        set_drawer_open(True),
-                    ],
+                    on_open_add_drawer=handle_open_drawer,
                 ),
             )
         )
@@ -116,15 +111,15 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_deselect=N
                 clip_behavior=ft.ClipBehavior.NONE,
             ),
             NodeAddDrawer(
-                is_open=drawer_open,
-                anchor_x=drawer_anchor_x,
-                anchor_y=drawer_anchor_y,
+                is_open=data.drawer_open,
+                anchor_x=data.drawer_anchor_x,
+                anchor_y=data.drawer_anchor_y,
                 viewport_width=width,
                 on_select_kind=lambda kind: [
-                    on_add_node(drawer_parent_id, kind),
-                    set_drawer_open(False),
+                    on_add_node(data.drawer_parent_id, kind),
+                    on_close_drawer(),
                 ],
-                on_close=lambda: set_drawer_open(False),
+                on_close=lambda: on_close_drawer(),
                 preferred_direction="right",
             ),
         ],

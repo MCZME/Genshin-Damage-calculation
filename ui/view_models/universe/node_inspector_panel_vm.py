@@ -1,5 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 import flet as ft
 from core.batch.models import BatchNodeKind
 
@@ -14,6 +15,7 @@ class NodeInspectorPanelViewModel:
     rule_path_text: str = ""
     rule_value_text: str = ""
     range_path_text: str = ""
+    base_config: dict[str, Any] = field(default_factory=dict)
     range_start_text: str = "0"
     range_end_text: str = "10"
     range_step_text: str = "1"
