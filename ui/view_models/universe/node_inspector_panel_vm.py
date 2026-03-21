@@ -13,7 +13,6 @@ class NodeInspectorPanelViewModel:
     is_generated: bool = False
     rule_path_text: str = ""
     rule_value_text: str = ""
-    rule_label_text: str = ""
     range_path_text: str = ""
     range_start_text: str = "0"
     range_end_text: str = "10"

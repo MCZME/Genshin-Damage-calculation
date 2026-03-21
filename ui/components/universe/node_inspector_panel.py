@@ -21,7 +21,6 @@ def NodeInspectorPanel(
     drawer_open, set_drawer_open = ft.use_state(False)
     rule_path, set_rule_path = ft.use_state(vm.rule_path_text)
     rule_value, set_rule_value = ft.use_state(vm.rule_value_text)
-    rule_label, set_rule_label = ft.use_state(vm.rule_label_text)
 
     range_path, set_range_path = ft.use_state(vm.range_path_text)
     range_start, set_range_start = ft.use_state(vm.range_start_text)
@@ -32,7 +31,6 @@ def NodeInspectorPanel(
     def sync_inputs() -> None:
         set_rule_path(vm.rule_path_text)
         set_rule_value(vm.rule_value_text)
-        set_rule_label(vm.rule_label_text)
         set_range_path(vm.range_path_text)
         set_range_start(vm.range_start_text)
         set_range_end(vm.range_end_text)
@@ -232,11 +230,6 @@ def NodeInspectorPanel(
                             value=rule_value,
                             on_change=lambda e: set_rule_value(e.control.value),
                         ),
-                        styled_text_field(
-                            label="规则标签",
-                            value=rule_label,
-                            on_change=lambda e: set_rule_label(e.control.value),
-                        ),
                         ft.ElevatedButton(
                             "应用规则",
                             icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
@@ -248,7 +241,7 @@ def NodeInspectorPanel(
                                 padding=ft.Padding.symmetric(horizontal=16, vertical=14),
                             ),
                             on_click=lambda _: on_apply_rule(
-                                rule_path, rule_value, rule_label
+                                rule_path, rule_value, ""
                             ),
                         ),
                     ],

@@ -368,7 +368,6 @@ class BatchEditorState:
             is_generated=node.is_generated,
             rule_path_text=self.get_rule_path_text(node),
             rule_value_text=self.get_rule_value_text(node),
-            rule_label_text=node.rule.label if node.rule else node.name,
             range_path_text=self.get_range_path_text(node),
             range_start_text=str(config.start) if config else "0",
             range_end_text=str(config.end) if config else "10",
