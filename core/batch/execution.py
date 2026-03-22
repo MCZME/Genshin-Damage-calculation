@@ -19,26 +19,53 @@ from core.batch.models import (
 
 def _default_batch_worker(request: BatchRunRequest) -> BatchRunResult:
     from core.data.repository import MySQLDataRepository
-    from core.factory.assembler import create_simulator_from_config
+    from core.factory.assembler import SimulationAssembler
     from core.logger import SimulationLogger
     from core.registry import initialize_registry
+    from core.persistence.database import ResultDatabase
 
     initialize_registry()
     repo = MySQLDataRepository()
-    simulator = create_simulator_from_config(request.config, repo)
-    simulator.ctx.logger = SimulationLogger(
-        name=f"BatchRun_{request.node_id}",
-        batch_run_id=request.batch_run_id,
-        batch_node_id=request.node_id,
-    )
+    db = ResultDatabase()
+    simulator = None
 
     async def _run() -> None:
+        nonlocal simulator
+        # 数据库初始化
+        await db.initialize()
+        await db.create_session(
+            config_name=f"BatchRun_{request.node_id}",
+            config_snapshot=request.config,
+        )
+        await db.start_session()
+
+        # 使用 SimulationAssembler 获取静态修饰符数据
+        assembler = SimulationAssembler(repo)
+        simulator, static_modifiers_data = assembler.assemble(
+            request.config, persistence_db=db
+        )
+
+        simulator.ctx.logger = SimulationLogger(
+            name=f"BatchRun_{request.node_id}",
+            batch_run_id=request.batch_run_id,
+            batch_node_id=request.node_id,
+        )
+
+        # 持久化静态修饰符（武器/圣遗物）
+        for data in static_modifiers_data:
+            await db.record_static_modifiers(
+                data["entity_id"],
+                data["modifiers"]
+            )
+
         await simulator.run()
+        await db.stop_session()
 
     asyncio.run(_run())
 
-    duration = getattr(simulator.ctx, "current_frame", 0)
-    total_damage = getattr(simulator.ctx, "total_damage", 0.0)
+    # 从模拟器上下文或数据库获取结果
+    duration = getattr(simulator.ctx, "current_frame", 0) if simulator else 0
+    total_damage = db.projector.total_damage if db.projector else 0.0
     dps = (total_damage / duration * 60) if duration else 0.0
     return BatchRunResult(
         request_id=request.request_id,
