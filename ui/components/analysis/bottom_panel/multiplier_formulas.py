@@ -441,24 +441,69 @@ def build_res(
     bucket_key: str,
     bucket_color: str,
 ) -> FormulaResult:
-    """抗性区模板：系数
+    """抗性区模板：计算公式 + 系数
 
-    简洁显示：仅显示抗性系数，修饰符详情通过点击查看
-    系数计算在处理器层完成，UI 层只负责展示
+    两行显示：
+    - 上：计算公式（如 1 - 10% = 0.90）
+    - 下：系数（如 0.90）
+
+    根据抗性区间使用不同公式：
+    - R < 0:   系数 = 1 - R/2      （负抗性收益递减）
+    - R <= 75: 系数 = 1 - R        （正常区间）
+    - R > 75:  系数 = 1 / (1 + 4R) （高抗性惩罚）
     """
     mult_val = bucket_data.get("multiplier", 1.0)
+    raw_data = bucket_data.get("raw_data", {})
 
-    parts: list[FormulaPartData] = [
-        _domain_value(
-            mult_val,
-            "res_coeff",
-            bucket_key,
-            bucket_color,
-            format_spec=".2f",
-        ),
-    ]
+    final_res = raw_data.get("final_resistance", 0.0)
+    R = final_res / 100.0  # 转为小数
 
-    return FormulaResult(parts, f"{mult_val:.2f}")
+    parts: list[FormulaPartData] = []
+
+    # 根据抗性区间构建公式
+    if R < 0:
+        # 负抗性：1 - R/2
+        parts.extend([
+            _text("1 - ("),
+            _domain_value(
+                final_res,
+                "final_res",
+                bucket_key,
+                bucket_color,
+                show_sign=True,
+                format_spec=".0f",
+            ),
+            _text("%)/2"),
+        ])
+    elif R > 0.75:
+        # 高抗性：1 / (1 + 4R)
+        parts.extend([
+            _text("1 / (1 + 4×"),
+            _domain_value(
+                final_res,
+                "final_res",
+                bucket_key,
+                bucket_color,
+                format_spec=".0f",
+            ),
+            _text("%)"),
+        ])
+    else:
+        # 正常区间：1 - R
+        parts.extend([
+            _text("1 - "),
+            _domain_value(
+                final_res,
+                "final_res",
+                bucket_key,
+                bucket_color,
+                format_spec=".0f",
+            ),
+            _text("%"),
+        ])
+
+    total_text = f"{mult_val:.2f}"
+    return FormulaResult(parts, total_text)
 
 
 # ============================================================

@@ -142,6 +142,9 @@ class DomainDetailSectionViewModel:
         # REACT 区处理
         elif self.active_bucket == "REACT":
             modifiers = self._resolve_react_modifiers(steps, data_key)
+        # RES 区处理
+        elif self.active_bucket == "RES":
+            modifiers = self._resolve_res_modifiers(steps, data_key)
         # 其他乘区
         else:
             from core.persistence.processors.audit import AuditProcessor
@@ -286,6 +289,36 @@ class DomainDetailSectionViewModel:
         else:
             modifiers = steps
             self.domain_label = "全部来源"
+
+        return modifiers
+
+    def _resolve_res_modifiers(self, steps: list[dict], data_key: str) -> list[dict]:
+        """解析 RES 区修饰符
+
+        将基础抗性（来自目标面板）转化为修饰符格式显示，
+        同时合并 steps 中的减抗修饰符。
+        """
+        modifiers = []
+
+        # 从 buckets_data 获取抗性原始数据
+        res_data = self.buckets_data.get(data_key, {})
+        raw_data = res_data.get("raw_data", {})
+
+        # 1. 添加基础抗性（作为第一条修饰符）
+        base_res = raw_data.get("base_resistance", 0.0)
+        element_name = raw_data.get("element_name", "")
+        if base_res != 0 or element_name:  # 有值或元素信息时显示
+            modifiers.append({
+                "stat": f"{element_name}元素抗性",
+                "value": base_res,
+                "source": "[目标面板]"
+            })
+
+        # 2. 添加减抗修饰符（来自 steps）
+        modifiers.extend(steps)
+
+        # 3. 设置域标签
+        self.domain_label = "抗性来源"
 
         return modifiers
 
