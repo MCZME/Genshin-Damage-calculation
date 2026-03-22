@@ -20,7 +20,13 @@ class SimulationLogger:
     每个模拟实例应拥有一个独立的 Logger 实例。
     """
 
-    def __init__(self, name: str = "Simulation", log_file: str | None = None) -> None:
+    def __init__(
+        self,
+        name: str = "Simulation",
+        log_file: str | None = None,
+        batch_run_id: str | None = None,
+        batch_node_id: str | None = None,
+    ) -> None:
         self.logger = logging.getLogger(f"Genshin.{name}.{id(self)}")
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False  # 避免重复打印
@@ -40,12 +46,10 @@ class SimulationLogger:
         # 3. 文件处理器
         if save_to_file:
             if not log_file:
-                log_dir = Config.get("logging.Emulation.file_path")
-                if not log_dir or not isinstance(log_dir, str):
-                    raise ValueError("logging.Emulation.file_path 配置缺失")
-                os.makedirs(log_dir, exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                log_file = os.path.join(log_dir, f"emulation_{timestamp}.log")
+                if batch_run_id:
+                    log_file = self._create_batch_log_path(batch_run_id, batch_node_id)
+                else:
+                    log_file = self._create_regular_log_path()
 
             fh = logging.FileHandler(log_file, encoding="utf-8")
             fh.setFormatter(formatter)
@@ -57,6 +61,33 @@ class SimulationLogger:
             ch = logging.StreamHandler()
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
+
+    def _create_regular_log_path(self) -> str:
+        """创建普通仿真日志路径。"""
+        log_dir = Config.get("logging.Emulation.file_path")
+        if not log_dir or not isinstance(log_dir, str):
+            raise ValueError("logging.Emulation.file_path 配置缺失")
+        os.makedirs(log_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return os.path.join(log_dir, f"emulation_{timestamp}.log")
+
+    def _create_batch_log_path(self, run_id: str, node_id: str | None) -> str:
+        """创建批处理日志路径。"""
+        base_dir = Config.get("logging.Emulation.batch_log_dir")
+        if not base_dir:
+            base_dir = Config.get("logging.Emulation.file_path")
+        if not base_dir or not isinstance(base_dir, str):
+            raise ValueError("logging.Emulation.file_path 配置缺失")
+
+        run_dir = os.path.join(base_dir, run_id)
+        os.makedirs(run_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if node_id:
+            file_name = f"node_{node_id}_{timestamp}.log"
+        else:
+            file_name = f"batch_{timestamp}.log"
+        return os.path.join(run_dir, file_name)
 
     def _log(
         self, level: int, msg: str, payload: dict[str, Any] | None = None, sender: str = "System"
@@ -322,6 +353,9 @@ def manage_log_files(*, max_files: int = 50) -> None:
         emulation_path = Config.get("logging.Emulation.file_path")
         if emulation_path and isinstance(emulation_path, str):
             log_dirs.append(emulation_path)
+        batch_path = Config.get("logging.Emulation.batch_log_dir")
+        if batch_path and isinstance(batch_path, str):
+            log_dirs.append(batch_path)
         ui_path = Config.get("logging.UI.file_path")
         if ui_path and isinstance(ui_path, str):
             log_dirs.append(ui_path)
@@ -332,12 +366,12 @@ def manage_log_files(*, max_files: int = 50) -> None:
         if not os.path.exists(log_dir):
             continue
 
-        # 获取所有 .log 文件
-        log_files = [
-            os.path.join(log_dir, f)
-            for f in os.listdir(log_dir)
-            if f.endswith(".log")
-        ]
+        # 获取所有 .log 文件（包括子目录）
+        log_files = []
+        for root, _dirs, files in os.walk(log_dir):
+            for f in files:
+                if f.endswith(".log"):
+                    log_files.append(os.path.join(root, f))
 
         # 按修改时间从旧到新排序
         log_files.sort(key=os.path.getmtime)

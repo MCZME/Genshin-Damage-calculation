@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import inspect
 import multiprocessing
 import statistics
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any
+from collections.abc import Callable, Iterable
 
 from core.batch.compiler import BatchProjectCompiler
 from core.batch.models import (
@@ -24,7 +26,11 @@ def _default_batch_worker(request: BatchRunRequest) -> BatchRunResult:
     initialize_registry()
     repo = MySQLDataRepository()
     simulator = create_simulator_from_config(request.config, repo)
-    simulator.ctx.logger = SimulationLogger(name=f"BatchRun_{request.node_id}")
+    simulator.ctx.logger = SimulationLogger(
+        name=f"BatchRun_{request.node_id}",
+        batch_run_id=request.batch_run_id,
+        batch_node_id=request.node_id,
+    )
 
     async def _run() -> None:
         await simulator.run()
@@ -50,17 +56,17 @@ class BatchExecutionService:
 
     def __init__(
         self,
-        max_workers: Optional[int] = None,
-        worker_func: Optional[Callable[[BatchRunRequest], BatchRunResult]] = None,
+        max_workers: int | None = None,
+        worker_func: Callable[[BatchRunRequest], BatchRunResult] | None = None,
     ) -> None:
         self.max_workers = max_workers or multiprocessing.cpu_count()
         self.worker_func = worker_func or _default_batch_worker
 
     async def run(
         self,
-        project: Optional[BatchProject] = None,
-        requests: Optional[Iterable[BatchRunRequest]] = None,
-        on_progress: Optional[Callable[[int, int], Any]] = None,
+        project: BatchProject | None = None,
+        requests: Iterable[BatchRunRequest] | None = None,
+        on_progress: Callable[[int, int], Any] | None = None,
     ) -> BatchRunSummary:
         materialized = list(requests) if requests is not None else []
         if project is not None and not materialized:
@@ -93,9 +99,9 @@ class BatchExecutionService:
 
     async def _consume_futures(
         self,
-        futures: List[asyncio.Future],
+        futures: list[asyncio.Future],
         summary: BatchRunSummary,
-        on_progress: Optional[Callable[[int, int], Any]],
+        on_progress: Callable[[int, int], Any] | None,
     ) -> None:
         completed = 0
         for future in asyncio.as_completed(futures):
@@ -113,7 +119,7 @@ class BatchExecutionService:
 
             completed += 1
             if on_progress:
-                if asyncio.iscoroutinefunction(on_progress):
+                if inspect.iscoroutinefunction(on_progress):
                     await on_progress(completed, summary.total_runs)
                 else:
                     on_progress(completed, summary.total_runs)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 class BatchNodeKind(str, Enum):
@@ -16,7 +16,7 @@ class MutationRule:
     """批处理变异规则。第一阶段仅支持 replace。"""
 
     type: str = "replace"
-    target_path: List[Union[str, int]] = field(default_factory=list)
+    target_path: list[str | int] = field(default_factory=list)
     value: Any = None
     label: str = ""
 
@@ -25,7 +25,7 @@ class MutationRule:
 class RangeMutationConfig:
     """区间锚点定义。"""
 
-    target_path: List[Union[str, int]] = field(default_factory=list)
+    target_path: list[str | int] = field(default_factory=list)
     start: float = 0.0
     end: float = 0.0
     step: float = 1.0
@@ -39,10 +39,10 @@ class BatchNode:
     id: str
     name: str
     kind: BatchNodeKind = BatchNodeKind.RULE
-    rule: Optional[MutationRule] = None
-    range_config: Optional[RangeMutationConfig] = None
-    children: List["BatchNode"] = field(default_factory=list)
-    generated_from_anchor_id: Optional[str] = None
+    rule: MutationRule | None = None
+    range_config: RangeMutationConfig | None = None
+    children: list[BatchNode] = field(default_factory=list)
+    generated_from_anchor_id: str | None = None
 
     def is_leaf(self) -> bool:
         return len(self.children) == 0
@@ -58,7 +58,7 @@ class BatchProject:
 
     version: int = 1
     name: str = "新批处理项目"
-    base_config: Dict[str, Any] = field(default_factory=dict)
+    base_config: dict[str, Any] = field(default_factory=dict)
     root: BatchNode = field(
         default_factory=lambda: BatchNode(
             id="root", name="基准配置", kind=BatchNodeKind.ROOT
@@ -73,26 +73,29 @@ class BatchRunRequest:
     request_id: str
     node_id: str
     node_name: str
-    config: Dict[str, Any]
-    param_snapshot: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any]
+    param_snapshot: dict[str, Any] = field(default_factory=dict)
+    batch_run_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": self.request_id,
             "node_id": self.node_id,
             "node_name": self.node_name,
             "config": self.config,
             "param_snapshot": self.param_snapshot,
+            "batch_run_id": self.batch_run_id,
         }
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> "BatchRunRequest":
+    def from_dict(cls, payload: dict[str, Any]) -> BatchRunRequest:
         return cls(
             request_id=str(payload.get("request_id", "")),
             node_id=str(payload.get("node_id", "")),
             node_name=str(payload.get("node_name", "")),
             config=dict(payload.get("config", {})),
             param_snapshot=dict(payload.get("param_snapshot", {})),
+            batch_run_id=payload.get("batch_run_id"),
         )
 
 
@@ -106,10 +109,10 @@ class BatchRunResult:
     total_damage: float = 0.0
     dps: float = 0.0
     simulation_duration: int = 0
-    param_snapshot: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    param_snapshot: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": self.request_id,
             "node_id": self.node_id,
@@ -122,7 +125,7 @@ class BatchRunResult:
         }
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> "BatchRunResult":
+    def from_dict(cls, payload: dict[str, Any]) -> BatchRunResult:
         return cls(
             request_id=str(payload.get("request_id", "")),
             node_id=str(payload.get("node_id", "")),
@@ -147,10 +150,10 @@ class BatchRunSummary:
     min_dps: float = 0.0
     std_dev_dps: float = 0.0
     p95_dps: float = 0.0
-    results: List[BatchRunResult] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    results: list[BatchRunResult] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_runs": self.total_runs,
             "completed_runs": self.completed_runs,
@@ -165,7 +168,7 @@ class BatchRunSummary:
         }
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> "BatchRunSummary":
+    def from_dict(cls, payload: dict[str, Any]) -> BatchRunSummary:
         return cls(
             total_runs=int(payload.get("total_runs", 0)),
             completed_runs=int(payload.get("completed_runs", 0)),
@@ -189,7 +192,6 @@ class BatchCompileError(ValueError):
 
 # --- Backward compatibility for legacy code paths ---
 
-
 ModifierRule = MutationRule
 
 
@@ -198,11 +200,11 @@ class SimulationNode:
     """旧版分支宇宙节点，保留以避免遗留模块导入失败。"""
 
     id: str
-    rule: Optional[ModifierRule] = None
-    children: List["SimulationNode"] = field(default_factory=list)
+    rule: ModifierRule | None = None
+    children: list[SimulationNode] = field(default_factory=list)
     name: str = ""
     is_managed: bool = False
-    managed_by: Optional[str] = None
+    managed_by: str | None = None
 
     def is_leaf(self) -> bool:
         return len(self.children) == 0
@@ -215,9 +217,9 @@ class SimulationMetrics:
     total_damage: float = 0.0
     dps: float = 0.0
     simulation_duration: int = 0
-    event_counts: Dict[str, int] = field(default_factory=dict)
-    character_damage_share: Dict[str, float] = field(default_factory=dict)
-    param_snapshot: Dict[str, Any] = field(default_factory=dict)
+    event_counts: dict[str, int] = field(default_factory=dict)
+    character_damage_share: dict[str, float] = field(default_factory=dict)
+    param_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -230,4 +232,4 @@ class BatchSummary:
     min_dps: float = 0.0
     std_dev_dps: float = 0.0
     p95_dps: float = 0.0
-    results: List[SimulationMetrics] = field(default_factory=list)
+    results: list[SimulationMetrics] = field(default_factory=list)

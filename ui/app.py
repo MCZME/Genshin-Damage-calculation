@@ -114,6 +114,8 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
                     BatchRunRequest.from_dict(item)
                     for item in message.get("requests", [])
                 ]
+                for req in requests:
+                    req.batch_run_id = run_id
             except Exception as exc:
                 send_to_branch(
                     {
