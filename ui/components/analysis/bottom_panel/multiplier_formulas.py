@@ -52,6 +52,7 @@ class FormulaResult:
     parts: list[FormulaPartData] = field(default_factory=list)
     total_text: str = ""
     total_color: str | None = None  # 总计颜色覆盖
+    parts_line2: list[FormulaPartData] = field(default_factory=list)  # 第二行公式（可选）
 
 
 # ============================================================
@@ -411,24 +412,69 @@ def build_def(
     bucket_key: str,
     bucket_color: str,
 ) -> FormulaResult:
-    """防御区模板：系数
+    """防御区模板：计算公式 + 系数
 
-    简洁显示：仅显示防御系数，修饰符详情通过点击查看
-    系数计算在处理器层完成，UI 层只负责展示
+    两行显示：
+    - 上：分子 (攻击者等级×5+500)
+    - 下：分母 (攻击者等级×5+500+目标防御×(1-减防%))
+    - 总计：系数
     """
     mult_val = bucket_data.get("multiplier", 1.0)
+    raw_data = bucket_data.get("raw_data", {})
 
-    parts: list[FormulaPartData] = [
-        _domain_value(
-            mult_val,
-            "def_coeff",
-            bucket_key,
-            bucket_color,
-            format_spec=".2f",
-        ),
-    ]
+    attacker_level = raw_data.get("attacker_level", 90)
+    target_defense = raw_data.get("target_defense", 500)
+    def_reduction_pct = raw_data.get("def_reduction_pct", 0.0)
 
-    return FormulaResult(parts, f"{mult_val:.2f}")
+    parts: list[FormulaPartData] = []
+    parts_line2: list[FormulaPartData] = []
+
+    if raw_data:
+        # 第一行：分子
+        K = attacker_level * 5 + 500
+        parts.append(_text(f"({K})"))
+
+        # 第二行：分母
+        parts_line2.extend([
+            _text(f"({K}+"),
+            _domain_value(
+                target_defense,
+                "target_def",
+                bucket_key,
+                bucket_color,
+                format_spec=".0f",
+            ),
+        ])
+
+        # 有减防时显示减防部分
+        if def_reduction_pct > 0:
+            parts_line2.extend([
+                _text("×(1-"),
+                _domain_value(
+                    def_reduction_pct,
+                    "def_reduce",
+                    bucket_key,
+                    bucket_color,
+                    format_spec=".0f",
+                ),
+                _text("%)"),
+            ])
+
+        parts_line2.append(_text(")"))
+    else:
+        # 无数据时简洁显示系数
+        parts.append(
+            _domain_value(
+                mult_val,
+                "def_coeff",
+                bucket_key,
+                bucket_color,
+                format_spec=".2f",
+            )
+        )
+
+    total_text = f"{mult_val:.2f}"
+    return FormulaResult(parts, total_text, parts_line2=parts_line2)
 
 
 # ============================================================
