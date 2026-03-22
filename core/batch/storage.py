@@ -41,6 +41,21 @@ class BatchProjectStorage:
             payload = json.load(handle)
         return self.from_dict(payload)
 
+    def save_to_path(self, project: BatchProject, path: str) -> str:
+        """保存项目到指定路径（支持任意位置）。"""
+        parent_dir = os.path.dirname(path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.to_dict(project), handle, ensure_ascii=False, indent=2)
+        return path
+
+    def load_from_path(self, path: str) -> BatchProject:
+        """从指定路径加载项目（支持任意位置）。"""
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return self.from_dict(payload)
+
     @classmethod
     def to_dict(cls, project: BatchProject) -> dict:
         return {

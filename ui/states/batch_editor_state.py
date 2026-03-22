@@ -1,20 +1,10 @@
 from __future__ import annotations
 
+import flet as ft
 import json
 import os
 import uuid
-from typing import Any, Optional
-
-try:
-    import flet as ft
-except ModuleNotFoundError:  # pragma: no cover - test fallback
-    class _ObservableShim:
-        @staticmethod
-        def observable(cls):
-            cls.notify = lambda self: None
-            return cls
-
-    ft = _ObservableShim()
+from typing import Any, cast
 
 from core.batch import (
     BRANCH_RUN_BATCH_REQUEST,
@@ -45,7 +35,7 @@ class BatchEditorState:
     """独立批处理编辑器状态。"""
 
     def __init__(self) -> None:
-        self.page = None
+        self.page : Any = None
         self.storage = BatchProjectStorage()
         self.executor = BatchExecutionService()
         self.branch_to_main_queue = None
@@ -71,7 +61,7 @@ class BatchEditorState:
         self.is_running = False
         self.active_run_id: str | None = None
         self.error_message = ""
-        self.last_summary: Optional[BatchRunSummary] = None
+        self.last_summary: BatchRunSummary | None = None
         self._sync_view_models()
 
     @property
@@ -85,6 +75,9 @@ class BatchEditorState:
             return len(BatchProjectCompiler.compile(self.project))
         except BatchCompileError:
             return 0
+        
+    def notify_update(self):
+        cast(Any, self).notify()  # type: ignore
 
     def initialize_project(self, base_config: dict[str, Any], name: str = "批处理项目") -> None:
         self.project = BatchProject(name=name, base_config=base_config or {})
@@ -94,40 +87,42 @@ class BatchEditorState:
         self.error_message = ""
         self.last_summary = None
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def list_projects(self) -> list[str]:
         return self.storage.list_projects()
 
-    def save_project(self, filename: str) -> str:
-        if filename:
-            self.project.name = os.path.splitext(os.path.basename(filename))[0]
-        path = self.storage.save(self.project, filename)
-        self.status_text = f"已保存: {os.path.basename(path)}"
+    def save_project(self, path: str) -> str:
+        """保存项目到指定路径。"""
+        if path:
+            self.project.name = os.path.splitext(os.path.basename(path))[0]
+        saved_path = self.storage.save_to_path(self.project, path)
+        self.status_text = f"已保存: {os.path.basename(saved_path)}"
         self._sync_view_models()
-        self.notify()
-        return path
+        self.notify_update()
+        return saved_path
 
-    def load_project(self, filename: str) -> None:
-        self.project = self.storage.load(filename)
+    def load_project(self, path: str) -> None:
+        """从指定路径加载项目。"""
+        self.project = self.storage.load_from_path(path)
         self.selected_node_id = self.project.root.id
-        self.status_text = f"已加载: {filename}"
+        self.status_text = f"已加载: {os.path.basename(path)}"
         self.error_message = ""
         self.last_summary = None
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def select_node(self, node_id: str) -> None:
         self.selected_node_id = node_id
         self.error_message = ""
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def rename_selected_node(self, name: str) -> None:
         node = self.selected_node
         node.name = name or node.name
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def add_rule_child(self, parent_id: str | None = None) -> None:
         self.add_child(parent_id=parent_id, kind=BatchNodeKind.RULE)
@@ -151,7 +146,7 @@ class BatchEditorState:
         parent.children.append(new_node)
         self.selected_node_id = new_node.id
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def open_add_drawer(self, parent_id: str, x: float, y: float) -> None:
         self.drawer_parent_id = parent_id
@@ -159,12 +154,12 @@ class BatchEditorState:
         self.drawer_anchor_y = y
         self.drawer_open = True
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def close_add_drawer(self) -> None:
         self.drawer_open = False
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def delete_selected_node(self) -> None:
         target = self.selected_node
@@ -183,7 +178,7 @@ class BatchEditorState:
         prune(self.project.root)
         self.selected_node_id = self.project.root.id
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def update_rule(self, path_text: str, value_text: str, label: str) -> None:
         node = self.selected_node
@@ -198,7 +193,7 @@ class BatchEditorState:
             node.name = label.strip()
         self.error_message = ""
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
     def configure_range_anchor(
         self,
@@ -229,9 +224,9 @@ class BatchEditorState:
         node.children = self._build_range_children(node)
         self.error_message = ""
         self._sync_view_models()
-        self.notify()
+        self.notify_update()
 
-    async def run_batch(self) -> Optional[BatchRunSummary]:
+    async def run_batch(self) -> BatchRunSummary | None:
         if self.is_running:
             return None
 
@@ -240,14 +235,14 @@ class BatchEditorState:
         self.status_text = "编译批处理任务中..."
         self.error_message = ""
         self.last_summary = None
-        self.notify()
+        self.notify_update()
 
         try:
             requests = BatchProjectCompiler.compile(self.project)
             if not requests:
                 self.status_text = "没有可执行的叶子任务"
                 self.is_running = False
-                self.notify()
+                self.notify_update()
                 return None
             if self.branch_to_main_queue is None:
                 raise RuntimeError("IPC 未连接，无法提交到主进程执行。")
@@ -262,24 +257,24 @@ class BatchEditorState:
             }
             self.branch_to_main_queue.put(payload)
             self.status_text = f"已提交主进程执行（{len(requests)} 个任务）"
-            self.notify()
+            self.notify_update()
             return None
         except (BatchCompileError, ValueError) as exc:
             self.error_message = str(exc)
             self.status_text = "批处理执行失败"
             self.is_running = False
             self.active_run_id = None
-            self.notify()
+            self.notify_update()
             raise
         except Exception as exc:
             self.error_message = str(exc)
             self.status_text = "批处理提交失败"
             self.is_running = False
             self.active_run_id = None
-            self.notify()
+            self.notify_update()
             raise
 
-    def handle_main_message(self, message: dict[str, Any]) -> Optional[BatchRunSummary]:
+    def handle_main_message(self, message: dict[str, Any]) -> BatchRunSummary | None:
         msg_type = str(message.get("type", ""))
         run_id = str(message.get("run_id", ""))
 
@@ -292,7 +287,7 @@ class BatchEditorState:
             status_text = str(message.get("status_text", f"批处理执行中 {done}/{total}"))
             self.progress = done / total if total else 0.0
             self.status_text = status_text
-            self.notify()
+            self.notify_update()
             return None
 
         if msg_type == MAIN_BATCH_REJECTED:
@@ -302,7 +297,7 @@ class BatchEditorState:
             self.status_text = f"执行被拒绝（{reason}）"
             self.is_running = False
             self.active_run_id = None
-            self.notify()
+            self.notify_update()
             return None
 
         if msg_type == MAIN_BATCH_FINISHED:
@@ -319,7 +314,7 @@ class BatchEditorState:
             )
             self.is_running = False
             self.active_run_id = None
-            self.notify()
+            self.notify_update()
             return summary
 
         return None
@@ -332,10 +327,10 @@ class BatchEditorState:
         self.status_text = "主进程执行失败"
         self.is_running = False
         self.active_run_id = None
-        self.notify()
+        self.notify_update()
 
-    def find_node(self, node_id: str) -> Optional[BatchNode]:
-        def walk(current: BatchNode) -> Optional[BatchNode]:
+    def find_node(self, node_id: str) -> BatchNode | None:
+        def walk(current: BatchNode) -> BatchNode | None:
             if current.id == node_id:
                 return current
             for child in current.children:

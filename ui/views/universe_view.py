@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import flet as ft
 
 from ui.components.universe import (
@@ -17,15 +19,13 @@ class UniverseView:
     @ft.component
     def build(self, state: BatchEditorState):
         project = state.project
-        modal_mode, set_modal_mode = ft.use_state(None)
-        save_name, set_save_name = ft.use_state(project.name)
 
         header = EditorHeader(
             project_name=project.name,
             leaf_count=state.leaf_count,
             is_running=state.is_running,
-            on_save=lambda _: set_modal_mode("save"),
-            on_load=lambda _: set_modal_mode("load"),
+            on_save=lambda e: state.page.run_task(self._on_save, state),
+            on_load=lambda e: state.page.run_task(self._on_load, state),
             on_run=lambda _: state.page.run_task(state.run_batch),
         )
 
@@ -72,10 +72,6 @@ class UniverseView:
             ],
         )
 
-        overlay = self._build_modal(
-            state, modal_mode, set_modal_mode, save_name, set_save_name
-        )
-
         return ft.Container(
             expand=True,
             bgcolor=GenshinTheme.BACKGROUND,
@@ -104,7 +100,6 @@ class UniverseView:
                     ),
                     header,
                     inspector_panel,
-                    overlay,
                 ],
                 expand=True,
             ),
@@ -140,85 +135,32 @@ class UniverseView:
             expand=True,
         )
 
-    def _build_modal(
-        self,
-        state: BatchEditorState,
-        modal_mode,
-        set_modal_mode,
-        save_name,
-        set_save_name,
-    ):
-        dialog = None
-        if modal_mode == "save":
-            dialog = ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text("保存批处理项目", size=18, weight=ft.FontWeight.BOLD),
-                        ft.TextField(
-                            label="文件名",
-                            value=save_name,
-                            on_change=lambda e: set_save_name(e.control.value),
-                        ),
-                        ft.ElevatedButton(
-                            "保存",
-                            bgcolor=GenshinTheme.PRIMARY,
-                            color=ft.Colors.WHITE,
-                            on_click=lambda _: [
-                                state.save_project(save_name or state.project.name),
-                                set_modal_mode(None),
-                            ],
-                        ),
-                    ],
-                    spacing=16,
-                    tight=True,
-                ),
-                width=420,
-                padding=24,
-                bgcolor=GenshinTheme.SURFACE,
-                border_radius=18,
-                border=ft.Border.all(1, GenshinTheme.GLASS_BORDER),
-            )
-        elif modal_mode == "load":
-            files = state.list_projects()
-            dialog = ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text("加载批处理项目", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Column(
-                            [
-                                ft.ListTile(
-                                    title=ft.Text(filename),
-                                    on_click=lambda _, name=filename: [
-                                        state.load_project(name),
-                                        set_modal_mode(None),
-                                    ],
-                                )
-                                for filename in files
-                            ],
-                            spacing=6,
-                            scroll=ft.ScrollMode.AUTO,
-                            height=300,
-                        ),
-                    ],
-                    spacing=16,
-                ),
-                width=460,
-                padding=24,
-                bgcolor=GenshinTheme.SURFACE,
-                border_radius=18,
-                border=ft.Border.all(1, GenshinTheme.GLASS_BORDER),
-            )
+    async def _on_save(self, state: BatchEditorState) -> None:
+        """保存文件 - 使用 FilePicker。"""
+        target_dir = os.path.join(os.getcwd(), "data", "batch_projects")
+        os.makedirs(target_dir, exist_ok=True)
 
-        return ft.Container(
-            visible=modal_mode is not None,
-            expand=True,
-            content=ft.Stack(
-                [
-                    ft.Container(
-                        bgcolor=ft.Colors.with_opacity(0.78, ft.Colors.BLACK),
-                        on_click=lambda _: set_modal_mode(None),
-                    ),
-                    ft.Container(content=dialog, alignment=ft.Alignment.CENTER),
-                ]
-            ),
+        path = await ft.FilePicker().save_file(
+            dialog_title="保存批处理项目",
+            initial_directory=target_dir,
+            file_name=f"{state.project.name or '未命名项目'}.json",
+            allowed_extensions=["json"],
         )
+
+        if path:
+            state.save_project(path)
+
+    async def _on_load(self, state: BatchEditorState) -> None:
+        """加载文件 - 使用 FilePicker。"""
+        target_dir = os.path.join(os.getcwd(), "data", "batch_projects")
+        os.makedirs(target_dir, exist_ok=True)
+
+        files: list[ft.FilePickerFile] = await ft.FilePicker().pick_files(
+            dialog_title="加载批处理项目",
+            initial_directory=target_dir,
+            allowed_extensions=["json"],
+        )
+
+        if files and len(files) > 0:
+            if files[0].path:
+                state.load_project(files[0].path)

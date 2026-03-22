@@ -60,11 +60,11 @@ def test_state_save_and_load_project(tmp_path):
         "天气",
     )
 
-    state.save_project("save_test")
+    save_path = str(tmp_path / "save_test.json")
+    state.save_project(save_path)
 
     loaded = BatchEditorState()
-    loaded.storage.base_dir = str(tmp_path)
-    loaded.load_project("save_test.json")
+    loaded.load_project(save_path)
 
     assert loaded.project.name == "save_test"
     assert loaded.leaf_count == 1
