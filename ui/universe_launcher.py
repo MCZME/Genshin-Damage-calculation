@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 from typing import Any
 
 import flet as ft
@@ -10,9 +11,20 @@ from core.batch import (
     MAIN_BATCH_PROGRESS,
     MAIN_BATCH_REJECTED,
 )
-from ui.states.batch_editor_state import BatchEditorState
+from ui.states.batch_universe_state import BatchUniverseState
 from ui.theme import GenshinTheme
-from ui.views.universe_view import UniverseView
+from ui.views.universe_router import UniverseRouter
+from ui.views.universe_routes import (
+    UNIVERSE_ANALYSIS_ROUTE,
+    UNIVERSE_EDITOR_ROUTE,
+    UNIVERSE_RUN_ROUTE,
+    resolve_universe_route,
+)
+
+
+def build_universe_route_stack(route: str | None) -> list[str]:
+    """兼容旧测试的活动路由定义。"""
+    return [resolve_universe_route(route)]
 
 
 def start_universe_process(main_to_branch, branch_to_main=None):
@@ -26,15 +38,20 @@ def start_universe_process(main_to_branch, branch_to_main=None):
         page.window.min_height = 760
         GenshinTheme.apply_page_settings(page)
 
-        state = BatchEditorState()
-        state.page = page
-        state.branch_to_main_queue = branch_to_main
-        view = UniverseView()
+        state = BatchUniverseState()
+        state.attach_page(page)
+        state.attach_branch_queue(branch_to_main)
 
         async def listen_for_init() -> None:
             while True:
-                if not main_to_branch.empty():
-                    message: dict[str, Any] = main_to_branch.get()
+                received_any = False
+                while True:
+                    try:
+                        message: dict[str, Any] = main_to_branch.get_nowait()
+                    except queue.Empty:
+                        break
+
+                    received_any = True
                     msg_type = message.get("type")
                     if msg_type == "INIT_BATCH_EDITOR":
                         state.initialize_project(
@@ -47,9 +64,16 @@ def start_universe_process(main_to_branch, branch_to_main=None):
                         MAIN_BATCH_REJECTED,
                     }:
                         state.handle_main_message(message)
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.05 if received_any else 0.2)
 
         page.run_task(listen_for_init)
-        page.render(lambda: view.build(state))
+        page.route = resolve_universe_route(page.route)
+        page.render_views(
+            UniverseRouter,
+            state,
+            state.editor_state,
+            state.run_state,
+            state.analysis_state,
+        )
 
     ft.run(main, view=ft.AppView.FLET_APP)

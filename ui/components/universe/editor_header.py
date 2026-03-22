@@ -13,12 +13,63 @@ def EditorHeader(
     on_save,
     on_load,
     on_run,
+    current_route: str = "/",
+    on_go_run=None,
+    on_go_analysis=None,
 ):
+    nav_group = ft.Row(
+        [
+            ft.OutlinedButton(
+                content=ft.Text("运行视图"),
+                icon=ft.Icons.PLAY_CIRCLE_OUTLINED,
+                disabled=on_go_run is None or current_route == "/run",
+                on_click=on_go_run,
+                style=ft.ButtonStyle(
+                    bgcolor=(
+                        ft.Colors.with_opacity(0.18, GenshinTheme.PRIMARY)
+                        if current_route == "/run"
+                        else ft.Colors.with_opacity(0.04, ft.Colors.WHITE)
+                    ),
+                    side=ft.BorderSide(
+                        1,
+                        (
+                            ft.Colors.with_opacity(0.7, GenshinTheme.PRIMARY)
+                            if current_route == "/run"
+                            else ft.Colors.with_opacity(0.2, ft.Colors.WHITE)
+                        ),
+                    ),
+                ),
+            ),
+            ft.OutlinedButton(
+                content=ft.Text("分析视图"),
+                icon=ft.Icons.QUERY_STATS_OUTLINED,
+                disabled=on_go_analysis is None or current_route == "/analysis",
+                on_click=on_go_analysis,
+                style=ft.ButtonStyle(
+                    bgcolor=(
+                        ft.Colors.with_opacity(0.18, GenshinTheme.PRIMARY)
+                        if current_route == "/analysis"
+                        else ft.Colors.with_opacity(0.04, ft.Colors.WHITE)
+                    ),
+                    side=ft.BorderSide(
+                        1,
+                        (
+                            ft.Colors.with_opacity(0.7, GenshinTheme.PRIMARY)
+                            if current_route == "/analysis"
+                            else ft.Colors.with_opacity(0.2, ft.Colors.WHITE)
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        spacing=8,
+    )
+
     return ft.Container(
         top=0,
         left=0,
         right=0,
-        height=82,
+        height=92,
         alignment=ft.Alignment.CENTER_LEFT,
         content=ft.Row(
             [
@@ -57,6 +108,7 @@ def EditorHeader(
                 ),
                 ft.Row(
                     [
+                        nav_group,
                         ft.IconButton(
                             ft.Icons.SAVE_OUTLINED,
                             tooltip="保存批处理项目",
@@ -76,7 +128,7 @@ def EditorHeader(
                             on_click=on_run,
                         ),
                     ],
-                    spacing=10,
+                    spacing=12,
                 ),
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
