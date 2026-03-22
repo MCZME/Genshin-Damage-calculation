@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Any
 from core.data_models.team_data_model import BaseDataModel
 
 class TargetDataModel(BaseDataModel):
@@ -6,7 +6,7 @@ class TargetDataModel(BaseDataModel):
     单个怪物目标的数据模型。
     聚合了怪物属性与空间坐标。
     """
-    def __init__(self, data: Dict[str, Any], spatial_ref: Dict[str, Dict[str, float]]):
+    def __init__(self, data: dict[str, Any], spatial_ref: dict[str, dict[str, float]]):
         super().__init__(data)
         self._spatial_ref = spatial_ref # 引用 StrategicState.spatial_data['target_positions']
 
@@ -23,6 +23,14 @@ class TargetDataModel(BaseDataModel):
         self._data["name"] = value
 
     @property
+    def defense(self) -> float:
+        return float(self._data.get("defense", 500.0))
+    
+    @defense.setter 
+    def defense(self, value: float):
+        self._data["defense"] = str(value)
+
+    @property
     def level(self) -> int:
         try:
             return int(self._data.get("level", 90))
@@ -34,7 +42,7 @@ class TargetDataModel(BaseDataModel):
         self._data["level"] = str(value)
 
     @property
-    def resists(self) -> Dict[str, float]:
+    def resists(self) -> dict[str, float]:
         """抗性字典 (int/str -> float)"""
         raw = self._data.get("resists", {})
         return {k: float(v) for k, v in raw.items()}
@@ -65,22 +73,24 @@ class TargetDataModel(BaseDataModel):
             self._spatial_ref[self.id] = {"x": 0.0, "z": 5.0}
         self._spatial_ref[self.id]["z"] = float(value)
 
-    def to_simulator_format(self) -> Dict[str, Any]:
+    def to_simulator_format(self) -> dict[str, Any]:
         """转换为仿真引擎格式"""
         return {
             "id": self.id,
             "name": self.name,
+            "defense": self.defense,
             "level": self.level,
             "position": {"x": self.x, "z": self.z},
             "resists": self.resists
         }
 
     @staticmethod
-    def create_default(target_id: str, name: str = "遗迹守卫") -> Dict[str, Any]:
+    def create_default(target_id: str, name: str = "遗迹守卫") -> dict[str, Any]:
         """创建默认的怪物字典数据结构"""
         return {
             "id": target_id,
             "name": name,
+            "defense": "500",
             "level": "90",
             "resists": {
                 "火": "10", "水": "10", "草": "10", "雷": "10", 
@@ -93,12 +103,12 @@ class SceneDataModel(BaseDataModel):
     场景全量数据模型。
     管理多目标列表。
     """
-    def __init__(self, data: Dict[str, Any], spatial_data: Dict[str, Any]):
+    def __init__(self, data: dict[str, Any], spatial_data: dict[str, Any]):
         super().__init__(data)
         self._spatial_data = spatial_data
 
     @property
-    def targets(self) -> List[TargetDataModel]:
+    def targets(self) -> list[TargetDataModel]:
         """获取包装后的目标列表"""
         raw_targets = self._data.get("targets", [])
         return [TargetDataModel(t, self._spatial_data["target_positions"]) for t in raw_targets]

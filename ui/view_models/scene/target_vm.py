@@ -1,6 +1,6 @@
 import flet as ft
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any
 from ui.view_models.base_vm import BaseViewModel
 from core.data_models.scene_data_model import TargetDataModel
 
@@ -15,9 +15,14 @@ class TargetViewModel(BaseViewModel[TargetDataModel]):
     def id(self) -> str: return self.model.id
     @property
     def name(self) -> str: return self.model.name
-    
     def set_name(self, val: str):
         self.model.name = val
+        self.notify_update()
+
+    @property
+    def defense(self) -> float: return self.model.defense
+    def set_defense(self, value: float):
+        self.model.defense = value
         self.notify_update()
 
     @property
@@ -41,7 +46,7 @@ class TargetViewModel(BaseViewModel[TargetDataModel]):
 
     # --- 抗性代理 ---
     @property
-    def resistances(self) -> Dict[str, float]:
+    def resistances(self) -> dict[str, float]:
         return self.model.resists
 
     def set_resistance(self, element: str, value: float):
@@ -53,7 +58,7 @@ class TargetViewModel(BaseViewModel[TargetDataModel]):
         self.model.z = 5.0
         self.notify_update()
 
-    def to_simulator_format(self) -> Dict[str, Any]:
+    def to_simulator_format(self) -> dict[str, Any]:
         """代理底层 DataModel 的序列化逻辑"""
-        return self.model.to_simulator_format()
+        return self.model.to_simulator_format() # type: ignore
 

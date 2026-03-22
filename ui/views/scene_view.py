@@ -34,7 +34,7 @@ class SceneView:
         # 3. 辅助处理器
         def handle_target_select(idx: int):
             state.selected_target_index = idx
-            state.notify()
+            state.notify_update()
 
         def handle_pos_change(axis: str, value: str):
             try:
@@ -43,14 +43,14 @@ class SceneView:
                     active_target_vm.set_x(num_val)
                 else:
                     active_target_vm.set_z(num_val)
-                state.notify()
+                state.notify_update()
             except ValueError:
                 pass
 
         def handle_resistance_change(key: str, value: str):
             try:
                 active_target_vm.set_resistance(key, float(value or 0))
-                state.notify()
+                state.notify_update()
             except ValueError:
                 pass
 
@@ -66,7 +66,7 @@ class SceneView:
         # 4.2 左侧侧边栏
         sidebar_items: list[ft.Control] = [
             TargetSidebarSlot(
-                i, target_vms[i].model.raw_data, 
+                i, target_vms[i].model.raw_data, # type: ignore
                 is_selected=(i == selected_index),
                 on_click=handle_target_select,
                 on_remove=lambda idx: state.remove_target(idx)
@@ -101,8 +101,13 @@ class SceneView:
                         on_change=lambda e: active_target_vm.set_name(e.control.value or "")
                     ),
                     ft.TextField(
+                        value=str(active_target_vm.defense), label="防御力", dense=True, text_size=13,
+                        expand=2, border_color=ft.Colors.WHITE_24,
+                        on_change=lambda e: active_target_vm.set_defense(int(e.control.value or 0))
+                    ),
+                    ft.TextField(
                         value=str(active_target_vm.level), label="等级", dense=True, text_size=13,
-                        width=100, border_color=ft.Colors.WHITE_24,
+                        expand=2, border_color=ft.Colors.WHITE_24,
                         on_change=lambda e: active_target_vm.set_level(int(e.control.value or 0))
                     ),
                 ], 
@@ -127,7 +132,7 @@ class SceneView:
                 controls=[
                     ft.Chip(
                         label=ft.Text("重置位置", size=10), 
-                        on_click=lambda _: [active_target_vm.reset_position(), state.notify()]
+                        on_click=lambda _: [active_target_vm.reset_position(), state.notify_update()]
                     ),
                     ft.Text(
                         f"当前距离: {UIFormatter.format_distance({'x': active_target_vm.x, 'z': active_target_vm.z})}", 
