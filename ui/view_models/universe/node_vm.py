@@ -17,6 +17,9 @@ class NodeViewModel:
     children_count: int = 0
     rule_label: str = ""
     range_child_count: int = 0
+    target_path: str = ""
+    value_text: str = ""
+    range_info: str = ""
 
     def set_name(self, name: str) -> None:
         self.name = name

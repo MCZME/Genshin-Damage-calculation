@@ -7,9 +7,16 @@ from ui.theme import GenshinTheme
 from ui.view_models.universe.node_vm import NodeViewModel
 
 
+from typing import Any, Callable
+
 @ft.component
-def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer):
-    palette = {
+def NodeCard(
+    vm: NodeViewModel,
+    is_selected: bool,
+    on_select: Callable[[Any], Any],
+    on_open_add_drawer: Callable[[Any], Any],
+):
+    _node_palettes: dict[BatchNodeKind, dict[str, Any]] = {
         BatchNodeKind.ROOT: {
             "accent": GenshinTheme.GOLD_LIGHT,
             "label": "BASE",
@@ -25,27 +32,37 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
             "label": "RANGE",
             "icon": ft.Icons.MULTILINE_CHART,
         },
-    }[vm.kind]
+    }
+    
+    current_palette = _node_palettes[vm.kind]
+    accent_color: str = current_palette["accent"]
+    label_text: str = current_palette["label"]
+    icon_data: ft.IconData = current_palette["icon"]
 
-    detail = (
-        "根配置"
-        if vm.kind == BatchNodeKind.ROOT
-        else (
-            vm.rule_label
-            if vm.rule_label
-            else (
-                f"{vm.range_child_count} 个区间子节点"
-                if vm.kind == BatchNodeKind.RANGE_ANCHOR
-                else "尚未配置规则"
-            )
-        )
-    )
+    # 构建详情行
+    detail_lines: list[str] = []
+    if vm.kind == BatchNodeKind.ROOT:
+        detail_lines = ["根配置"]
+    elif vm.kind == BatchNodeKind.RULE:
+        if vm.target_path:
+            detail_lines.append(f"路径: {vm.target_path}")
+        if vm.value_text:
+            detail_lines.append(f"值: {vm.value_text}")
+        if not detail_lines:
+            detail_lines.append("尚未配置规则")
+    else:  # RANGE_ANCHOR
+        if vm.target_path:
+            detail_lines.append(f"路径: {vm.target_path}")
+        if vm.range_info:
+            detail_lines.append(f"区间: {vm.range_info}")
+        detail_lines.append(f"生成 {vm.range_child_count} 个子节点")
 
     glow_color = {
         BatchNodeKind.ROOT: ft.Colors.with_opacity(0.28, GenshinTheme.GOLD_LIGHT),
         BatchNodeKind.RULE: ft.Colors.with_opacity(0.28, GenshinTheme.PRIMARY),
         BatchNodeKind.RANGE_ANCHOR: ft.Colors.with_opacity(0.28, "#6AB3FF"),
     }[vm.kind]
+    
     bg_gradient = (
         ft.LinearGradient(
             begin=ft.Alignment.TOP_LEFT,
@@ -67,7 +84,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
         gradient=bg_gradient,
         border=ft.Border.all(
             2 if is_selected else 1,
-            palette["accent"] if is_selected else ft.Colors.with_opacity(0.08, ft.Colors.WHITE),
+            accent_color if is_selected else ft.Colors.with_opacity(0.08, ft.Colors.WHITE),
         ),
         shadow=[
             ft.BoxShadow(
@@ -92,7 +109,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                             [
                                 ft.Container(
                                     content=ft.Icon(
-                                        palette["icon"],
+                                        icon_data,
                                         size=12,
                                         color=GenshinTheme.ON_PRIMARY,
                                     ),
@@ -100,16 +117,16 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                                     height=22,
                                     alignment=ft.Alignment.CENTER,
                                     border_radius=999,
-                                    bgcolor=palette["accent"],
+                                    bgcolor=accent_color,
                                 ),
                                 ft.Container(
                                     content=ft.Text(
-                                        palette["label"],
+                                        label_text,
                                         size=9,
                                         weight=ft.FontWeight.W_800,
                                         color=GenshinTheme.ON_PRIMARY,
                                     ),
-                                    bgcolor=palette["accent"],
+                                    bgcolor=accent_color,
                                     padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                                     border_radius=10,
                                 ),
@@ -136,7 +153,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                             content=ft.IconButton(
                                 ft.Icons.ADD,
                                 tooltip="添加子节点",
-                                icon_color=palette["accent"],
+                                icon_color=accent_color,
                                 icon_size=16,
                                 style=ft.ButtonStyle(
                                     bgcolor={
@@ -170,7 +187,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                         end=ft.Alignment(1, 0),
                         colors=[
                             ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                            palette["accent"],
+                            accent_color,
                             ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
                         ],
                     ),
@@ -183,11 +200,16 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                     color=GenshinTheme.ON_SURFACE,
                     max_lines=2,
                 ),
-                ft.Text(
-                    detail,
-                    size=11,
-                    color=GenshinTheme.TEXT_SECONDARY,
-                    max_lines=2,
+                ft.Column(
+                    [
+                        ft.Text(
+                            line,
+                            size=11,
+                            color=GenshinTheme.TEXT_SECONDARY,
+                        )
+                        for line in detail_lines
+                    ],
+                    spacing=4,
                 ),
                 ft.Row(
                     [
@@ -195,7 +217,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                             content=ft.Text(
                                 f"子节点 {vm.children_count}",
                                 size=10,
-                                color=palette["accent"],
+                                color=accent_color,
                                 weight=ft.FontWeight.W_700,
                             ),
                             padding=ft.Padding.symmetric(horizontal=8, vertical=5),
@@ -209,7 +231,7 @@ def NodeCard(vm: NodeViewModel, is_selected: bool, on_select, on_open_add_drawer
                             content=ft.Text(
                                 "SELECTED" if is_selected else "READY",
                                 size=9,
-                                color=palette["accent"] if is_selected else GenshinTheme.TEXT_SECONDARY,
+                                color=accent_color if is_selected else GenshinTheme.TEXT_SECONDARY,
                                 weight=ft.FontWeight.W_700,
                             ),
                             padding=ft.Padding.symmetric(horizontal=8, vertical=5),

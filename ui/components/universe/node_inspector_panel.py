@@ -253,7 +253,7 @@ def NodeInspectorPanel(
                             value=rule_value,
                             on_change=lambda e: set_rule_value(e.control.value),
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "应用规则",
                             icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
                             bgcolor=GenshinTheme.PRIMARY,

@@ -356,6 +356,20 @@ class BatchEditorState:
 
         def walk(node: BatchNode) -> None:
             rule_label = node.rule.label if node.rule and node.rule.label else ""
+
+            # 格式化路径和值
+            target_path = ""
+            value_text = ""
+            range_info = ""
+
+            if node.kind == BatchNodeKind.RULE and node.rule:
+                target_path = self._format_path(node.rule.target_path)
+                value_text = self._format_value(node.rule.value)
+            elif node.kind == BatchNodeKind.RANGE_ANCHOR and node.range_config:
+                target_path = self._format_path(node.range_config.target_path)
+                cfg = node.range_config
+                range_info = f"{cfg.start}~{cfg.end} (步长 {cfg.step})"
+
             vm = NodeViewModel(
                 id=node.id,
                 name=node.name,
@@ -366,6 +380,9 @@ class BatchEditorState:
                 range_child_count=len(node.children)
                 if node.kind == BatchNodeKind.RANGE_ANCHOR
                 else 0,
+                target_path=target_path,
+                value_text=value_text,
+                range_info=range_info,
             )
             node_vms[node.id] = vm
             for child in node.children:
@@ -483,3 +500,34 @@ class BatchEditorState:
     @staticmethod
     def _new_id() -> str:
         return uuid.uuid4().hex[:10]
+
+    @staticmethod
+    def _format_path(path: list[str | int], max_segments: int = 3) -> str:
+        """将路径列表格式化为可读字符串，默认只显示最后三个字段。
+
+        数组索引不算独立字段，而是附加在前面的字段上。
+        例如: ["context_config", "team", 0, "character", "level"] -> "team[0].character.level"
+        """
+        # 先格式化完整路径
+        formatted_segments: list[str] = []
+        for p in path:
+            if isinstance(p, int):
+                if formatted_segments:
+                    formatted_segments[-1] += f"[{p}]"
+                else:
+                    formatted_segments.append(f"[{p}]")
+            else:
+                formatted_segments.append(str(p))
+
+        # 只取最后 max_segments 个字段
+        segments = formatted_segments[-max_segments:] if len(formatted_segments) > max_segments else formatted_segments
+        return ".".join(segments)
+
+    @staticmethod
+    def _format_value(value: Any) -> str:
+        """将值格式化为可读字符串。"""
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value)
