@@ -19,7 +19,7 @@ async def test_execution_service_collects_success_stats_and_progress():
             param_snapshot=request.param_snapshot,
         )
 
-    def on_progress(done: int, total: int) -> None:
+    def on_progress(done: int, total: int, request_id: str | None) -> None:
         calls.append((done, total))
 
     service = BatchExecutionService(worker_func=worker)

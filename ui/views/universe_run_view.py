@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import flet as ft
 
+from ui.components.universe.run.action_drawer import ActionDrawer
+from ui.components.universe.run.command_ribbon import CommandRibbon
+from ui.components.universe.run.data_grid import DataGrid
 from ui.states.batch_run_state import BatchRunState
 from ui.theme import GenshinTheme
 
@@ -14,7 +17,9 @@ async def _push_route(page: ft.Page, route: str) -> None:
     await page.push_route(route)
 
 
-def _route_btn(state: BatchRunState, label: str, route: str, active: bool) -> ft.Control:
+def _route_btn(
+    state: BatchRunState, label: str, route: str, active: bool
+) -> ft.Control:
     return ft.OutlinedButton(
         content=ft.Text(label),
         disabled=active,
@@ -38,114 +43,103 @@ def _route_btn(state: BatchRunState, label: str, route: str, active: bool) -> ft
 
 
 class UniverseRunView(ft.View):
-    """批处理运行页面视图。"""
+    """批处理运行页面视图。
+
+    采用纵向层叠布局：
+    - CommandRibbon: 顶部悬浮命令栏
+    - DataGrid: 主体数据展示区域
+    - ActionDrawer: 底部交互层
+    """
 
     def __init__(self, state: BatchRunState, route: str = RUN_ROUTE) -> None:
-        summary = state.last_summary
-        progress = max(0.0, min(1.0, state.progress))
+        self._state = state
 
-        metric_row = ft.Row(
-            [
-                ft.Container(
-                    content=ft.Text(
-                        f"总任务: {summary.total_runs if summary else '-'}",
-                        size=13,
-                        color=GenshinTheme.TEXT_SECONDARY,
-                    ),
-                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-                    border_radius=999,
-                    bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
-                ),
-                ft.Container(
-                    content=ft.Text(
-                        f"成功: {summary.completed_runs if summary else '-'}",
-                        size=13,
-                        color=GenshinTheme.TEXT_SECONDARY,
-                    ),
-                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-                    border_radius=999,
-                    bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
-                ),
-                ft.Container(
-                    content=ft.Text(
-                        f"失败: {summary.failed_runs if summary else '-'}",
-                        size=13,
-                        color=GenshinTheme.TEXT_SECONDARY,
-                    ),
-                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-                    border_radius=999,
-                    bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
-                ),
-            ],
-            spacing=10,
-            wrap=True,
-        )
+        # 获取项目名称（从编辑器状态）
+        project_name = "批处理项目"  # 默认值
 
+        # 构建内容
         content = ft.Container(
             expand=True,
             bgcolor=GenshinTheme.BACKGROUND,
-            padding=24,
-            content=ft.Column(
+            content=ft.Stack(
                 [
-                    ft.Row(
+                    # 主体区域
+                    ft.Column(
                         [
-                            ft.Text(
-                                "批处理运行视图",
-                                size=24,
-                                weight=ft.FontWeight.W_800,
-                            ),
-                            ft.Row(
-                                [
-                                    _route_btn(state, "编辑", EDITOR_ROUTE, False),
-                                    _route_btn(state, "运行", RUN_ROUTE, True),
-                                    _route_btn(state, "分析", ANALYSIS_ROUTE, False),
-                                ],
-                                spacing=8,
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    ),
-                    ft.Container(
-                        padding=16,
-                        border_radius=16,
-                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                        border=ft.Border.all(
-                            1, ft.Colors.with_opacity(0.12, ft.Colors.WHITE)
-                        ),
-                        content=ft.Column(
-                            [
-                                ft.Text(state.status_text, size=14),
-                                ft.ProgressBar(value=progress, height=8),
-                                ft.Text(
-                                    f"当前进度: {int(progress * 100)}%",
-                                    size=12,
-                                    color=GenshinTheme.TEXT_SECONDARY,
+                            # 顶部导航栏
+                            ft.Container(
+                                content=ft.Row(
+                                    [
+                                        ft.Row(
+                                            [
+                                                ft.Icon(
+                                                    ft.Icons.PLAY_ARROW_ROUNDED,
+                                                    size=20,
+                                                    color=GenshinTheme.PRIMARY,
+                                                ),
+                                                ft.Text(
+                                                    "批处理执行",
+                                                    size=20,
+                                                    weight=ft.FontWeight.W_800,
+                                                    color=GenshinTheme.ON_SURFACE,
+                                                ),
+                                            ],
+                                            spacing=8,
+                                        ),
+                                        ft.Row(
+                                            [
+                                                _route_btn(state, "编辑", EDITOR_ROUTE, False),
+                                                _route_btn(state, "运行", RUN_ROUTE, True),
+                                                _route_btn(state, "分析", ANALYSIS_ROUTE, False),
+                                            ],
+                                            spacing=8,
+                                        ),
+                                    ],
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                 ),
-                                metric_row,
-                            ],
-                            spacing=12,
-                        ),
-                    ),
-                    ft.Container(
-                        padding=16,
-                        border_radius=16,
-                        bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE),
-                        border=ft.Border.all(
-                            1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
-                        ),
-                        content=ft.Text(
-                            state.error_message or "暂无运行错误。",
-                            color=(
-                                ft.Colors.RED_200
-                                if state.error_message
-                                else GenshinTheme.TEXT_SECONDARY
+                                padding=ft.Padding.symmetric(horizontal=20, vertical=12),
                             ),
-                        ),
+                            # Command Ribbon
+                            ft.Container(
+                                content=CommandRibbon(state, project_name),
+                                padding=ft.Padding.symmetric(horizontal=20),
+                            ),
+                            # Data Grid
+                            DataGrid(state, self._on_toggle_expand),
+                        ],
+                        spacing=12,
+                        expand=True,
+                    ),
+                    # Action Drawer
+                    ActionDrawer(
+                        state,
+                        on_stop=self._on_stop,
+                        on_back=self._on_back,
+                        on_analysis=self._on_analysis,
                     ),
                 ],
-                spacing=16,
                 expand=True,
             ),
         )
 
         super().__init__(route=route, controls=[content])
+
+    def _on_toggle_expand(self, request_id: str) -> None:
+        """切换任务展开状态。"""
+        if request_id in self._state.tasks:
+            self._state.tasks[request_id].toggle_expanded()
+
+    def _on_stop(self) -> None:
+        """停止执行。"""
+        # TODO: 实现停止逻辑
+        pass
+
+    def _on_back(self) -> None:
+        """返回编辑器。"""
+        if self._state.page:
+            self._state.page.run_task(_push_route, self._state.page, EDITOR_ROUTE)
+
+    def _on_analysis(self) -> None:
+        """查看分析。"""
+        if self._state.page:
+            self._state.page.run_task(_push_route, self._state.page, ANALYSIS_ROUTE)

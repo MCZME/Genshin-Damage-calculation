@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
+from typing import Any
 
 from core.batch.models import (
     BatchNode,
@@ -75,8 +76,8 @@ class BatchProjectStorage:
         )
 
     @classmethod
-    def _node_to_dict(cls, node: BatchNode) -> dict:
-        data = {
+    def _node_to_dict(cls, node: BatchNode) -> dict[str, Any]:
+        data: dict[str, Any] = {
             "id": node.id,
             "name": node.name,
             "kind": node.kind.value,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 import flet as ft
 import flet.canvas as cv
@@ -62,6 +63,9 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_open_drawe
         def handle_open_drawer(e, current_id=node.id, cx=x, cy=y):
             on_open_drawer(current_id, cx + card_width - 6, cy + 12)
 
+        def handle_select(_: Any, node_id: str = node.id) -> None:
+            on_select(node_id)
+
         node_controls.append(
             ft.Container(
                 left=x,
@@ -69,7 +73,7 @@ def MindMapCanvas(data: MindMapCanvasData, on_select, on_add_node, on_open_drawe
                 content=NodeCard(
                     vm=vm,
                     is_selected=node.id == data.selected_node_id,
-                    on_select=lambda _, node_id=node.id: on_select(node_id),
+                    on_select=handle_select,
                     on_open_add_drawer=handle_open_drawer,
                 ),
             )

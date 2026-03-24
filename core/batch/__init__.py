@@ -5,6 +5,7 @@ from core.batch.ipc import (
     MAIN_BATCH_FINISHED,
     MAIN_BATCH_PROGRESS,
     MAIN_BATCH_REJECTED,
+    MAIN_BATCH_TASK_RESULT,
 )
 from core.batch.models import (
     BatchCompileError,
@@ -16,6 +17,7 @@ from core.batch.models import (
     BatchRunSummary,
     MutationRule,
     RangeMutationConfig,
+    TaskRunState,
 )
 from core.batch.storage import BatchProjectStorage
 
@@ -31,9 +33,11 @@ __all__ = [
     "MAIN_BATCH_FINISHED",
     "MAIN_BATCH_PROGRESS",
     "MAIN_BATCH_REJECTED",
+    "MAIN_BATCH_TASK_RESULT",
     "BatchRunRequest",
     "BatchRunResult",
     "BatchRunSummary",
     "MutationRule",
     "RangeMutationConfig",
+    "TaskRunState",
 ]

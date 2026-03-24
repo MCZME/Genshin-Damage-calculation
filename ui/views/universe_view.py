@@ -75,6 +75,14 @@ async def _on_load(universe_state: BatchUniverseState) -> None:
         universe_state.load_project(files[0].path)
 
 
+async def _on_run_and_navigate(universe_state: BatchUniverseState) -> None:
+    """执行批处理并跳转到运行界面。"""
+    await universe_state.run_batch()
+    # 跳转到运行界面
+    if universe_state.editor_state.page:
+        await universe_state.editor_state.page.push_route("/run")
+
+
 @ft.component
 def _universe_editor_content(
     editor_state: BatchEditorState,
@@ -90,7 +98,7 @@ def _universe_editor_content(
         is_running=run_state.is_running,
         on_save=lambda e: editor_state.page.run_task(_on_save, editor_state),
         on_load=lambda e: editor_state.page.run_task(_on_load, universe_state),
-        on_run=lambda _: editor_state.page.run_task(universe_state.run_batch),
+        on_run=lambda _: editor_state.page.run_task(_on_run_and_navigate, universe_state),
         current_route=editor_state.page.route if editor_state.page else "/",
         on_go_run=lambda _: asyncio.create_task(editor_state.page.push_route("/run")),
         on_go_analysis=lambda _: asyncio.create_task(

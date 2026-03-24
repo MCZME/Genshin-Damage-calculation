@@ -88,7 +88,7 @@ def TreeNode(
                     border_radius=8,
                     bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE) if is_hovered else None,
                     on_click=handle_click,
-                    on_hover=lambda e: set_hovered(e.data),
+                    on_hover=lambda e: set_hovered(e.data),  # type: ignore
                 ),
                 ft.Container(
                     content=ft.Column(children, spacing=0, tight=True) if children else None,
@@ -111,20 +111,23 @@ def TreeNode(
 
         preview = _format_value_preview(value) if value is not None else None
 
+        controls: list[ft.Control] = [
+            ft.Icon(type_icon, size=14, color=GenshinTheme.TEXT_SECONDARY),
+            ft.Text(node_key, size=12),
+        ]
+        if preview:
+            controls.append(
+                ft.Container(
+                    content=ft.Text(preview, size=10, color=GenshinTheme.TEXT_SECONDARY),
+                    bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+                    padding=ft.Padding.symmetric(horizontal=6, vertical=2),
+                    border_radius=4,
+                )
+            )
+
         return ft.Container(
             content=ft.Row(
-                [
-                    ft.Icon(type_icon, size=14, color=GenshinTheme.TEXT_SECONDARY),
-                    ft.Text(node_key, size=12),
-                    ft.Container(
-                        content=ft.Text(preview, size=10, color=GenshinTheme.TEXT_SECONDARY),
-                        bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
-                        padding=ft.Padding.symmetric(horizontal=6, vertical=2),
-                        border_radius=4,
-                    )
-                    if preview
-                    else None,
-                ],
+                controls,
                 spacing=6,
             ),
             padding=ft.Padding(left=indent + 22, top=4, bottom=4, right=4),
@@ -132,7 +135,7 @@ def TreeNode(
             bgcolor=ft.Colors.with_opacity(0.1, GenshinTheme.PRIMARY) if is_hovered else None,
             border=ft.Border.all(1, ft.Colors.with_opacity(0.3, GenshinTheme.PRIMARY)) if is_hovered else None,
             on_click=lambda _: on_select(path),
-            on_hover=lambda e: set_hovered(e.data),
+            on_hover=lambda e: set_hovered(e.data), # type: ignore
         )
 
 

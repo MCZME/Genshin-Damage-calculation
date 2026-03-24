@@ -10,14 +10,12 @@ from core.batch import (
     MAIN_BATCH_FINISHED,
     MAIN_BATCH_PROGRESS,
     MAIN_BATCH_REJECTED,
+    MAIN_BATCH_TASK_RESULT,
 )
 from ui.states.batch_universe_state import BatchUniverseState
 from ui.theme import GenshinTheme
 from ui.views.universe_router import UniverseRouter
 from ui.views.universe_routes import (
-    UNIVERSE_ANALYSIS_ROUTE,
-    UNIVERSE_EDITOR_ROUTE,
-    UNIVERSE_RUN_ROUTE,
     resolve_universe_route,
 )
 
@@ -60,6 +58,7 @@ def start_universe_process(main_to_branch, branch_to_main=None):
                         )
                     elif msg_type in {
                         MAIN_BATCH_PROGRESS,
+                        MAIN_BATCH_TASK_RESULT,
                         MAIN_BATCH_FINISHED,
                         MAIN_BATCH_REJECTED,
                     }:

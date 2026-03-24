@@ -11,6 +11,15 @@ class BatchNodeKind(str, Enum):
     RANGE_ANCHOR = "range_anchor"
 
 
+class TaskRunState(str, Enum):
+    """单个任务的运行状态。"""
+
+    PENDING = "pending"  # 等待中
+    RUNNING = "running"  # 运行中
+    SUCCESS = "success"  # 成功
+    ERROR = "error"  # 错误
+
+
 @dataclass
 class MutationRule:
     """批处理变异规则。第一阶段仅支持 replace。"""

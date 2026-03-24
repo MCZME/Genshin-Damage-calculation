@@ -93,7 +93,8 @@ class BatchExecutionService:
         self,
         project: BatchProject | None = None,
         requests: Iterable[BatchRunRequest] | None = None,
-        on_progress: Callable[[int, int], Any] | None = None,
+        on_progress: Callable[[int, int, str | None], Any] | None = None,
+        on_task_result: Callable[[BatchRunResult], Any] | None = None,
     ) -> BatchRunSummary:
         materialized = list(requests) if requests is not None else []
         if project is not None and not materialized:
@@ -105,51 +106,79 @@ class BatchExecutionService:
 
         loop = asyncio.get_running_loop()
 
+        # 创建 future -> request 映射
+        future_to_request: dict[asyncio.Future, BatchRunRequest] = {}
         if self.worker_func is _default_batch_worker:
             with concurrent.futures.ProcessPoolExecutor(
                 max_workers=self.max_workers
             ) as executor:
-                futures = [
-                    loop.run_in_executor(executor, self.worker_func, request)
-                    for request in materialized
-                ]
-                await self._consume_futures(futures, summary, on_progress)
+                for request in materialized:
+                    future = loop.run_in_executor(executor, self.worker_func, request)
+                    future_to_request[future] = request
+                await self._consume_futures(future_to_request, summary, on_progress, on_task_result)
         else:
-            futures = [
-                loop.run_in_executor(None, self.worker_func, request)
-                for request in materialized
-            ]
-            await self._consume_futures(futures, summary, on_progress)
+            for request in materialized:
+                future = loop.run_in_executor(None, self.worker_func, request)
+                future_to_request[future] = request
+            await self._consume_futures(future_to_request, summary, on_progress, on_task_result)
 
         self._calculate_stats(summary)
         return summary
 
     async def _consume_futures(
         self,
-        futures: list[asyncio.Future],
+        future_to_request: dict[asyncio.Future, BatchRunRequest],
         summary: BatchRunSummary,
-        on_progress: Callable[[int, int], Any] | None,
+        on_progress: Callable[[int, int, str | None], Any] | None,
+        on_task_result: Callable[[BatchRunResult], Any] | None,
     ) -> None:
         completed = 0
-        for future in asyncio.as_completed(futures):
-            try:
-                result = await future
-                summary.results.append(result)
-                if result.error:
-                    summary.failed_runs += 1
-                    summary.errors.append(result.error)
-                else:
-                    summary.completed_runs += 1
-            except Exception as exc:
-                summary.failed_runs += 1
-                summary.errors.append(str(exc))
+        pending = set(future_to_request.keys())
 
-            completed += 1
-            if on_progress:
-                if inspect.iscoroutinefunction(on_progress):
-                    await on_progress(completed, summary.total_runs)
-                else:
-                    on_progress(completed, summary.total_runs)
+        while pending:
+            done, pending = await asyncio.wait(
+                pending,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for future in done:
+                request = future_to_request[future]
+                try:
+                    result = future.result()
+                    summary.results.append(result)
+                    if result.error:
+                        summary.failed_runs += 1
+                        summary.errors.append(result.error)
+                    else:
+                        summary.completed_runs += 1
+
+                    # 调用任务结果回调
+                    if on_task_result:
+                        if inspect.iscoroutinefunction(on_task_result):
+                            await on_task_result(result)
+                        else:
+                            on_task_result(result)
+                except Exception as exc:
+                    summary.failed_runs += 1
+                    summary.errors.append(str(exc))
+                    # 创建错误结果
+                    error_result = BatchRunResult(
+                        request_id=request.request_id,
+                        node_id=request.node_id,
+                        node_name=request.node_name,
+                        error=str(exc),
+                    )
+                    if on_task_result:
+                        if inspect.iscoroutinefunction(on_task_result):
+                            await on_task_result(error_result)
+                        else:
+                            on_task_result(error_result)
+
+                completed += 1
+                if on_progress:
+                    if inspect.iscoroutinefunction(on_progress):
+                        await on_progress(completed, summary.total_runs, request.request_id)
+                    else:
+                        on_progress(completed, summary.total_runs, request.request_id)
 
     @staticmethod
     def _calculate_stats(summary: BatchRunSummary) -> None:

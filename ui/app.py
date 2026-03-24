@@ -10,9 +10,11 @@ from core.batch import (
     BRANCH_RUN_BATCH_REQUEST,
     BatchExecutionService,
     BatchRunRequest,
+    BatchRunResult,
     MAIN_BATCH_FINISHED,
     MAIN_BATCH_PROGRESS,
     MAIN_BATCH_REJECTED,
+    MAIN_BATCH_TASK_RESULT,
 )
 from core.logger import get_ui_logger
 from ui.layout import AppLayout
@@ -145,19 +147,33 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
                 f"Main process accepted batch run {run_id} with {len(requests)} requests."
             )
 
-            def on_progress(done: int, total: int) -> None:
+            def on_progress(done: int, total: int, request_id: str | None) -> None:
                 send_to_branch(
                     {
                         "type": MAIN_BATCH_PROGRESS,
                         "run_id": run_id,
                         "done": done,
                         "total": total,
+                        "running_request_id": request_id,
                         "status_text": f"批处理执行中 {done}/{total}",
                     }
                 )
 
+            def on_task_result(result: BatchRunResult) -> None:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_TASK_RESULT,
+                        "run_id": run_id,
+                        "result": result.to_dict(),
+                    }
+                )
+
             try:
-                summary = await batch_executor.run(requests=requests, on_progress=on_progress)
+                summary = await batch_executor.run(
+                    requests=requests,
+                    on_progress=on_progress,
+                    on_task_result=on_task_result,
+                )
                 first_error = summary.errors[0] if summary.errors else ""
                 send_to_branch(
                     {
