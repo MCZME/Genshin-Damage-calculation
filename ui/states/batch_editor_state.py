@@ -15,6 +15,7 @@ from core.batch import (
     BatchProjectStorage,
     MutationRule,
     RangeMutationConfig,
+    RangeType,
 )
 from ui.view_models.universe import (
     MindMapCanvasData,
@@ -177,28 +178,64 @@ class BatchEditorState:
         end_text: str,
         step_text: str,
         label: str,
+        range_type: str = "numeric",
+        values_text: str = "",
     ) -> None:
         node = self.selected_node
         if node.kind != BatchNodeKind.RANGE_ANCHOR:
             return
 
-        start = float(start_text)
-        end = float(end_text)
-        step = float(step_text)
-        if step == 0:
-            raise ValueError("区间步长不能为 0。")
+        parsed_range_type = RangeType(range_type)
+        target_path = self._parse_path(path_text)
 
-        node.range_config = RangeMutationConfig(
-            target_path=self._parse_path(path_text),
-            start=start,
-            end=end,
-            step=step,
-            label=label.strip(),
-        )
+        if parsed_range_type == RangeType.ENUM:
+            # 枚举类型：解析值列表
+            values = self._parse_enum_values(values_text)
+            if not values:
+                raise ValueError("枚举值列表不能为空。")
+            node.range_config = RangeMutationConfig(
+                target_path=target_path,
+                range_type=RangeType.ENUM,
+                values=values,
+                label=label.strip(),
+            )
+        else:
+            # 数值区间
+            start = float(start_text)
+            end = float(end_text)
+            step = float(step_text)
+            if step == 0:
+                raise ValueError("区间步长不能为 0。")
+            node.range_config = RangeMutationConfig(
+                target_path=target_path,
+                range_type=RangeType.NUMERIC,
+                start=start,
+                end=end,
+                step=step,
+                label=label.strip(),
+            )
+
         node.name = label.strip() or "区间锚点"
         node.children = self._build_range_children(node)
         self._sync_view_models()
         self.notify_update()
+
+    @staticmethod
+    def _parse_enum_values(values_text: str) -> list[Any]:
+        """解析枚举值列表，支持逗号分隔。"""
+        items = [item.strip() for item in values_text.split(",") if item.strip()]
+        result: list[Any] = []
+        for item in items:
+            # 尝试解析为数值
+            try:
+                if "." in item:
+                    result.append(float(item))
+                else:
+                    result.append(int(item))
+            except ValueError:
+                # 保持字符串
+                result.append(item)
+        return result
 
     def find_node(self, node_id: str) -> BatchNode | None:
         def walk(current: BatchNode) -> BatchNode | None:
@@ -234,7 +271,10 @@ class BatchEditorState:
             elif node.kind == BatchNodeKind.RANGE_ANCHOR and node.range_config:
                 target_path = self._format_path(node.range_config.target_path)
                 cfg = node.range_config
-                range_info = f"{cfg.start}~{cfg.end} (步长 {cfg.step})"
+                if cfg.range_type == RangeType.ENUM:
+                    range_info = f"枚举 {len(cfg.values)} 项"
+                else:
+                    range_info = f"{cfg.start}~{cfg.end} (步长 {cfg.step})"
 
             vm = NodeViewModel(
                 id=node.id,
@@ -269,6 +309,12 @@ class BatchEditorState:
 
     def _build_inspector_vm(self, node: BatchNode) -> NodeInspectorPanelViewModel:
         config = node.range_config
+        range_type = config.range_type if config else RangeType.NUMERIC
+        range_values_text = (
+            ",".join(str(v) for v in config.values)
+            if config and config.range_type == RangeType.ENUM
+            else ""
+        )
         return NodeInspectorPanelViewModel(
             node_id=node.id,
             node_name=node.name,
@@ -277,9 +323,11 @@ class BatchEditorState:
             rule_path_text=self.get_rule_path_text(node),
             rule_value_text=self.get_rule_value_text(node),
             range_path_text=self.get_range_path_text(node),
+            range_type=range_type,
             range_start_text=str(config.start) if config else "0",
             range_end_text=str(config.end) if config else "10",
             range_step_text=str(config.step) if config else "1",
+            range_values_text=range_values_text,
             range_label_text=config.label if config else node.name,
             range_children_count=len(node.children),
             can_delete=node.kind != BatchNodeKind.ROOT and not node.is_generated,
@@ -314,28 +362,38 @@ class BatchEditorState:
     def _build_range_children(self, anchor: BatchNode) -> list[BatchNode]:
         assert anchor.range_config is not None
         config = anchor.range_config
-        values: list[float] = []
-        current = config.start
-        if config.step > 0:
-            while current <= config.end + 1e-9:
-                values.append(round(current, 10))
-                current += config.step
+
+        # 根据类型生成值列表
+        if config.range_type == RangeType.ENUM:
+            values = config.values
         else:
-            while current >= config.end - 1e-9:
-                values.append(round(current, 10))
-                current += config.step
+            # 数值区间
+            values = []  # type: ignore[no-redef]
+            current = config.start
+            if config.step > 0:
+                while current <= config.end + 1e-9:
+                    values.append(round(current, 10))
+                    current += config.step
+            else:
+                while current >= config.end - 1e-9:
+                    values.append(round(current, 10))
+                    current += config.step
 
         children = []
         for value in values:
-            text_value = int(value) if float(value).is_integer() else value
+            # 数值类型：整数显示优化
+            if isinstance(value, float) and value.is_integer():
+                display_value = int(value)
+            else:
+                display_value = value
             child = BatchNode(
                 id=self._new_id(),
-                name=str(text_value),
+                name=str(display_value),
                 kind=BatchNodeKind.RULE,
                 rule=MutationRule(
                     target_path=list(config.target_path),
-                    value=text_value,
-                    label=f"{config.label or 'range'}={text_value}",
+                    value=display_value,
+                    label=f"{config.label or 'range'}={display_value}",
                 ),
                 generated_from_anchor_id=anchor.id,
             )

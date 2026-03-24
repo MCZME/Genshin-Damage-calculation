@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 import flet as ft
-from core.batch.models import BatchNodeKind
+from core.batch.models import BatchNodeKind, RangeType
 
 
 @ft.observable
@@ -16,9 +16,11 @@ class NodeInspectorPanelViewModel:
     rule_value_text: str = ""
     range_path_text: str = ""
     base_config: dict[str, Any] = field(default_factory=dict)
+    range_type: RangeType = RangeType.NUMERIC
     range_start_text: str = "0"
     range_end_text: str = "10"
     range_step_text: str = "1"
+    range_values_text: str = ""  # 枚举值，逗号分隔
     range_label_text: str = ""
     range_children_count: int = 0
     can_delete: bool = False

@@ -17,6 +17,7 @@ from core.batch.models import (
     BatchRunSummary,
     MutationRule,
     RangeMutationConfig,
+    RangeType,
     TaskRunState,
 )
 from core.batch.storage import BatchProjectStorage
@@ -39,5 +40,6 @@ __all__ = [
     "BatchRunSummary",
     "MutationRule",
     "RangeMutationConfig",
+    "RangeType",
     "TaskRunState",
 ]

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Callable
 
 import flet as ft
 
@@ -7,7 +8,7 @@ from ui.theme import GenshinTheme
 from ui.view_models.universe.node_vm import NodeViewModel
 
 
-from typing import Any, Callable
+from typing import Any
 
 @ft.component
 def NodeCard(

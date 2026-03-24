@@ -5,6 +5,7 @@ import flet as ft
 from core.batch.models import BatchNodeKind, BatchRunSummary
 from ui.components.universe.node_add_drawer import NodeAddDrawer
 from ui.components.universe.path_selector_drawer import PathSelectorDrawer
+from ui.components.universe.range_anchor_form import RangeAnchorForm
 from ui.theme import GenshinTheme
 from ui.view_models.universe.node_inspector_panel_vm import NodeInspectorPanelViewModel
 
@@ -25,18 +26,22 @@ def NodeInspectorPanel(
     rule_value, set_rule_value = ft.use_state(vm.rule_value_text)
 
     range_path, set_range_path = ft.use_state(vm.range_path_text)
+    range_type, set_range_type = ft.use_state(vm.range_type.value)
     range_start, set_range_start = ft.use_state(vm.range_start_text)
     range_end, set_range_end = ft.use_state(vm.range_end_text)
     range_step, set_range_step = ft.use_state(vm.range_step_text)
+    range_values, set_range_values = ft.use_state(vm.range_values_text)
     range_label, set_range_label = ft.use_state(vm.range_label_text)
 
     def sync_inputs() -> None:
         set_rule_path(vm.rule_path_text)
         set_rule_value(vm.rule_value_text)
         set_range_path(vm.range_path_text)
+        set_range_type(vm.range_type.value)
         set_range_start(vm.range_start_text)
         set_range_end(vm.range_end_text)
         set_range_step(vm.range_step_text)
+        set_range_values(vm.range_values_text)
         set_range_label(vm.range_label_text)
         set_drawer_open(False)
 
@@ -274,83 +279,24 @@ def NodeInspectorPanel(
         )
     elif vm.show_range_form:
         controls.append(
-            soft_card(
-                ft.Column(
-                    [
-                        ft.Row(
-                            [
-                                ft.Icon(ft.Icons.MULTILINE_CHART, size=16, color="#6AB3FF"),
-                                ft.Text("区间锚点", weight=ft.FontWeight.BOLD),
-                            ],
-                            spacing=8,
-                        ),
-                        styled_text_field(
-                            label="目标路径",
-                            value=range_path,
-                            on_change=lambda e: set_range_path(e.control.value),
-                        ),
-                        ft.Row(
-                            [
-                                styled_text_field(
-                                    label="起始",
-                                    value=range_start,
-                                    on_change=lambda e: set_range_start(e.control.value),
-                                    expand=True,
-                                ),
-                                styled_text_field(
-                                    label="终止",
-                                    value=range_end,
-                                    on_change=lambda e: set_range_end(e.control.value),
-                                    expand=True,
-                                ),
-                                styled_text_field(
-                                    label="步长",
-                                    value=range_step,
-                                    on_change=lambda e: set_range_step(e.control.value),
-                                    expand=True,
-                                ),
-                            ],
-                            spacing=10,
-                        ),
-                        styled_text_field(
-                            label="区间标签",
-                            value=range_label,
-                            on_change=lambda e: set_range_label(e.control.value),
-                        ),
-                        ft.ElevatedButton(
-                            "生成区间子节点",
-                            icon=ft.Icons.AUTO_AWESOME,
-                            bgcolor=GenshinTheme.PRIMARY,
-                            color=ft.Colors.WHITE,
-                            expand=True,
-                            style=ft.ButtonStyle(
-                                shape=ft.RoundedRectangleBorder(radius=18),
-                                padding=ft.Padding.symmetric(horizontal=16, vertical=14),
-                            ),
-                            on_click=lambda _: on_apply_range(
-                                range_path,
-                                range_start,
-                                range_end,
-                                range_step,
-                                range_label,
-                            ),
-                        ),
-                        ft.Container(
-                            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
-                            border_radius=999,
-                            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                            border=ft.Border.all(
-                                1, ft.Colors.with_opacity(0.08, ft.Colors.WHITE)
-                            ),
-                            content=ft.Text(
-                                f"当前生成子节点数: {vm.range_children_count}",
-                                color=GenshinTheme.TEXT_SECONDARY,
-                                size=11,
-                            ),
-                        ),
-                    ],
-                    spacing=10,
-                )
+            RangeAnchorForm(
+                range_path=range_path,
+                range_type=range_type,
+                range_start=range_start,
+                range_end=range_end,
+                range_step=range_step,
+                range_values=range_values,
+                range_label=range_label,
+                range_children_count=vm.range_children_count,
+                base_config=vm.base_config,
+                on_set_range_path=set_range_path,
+                on_set_range_type=set_range_type,
+                on_set_range_start=set_range_start,
+                on_set_range_end=set_range_end,
+                on_set_range_step=set_range_step,
+                on_set_range_values=set_range_values,
+                on_set_range_label=set_range_label,
+                on_apply_range=on_apply_range,
             )
         )
     else:

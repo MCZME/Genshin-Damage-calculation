@@ -11,6 +11,13 @@ class BatchNodeKind(str, Enum):
     RANGE_ANCHOR = "range_anchor"
 
 
+class RangeType(str, Enum):
+    """区间类型。"""
+
+    NUMERIC = "numeric"  # 数值区间
+    ENUM = "enum"  # 枚举值列表
+
+
 class TaskRunState(str, Enum):
     """单个任务的运行状态。"""
 
@@ -35,9 +42,13 @@ class RangeMutationConfig:
     """区间锚点定义。"""
 
     target_path: list[str | int] = field(default_factory=list)
+    range_type: RangeType = RangeType.NUMERIC
+    # 数值区间参数
     start: float = 0.0
     end: float = 0.0
     step: float = 1.0
+    # 枚举值列表
+    values: list[Any] = field(default_factory=list)
     label: str = ""
 
 
