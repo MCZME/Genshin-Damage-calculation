@@ -174,33 +174,59 @@ def MultiplierCard(vm: 'MultiplierCardViewModel'):
         on_domain_click=vm.on_domain_click,
     )
 
-    return ft.Container(
-        content=ft.Column([
-            # 标签
-            ft.Text(
-                vm.bucket_label,
-                size=10,
-                color=ft.Colors.WHITE_54,
-                text_align=ft.TextAlign.CENTER,
-            ),
-            # 公式行
+    # 构建列内容
+    column_content = [
+        # 标签
+        ft.Text(
+            vm.bucket_label,
+            size=10,
+            color=ft.Colors.WHITE_54,
+            text_align=ft.TextAlign.CENTER,
+        ),
+        # 公式行
+        ft.Row(
+            formula_controls,
+            spacing=1,
+            alignment=ft.MainAxisAlignment.CENTER,
+            wrap=False,
+        ),
+    ]
+
+    # 如果有第二行公式，添加分割线和第二行
+    if vm.formula_parts_line2:
+        formula_controls_line2 = render_formula_parts(
+            parts=vm.formula_parts_line2,
+            selected_domain=vm.selected_domain,
+            active_bucket=vm.active_bucket,
+            on_domain_click=vm.on_domain_click,
+        )
+        column_content.extend([
+            # 分数线
+            ft.Container(height=1, bgcolor=ft.Colors.WHITE_38, width=60),
             ft.Row(
-                formula_controls,
+                formula_controls_line2,
                 spacing=1,
                 alignment=ft.MainAxisAlignment.CENTER,
                 wrap=False,
             ),
-            # 分割线 - 使用 Container 确保在自适应宽度下显示
-            ft.Container(height=1, bgcolor=ft.Colors.WHITE_12),
-            # 总计
-            ft.Text(
-                vm.total_text,
-                size=12,
-                weight=ft.FontWeight.BOLD,
-                color=_resolve_color(vm.total_color),
-                text_align=ft.TextAlign.CENTER,
-            ),
-        ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        ])
+
+    # 添加分割线和总计
+    column_content.extend([
+        # 分割线
+        ft.Container(height=1, bgcolor=ft.Colors.WHITE_12),
+        # 总计
+        ft.Text(
+            vm.total_text,
+            size=12,
+            weight=ft.FontWeight.BOLD,
+            color=_resolve_color(vm.total_color),
+            text_align=ft.TextAlign.CENTER,
+        ),
+    ])
+
+    return ft.Container(
+        content=ft.Column(column_content, spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.Padding.all(8),
         bgcolor=ft.Colors.with_opacity(0.15, vm.bucket_color) if vm.is_selected else ft.Colors.WHITE_10,
         border_radius=8,

@@ -51,6 +51,7 @@ class MultiplierCardViewModel:
 
     # 派生属性（纯数据，不存储组件）
     formula_parts: list = field(default_factory=list, init=False, repr=False)
+    formula_parts_line2: list = field(default_factory=list, init=False, repr=False)  # 第二行公式
     total_text: str = field(default="", init=False)
     total_color: str = field(default="", init=False)
 
@@ -80,6 +81,7 @@ class MultiplierCardViewModel:
 
         # 存储数据，不存储组件
         self.formula_parts = result.parts
+        self.formula_parts_line2 = result.parts_line2
         self.total_text = result.total_text
         self.total_color = result.total_color or self.bucket_color
 

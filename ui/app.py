@@ -1,11 +1,42 @@
+from __future__ import annotations
+
+import json
+import multiprocessing
+import asyncio
+
 import flet as ft
-import threading
-import time
-from ui.states.app_state import AppState
+
+from core.batch import (
+    BRANCH_RUN_BATCH_REQUEST,
+    BatchExecutionService,
+    BatchRunRequest,
+    BatchRunResult,
+    MAIN_BATCH_FINISHED,
+    MAIN_BATCH_PROGRESS,
+    MAIN_BATCH_REJECTED,
+    MAIN_BATCH_TASK_RESULT,
+)
+from core.logger import get_ui_logger
 from ui.layout import AppLayout
 from ui.services.persistence_manager import PersistenceManager
-from core.logger import get_ui_logger
+from ui.states.app_state import AppState
+from ui.universe_launcher import start_universe_process
 
+
+def _sanitize_for_ipc(value):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _sanitize_for_ipc(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_for_ipc(item) for item in value]
+    if hasattr(value, "to_simulator_format"):
+        return _sanitize_for_ipc(value.to_simulator_format())
+    if hasattr(value, "raw_data"):
+        return _sanitize_for_ipc(value.raw_data)
+    if hasattr(value, "_data"):
+        return _sanitize_for_ipc(value._data)
+    return str(value)
 
 
 def main(page: ft.Page, main_to_branch, branch_to_main):
@@ -17,42 +48,164 @@ def main(page: ft.Page, main_to_branch, branch_to_main):
 
     # 1.1 初始化持久化服务
     persistence = PersistenceManager(page, state)
-    # 将服务注入 Page，方便 View 一键调用
     setattr(page, "persistence", persistence)
-
     get_ui_logger().log_info("Genshin Workbench main window initialized.")
 
+    batch_process: multiprocessing.Process | None = None
+    batch_executor = BatchExecutionService()
+    main_batch_running = False
 
-    # 2. 监听来自分支宇宙的“回传”指令
-    def result_listener():
+    def send_to_branch(payload: dict) -> None:
+        main_to_branch.put(payload)
+
+    async def open_batch_editor():
+        nonlocal batch_process
+        if batch_process is None or not batch_process.is_alive():
+            batch_process = multiprocessing.Process(
+                target=start_universe_process,
+                args=(main_to_branch, branch_to_main),
+                daemon=True,
+            )
+            batch_process.start()
+            get_ui_logger().log_info("Batch editor process started.")
+
+        sanitized_config = json.loads(
+            json.dumps(_sanitize_for_ipc(state.export_config()), ensure_ascii=False)
+        )
+        main_to_branch.put(
+            {
+                "type": "INIT_BATCH_EDITOR",
+                "config": sanitized_config,
+                "project_name": "工作台批处理项目",
+            }
+        )
+        get_ui_logger().log_info("Workbench config sent to batch editor.")
+
+    async def listen_branch_requests():
+        nonlocal main_batch_running
         while True:
+            if branch_to_main.empty():
+                await asyncio.sleep(0.1)
+                continue
+
+            message: dict = branch_to_main.get()
+            msg_type = str(message.get("type", ""))
+            if msg_type != BRANCH_RUN_BATCH_REQUEST:
+                await asyncio.sleep(0.05)
+                continue
+
+            run_id = str(message.get("run_id", ""))
+            if not run_id:
+                await asyncio.sleep(0.05)
+                continue
+
+            if main_batch_running:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_REJECTED,
+                        "run_id": run_id,
+                        "reason": "busy",
+                        "message": "主进程已有批处理任务在执行，请稍后重试。",
+                    }
+                )
+                await asyncio.sleep(0.05)
+                continue
+
             try:
-                if not branch_to_main.empty():
-                    msg = branch_to_main.get()
-                    if msg.get("type") == "APPLY_CONFIG":
-                        get_ui_logger().log_info(
-                            "Received APPLY_CONFIG command from Batch Editor."
-                        )
-                        # 分支宇宙要求将某个节点的配置应用到主工作台
-                        config = msg.get("config")
-                        # 这里调用 state 的加载逻辑
-                        page.run_task(state.apply_external_config, config)
-            except Exception as e:
-                get_ui_logger().log_error(f"Result listener error: {e}")
-            time.sleep(0.5)
+                requests = [
+                    BatchRunRequest.from_dict(item)
+                    for item in message.get("requests", [])
+                ]
+                for req in requests:
+                    req.batch_run_id = run_id
+            except Exception as exc:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_REJECTED,
+                        "run_id": run_id,
+                        "reason": "invalid_payload",
+                        "message": f"批处理请求解析失败: {exc}",
+                    }
+                )
+                await asyncio.sleep(0.05)
+                continue
 
-    threading.Thread(target=result_listener, daemon=True).start()
+            if not requests:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_REJECTED,
+                        "run_id": run_id,
+                        "reason": "empty_requests",
+                        "message": "请求中没有可执行任务。",
+                    }
+                )
+                await asyncio.sleep(0.05)
+                continue
 
-    # 3. 窗口初始配置
+            main_batch_running = True
+            get_ui_logger().log_info(
+                f"Main process accepted batch run {run_id} with {len(requests)} requests."
+            )
+
+            def on_progress(done: int, total: int, request_id: str | None) -> None:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_PROGRESS,
+                        "run_id": run_id,
+                        "done": done,
+                        "total": total,
+                        "running_request_id": request_id,
+                        "status_text": f"批处理执行中 {done}/{total}",
+                    }
+                )
+
+            def on_task_result(result: BatchRunResult) -> None:
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_TASK_RESULT,
+                        "run_id": run_id,
+                        "result": result.to_dict(),
+                    }
+                )
+
+            try:
+                summary = await batch_executor.run(
+                    requests=requests,
+                    on_progress=on_progress,
+                    on_task_result=on_task_result,
+                )
+                first_error = summary.errors[0] if summary.errors else ""
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_FINISHED,
+                        "run_id": run_id,
+                        "summary": summary.to_dict(),
+                        "first_error": first_error,
+                    }
+                )
+            except Exception as exc:
+                get_ui_logger().log_error(f"Main batch run failed: {exc}")
+                send_to_branch(
+                    {
+                        "type": MAIN_BATCH_REJECTED,
+                        "run_id": run_id,
+                        "reason": "execution_error",
+                        "message": f"主进程执行失败: {exc}",
+                    }
+                )
+            finally:
+                main_batch_running = False
+
+    setattr(page, "open_batch_editor", open_batch_editor)
+    page.run_task(listen_branch_requests)
+
+    # 2. 窗口初始配置
     page.window.width = 1500
     page.window.height = 950
     page.window.min_width = 1200
     page.window.min_height = 800
 
-    # 4. 实例化布局
+    # 3. 实例化布局
     layout = AppLayout(page, state, persistence)
-    # 将布局实例挂载到 Page 方便访问，但渲染使用声明式方式
     setattr(page, "app_layout", layout)
-    
-    # 建立声明式渲染根节点 (将 layout_vm 作为参数传入以确保响应式追踪)
     page.render(lambda: layout.build(state.layout_vm))

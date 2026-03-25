@@ -1,136 +1,205 @@
+from __future__ import annotations
+
+import asyncio
+import os
+
 import flet as ft
+
+from ui.components.universe import (
+    EditorHeader,
+    MindMapCanvas,
+    NodeInspectorPanel,
+)
+from ui.states.batch_analysis_state import BatchAnalysisState
+from ui.states.batch_editor_state import BatchEditorState
+from ui.states.batch_run_state import BatchRunState
+from ui.states.batch_universe_state import BatchUniverseState
 from ui.theme import GenshinTheme
-from core.logger import get_ui_logger
-from ui.components.scene.universe_canvas import UniverseCanvas
-from ui.components.strategic.mutation_inspector import MutationInspector
 
 
-class UniverseView:
-    """
-    分支宇宙编辑器视图 (V4.5 声明式重构版)
-    """
-    def __init__(self, state):
-        self.state = state
-
-    @ft.component
-    def build(self):
-        # 1. 局部状态 [V4.5 声明式补丁]
-        # mode: None | "save" | "load"
-        modal_mode, set_modal_mode = ft.use_state(None)
-        save_name, set_save_name = ft.use_state("")
-        
-        count = self._count_leaf_nodes(self.state.universe_root)
-        
-        # 2. 导航条 (HUD)
-        hud = ft.Container(
-            content=ft.Row([
-                ft.Row([
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.AUTO_AWESOME_MOTION, color=GenshinTheme.PRIMARY, size=20),
-                        bgcolor="rgba(209, 162, 255, 0.1)", padding=10, border_radius=12,
-                    ),
-                    ft.Column([
-                        ft.Text("指挥部", size=16, weight=ft.FontWeight.W_900),
-                        ft.Text("COMMANDER - 变异树编辑器", size=10, color=GenshinTheme.TEXT_SECONDARY),
-                    ], spacing=-3),
-                ], spacing=12),
-                ft.Row([
-                    ft.Container(
-                        content=ft.Text(f"模拟样本: {count}", size=11, color=GenshinTheme.PRIMARY, weight=ft.FontWeight.BOLD),
-                        padding=ft.Padding.symmetric(horizontal=16, vertical=8),
-                        bgcolor="rgba(209, 162, 255, 0.05)",
-                        border=ft.border.all(1, GenshinTheme.GLASS_BORDER),
-                        border_radius=20,
-                    ),
-                    ft.ElevatedButton(
-                        content=ft.Text("执行批量仿真", weight=ft.FontWeight.BOLD),
-                        icon=ft.Icons.PLAY_CIRCLE_FILL_ROUNDED,
-                        bgcolor=GenshinTheme.PRIMARY, color=ft.Colors.WHITE,
-                        on_click=lambda _: self.state.page.run_task(self.state.run_batch_simulation),
-                    ),
-                    ft.Row([
-                        ft.IconButton(ft.Icons.SAVE_OUTLINED, tooltip="保存批处理方案", on_click=lambda _: set_modal_mode("save")),
-                        ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, tooltip="加载批处理方案", on_click=lambda _: set_modal_mode("load")),
-                    ], spacing=0),
-                ], spacing=20),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=32, vertical=12),
-            height=80, bgcolor=GenshinTheme.HEADER_BG, blur=20,
-            border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER)),
+def _build_canvas_backdrop() -> ft.Control:
+    vertical_lines = [
+        ft.Container(
+            left=120 + index * 220,
+            top=100,
+            bottom=70,
+            width=1,
+            bgcolor=ft.Colors.with_opacity(0.035, ft.Colors.WHITE),
         )
+        for index in range(8)
+    ]
+    horizontal_lines = [
+        ft.Container(
+            left=120,
+            right=420,
+            top=130 + index * 140,
+            height=1,
+            bgcolor=ft.Colors.with_opacity(0.03, ft.Colors.WHITE),
+        )
+        for index in range(6)
+    ]
 
-        # 3. 遮罩层内容构建
-        overlay_dialog = None
-        if modal_mode == "save":
-            def confirm_save(_):
-                if save_name:
-                    self.state.save_universe(save_name)
-                    set_modal_mode(None)
+    return ft.Stack(
+        [
+            *vertical_lines,
+            *horizontal_lines,
+        ],
+        expand=True,
+    )
 
-            overlay_dialog = ft.Container(
-                content=ft.Column([
-                    ft.Text("保存批处理方案", size=18, weight=ft.FontWeight.BOLD),
-                    ft.TextField(label="方案名称", dense=True, on_change=lambda e: set_save_name(e.control.value)),
-                    ft.ElevatedButton("执行保存", on_click=confirm_save, bgcolor=GenshinTheme.PRIMARY, color=ft.Colors.WHITE)
-                ], spacing=20, tight=True),
-                width=400, padding=25, bgcolor=GenshinTheme.SURFACE, border_radius=16, 
-                border=ft.Border.all(1, "rgba(255,255,255,0.1)")
-            )
-        elif modal_mode == "load":
-            files = self.state.list_universes()
-            lv = ft.ListView(
-                controls=[
-                    ft.ListTile(
-                        title=ft.Text(f), 
-                        on_click=lambda _, fname=f: [self.state.load_universe(fname), set_modal_mode(None)]
-                    ) for f in files
-                ], 
-                expand=True, spacing=5, height=300
-            )
-            overlay_dialog = ft.Container(
-                content=ft.Column([
-                    ft.Text("加载批处理方案", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Container(lv, height=350)
-                ], spacing=20, tight=True),
-                width=450, padding=25, bgcolor=GenshinTheme.SURFACE, border_radius=16,
-                border=ft.Border.all(1, "rgba(255,255,255,0.1)")
-            )
 
-        return ft.Container(
-            content=ft.Stack([
-                UniverseCanvas(self.state).build(), # 修正为调用 .build()
-                hud,
-                MutationInspector(self.state),
-                # 声明式遮罩层渲染
+async def _on_save(state: BatchEditorState) -> None:
+    target_dir = os.path.join(os.getcwd(), "data", "batch_projects")
+    os.makedirs(target_dir, exist_ok=True)
+
+    path = await ft.FilePicker().save_file(
+        dialog_title="保存批处理项目",
+        initial_directory=target_dir,
+        file_name=f"{state.project.name or '未命名项目'}.json",
+        allowed_extensions=["json"],
+    )
+    if path:
+        state.save_project(path)
+
+
+async def _on_load(universe_state: BatchUniverseState) -> None:
+    target_dir = os.path.join(os.getcwd(), "data", "batch_projects")
+    os.makedirs(target_dir, exist_ok=True)
+
+    files: list[ft.FilePickerFile] = await ft.FilePicker().pick_files(
+        dialog_title="加载批处理项目",
+        initial_directory=target_dir,
+        allowed_extensions=["json"],
+    )
+    if files and len(files) > 0 and files[0].path:
+        universe_state.load_project(files[0].path)
+
+
+async def _on_run_and_navigate(universe_state: BatchUniverseState) -> None:
+    """执行批处理并跳转到运行界面。"""
+    await universe_state.run_batch()
+    # 跳转到运行界面
+    if universe_state.editor_state.page:
+        await universe_state.editor_state.page.push_route("/run")
+
+
+@ft.component
+def _universe_editor_content(
+    editor_state: BatchEditorState,
+    run_state: BatchRunState,
+    universe_state: BatchUniverseState,
+):
+    project = editor_state.project
+
+    header = EditorHeader(
+        project_name=project.name,
+        leaf_count=editor_state.leaf_count,
+        is_running=run_state.is_running,
+        on_save=lambda e: editor_state.page.run_task(_on_save, editor_state),
+        on_load=lambda e: editor_state.page.run_task(_on_load, universe_state),
+        on_run=lambda _: editor_state.page.run_task(_on_run_and_navigate, universe_state),
+        current_route=editor_state.page.route if editor_state.page else "/",
+        on_go_run=lambda _: asyncio.create_task(editor_state.page.push_route("/run")),
+        on_go_analysis=lambda _: asyncio.create_task(
+            editor_state.page.push_route("/analysis")
+        ),
+    )
+
+    show_inspector = editor_state.inspector_vm.node_id != "root"
+    inspector_panel = ft.Container(
+        content=NodeInspectorPanel(
+            vm=editor_state.inspector_vm,
+            on_rename=editor_state.rename_selected_node,
+            on_add_node=lambda parent_id, kind: editor_state.add_child(parent_id, kind),
+            on_delete=editor_state.delete_selected_node,
+            on_apply_rule=editor_state.update_rule,
+            on_apply_range=editor_state.configure_range_anchor
+        ),
+        visible=show_inspector,
+        width=408,
+        right=18,
+        top=88,
+        bottom=18,
+        padding=18,
+        border_radius=26,
+        gradient=ft.LinearGradient(
+            begin=ft.Alignment(-1, -1),
+            end=ft.Alignment(1, 1),
+            colors=[
+                ft.Colors.with_opacity(0.93, "#2B243D"),
+                ft.Colors.with_opacity(0.93, "#1E192B"),
+            ],
+        ),
+        border=ft.Border.all(1, ft.Colors.with_opacity(0.12, ft.Colors.WHITE)),
+        shadow=[
+            ft.BoxShadow(
+                blur_radius=26,
+                spread_radius=0,
+                color=ft.Colors.with_opacity(0.35, ft.Colors.BLACK),
+                offset=ft.Offset(0, 10),
+            ),
+            ft.BoxShadow(
+                blur_radius=36,
+                spread_radius=0,
+                color=ft.Colors.with_opacity(0.14, GenshinTheme.PRIMARY),
+                offset=ft.Offset(0, 0),
+            ),
+        ],
+    )
+
+    return ft.Container(
+        expand=True,
+        bgcolor=GenshinTheme.BACKGROUND,
+        content=ft.Stack(
+            [
                 ft.Container(
-                    content=ft.Stack([
-                        ft.Container(bgcolor="rgba(0,0,0,0.8)", on_click=lambda _: set_modal_mode(None)),
-                        ft.Container(content=overlay_dialog, alignment=ft.Alignment.CENTER),
-                    ]),
-                    visible=modal_mode is not None,
-                    expand=True
-                )
-            ], expand=True),
+                    expand=True,
+                    gradient=ft.LinearGradient(
+                        begin=ft.Alignment(-1, -1),
+                        end=ft.Alignment(1, 1),
+                        colors=["#16121F", "#1E1830", "#140F1C"],
+                    ),
+                ),
+                _build_canvas_backdrop(),
+                ft.Container(
+                    expand=True,
+                    content=MindMapCanvas(
+                        data=editor_state.canvas_data,
+                        on_select=editor_state.select_node,
+                        on_add_node=lambda parent_id, kind: editor_state.add_child(
+                            parent_id, kind
+                        ),
+                        on_open_drawer=editor_state.open_add_drawer,
+                        on_close_drawer=editor_state.close_add_drawer,
+                        on_deselect=lambda: editor_state.select_node("root"),
+                    ),
+                    padding=ft.Padding(18, 110, 18, 70),
+                ),
+                header,
+                inspector_panel,
+            ],
             expand=True,
-            bgcolor=GenshinTheme.BACKGROUND
+        ),
+    )
+
+
+class UniverseView(ft.View):
+    """批处理编辑器页面视图。"""
+
+    def __init__(
+        self,
+        editor_state: BatchEditorState,
+        run_state: BatchRunState,
+        universe_state: BatchUniverseState,
+        route: str = "/",
+    ) -> None:
+        super().__init__(
+            route=route,
+            controls=[
+                _universe_editor_content(
+                    editor_state,
+                    run_state,
+                    universe_state,
+                )
+            ],
         )
-
-    def _count_leaf_nodes(self, node):
-        """递归统计叶子节点数量"""
-        if not node.children:
-            return 1
-        return sum(self._count_leaf_nodes(c) for c in node.children)
-
-    def _handle_sync_to_workbench(self, e):
-        """实时解析当前选中节点的配置并发送回主进程"""
-        config = self.state.get_selected_node_config()
-        if config:
-            msg = {
-                "type": "APPLY_CONFIG",
-                "config": config,
-                "action_sequence_raw": config.get("action_sequence_raw", []),
-            }
-            self.state.branch_to_main.put(msg)
-            get_ui_logger().log_info(
-                f"Sent derived config of node {self.state.selected_node.id} to Workbench."
-            )

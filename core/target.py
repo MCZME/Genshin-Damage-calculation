@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 from core.entities.base_entity import CombatEntity, Faction
 
 
@@ -8,11 +8,12 @@ class Target(CombatEntity):
     负责承载基础属性、抗性面板以及伤害处理逻辑。
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """初始化受击目标。
 
         Args:
-            config: 包含目标属性的配置字典，支持 name, level, attributes 等字段。
+            config: 包含目标属性的配置字典，格式：
+                {name, level, resists: {"火": 10.0, "水": 10.0, ...}}
         """
         name = config.get("name", "未命名目标")
         super().__init__(
@@ -21,21 +22,18 @@ class Target(CombatEntity):
 
         self.level: int = config.get("level", 90)
 
-        # 基础属性面板：从 config 的 attributes 字段获取，或使用默认值
-        input_attrs = config.get("attributes", {})
-
-        self.attribute_data: Dict[str, float] = {
-            "生命值": float(input_attrs.get("生命值", 100000.0)),
-            "防御力": float(input_attrs.get("防御力", 500.0)),
+        # 基础属性面板
+        self.attribute_data: dict[str, float] = {
+            "防御力": config.get("defense", 500.0),
         }
 
-        # 初始化元素抗性 (默认为 10%)
+        # 初始化元素抗性，从 resists 字段获取，默认 10%
         elements = ["火", "水", "风", "雷", "草", "冰", "岩", "物理"]
+        resists = config.get("resists", {})
+
         for el in elements:
             key = f"{el}元素抗性"
-            self.attribute_data[key] = float(input_attrs.get(key, 10.0))
-
-        self.current_hp: float = self.attribute_data["生命值"]
+            self.attribute_data[key] = float(resists.get(el, 10.0))
 
     def handle_damage(self, damage: Any) -> None:
         """处理作用于该目标的伤害逻辑。
@@ -52,7 +50,7 @@ class Target(CombatEntity):
         # 2. 标记 Damage 对象已命中该目标
         damage.set_target(self)
 
-    def export_static_data(self) -> Dict[str, Any]:
+    def export_static_data(self) -> dict[str, Any]:
         """导出目标的静态配置数据。"""
         data = super().export_static_data()
         data["entity_type"] = "TARGET"
@@ -76,19 +74,16 @@ class Target(CombatEntity):
         })
         return data
 
-    def export_state(self) -> Dict[str, Any]:
+    def export_state(self) -> dict[str, Any]:
         """导出目标的实时仿真状态快照。
 
         Returns:
-            Dict[str, Any]: 包含位置、生命值比例、抗性等信息的字典。
+            dict[str, Any]: 包含位置、抗性等信息的字典。
         """
         base = super().export_state()
         base.update(
             {
                 "level": self.level,
-                "hp_percent": round(
-                    (self.current_hp / self.attribute_data["生命值"]) * 100, 2
-                ),
                 "resistances": {
                     k: v for k, v in self.attribute_data.items() if "抗性" in k
                 },

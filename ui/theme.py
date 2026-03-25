@@ -21,11 +21,11 @@ class GenshinTheme:
     GOLD_LIGHT = "#F2E6C6"  # 更亮的金色，用于高光
     GOLD_DARK = "#D3BC8E"   # 标准原神金
 
-    # --- 玻璃拟态参数 ---
-    GLASS_BG = "rgba(60, 55, 80, 0.4)"
-    GLASS_BORDER = "rgba(200, 180, 255, 0.15)"
-    HEADER_BG = "rgba(35, 30, 50, 0.6)"
-    FOOTER_BG = "rgba(40, 35, 60, 0.9)"
+    # --- 玻璃拟态参数 (使用 with_opacity 实现半透明) ---
+    GLASS_BG = ft.Colors.with_opacity(0.4, "#3C3750")
+    GLASS_BORDER = ft.Colors.with_opacity(0.15, "#C8B4FF")
+    HEADER_BG = ft.Colors.with_opacity(0.6, "#231E32")
+    FOOTER_BG = ft.Colors.with_opacity(0.9, "#28233C")
 
     # --- 元素色映射 (中英文兼容) ---
     ELEMENT_COLORS: dict[str, str] = {

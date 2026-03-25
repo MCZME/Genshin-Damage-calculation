@@ -1,63 +1,78 @@
+from __future__ import annotations
+
+import asyncio
+import queue
+from typing import Any
+
 import flet as ft
-import threading
-import time
+
+from core.batch import (
+    MAIN_BATCH_FINISHED,
+    MAIN_BATCH_PROGRESS,
+    MAIN_BATCH_REJECTED,
+    MAIN_BATCH_TASK_RESULT,
+)
+from ui.states.batch_universe_state import BatchUniverseState
 from ui.theme import GenshinTheme
-from ui.views.universe_view import UniverseView
-from ui.states.app_state import AppState
+from ui.views.universe_router import UniverseRouter
+from ui.views.universe_routes import (
+    resolve_universe_route,
+)
 
 
-def start_universe_process(main_to_branch, branch_to_main):
-    """分支宇宙进程入口"""
+def build_universe_route_stack(route: str | None) -> list[str]:
+    """兼容旧测试的活动路由定义。"""
+    return [resolve_universe_route(route)]
+
+
+def start_universe_process(main_to_branch, branch_to_main=None):
+    """批处理编辑器独立进程入口。"""
 
     def main(page: ft.Page):
-        from core.logger import get_ui_logger
-
         page.title = "批处理编辑器"
-        # 应用全局主题设置
+        page.window.width = 1360
+        page.window.height = 860
+        page.window.min_width = 1100
+        page.window.min_height = 760
         GenshinTheme.apply_page_settings(page)
-        get_ui_logger().log_info("Batch Editor sub-process window initialized.")
 
-        # 1. 在子进程中创建一个独立的状态
-        local_state = AppState()
-        local_state.register_page(page)
-        local_state.main_to_branch = main_to_branch
-        local_state.branch_to_main = branch_to_main
+        state = BatchUniverseState()
+        state.attach_page(page)
+        state.attach_branch_queue(branch_to_main)
 
-        # 加载视图
-        view = UniverseView(local_state)
-        page.add(view)
-
-        # 2. 监听来自主进程的初始化或同步信号
-        def main_listener():
+        async def listen_for_init() -> None:
             while True:
-                try:
-                    if not main_to_branch.empty():
-                        msg = main_to_branch.get()
-                        if msg.get("type") == "INIT_UNIVERSE":
-                            get_ui_logger().log_info(
-                                "Batch Editor received INIT_UNIVERSE signal."
-                            )
-                            # 接收到主进程发送的基准配置
-                            config = msg.get("config")
-                            # 将其存为本进程状态的 root_config
-                            local_state.root_config = config
-                            local_state.universe_root.name = "工作台基准"
-                            page.run_task(view.refresh)
-                except Exception as e:
-                    get_ui_logger().log_error(f"Batch Editor listener error: {e}")
-                time.sleep(0.5)
+                received_any = False
+                while True:
+                    try:
+                        message: dict[str, Any] = main_to_branch.get_nowait()
+                    except queue.Empty:
+                        break
 
-        threading.Thread(target=main_listener, daemon=True).start()
+                    received_any = True
+                    msg_type = message.get("type")
+                    if msg_type == "INIT_BATCH_EDITOR":
+                        state.initialize_project(
+                            message.get("config", {}),
+                            message.get("project_name", "批处理项目"),
+                        )
+                    elif msg_type in {
+                        MAIN_BATCH_PROGRESS,
+                        MAIN_BATCH_TASK_RESULT,
+                        MAIN_BATCH_FINISHED,
+                        MAIN_BATCH_REJECTED,
+                    }:
+                        state.handle_main_message(message)
+                await asyncio.sleep(0.05 if received_any else 0.2)
 
-        # 3. 初始刷新延迟 (确保窗口完全挂载)
-        async def initial_refresh():
-            await asyncio.sleep(0.2)
-            view.refresh()
+        page.run_task(listen_for_init)
+        page.route = resolve_universe_route(page.route)
+        page.render_views(
+            UniverseRouter,
+            state,
+            state.editor_state,
+            state.run_state,
+            state.analysis_state,
+        )
 
-        import asyncio
-
-        page.run_task(initial_refresh)
-
-        page.update()
-
-    ft.run(main)
+    ft.run(main, view=ft.AppView.FLET_APP)

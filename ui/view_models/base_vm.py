@@ -12,7 +12,7 @@ class BaseViewModel(Generic[T]):
     视图模型基类。
     利用 Flet 的 @ft.observable 实现响应式，通过代理模式操作底层 Data Model。
     """
-    model: T | None
+    model: T
 
     def notify_update(self):
         """

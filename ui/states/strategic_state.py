@@ -1,6 +1,6 @@
 from __future__ import annotations
 import flet as ft
-from typing import Any
+from typing import Any, cast
 from core.data_models.team_data_model import CharacterDataModel
 from core.data_models.scene_data_model import TargetDataModel
 from ui.view_models.strategic.character_vm import CharacterViewModel
@@ -50,6 +50,9 @@ class StrategicState:
             "manual_buffs": []
         }
 
+    def notify_update(self):
+        cast(Any, self).notify()
+
     def rebind_all_vms(self):
         """配置重载后强制重建 VM 树"""
         self.team_vms = [CharacterViewModel(CharacterDataModel(d)) for d in self.team_data]
@@ -59,7 +62,7 @@ class StrategicState:
         ]
         self.active_character_proxy.bind_to(self.team_vms[self.current_index])
         # 核心修复：发送信号告知引用已变
-        self.notify()
+        self.notify_update()
 
     def add_target(self, name: str = "遗迹守卫"):
         new_id = f"target_{len(self.targets_data)}"
@@ -70,7 +73,7 @@ class StrategicState:
         new_vm = TargetViewModel(TargetDataModel(new_raw, self.spatial_data["target_positions"]))
         self.target_vms.append(new_vm)
         self.selected_target_index = len(self.target_vms) - 1
-        self.notify()
+        self.notify_update()
 
     def remove_target(self, index: int):
         if len(self.target_vms) > 1:
@@ -80,7 +83,7 @@ class StrategicState:
             if target_id in self.spatial_data["target_positions"]:
                 del self.spatial_data["target_positions"][target_id]
             self.selected_target_index = min(self.selected_target_index, len(self.target_vms) - 1)
-            self.notify()
+            self.notify_update()
 
     @property
     def current_target_vm(self) -> TargetViewModel:
@@ -93,7 +96,7 @@ class StrategicState:
     def select_member(self, index: int):
         self.current_index = index
         self.active_character_proxy.bind_to(self.team_vms[index])
-        self.notify()
+        self.notify_update()
 
     def add_member(self, index: int, char_data: dict[str, Any]):
         """初始化并分配成员基础数据"""
@@ -111,7 +114,7 @@ class StrategicState:
         # 如果是当前槽位，更新代理
         if self.current_index == index:
             self.active_character_proxy.bind_to(self.team_vms[index])
-        self.notify()
+        self.notify_update()
 
     def remove_member(self, index: int):
         """清空成员数据"""
@@ -120,7 +123,7 @@ class StrategicState:
         self.team_vms[index] = CharacterViewModel(new_model)
         if self.current_index == index:
             self.active_character_proxy.bind_to(self.team_vms[index])
-        self.notify()
+        self.notify_update()
 
     @property
     def current_member(self) -> dict[str, Any]:
