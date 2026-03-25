@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 from core.effect.base import BaseEffect
 from core.mechanics.aura import Element
 
@@ -34,10 +34,10 @@ class StatModifierEffect(BaseEffect):
     在生效期间通过 add_modifier 修改 owner 的属性，支持审计追踪。
     """
 
-    def __init__(self, owner: Any, name: str, stats: Dict[str, float], duration: float):
+    def __init__(self, owner: Any, name: str, stats: dict[str, float], duration: float):
         super().__init__(owner, name, duration)
         self.stats = stats
-        self.modifier_records: List[Any] = []
+        self.modifier_records: list[Any] = []
 
     def on_apply(self):
         if not hasattr(self.owner, "add_modifier"):
@@ -60,7 +60,7 @@ class ResistanceDebuffEffect(StatModifierEffect):
     """
 
     def __init__(
-        self, owner: Any, name: str, elements: List[str], amount: float, duration: float
+        self, owner: Any, name: str, elements: list[str], amount: float, duration: float
     ):
         # 构造属性字典：{"物理元素抗性": -40.0, ...}
         stats = {f"{el}元素抗性": -amount for el in elements}

@@ -1,4 +1,4 @@
-from typing import List, Type, Any, Optional
+from typing import Any
 from core.context import SimulationContext
 from core.systems.base_system import GameSystem
 
@@ -10,16 +10,16 @@ class SystemManager:
 
     def __init__(self, context: SimulationContext):
         self.context = context
-        self.systems: List[GameSystem] = []
+        self.systems: list[GameSystem] = []
 
-    def add_system(self, system_cls: Type[GameSystem]) -> GameSystem:
+    def add_system(self, system_cls: type[GameSystem]) -> GameSystem:
         """实例化并注册一个新系统"""
         system = system_cls()
         system.initialize(self.context)
         self.systems.append(system)
         return system
 
-    def get_system(self, cls_or_name: Any) -> Optional[GameSystem]:
+    def get_system(self, cls_or_name: Any) -> GameSystem | None:
         """根据类或名称获取系统实例"""
         for system in self.systems:
             if isinstance(cls_or_name, str):

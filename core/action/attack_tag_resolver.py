@@ -1,4 +1,4 @@
-from typing import Sequence, Optional
+from typing import Sequence
 
 class AttackTagResolver:
     """
@@ -33,7 +33,7 @@ class AttackTagResolver:
     }
 
     @staticmethod
-    def check(target_tag: str, main_tag: str, extra_tags: Optional[Sequence[str]] = None) -> bool:
+    def check(target_tag: str, main_tag: str, extra_tags: Sequence[str] | None = None) -> bool:
         """
         判断目标标准标签 (target_tag) 是否匹配输入的原始标签集。
         """
@@ -48,7 +48,7 @@ class AttackTagResolver:
         return False
 
     @staticmethod
-    def is_transformative(main_tag: str, extra_tags: Optional[Sequence[str]] = None) -> bool:
+    def is_transformative(main_tag: str, extra_tags: Sequence[str] | None = None) -> bool:
         """
         判断当前伤害是否属于剧变反应路径。
         用于 DamagePipeline Stage 5 的公式路由决策。

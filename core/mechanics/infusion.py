@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 from core.mechanics.aura import Element
 
 
@@ -30,7 +29,7 @@ class InfusionManager:
     }
 
     def __init__(self) -> None:
-        self.active_infusions: List[InfusionRecord] = []
+        self.active_infusions: list[InfusionRecord] = []
 
     def add_infusion(
         self,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List
+from typing import Any
 
 from core.batch.models import (
     BatchCompileError,
@@ -16,14 +16,14 @@ class BatchProjectCompiler:
     """将批处理项目编译为可执行任务列表。"""
 
     @classmethod
-    def compile(cls, project: BatchProject) -> List[BatchRunRequest]:
-        requests: List[BatchRunRequest] = []
+    def compile(cls, project: BatchProject) -> list[BatchRunRequest]:
+        requests: list[BatchRunRequest] = []
         base_config = copy.deepcopy(project.base_config)
 
         def walk(
             node: BatchNode,
-            config_so_far: Dict[str, Any],
-            snapshot_so_far: Dict[str, Any],
+            config_so_far: dict[str, Any],
+            snapshot_so_far: dict[str, Any],
         ) -> None:
             current_config = copy.deepcopy(config_so_far)
             current_snapshot = dict(snapshot_so_far)
@@ -55,7 +55,7 @@ class BatchProjectCompiler:
         return requests
 
     @staticmethod
-    def _apply_rule(config: Dict[str, Any], path: List[Any], value: Any) -> None:
+    def _apply_rule(config: dict[str, Any], path: list[Any], value: Any) -> None:
         if not path:
             raise BatchCompileError("变异路径不能为空。")
 

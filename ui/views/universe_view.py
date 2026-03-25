@@ -10,7 +10,6 @@ from ui.components.universe import (
     MindMapCanvas,
     NodeInspectorPanel,
 )
-from ui.states.batch_analysis_state import BatchAnalysisState
 from ui.states.batch_editor_state import BatchEditorState
 from ui.states.batch_run_state import BatchRunState
 from ui.states.batch_universe_state import BatchUniverseState

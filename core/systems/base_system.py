@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 from core.context import SimulationContext, EventEngine
 
 
@@ -10,14 +9,15 @@ class GameSystem(ABC):
     """
 
     def __init__(self):
-        self.context: Optional[SimulationContext] = None
-        self.engine: Optional[EventEngine] = None
+        self.context: SimulationContext | None = None
+        self.engine: EventEngine | None = None
 
     def initialize(self, context: SimulationContext):
         """系统初始化，注入 Context 并注册事件"""
         self.context = context
         self.engine = context.event_engine
-        self.register_events(self.engine)
+        if self.engine:
+            self.register_events(self.engine)
 
     @abstractmethod
     def register_events(self, engine: EventEngine):

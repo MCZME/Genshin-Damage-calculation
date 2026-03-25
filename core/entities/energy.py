@@ -30,12 +30,13 @@ class EnergyDropsObject(BaseEntity):
         self.is_fixed = is_fixed
         self.is_alone = is_alone
 
-    def on_frame_update(self, target: Any) -> None:
+    def on_frame_update(self) -> None:
         pass
 
-    def on_finish(self, target: Any) -> None:
-        get_emulation_logger().log_object(
-            f"{self.character.name}的 {self.name} 存活时间结束"
+    def on_finish(self) -> None:
+        get_emulation_logger().log_info(
+            f"{self.character.name}的 {self.name} 存活时间结束",
+            "EnergyDropsObject"
         )
         energy_event = GameEvent(
             event_type=EventType.BEFORE_ENERGY_CHANGE,
@@ -49,4 +50,5 @@ class EnergyDropsObject(BaseEntity):
             },
         )
         engine = self.event_engine or get_context().event_engine
-        engine.publish(energy_event)
+        if engine:
+            engine.publish(energy_event)

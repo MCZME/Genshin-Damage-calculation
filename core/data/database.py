@@ -1,5 +1,5 @@
 import mysql.connector
-from typing import List, Any, Optional
+from typing import Any
 from core.config import Config
 
 
@@ -33,7 +33,7 @@ class DatabaseManager:
 
             get_emulation_logger().log_error(f"数据库连接池初始化失败: {e}")
 
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> List[Any]:
+    def execute_query(self, query: str, params: tuple | None = None) -> list[Any]:
         """执行查询并返回所有结果"""
         if not self.pool:
             return []
@@ -47,7 +47,7 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-    def execute_non_query(self, query: str, params: Optional[tuple] = None):
+    def execute_non_query(self, query: str, params: tuple | None = None):
         """执行非查询 SQL (INSERT, UPDATE, DELETE)"""
         if not self.pool:
             return

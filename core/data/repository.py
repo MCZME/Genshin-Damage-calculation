@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 from core.tool import get_ascension_index, get_attribute_name
 from core.data.database import db_manager
 
@@ -10,32 +10,32 @@ class DataRepository(ABC):
     """
 
     @abstractmethod
-    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+    def get_character_base_stats(self, character_id: int, level: int) -> dict[str, Any]:
         """获取角色在特定等级的基础属性"""
         pass
 
     @abstractmethod
-    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> dict[str, Any]:
         """获取武器在特定等级的基础属性"""
         pass
 
     @abstractmethod
-    def get_all_characters(self) -> List[Dict[str, Any]]:
+    def get_all_characters(self) -> list[dict[str, Any]]:
         """获取所有可用角色的简要信息 (ID, Name, Element, Type, Rarity)"""
         pass
 
     @abstractmethod
-    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
+    def get_weapons_by_type(self, weapon_type: str) -> list[dict[str, Any]]:
         """获取特定类型的所有武器名称与稀有度"""
         pass
 
     @abstractmethod
-    def get_all_artifact_sets(self) -> List[str]:
+    def get_all_artifact_sets(self) -> list[str]:
         """获取所有圣遗物套装名称"""
         pass
 
     @abstractmethod
-    def query(self, sql: str, params: Optional[tuple] = None) -> List[Any]:
+    def query(self, sql: str, params: tuple | None = None) -> list[Any]:
         """执行通用查询"""
         pass
 
@@ -49,7 +49,7 @@ class MySQLDataRepository(DataRepository):
         self.db = db_manager
         self.level_cols = ["1", "20", "40", "50", "60", "70", "80", "90", "95", "100"]
 
-    def get_all_characters(self) -> List[Dict[str, Any]]:
+    def get_all_characters(self) -> list[dict[str, Any]]:
         """获取所有角色的 ID, Name, Element, Type, Rarity"""
         rows = self.db.execute_query("SELECT ID, Name, Element, Type, Rarity FROM `character`")
         return [
@@ -57,14 +57,14 @@ class MySQLDataRepository(DataRepository):
             for row in rows
         ]
 
-    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
+    def get_weapons_by_type(self, weapon_type: str) -> list[dict[str, Any]]:
         """获取特定类型的所有武器名称与稀有度"""
         rows = self.db.execute_query(
             f"SELECT Name, Rarity FROM `weapon` WHERE Type = '{weapon_type}'"
         )
         return [{"name": row[0], "rarity": int(row[1])} for row in rows]
 
-    def get_all_artifact_sets(self) -> List[str]:
+    def get_all_artifact_sets(self) -> list[str]:
         """从数据库获取所有圣遗物套装名称"""
         try:
             rows = self.db.execute_query(
@@ -82,7 +82,7 @@ class MySQLDataRepository(DataRepository):
                 "角斗士的终幕礼",
             ]
 
-    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+    def get_character_base_stats(self, character_id: int, level: int) -> dict[str, Any]:
         idx = get_ascension_index(level)
         col = self.level_cols[idx]
 
@@ -120,7 +120,7 @@ class MySQLDataRepository(DataRepository):
             "breakthrough_value": float(bt_val),
         }
 
-    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> dict[str, Any]:
         idx = get_ascension_index(level)
         col = self.level_cols[idx]
 
@@ -154,7 +154,7 @@ class MySQLDataRepository(DataRepository):
 
         return stats
 
-    def query(self, sql: str, params: Optional[tuple] = None) -> List[Any]:
+    def query(self, sql: str, params: tuple | None = None) -> list[Any]:
         return self.db.execute_query(sql, params)
 
 
@@ -165,20 +165,20 @@ class MockDataRepository(DataRepository):
         self.char_data = char_data or {}
         self.weapon_data = weapon_data or {}
 
-    def get_character_base_stats(self, character_id: int, level: int) -> Dict[str, Any]:
+    def get_character_base_stats(self, character_id: int, level: int) -> dict[str, Any]:
         return self.char_data.get(character_id, {})
 
-    def get_weapon_base_stats(self, weapon_name: str, level: int) -> Dict[str, Any]:
+    def get_weapon_base_stats(self, weapon_name: str, level: int) -> dict[str, Any]:
         return self.weapon_data.get(weapon_name, {})
 
-    def get_all_characters(self) -> List[Dict[str, Any]]:
+    def get_all_characters(self) -> list[dict[str, Any]]:
         return []
 
-    def get_weapons_by_type(self, weapon_type: str) -> List[Dict[str, Any]]:
+    def get_weapons_by_type(self, weapon_type: str) -> list[dict[str, Any]]:
         return []
 
-    def get_all_artifact_sets(self) -> List[str]:
+    def get_all_artifact_sets(self) -> list[str]:
         return []
 
-    def query(self, sql: str) -> List[Any]:
+    def query(self, sql: str, params: tuple | None = None) -> list[Any]:
         return []

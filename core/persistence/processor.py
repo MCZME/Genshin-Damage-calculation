@@ -131,7 +131,7 @@ class AnalysisDataProcessor:
         """
         [V6.5] 稀疏聚合：将原始伤害事件按帧分组，用于 Canvas 脉冲图。
         """
-        frame_map = {}
+        frame_map: dict[float, dict[str, Any]] = {}
         global_peak = 0.0
         
         for ev in raw_events:

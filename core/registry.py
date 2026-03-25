@@ -1,31 +1,34 @@
+from collections.abc import Callable
 import pkgutil
 import importlib
-from typing import Dict, Type, Any, Callable, Optional
+from typing import Any
 
 # --- 存储容器 ---
-CharacterClassMap: Dict[str, Type[Any]] = {}
-WeaponClassMap: Dict[str, Type[Any]] = {}
-ArtifactSetMap: Dict[str, Type[Any]] = {}
+CharacterClassMap: dict[str, type[Any]] = {}
+WeaponClassMap: dict[str, type[Any]] = {}
+ArtifactSetMap: dict[str, type[Any]] = {}
+
+_initialized: bool = False
 
 # --- 注册装饰器 ---
 
-def register_character(name: str) -> Callable[[Type[Any]], Type[Any]]:
+def register_character(name: str) -> Callable[[type[Any]], type[Any]]:
     """注册角色类到全局映射。"""
-    def wrapper(cls: Type[Any]) -> Type[Any]:
+    def wrapper(cls: type[Any]) -> type[Any]:
         CharacterClassMap[name] = cls
         return cls
     return wrapper
 
-def register_weapon(name: str, weapon_type: Optional[str] = None) -> Callable[[Type[Any]], Type[Any]]:
+def register_weapon(name: str, weapon_type: str | None = None) -> Callable[[type[Any]], type[Any]]:
     """注册武器类到全局映射。"""
-    def wrapper(cls: Type[Any]) -> Type[Any]:
+    def wrapper(cls: type[Any]) -> type[Any]:
         WeaponClassMap[name] = cls
         return cls
     return wrapper
 
-def register_artifact_set(name: str) -> Callable[[Type[Any]], Type[Any]]:
+def register_artifact_set(name: str) -> Callable[[type[Any]], type[Any]]:
     """注册圣遗物套装类到全局映射。"""
-    def wrapper(cls: Type[Any]) -> Type[Any]:
+    def wrapper(cls: type[Any]) -> type[Any]:
         ArtifactSetMap[name] = cls
         return cls
     return wrapper
@@ -49,7 +52,7 @@ def import_submodules(package_name: str) -> None:
             # 忽略导入失败的模块
             continue
 
-def initialize_registry(weapon_type: Optional[str] = None) -> None:
+def initialize_registry(weapon_type: str | None = None) -> None:
     """
     初始化注册表：自动发现并加载所有业务组件。
     """

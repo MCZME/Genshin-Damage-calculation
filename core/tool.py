@@ -1,4 +1,3 @@
-from typing import Dict
 
 
 def get_ascension_index(level: int) -> int:
@@ -59,7 +58,7 @@ def get_current_time() -> int:
 
 
 # 剧变反应等级系数表 (1-90级)
-REACTION_COEFFICIENTS: Dict[int, float] = {
+REACTION_COEFFICIENTS: dict[int, float] = {
     1: 17.17,
     2: 18.54,
     3: 19.9,

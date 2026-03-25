@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any
 
 
 class ReactionCategory(Enum):
@@ -50,11 +50,11 @@ class ReactionResult:
     gauge_consumed: float = 0.0  # 消耗掉的附着元素量 (GU)
 
     # 扩展数据 (用于剧变反应工厂或特殊效果)
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
 
 # 反应类别映射表
-REACTION_CLASSIFICATION: Dict[ElementalReactionType, ReactionCategory] = {
+REACTION_CLASSIFICATION: dict[ElementalReactionType, ReactionCategory] = {
     ElementalReactionType.VAPORIZE: ReactionCategory.AMPLIFYING,
     ElementalReactionType.MELT: ReactionCategory.AMPLIFYING,
     ElementalReactionType.AGGRAVATE: ReactionCategory.ADDITIVE,

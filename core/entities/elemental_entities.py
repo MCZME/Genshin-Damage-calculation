@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple
+from typing import Any
 
 from core.systems.contract.damage import Damage
 from core.systems.contract.reaction import ElementalReactionType
@@ -15,12 +15,12 @@ class DendroCoreEntity(CombatEntity):
     具备自动爆炸、受火/雷攻击触发烈/超绽放的特性。
     """
 
-    active_cores: List["DendroCoreEntity"] = []
+    active_cores: list["DendroCoreEntity"] = []
 
     def __init__(
         self,
         creator: Any,
-        pos: Tuple[float, float, float],
+        pos: tuple[float, float, float],
         life_frame: int = 360,  # 默认 6 秒
     ) -> None:
         """初始化草原核。"""
@@ -83,12 +83,15 @@ class DendroCoreEntity(CombatEntity):
 
     def _trigger_hyperbloom(self) -> None:
         """触发超绽放 (单体追踪草元素伤害)。"""
+        if not self.ctx.space:
+            return
+            
         # 超绽放寻找最近的敌人
         target = self.ctx.space._find_closest(
             origin=(self.pos[0], self.pos[1]), faction=Faction.ENEMY
         )
 
-        if target:
+        if target and self.event_engine:
             dmg = self._create_react_damage("超绽放", 3.0, Element.DENDRO)
             self.event_engine.publish(
                 GameEvent(
@@ -119,14 +122,15 @@ class DendroCoreEntity(CombatEntity):
         )
 
         # 产生伤害 (源仍记为草原核的创建者)
-        self.ctx.space.broadcast_damage(self.creator, dmg)
+        if self.ctx.space:
+            self.ctx.space.broadcast_damage(self.creator, dmg)
 
     def _create_react_damage(self, name: str, mult: float, element: Element) -> Damage:
         """快捷创建剧变伤害对象。"""
         from core.systems.contract.attack import AttackConfig
 
         dmg = Damage(
-            damage_multiplier=0,
+            damage_multiplier=(mult,),
             element=(element, 0.0),
             config=AttackConfig(attack_tag="剧变反应"),
             name=name,
@@ -147,7 +151,7 @@ class CrystalShardEntity(CombatEntity):
         self,
         creator: Any,
         element: Element,
-        pos: Tuple[float, float, float],
+        pos: tuple[float, float, float],
         base_shield_hp: float,
         life_frame: int = 900,  # 晶片通常存在 15 秒
     ) -> None:

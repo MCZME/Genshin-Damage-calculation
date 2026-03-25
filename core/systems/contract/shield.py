@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any
 from core.mechanics.aura import Element
 
 
@@ -13,4 +13,4 @@ class ShieldConfig:
     element: Element  # 护盾元素类型 (影响吸收效率)
     duration: int  # 持续帧数
     name: str = "通用护盾"
-    creator: Optional[Any] = None  # 产生护盾的实体 (用于计算护盾强效)
+    creator: Any | None = None  # 产生护盾的实体 (用于计算护盾强效)

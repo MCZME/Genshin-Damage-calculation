@@ -1,8 +1,8 @@
-from typing import Tuple, Any
+from typing import Any
 
 
 class ElementalEnergy:
-    def __init__(self, character: Any, ee: Tuple[str, int] = ("无", 0)):
+    def __init__(self, character: Any, ee: tuple[str, int] = ("无", 0)):
         self.character = character
         self.elemental_energy = ee
         self.current_energy = ee[1]

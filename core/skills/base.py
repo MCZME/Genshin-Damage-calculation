@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.action.action_data import ActionFrameData
 
@@ -25,7 +25,7 @@ class SkillBase(ABC):
 
     @abstractmethod
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         """
         [核心接口] 将逻辑意图转换为物理动作数据。

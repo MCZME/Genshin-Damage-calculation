@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from core.systems.contract.shield import ShieldConfig
 from core.effect.common import ShieldEffect
@@ -92,7 +92,7 @@ class ShieldSystem(GameSystem):
         damage_element = event.data.get("element", Element.NONE)
 
         max_absorbed = 0.0
-        active_shields: List[ShieldEffect] = list(target.shield_effects)
+        active_shields: list[ShieldEffect] = list(target.shield_effects)
 
         # 4. 扣除护盾值
         for shield in active_shields:

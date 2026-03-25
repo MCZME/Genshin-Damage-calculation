@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from core.systems.contract.attack import AttackConfig
 from core.systems.contract.damage import Damage
@@ -32,8 +32,8 @@ class ReactionSystem(GameSystem):
 
         # 运行时状态记录:
         # Key: (目标实体ID, 反应类型) -> [最后重置帧, 当前窗口内受击次数]
-        self._target_reaction_records: Dict[
-            Tuple[int, ElementalReactionType], List[int]
+        self._target_reaction_records: dict[
+            tuple[int, ElementalReactionType], list[int]
         ] = {}
 
     def register_events(self, engine: EventEngine) -> None:

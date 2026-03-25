@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
 from artifact.artifact import Artifact, ArtifactManager, ArtifactPiece
 from core.registry import CharacterClassMap, WeaponClassMap
 from core.team import Team
@@ -14,7 +14,7 @@ class TeamFactory:
     def __init__(self, repository: DataRepository):
         self.repository = repository
 
-    def create_team(self, team_config: List[Dict[str, Any]]) -> Team:
+    def create_team(self, team_config: list[dict[str, Any]]) -> Team:
         characters = []
         for char_data in team_config:
             if not char_data or "error" in char_data:
@@ -32,7 +32,7 @@ class TeamFactory:
 
         return Team(characters)
 
-    def _build_character(self, data: Dict[str, Any]) -> Any:
+    def _build_character(self, data: dict[str, Any]) -> Any:
         # 1. 支持 UI 嵌套结构: { "character": {...}, "weapon": {...}, "artifacts": {...} }
         # 若无嵌套则回退到 data 本身
         char_config = data.get("character", data)
@@ -84,7 +84,7 @@ class TeamFactory:
 
         return character
 
-    def _apply_weapon(self, character: Any, weapon_data: Dict[str, Any]):
+    def _apply_weapon(self, character: Any, weapon_data: dict[str, Any]):
         weapon_name = weapon_data.get("name")
         if not weapon_name:
             return
@@ -135,7 +135,7 @@ class TeamFactory:
             am = ArtifactManager(artifacts, character)
             character.set_artifact(am)
 
-    def _map_piece(self, slot_name: str) -> Optional[ArtifactPiece]:
+    def _map_piece(self, slot_name: str) -> ArtifactPiece | None:
         mapping = {
             "生之花": ArtifactPiece.Flower_of_Life,
             "死之羽": ArtifactPiece.Plume_of_Death,
