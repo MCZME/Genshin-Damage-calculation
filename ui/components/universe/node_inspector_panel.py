@@ -17,8 +17,7 @@ def NodeInspectorPanel(
     on_add_node,
     on_delete,
     on_apply_rule,
-    on_apply_range,
-    last_summary: BatchRunSummary | None = None,
+    on_apply_range
 ) -> ft.Control:
     drawer_open, set_drawer_open = ft.use_state(False)
     path_selector_open, set_path_selector_open = ft.use_state(False)
@@ -305,60 +304,6 @@ def NodeInspectorPanel(
                 ft.Text(vm.help_text, color=GenshinTheme.TEXT_SECONDARY, size=12),
                 padding=14,
             )
-        )
-
-    if last_summary:
-        controls.extend(
-            [
-                ft.Divider(height=14, color=ft.Colors.with_opacity(0.08, ft.Colors.WHITE)),
-                ft.Text("最近一次执行摘要", weight=ft.FontWeight.BOLD, size=13),
-                soft_card(
-                    ft.Column(
-                        [
-                            ft.Row(
-                                [
-                                    ft.Container(
-                                        content=ft.Text(
-                                            f"总数 {last_summary.total_runs}",
-                                            size=11,
-                                            color=GenshinTheme.TEXT_SECONDARY,
-                                        ),
-                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
-                                        border_radius=999,
-                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                                    ),
-                                    ft.Container(
-                                        content=ft.Text(
-                                            f"成功 {last_summary.completed_runs}",
-                                            size=11,
-                                            color=GenshinTheme.TEXT_SECONDARY,
-                                        ),
-                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
-                                        border_radius=999,
-                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                                    ),
-                                    ft.Container(
-                                        content=ft.Text(
-                                            f"失败 {last_summary.failed_runs}",
-                                            size=11,
-                                            color=GenshinTheme.TEXT_SECONDARY,
-                                        ),
-                                        padding=ft.Padding.symmetric(horizontal=9, vertical=5),
-                                        border_radius=999,
-                                        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-                                    ),
-                                ],
-                                spacing=6,
-                                wrap=True,
-                            ),
-                            ft.Text(
-                                f"平均 DPS {int(last_summary.avg_dps)} | 最高 {int(last_summary.max_dps)} | 最低 {int(last_summary.min_dps)}"
-                            ),
-                        ],
-                        spacing=8,
-                    ),
-                ),
-            ]
         )
 
     def handle_select_path(path: str) -> None:

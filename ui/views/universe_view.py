@@ -87,7 +87,6 @@ async def _on_run_and_navigate(universe_state: BatchUniverseState) -> None:
 def _universe_editor_content(
     editor_state: BatchEditorState,
     run_state: BatchRunState,
-    analysis_state: BatchAnalysisState,
     universe_state: BatchUniverseState,
 ):
     project = editor_state.project
@@ -114,8 +113,7 @@ def _universe_editor_content(
             on_add_node=lambda parent_id, kind: editor_state.add_child(parent_id, kind),
             on_delete=editor_state.delete_selected_node,
             on_apply_rule=editor_state.update_rule,
-            on_apply_range=editor_state.configure_range_anchor,
-            last_summary=analysis_state.last_summary,
+            on_apply_range=editor_state.configure_range_anchor
         ),
         visible=show_inspector,
         width=408,
@@ -192,7 +190,6 @@ class UniverseView(ft.View):
         self,
         editor_state: BatchEditorState,
         run_state: BatchRunState,
-        analysis_state: BatchAnalysisState,
         universe_state: BatchUniverseState,
         route: str = "/",
     ) -> None:
@@ -202,7 +199,6 @@ class UniverseView(ft.View):
                 _universe_editor_content(
                     editor_state,
                     run_state,
-                    analysis_state,
                     universe_state,
                 )
             ],

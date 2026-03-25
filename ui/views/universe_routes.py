@@ -47,7 +47,6 @@ def build_universe_views(
                 UniverseView(
                     editor_state=universe_state.editor_state,
                     run_state=universe_state.run_state,
-                    analysis_state=universe_state.analysis_state,
                     universe_state=universe_state,
                     route=UNIVERSE_EDITOR_ROUTE,
                 )
