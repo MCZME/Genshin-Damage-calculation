@@ -1,4 +1,4 @@
-from ui.universe_launcher import (
+from ui.views.universe_routes import (
     UNIVERSE_ANALYSIS_ROUTE,
     UNIVERSE_EDITOR_ROUTE,
     UNIVERSE_RUN_ROUTE,
@@ -30,10 +30,14 @@ def test_build_universe_route_stack_editor_only():
 
 
 def test_build_universe_route_stack_run():
-    assert build_universe_route_stack(UNIVERSE_RUN_ROUTE) == [UNIVERSE_RUN_ROUTE]
+    assert build_universe_route_stack(UNIVERSE_RUN_ROUTE) == [
+        UNIVERSE_EDITOR_ROUTE,
+        UNIVERSE_RUN_ROUTE,
+    ]
 
 
 def test_build_universe_route_stack_analysis():
     assert build_universe_route_stack(UNIVERSE_ANALYSIS_ROUTE) == [
-        UNIVERSE_ANALYSIS_ROUTE
+        UNIVERSE_EDITOR_ROUTE,
+        UNIVERSE_ANALYSIS_ROUTE,
     ]
