@@ -1,8 +1,10 @@
 import json
 
+from typing import Any
+
 class Config:
-    _instance = None
-    config = None
+    _instance: Any = None
+    config: dict[str, Any] | None = None
 
     def __new__(cls, config_path="config.json"):
         if cls._instance is None:
