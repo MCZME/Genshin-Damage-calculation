@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 
 class DamageDistProcessor:
     """
@@ -18,11 +18,11 @@ class DamageDistProcessor:
         return raw_str if raw_str and raw_str != "None" else "Neutral"
 
     @staticmethod
-    def process(raw_events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def process(raw_events: list[dict[str, Any]]) -> dict[str, Any]:
         """
         核心加工逻辑：聚合 -> 统计频率 -> 梯度识别分段。
         """
-        frame_map = {}
+        frame_map: dict[float, dict[str, Any]] = {}
         global_peak = 0.0
         max_hit_count = 0
         
@@ -52,16 +52,16 @@ class DamageDistProcessor:
                 max_hit_count = frame_map[f]["hit_count"]
         
         # 2. 统计特征提取
-        frame_totals = sorted([d["total"] for d in frame_map.values() if d["total"] > 0])
+        frame_totals: list[float] = sorted([float(d["total"]) for d in frame_map.values() if d["total"] > 0])
         if not frame_totals:
             return DamageDistProcessor._empty_result()
 
-        total_sum = sum(frame_totals)
+        total_sum: float = sum(frame_totals)
         
         # 3. 三阶阈值决策
         # A. 确定噪音阈值 (5% 贡献度)
-        acc_sum = 0
-        noise_threshold = frame_totals[0]
+        acc_sum: float = 0.0
+        noise_threshold: float = frame_totals[0]
         for v in frame_totals:
             acc_sum += v
             if acc_sum > total_sum * 0.05:
@@ -69,18 +69,18 @@ class DamageDistProcessor:
                 break
         
         # B. 确定分段阈值 (梯度跃迁)
-        effective_totals = [v for v in frame_totals if v >= noise_threshold]
+        effective_totals: list[float] = [v for v in frame_totals if v >= noise_threshold]
         if len(effective_totals) > 1:
-            gaps = [effective_totals[i+1] - effective_totals[i] for i in range(len(effective_totals)-1)]
-            max_gap_idx = gaps.index(max(gaps))
-            v_before = effective_totals[max_gap_idx]
-            v_after = effective_totals[max_gap_idx + 1]
+            gaps: list[float] = [effective_totals[i+1] - effective_totals[i] for i in range(len(effective_totals)-1)]
+            max_gap_idx: int = gaps.index(max(gaps))
+            v_before: float = effective_totals[max_gap_idx]
+            v_after: float = effective_totals[max_gap_idx + 1]
             
-            candidate_split = max(v_before * 1.5, global_peak / 3.0)
-            split_threshold = min(candidate_split, v_after)
-            is_split = global_peak > split_threshold * 1.2
+            candidate_split: float = max(v_before * 1.5, global_peak / 3.0)
+            split_threshold: float = min(candidate_split, v_after)
+            is_split: bool = global_peak > split_threshold * 1.2
         else:
-            split_threshold = global_peak
+            split_threshold: float = global_peak
             is_split = False
 
         return {

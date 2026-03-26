@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 from core.skills.base import SkillBase
 from core.action.action_data import ActionFrameData
 
@@ -15,7 +15,7 @@ class DashSkill(SkillBase):
         self.default_frames = {"total_frames": 20, "interrupt_frames": {"any": 20}}
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         # 尝试从角色数据中获取实测冲刺数据
         frames = self.default_frames
@@ -49,7 +49,7 @@ class JumpSkill(SkillBase):
         self.default_frames = {"total_frames": 31, "interrupt_frames": {"any": 31}}
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         frames = self.default_frames
         if hasattr(self.caster, "action_frame_data"):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import flet as ft
 
-from core.batch.models import BatchNodeKind, BatchRunSummary
+from core.batch.models import BatchNodeKind
 from ui.components.universe.node_add_drawer import NodeAddDrawer
 from ui.components.universe.path_selector_drawer import PathSelectorDrawer
 from ui.components.universe.range_anchor_form import RangeAnchorForm

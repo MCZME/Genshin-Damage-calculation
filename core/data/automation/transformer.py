@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 
 class DataTransformer:
@@ -49,8 +49,8 @@ class DataTransformer:
     }
 
     def transform(
-        self, char_raw: Dict[str, Any], curve_raw: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, char_raw: dict[str, Any], curve_raw: dict[str, Any]
+    ) -> dict[str, Any]:
         data = char_raw
         special_prop_key = data.get("specialProp", "")
 
@@ -61,13 +61,13 @@ class DataTransformer:
                 "rarity": data.get("rank"),
                 "route": data.get("route"),
                 "element": self.ELEMENT_MAP.get(
-                    data.get("element"), data.get("element")
+                    str(data.get("element", "")), str(data.get("element", ""))
                 ),
                 "weapon_type": self.WEAPON_MAP.get(
-                    data.get("weaponType"), data.get("weaponType")
+                    str(data.get("weaponType", "")), str(data.get("weaponType", ""))
                 ),
                 "breakthrough_prop": self.FIGHT_PROP_MAP.get(
-                    special_prop_key, "未知属性"
+                    str(special_prop_key or ""), "未知属性"
                 ),
             },
             "base_stats": self._calculate_all_levels(char_raw, curve_raw),
@@ -88,8 +88,8 @@ class DataTransformer:
         return text
 
     def _calculate_all_levels(
-        self, char_raw: Dict[str, Any], curve_raw: Dict[str, Any]
-    ) -> Dict[int, Dict[str, Any]]:
+        self, char_raw: dict[str, Any], curve_raw: dict[str, Any]
+    ) -> dict[int, dict[str, Any]]:
         upgrade = char_raw.get("upgrade", {})
         promote_list = upgrade.get("promote", [])
         dictionary = curve_raw
@@ -141,7 +141,7 @@ class DataTransformer:
             results[level] = stats
         return results
 
-    def _parse_skills(self, talents: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_skills(self, talents: dict[str, Any]) -> dict[str, Any]:
         results = {}
         valid_keys = sorted(
             [k for k, v in talents.items() if v.get("promote")], key=lambda x: int(x)
@@ -201,8 +201,8 @@ class DataTransformer:
         return results
 
     def _parse_constellations(
-        self, constellations: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, constellations: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         results = []
         for i in range(6):
             c = constellations.get(str(i))
@@ -215,7 +215,7 @@ class DataTransformer:
                 )
         return results
 
-    def _collect_descriptions(self, data: Dict[str, Any]) -> Dict[str, str]:
+    def _collect_descriptions(self, data: dict[str, Any]) -> dict[str, str]:
         descs = {}
         talents = data.get("talent", {})
         for k, v in talents.items():

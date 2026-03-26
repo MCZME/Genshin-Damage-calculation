@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 from core.skills.base import SkillBase
 from core.action.action_data import ActionFrameData
 from core.systems.contract.attack import (
@@ -25,13 +25,13 @@ class NormalAttackSkill(SkillBase):
     def __init__(self, lv: int, caster: Any = None):
         super().__init__(lv, caster)
         # 这些属性由具体角色的子类初始化或动态注入
-        self.action_frame_data: Dict[str, Any] = {}
-        self.attack_data: Dict[str, Any] = {}
-        self.multiplier_data: Dict[str, List[float]] = {}
-        self.label_map: Dict[str, str] = {}  # "NORMAL_1" -> "一段伤害"
+        self.action_frame_data: dict[str, Any] = {}
+        self.attack_data: dict[str, Any] = {}
+        self.multiplier_data: dict[str, list[float]] = {}
+        self.label_map: dict[str, str] = {}  # "NORMAL_1" -> "一段伤害"
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         """产出当前连击段位的动作数据。"""
         # 段位完全由角色的动作管理器 (ASM) 自动控制
@@ -136,12 +136,12 @@ class ChargedAttackSkill(SkillBase):
 
     def __init__(self, lv: int, caster: Any = None):
         super().__init__(lv, caster)
-        self.action_frame_data: Dict[str, Any] = {}
-        self.attack_data: Dict[str, Any] = {}
-        self.multiplier_data: Dict[str, List[float]] = {}
+        self.action_frame_data: dict[str, Any] = {}
+        self.attack_data: dict[str, Any] = {}
+        self.multiplier_data: dict[str, list[float]] = {}
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         # 统一命名规范：使用 '重击'
         f = self.action_frame_data.get(
@@ -224,9 +224,9 @@ class PlungingAttackSkill(SkillBase):
 
     def __init__(self, lv: int, caster: Any = None):
         super().__init__(lv, caster)
-        self.action_frame_data: Dict[str, Any] = {}
-        self.attack_data: Dict[str, Any] = {}
-        self.multiplier_data: Dict[str, List[float]] = {}
+        self.action_frame_data: dict[str, Any] = {}
+        self.attack_data: dict[str, Any] = {}
+        self.multiplier_data: dict[str, list[float]] = {}
 
         self.fall_speed = 0.6
         self.path_damage_interval = 20
@@ -239,7 +239,7 @@ class PlungingAttackSkill(SkillBase):
         return self.caster.pos[2] > 0.1
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         start_height = self.caster.pos[2]
         # 内部根据高度自动判定模式
@@ -315,7 +315,7 @@ class SkipSkill(SkillBase):
         super().__init__(lv, caster)
 
     def to_action_data(
-        self, intent: Optional[Dict[str, Any]] = None
+        self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         frames = intent.get("frames", 1) if intent else 1
         return ActionFrameData(

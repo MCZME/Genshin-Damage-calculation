@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.systems.contract.reaction import (
     REACTION_CLASSIFICATION,
@@ -64,7 +64,7 @@ class Gauge:
         if self.current_gauge < 0:
             self.current_gauge = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化输出。"""
         return {
             "element": self.element.value,
@@ -80,9 +80,9 @@ class AuraManager:
     """
 
     def __init__(self) -> None:
-        self.auras: List[Gauge] = []
-        self.frozen_gauge: Optional[Gauge] = None
-        self.quicken_gauge: Optional[Gauge] = None
+        self.auras: list[Gauge] = []
+        self.frozen_gauge: Gauge | None = None
+        self.quicken_gauge: Gauge | None = None
 
         self.is_electro_charged: bool = False
         self.ec_timer: float = 0.0
@@ -90,9 +90,9 @@ class AuraManager:
         self.is_burning: bool = False
         self.burning_timer: float = 0.0
 
-    def export_state(self) -> Dict[str, Any]:
+    def export_state(self) -> dict[str, Any]:
         """导出当前实体的所有附着状态快照。"""
-        res = {
+        res: dict[str, Any] = {
             "regular": [a.to_dict() for a in self.auras],
             "frozen": self.frozen_gauge.to_dict() if self.frozen_gauge else None,
             "quicken": self.quicken_gauge.to_dict() if self.quicken_gauge else None,
@@ -135,7 +135,7 @@ class AuraManager:
             else:
                 self._apply_burning_tick(owner, dt, is_damage_frame=False)
 
-    def apply_element(self, element: Any, attack_u: float) -> List[ReactionResult]:
+    def apply_element(self, element: Any, attack_u: float) -> list[ReactionResult]:
         """
         应用外部元素攻击。
         """
@@ -147,7 +147,7 @@ class AuraManager:
         if attack_element in [Element.PHYSICAL, Element.NONE] or attack_u <= 0:
             return []
 
-        results: List[ReactionResult] = []
+        results: list[ReactionResult] = []
         rem_u = attack_u
         prevent_attachment = False
 

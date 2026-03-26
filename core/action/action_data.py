@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 重新导出搬迁后的物理契约，保持兼容性 (后续逐步清理)
 from core.systems.contract.attack import AttackConfig
@@ -25,7 +25,7 @@ class ActionCommand:
 
     character_name: str
     action_type: str  # 例如: "normal_attack", "elemental_skill", "dash"
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
     uuid: str = field(default_factory=lambda: str(id(object())))
 
 
@@ -42,12 +42,12 @@ class ActionFrameData:
     action_type: str = "normal_attack"
     combo_index: int = 0
 
-    hit_frames: List[int] = field(default_factory=list)
-    interrupt_frames: Dict[str, int] = field(default_factory=dict)
+    hit_frames: list[int] = field(default_factory=list)
+    interrupt_frames: dict[str, int] = field(default_factory=dict)
 
     horizontal_dist: float = 0.0
     vertical_dist: float = 0.0
 
-    attack_config: Optional[AttackConfig] = None
-    tags: List[str] = field(default_factory=list)
-    origin_skill: Optional[Any] = None
+    attack_config: AttackConfig | None = None
+    tags: list[str] = field(default_factory=list)
+    origin_skill: Any | None = None

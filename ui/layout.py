@@ -2,12 +2,15 @@ from __future__ import annotations
 import flet as ft
 from typing import TYPE_CHECKING
 from ui.states.analysis_state import AnalysisState
+from ui.states.settings_state import SettingsState
 from ui.theme import GenshinTheme
 from core.logger import get_ui_logger
 from ui.views.analysis_view import AnalysisView
 from ui.views.strategic_view import StrategicView
 from ui.views.tactical_view import TacticalView
 from ui.views.scene_view import SceneView
+from ui.components.settings.settings_dialog import SettingsDialog
+from ui.view_models.settings_vm import SettingsViewModel
 
 if TYPE_CHECKING:
     from ui.states.app_state import AppState
@@ -39,6 +42,10 @@ class AppLayout:
         # AnalysisState 专用 (保持动态 build 因为其数据量大且生命周期独立)
         analysis_state = ft.use_memo(lambda: AnalysisState(self.state), [])
         analysis_view = ft.use_memo(lambda: AnalysisView(self.state), [])
+
+        # 设置状态
+        settings_state = ft.use_memo(lambda: SettingsState(), [])
+        settings_vm = ft.use_memo(lambda: SettingsViewModel(), [])
 
         # 2. 导航处理逻辑
         def handle_nav(pid):
@@ -94,14 +101,24 @@ class AppLayout:
             )
         ], expand=True)
 
-        header = self._build_header_declarative(nav_controls)
+        header = self._build_header_declarative(nav_controls, vm)
         footer = self._build_footer_declarative()
-        
-        return ft.Column([
-            header,
-            ft.Container(content=main_content_stack, padding=6, expand=True),
-            footer
-        ], spacing=0, expand=True)
+
+        # 同步设置对话框状态
+        def sync_settings_open():
+            if settings_vm.is_open != vm.settings_open:
+                settings_vm.is_open = vm.settings_open
+                settings_vm.notify_update()
+        ft.use_effect(sync_settings_open, [vm.settings_open])
+
+        return ft.Stack([
+            ft.Column([
+                header,
+                ft.Container(content=main_content_stack, padding=6, expand=True),
+                footer
+            ], spacing=0, expand=True),
+            SettingsDialog(vm=settings_vm, state=settings_state, page=self.page),
+        ], expand=True)
 
     def _build_nav_item_declarative(self, text, pid, icon, is_active, on_click):
         active_color = ft.Colors.PRIMARY
@@ -118,7 +135,7 @@ class AppLayout:
             border_radius=20, on_click=lambda _: on_click(pid), animate=300
         )
 
-    def _build_header_declarative(self, nav_controls: list[ft.Control]) -> ft.Control:
+    def _build_header_declarative(self, nav_controls: list[ft.Control], vm: "LayoutViewModel") -> ft.Control:
         header_left_controls: list[ft.Control] = [
             ft.Container(width=4, height=20, bgcolor=ft.Colors.PRIMARY, border_radius=2),
             ft.Text("GENSHIN WORKBENCH", size=13, weight=ft.FontWeight.W_900, color=GenshinTheme.ON_SURFACE),
@@ -128,7 +145,12 @@ class AppLayout:
             ft.IconButton(
                 ft.Icons.ACCOUNT_TREE_OUTLINED,
                 tooltip="打开批处理编辑器",
-                on_click=lambda _: self.page.run_task(self.page.open_batch_editor),
+                on_click=lambda _: self.page.run_task(getattr(self.page, "open_batch_editor")),
+            ),
+            ft.IconButton(
+                ft.Icons.SETTINGS_OUTLINED,
+                tooltip="系统设置",
+                on_click=lambda _: vm.toggle_settings(),
             ),
             ft.IconButton(ft.Icons.SAVE_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.save_config)),
             ft.IconButton(ft.Icons.FOLDER_OPEN_OUTLINED, on_click=lambda _: self.page.run_task(self.persistence.load_config)),

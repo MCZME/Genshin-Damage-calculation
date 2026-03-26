@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from core.action.action_data import ActionCommand
 
 
@@ -19,8 +19,8 @@ class ActionParser:
     }
 
     def parse_sequence(
-        self, sequence_config: List[Dict[str, Any]]
-    ) -> List[ActionCommand]:
+        self, sequence_config: list[dict[str, Any]]
+    ) -> list[ActionCommand]:
         """
         解析动作序列配置。
         返回格式: List[ActionCommand]

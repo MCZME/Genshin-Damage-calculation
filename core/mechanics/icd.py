@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from core.tool import get_current_time
 
@@ -11,7 +11,7 @@ class ICDGroup:
     """
 
     reset_time: float  # 重置时间 (秒)
-    sequence: List[int]  # 附着序列 (1 代表产生附着, 0 代表不产生)
+    sequence: list[int]  # 附着序列 (1 代表产生附着, 0 代表不产生)
 
     @property
     def reset_frames(self) -> int:
@@ -19,7 +19,7 @@ class ICDGroup:
 
 
 # --- 全局附着规则映射 ---
-ICD_RULES: Dict[str, ICDGroup] = {
+ICD_RULES: dict[str, ICDGroup] = {
     # 默认组别: 2.5s 重置, 每 3 次命中触发一次附着 (1, 4, 7...)
     "Default": ICDGroup(2.5, [1, 0, 0]),
     # 独立附着: 每次命中均触发附着
@@ -46,7 +46,7 @@ class ICDManager:
     def __init__(self, owner: Any) -> None:
         self.owner = owner
         # 核心存储: (来源 ID, 共享组别名) -> 运行时状态
-        self.records: Dict[Tuple[int, str], ICDState] = {}
+        self.records: dict[tuple[int, str], ICDState] = {}
 
     def check_attachment(self, attacker: Any, icd_tag: str, icd_group: str) -> float:
         """判定本次攻击是否能够施加元素附着。

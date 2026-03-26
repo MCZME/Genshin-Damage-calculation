@@ -1,5 +1,5 @@
 import httpx
-from typing import Any, Dict, Optional
+from typing import Any
 from core.logger import get_emulation_logger
 
 
@@ -19,7 +19,7 @@ class AmberFetcher:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
-    def _get(self, url: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+    def _get(self, url: str, params: dict | None = None) -> dict[str, Any] | None:
         try:
             with httpx.Client(timeout=self.timeout, verify=False) as client:
                 response = client.get(url, headers=self.headers, params=params)
@@ -34,7 +34,7 @@ class AmberFetcher:
             )
             return None
 
-    def find_avatar_id(self, name: str) -> Optional[str]:
+    def find_avatar_id(self, name: str) -> str | None:
         """通过名称查找 ID。"""
         get_emulation_logger().log_info(f"正在查找角色 ID: {name}...", sender="Fetcher")
         data = self._get(f"{self.BASE_URL}/avatar")
@@ -47,15 +47,15 @@ class AmberFetcher:
         return None
 
     def fetch_avatar_detail(
-        self, avatar_id: str, vh: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, avatar_id: str, vh: str | None = None
+    ) -> dict[str, Any] | None:
         """获取角色详情。"""
         params = {"vh": vh} if vh else None
         return self._get(f"{self.BASE_URL}/avatar/{avatar_id}", params=params)
 
     def fetch_growth_curves(
-        self, vh: Optional[str] = "63F3"
-    ) -> Optional[Dict[str, Any]]:
+        self, vh: str | None = "63F3"
+    ) -> dict[str, Any] | None:
         """获取全量成长曲线表。"""
         params = {"vh": vh} if vh else None
         return self._get(f"{self.STATIC_URL}/avatarCurve", params=params)

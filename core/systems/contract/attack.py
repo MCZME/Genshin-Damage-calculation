@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Tuple
 
 
 class StrikeType(Enum):
@@ -31,7 +30,7 @@ class HitboxConfig:
     height: float = 0.0
     width: float = 0.0
     length: float = 0.0
-    offset: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
 
 @dataclass
@@ -43,7 +42,7 @@ class AttackConfig:
 
     # [核心] 标签系统
     attack_tag: str = ""  # 唯一主标签 (如 "普通攻击1")
-    extra_attack_tags: List[str] = field(default_factory=list)  # 额外辅助标签
+    extra_attack_tags: list[str] = field(default_factory=list)  # 额外辅助标签
 
     icd_tag: str = "Default"  # 附着规则标签
     icd_group: str = "Default"  # 共享冷却组 ID

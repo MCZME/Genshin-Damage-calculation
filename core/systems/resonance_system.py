@@ -1,4 +1,3 @@
-from typing import Dict, Set
 
 from core.event import EventType, GameEvent
 from core.systems.base_system import GameSystem
@@ -14,7 +13,7 @@ class ResonanceSystem(GameSystem):
 
     def __init__(self) -> None:
         super().__init__()
-        self.active_resonances: Set[str] = set()
+        self.active_resonances: set[str] = set()
 
         # 内部计时器与状态追踪
         self._last_electro_particle_time: int = -9999
@@ -46,7 +45,7 @@ class ResonanceSystem(GameSystem):
         if len(members) < 4:
             return
 
-        element_counts: Dict[str, int] = {}
+        element_counts: dict[str, int] = {}
         for char in members:
             el = getattr(char, "element", "无")
             element_counts[el] = element_counts.get(el, 0) + 1

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Any, Dict
+from typing import Any
 from dataclasses import dataclass, field
 
 
@@ -141,7 +141,7 @@ class GameEvent:
     source: Any = None
     cancelled: bool = False
     propagation_stopped: bool = False
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
     def stop_propagation(self):
         self.propagation_stopped = True

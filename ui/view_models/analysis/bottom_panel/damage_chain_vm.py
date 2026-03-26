@@ -8,6 +8,7 @@
 - 组件在渲染时根据数据创建
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -47,7 +48,7 @@ class MultiplierCardViewModel:
     selected_domain: str | None = None
     active_bucket: str | None = None
     damage_type: 'DamageType | None' = field(default=None, repr=False)
-    on_domain_click: callable = field(default=None, repr=False)
+    on_domain_click: Callable | None = field(default=None, repr=False)
 
     # 派生属性（纯数据，不存储组件）
     formula_parts: list = field(default_factory=list, init=False, repr=False)
@@ -130,7 +131,7 @@ class DamageChainRowViewModel:
     damage_type: 'DamageType | None' = field(default=None, repr=False)
     damage_result: DamageResultCardViewModel | None = field(default=None, init=False)
     multiplier_cards: list[MultiplierCardViewModel] = field(default_factory=list, init=False)
-    _on_domain_click: callable = field(default=None, repr=False)
+    _on_domain_click: Callable | None = field(default=None, repr=False)
 
     # 伤害值和元素（从外部传入）
     damage_value: float = 0
@@ -186,7 +187,7 @@ class DamageChainRowViewModel:
         damage_type: 'DamageType | None' = None,
         active_bucket: str | None = None,
         selected_domain: str | None = None,
-        on_domain_click: callable = None
+        on_domain_click: Callable | None = None
     ) -> 'DamageChainRowViewModel':
         """从审计数据创建 ViewModel
 

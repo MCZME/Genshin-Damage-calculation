@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from core.action.action_data import ActionFrameData
 from core.logger import get_emulation_logger
@@ -13,7 +13,7 @@ class ActionInstance:
     def __init__(self, data: ActionFrameData) -> None:
         self.data: ActionFrameData = data
         self.elapsed_frames: int = 0
-        self.hit_frames_pending: List[int] = sorted(data.hit_frames.copy())
+        self.hit_frames_pending: list[int] = sorted(data.hit_frames.copy())
         self.is_finished: bool = False
 
     def advance(self) -> bool:
@@ -29,7 +29,7 @@ class ActionManager:
     def __init__(self, character: Any, context: "SimulationContext") -> None:
         self.character = character
         self.ctx = context
-        self.current_action: Optional[ActionInstance] = None
+        self.current_action: ActionInstance | None = None
 
         # 连招状态管理
         self.combo_counter: int = 1

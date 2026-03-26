@@ -340,7 +340,6 @@ class DomainDetailSectionViewModel:
         raw_data = def_data.get("raw_data", {})
 
         target_def = raw_data.get("target_defense", 0.0)
-        def_reduction_pct = raw_data.get("def_reduction_pct", 0.0)
 
         if self.selected_domain == "target_def":
             # 只显示目标面板防御力

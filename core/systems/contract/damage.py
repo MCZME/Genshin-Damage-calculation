@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from core.systems.contract.attack import AttackConfig
 from core.mechanics.aura import Element
 
@@ -13,14 +13,14 @@ class Damage:
 
     def __init__(
         self,
-        element: Tuple[Element, float] = (Element.NONE, 1.0),
-        damage_multiplier: Tuple[float, ...] = (0.0,),
-        scaling_stat: Tuple[str, ...] = ("攻击力",),
-        config: Optional[AttackConfig] = None,
+        element: tuple[Element, float] = (Element.NONE, 1.0),
+        damage_multiplier: tuple[float, ...] = (0.0,),
+        scaling_stat: tuple[str, ...] = ("攻击力",),
+        config: AttackConfig | None = None,
         name: str = "Unknown Damage",
     ) -> None:
         """初始化伤害对象。"""
-        self.element: Tuple[Element, float] = element
+        self.element: tuple[Element, float] = element
         # 严格赋值
         self.damage_multiplier = damage_multiplier
         self.scaling_stat = scaling_stat
@@ -32,8 +32,8 @@ class Damage:
         self.target: Any = None
         self.damage: float = 0.0
         self.is_crit: bool = False
-        self.reaction_results: List[Any] = []
-        self.data: Dict[str, Any] = {}
+        self.reaction_results: list[Any] = []
+        self.data: dict[str, Any] = {}
 
     def set_source(self, source: Any) -> None:
         """设置伤害来源实体。"""
@@ -43,7 +43,7 @@ class Damage:
         """设置伤害的命中目标。"""
         self.target = target
 
-    def set_scaling_stat(self, scaling_stat: Tuple[str, ...]) -> None:
+    def set_scaling_stat(self, scaling_stat: tuple[str, ...]) -> None:
         """修改伤害计算所依赖的属性向量。"""
         self.scaling_stat = scaling_stat
 
@@ -55,7 +55,7 @@ class Damage:
         """向伤害对象注入额外的运行时上下文数据。"""
         self.data[key] = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """将伤害对象序列化为可持久化的字典。"""
         return {
             "name": self.name,

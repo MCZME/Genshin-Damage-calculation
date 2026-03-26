@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any
 
 from character.character import Character
 from core.event import GameEvent, EventType
@@ -13,7 +13,7 @@ class Team:
     解耦说明：不再自动将全员注册进 CombatSpace，物理空间应仅感知当前场上角色。
     """
 
-    def __init__(self, characters: List[Character], context: Any = None):
+    def __init__(self, characters: list[Character], context: Any = None):
         """初始化队伍。
 
         Args:
@@ -21,7 +21,7 @@ class Team:
             context: 仿真上下文。
         """
         self.ctx = context
-        self.members: List[Character] = characters
+        self.members: list[Character] = characters
         self.active_index: int = 0
 
         self.swap_cd: int = 60
@@ -35,17 +35,17 @@ class Team:
             self.members[0].on_field = True
 
     @property
-    def current_character(self) -> Optional[Character]:
+    def current_character(self) -> Character | None:
         """获取当前活跃角色 (场上角色)。"""
         if 0 <= self.active_index < len(self.members):
             return self.members[self.active_index]
         return None
 
-    def get_members(self) -> List[Character]:
+    def get_members(self) -> list[Character]:
         """获取全队成员 (包含后台)。"""
         return self.members
 
-    def get_character_by_name(self, name: str) -> Optional[Character]:
+    def get_character_by_name(self, name: str) -> Character | None:
         for char in self.members:
             if char.name == name:
                 return char

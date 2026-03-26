@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 from core.data.database import db_manager
 from core.logger import get_emulation_logger
 
@@ -28,7 +28,7 @@ class DatabaseSync:
     def __init__(self) -> None:
         self.db = db_manager
 
-    def sync_character(self, data: Dict[str, Any]) -> Optional[int]:
+    def sync_character(self, data: dict[str, Any]) -> int | None:
         """执行全量同步并返回数据库真实的 Character ID。"""
         char_name = data["metadata"]["name"]
         get_emulation_logger().log_info(
@@ -76,7 +76,7 @@ class DatabaseSync:
                     )
                     self.db.execute_non_query(alter_sql)
 
-    def _sync_base_info(self, data: Dict[str, Any]) -> None:
+    def _sync_base_info(self, data: dict[str, Any]) -> None:
         """同步基础信息，使用 INSERT ... ON DUPLICATE KEY UPDATE 以保留自增 ID。"""
         m = data["metadata"]
         # 我们假设 Name 是唯一键
@@ -91,14 +91,14 @@ class DatabaseSync:
         params = (m["name"], m["element"], m["weapon_type"], m["rarity"])
         self.db.execute_non_query(sql, params)
 
-    def _get_real_id(self, name: str) -> Optional[int]:
+    def _get_real_id(self, name: str) -> int | None:
         """从数据库查询角色的真实 ID。"""
         sql = "SELECT ID FROM `character` WHERE Name = %s"
         result = self.db.execute_query(sql, (name,))
         return result[0][0] if result else None
 
     def _sync_stats_table(
-        self, table_name: str, char_id: int, stats_data: Dict[int, Dict], key_name: str
+        self, table_name: str, char_id: int, stats_data: dict[int, dict], key_name: str
     ) -> None:
         levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
         vals = [stats_data.get(lv, {}).get(key_name, 0.0) for lv in levels]
@@ -111,7 +111,7 @@ class DatabaseSync:
         params = tuple([char_id] + vals)
         self.db.execute_non_query(sql, params)
 
-    def _sync_breakthrough(self, data: Dict[str, Any], char_id: int) -> None:
+    def _sync_breakthrough(self, data: dict[str, Any], char_id: int) -> None:
         stats_data = data["base_stats"]
         prop_name = data["metadata"].get("breakthrough_prop")
         attr_id = self.ATTR_NAME_TO_ID.get(prop_name, 0)

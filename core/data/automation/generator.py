@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict
+from typing import Any
 
 
 class DataGenerator:
@@ -8,7 +8,7 @@ class DataGenerator:
     负责将清洗后的数据渲染为本地 Python 配置文件 (data.py)。
     """
 
-    def generate_character_data(self, data: Dict[str, Any], output_path: str) -> bool:
+    def generate_character_data(self, data: dict[str, Any], output_path: str) -> bool:
         """生成角色数据文件。"""
         try:
             m = data["metadata"]
