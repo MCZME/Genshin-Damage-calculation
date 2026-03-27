@@ -343,8 +343,8 @@ class ReactionSystem(GameSystem):
 
     def _get_team_members(self) -> list[Any]:
         """获取当前队伍成员。"""
-        if self.context and hasattr(self.context, 'team'):
-            return self.context.team.get_members()
+        if self.context and self.context.space and self.context.space.team:
+            return self.context.space.team.get_members()
         return []
 
     def _get_lunar_system(self) -> Any:
