@@ -75,6 +75,22 @@ class EventType(Enum):
     ELECTRO_CHARGED_TICK = auto()
     BURNING_TICK = auto()
 
+    # 月曜反应事件
+    BEFORE_LUNAR_BLOOM = auto()
+    AFTER_LUNAR_BLOOM = auto()
+    BEFORE_LUNAR_CHARGED = auto()
+    AFTER_LUNAR_CHARGED = auto()
+    BEFORE_LUNAR_CRYSTALLIZE = auto()
+    AFTER_LUNAR_CRYSTALLIZE = auto()
+
+    # 月曜特殊事件
+    LUNAR_CHARGED_TICK = auto()  # 雷暴云攻击
+    LUNAR_CRYSTALLIZE_ATTACK = auto()  # 月笼谐奏攻击
+
+    # 月曜资源事件
+    GRASS_DEW_GAIN = auto()  # 草露获取
+    GRASS_DEW_CONSUME = auto()  # 草露消耗
+
     # 生命、防御与状态
     BEFORE_HEALTH_CHANGE = auto()
     AFTER_HEALTH_CHANGE = auto()

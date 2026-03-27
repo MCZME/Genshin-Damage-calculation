@@ -30,7 +30,7 @@ class Element(Enum):
 class Gauge:
     """
     元素量载体。
-    遵循原神“附着论”，管理元素量的衰减与消耗。
+    遵循原神"附着论"，管理元素量的衰减与消耗。
     """
 
     element: Element
@@ -38,9 +38,18 @@ class Gauge:
     max_gauge: float  # 最大附着量 (通常为 0.8 * u_value)
     current_gauge: float  # 当前剩余附着量
     decay_rate: float  # 衰减速率 (每秒扣除量)
+    # 月曜反应：附着来源追踪
+    source_character: Any = None  # 附着来源角色
+    source_time: float = 0.0  # 附着时间戳
 
     @classmethod
-    def create(cls, element: Element, u_value: float) -> "Gauge":
+    def create(
+        cls,
+        element: Element,
+        u_value: float,
+        source_character: Any = None,
+        source_time: float = 0.0
+    ) -> "Gauge":
         """工厂方法：根据初始 U 值创建附着。"""
         max_g = 0.8 * u_value
         if u_value <= 1.0:
@@ -50,7 +59,7 @@ class Gauge:
         else:
             duration = 17.0
         decay = max_g / duration
-        return cls(element, u_value, max_g, max_g, decay)
+        return cls(element, u_value, max_g, max_g, decay, source_character, source_time)
 
     def update(self, dt: float) -> None:
         """更新衰减逻辑。"""
@@ -135,9 +144,19 @@ class AuraManager:
             else:
                 self._apply_burning_tick(owner, dt, is_damage_frame=False)
 
-    def apply_element(self, element: Any, attack_u: float) -> list[ReactionResult]:
+    def apply_element(
+        self,
+        element: Any,
+        attack_u: float,
+        source_character: Any = None
+    ) -> list[ReactionResult]:
         """
         应用外部元素攻击。
+
+        Args:
+            element: 攻击元素
+            attack_u: 攻击元素量
+            source_character: 附着来源角色（用于月曜反应追踪）
         """
         if not isinstance(element, Element):
             attack_element = Element(element)
@@ -289,7 +308,7 @@ class AuraManager:
         if attack_element in [Element.ANEMO, Element.GEO]:
             return results
         if rem_u > 0.001 and not prevent_attachment:
-            self._attach(attack_element, rem_u)
+            self._attach(attack_element, rem_u, source_character)
         return results
 
     def has_aura(self, element_name: str) -> bool:
@@ -432,12 +451,25 @@ class AuraManager:
         else:
             self.is_burning = False
 
-    def _attach(self, element: Element, u: float) -> None:
+    def _attach(
+        self,
+        element: Element,
+        u: float,
+        source_character: Any = None
+    ) -> None:
+        """施加元素附着。"""
+        from core.tool import get_current_time
+
         existing = next((a for a in self.auras if a.element == element), None)
-        new_a = Gauge.create(element, u)
+        source_time = get_current_time() if source_character else 0.0
+        new_a = Gauge.create(element, u, source_character, source_time)
         if existing:
             existing.current_gauge = max(existing.current_gauge, new_a.current_gauge)
             existing.decay_rate = new_a.decay_rate
+            # 更新来源信息（如果新附着有来源）
+            if source_character:
+                existing.source_character = source_character
+                existing.source_time = source_time
         else:
             self.auras.append(new_a)
 

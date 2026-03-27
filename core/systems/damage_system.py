@@ -226,7 +226,7 @@ class DamagePipeline:
     def _stage_5_synthesis(self, ctx: DamageContext):
         """阶段五：纯函数合算。"""
         s = ctx.stats
-        
+
         # 路径 A: 剧变反应路径
         if AttackTagResolver.is_transformative(ctx.damage.config.attack_tag, ctx.damage.config.extra_attack_tags):
             level_coeff = float(ctx.damage.data.get("等级系数", 0))
@@ -237,7 +237,12 @@ class DamagePipeline:
             ctx.final_result = level_coeff * react_base * (1 + em_inc + special_bonus) * s["抗性区系数"]
             return
 
-        # 路径 B: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 路径 B: 月曜伤害路径
+        if self._is_lunar_damage(ctx):
+            self._calculate_lunar_damage(ctx)
+            return
+
+        # 路径 C: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
         # 1. 核心伤害合算
         base_dmg = 0.0
         scaling_stats = cast(list[str], ctx.damage.scaling_stat)
@@ -246,25 +251,77 @@ class DamagePipeline:
                 continue
             attr_val = s.get(s_name, 0.0)
             skill_mult = s.get(f"{s_name}技能倍率%", 0.0)
-            
+
             # Final_Mult = 技能倍率% * (1 + 独立乘区%/100) + 倍率加值%
             final_mult = skill_mult * (1.0 + s["独立乘区%"] / 100.0) + s["倍率加值%"]
-            
+
             # (基础属性 * Final_Mult / 100)
             base_dmg += attr_val * (final_mult / 100.0)
-            
+
         # Core_DMG = base_dmg + 固定伤害值加成
         core_dmg = base_dmg + s["固定伤害值加成"]
-        
+
         # 2. 全乘区聚合 (Synthesis)
         ctx.final_result = (
-            core_dmg 
+            core_dmg
             * (1.0 + s["伤害加成"] / 100.0)
             * s["暴击乘数"]
             * (s["反应基础倍率"] * (1.0 + s["反应加成系数"]))
             * s["防御区系数"]
             * s["抗性区系数"]
         )
+
+    def _is_lunar_damage(self, ctx: DamageContext) -> bool:
+        """判定是否为月曜伤害。"""
+        attack_tag = ctx.damage.config.attack_tag
+        lunar_tags = ("月绽放伤害", "月感电伤害", "月结晶伤害")
+        return attack_tag in lunar_tags
+
+    def _calculate_lunar_damage(self, ctx: DamageContext) -> None:
+        """
+        月曜伤害计算。
+
+        特点：
+        - 可暴击
+        - 不享受增伤加成
+        - 无视防御（防御区趋近于1）
+        - 有独立的擢升区
+        """
+        s = ctx.stats
+
+        # 获取基础数据
+        level_coeff = float(ctx.damage.data.get("等级系数", 0))
+        reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
+        base_bonus = s.get("基础伤害提升", 0)
+
+        # 月曜精通系数 = 6 × 精通 / (精通 + 2000)
+        em = s["元素精通"]
+        lunar_em_coeff = 6 * em / (em + 2000)
+
+        # 反应提升
+        reaction_bonus = s.get("月曜反应伤害提升", 0)
+        reaction_boost = 1 + lunar_em_coeff + reaction_bonus / 100
+
+        # 核心基础伤害
+        core_damage = level_coeff * reaction_mult * (1 + base_bonus / 100) * reaction_boost
+
+        # 附加伤害
+        extra_damage = float(ctx.damage.data.get("附加伤害", 0))
+
+        # 基础伤害区
+        base_damage = core_damage + extra_damage
+
+        # 暴击区（月曜伤害可暴击）
+        crit_mult = s["暴击乘数"]
+
+        # 抗性区
+        res_coeff = s["抗性区系数"]
+
+        # 擢升区（独立的增伤区）
+        ascension_mult = 1 + s.get("月曜伤害擢升", 0) / 100
+
+        # 最终伤害（无防御区，无增伤区）
+        ctx.final_result = base_damage * crit_mult * res_coeff * ascension_mult
 
 
 class DamageSystem(GameSystem):
