@@ -1,9 +1,48 @@
 import pytest
 from typing import Any
+from unittest.mock import MagicMock
 from core.context import EventEngine
 from core.mechanics.aura import AuraManager
 from core.mechanics.icd import ICDManager
 from core.entities.base_entity import Faction
+
+
+# ---------------------------------------------------------
+# Mock UI Logger for tests (CI 环境无配置文件)
+# ---------------------------------------------------------
+class MockUILogger:
+    """Mock UILogger，用于测试环境"""
+
+    def log_info(self, msg: str) -> None:
+        pass
+
+    def log_warning(self, msg: str) -> None:
+        pass
+
+    def log_error(self, msg: str) -> None:
+        pass
+
+    def log_debug(self, msg: str) -> None:
+        pass
+
+    def log_window_open(self, name: str) -> None:
+        pass
+
+    def log_button_click(self, name: str) -> None:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def mock_ui_logger():
+    """自动 mock get_ui_logger 以避免 CI 环境配置缺失问题"""
+    import core.logger as logger_module
+
+    original_logger = logger_module._default_ui_logger
+    logger_module._default_ui_logger = MockUILogger()
+
+    yield
+
+    logger_module._default_ui_logger = original_logger
 
 
 class MockAttributeEntity:
