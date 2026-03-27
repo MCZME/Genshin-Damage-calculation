@@ -359,9 +359,10 @@ class ReactionSystem(GameSystem):
         lunar_system = self._get_lunar_system()
         if lunar_system:
             return lunar_system.can_trigger_lunar_bloom(members)
-        # 回退：使用内置配置
+        # 回退：使用默认配置
+        from core.systems.lunar_system import LunarReactionSystem as LRS
         return any(
-            getattr(m, 'name', None) in {"奈芙尔", "菈乌玛", "哥伦比娅"}
+            getattr(m, 'name', None) in LRS.DEFAULT_LUNAR_BLOOM
             for m in members
         )
 
@@ -370,9 +371,10 @@ class ReactionSystem(GameSystem):
         lunar_system = self._get_lunar_system()
         if lunar_system:
             return lunar_system.can_trigger_lunar_charged(members)
-        # 回退：使用内置配置
+        # 回退：使用默认配置
+        from core.systems.lunar_system import LunarReactionSystem as LRS
         return any(
-            getattr(m, 'name', None) in {"菲林斯", "伊涅芙", "哥伦比娅"}
+            getattr(m, 'name', None) in LRS.DEFAULT_LUNAR_CHARGED
             for m in members
         )
 
@@ -381,9 +383,10 @@ class ReactionSystem(GameSystem):
         lunar_system = self._get_lunar_system()
         if lunar_system:
             return lunar_system.can_trigger_lunar_crystallize(members)
-        # 回退：使用内置配置
+        # 回退：使用默认配置
+        from core.systems.lunar_system import LunarReactionSystem as LRS
         return any(
-            getattr(m, 'name', None) in {"兹白", "哥伦比娅"}
+            getattr(m, 'name', None) in LRS.DEFAULT_LUNAR_CRYSTALLIZE
             for m in members
         )
 

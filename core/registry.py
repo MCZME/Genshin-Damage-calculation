@@ -10,6 +10,28 @@ ArtifactSetMap: dict[str, type[Any]] = {}
 
 _initialized: bool = False
 
+
+# --- 自动发现函数 ---
+
+def discover_lunar_trigger_characters() -> dict[str, set[str]]:
+    """
+    自动发现所有月曜触发角色。
+
+    Returns:
+        {"bloom": {...}, "charged": {...}, "crystallize": {...}}
+    """
+    result: dict[str, set[str]] = {"bloom": set(), "charged": set(), "crystallize": set()}
+    for name, cls in CharacterClassMap.items():
+        triggers = getattr(cls, 'lunar_triggers', set())
+        if "bloom" in triggers:
+            result["bloom"].add(name)
+        if "charged" in triggers:
+            result["charged"].add(name)
+        if "crystallize" in triggers:
+            result["crystallize"].add(name)
+    return result
+
+
 # --- 注册装饰器 ---
 
 def register_character(name: str) -> Callable[[type[Any]], type[Any]]:

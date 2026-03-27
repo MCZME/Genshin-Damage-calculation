@@ -21,6 +21,10 @@ class Character(CombatEntity, ABC):
     角色基类。
     """
 
+    # 月曜反应触发能力（子类可覆盖）
+    # 可选值: "bloom"（月绽放）、"charged"（月感电）、"crystallize"（月结晶）
+    lunar_triggers: set[str] = set()
+
     def __init__(
         self,
         id: int = 1,

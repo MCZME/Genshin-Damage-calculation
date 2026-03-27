@@ -9,6 +9,7 @@ from typing import Any
 from core.systems.base_system import GameSystem
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
+from core.registry import discover_lunar_trigger_characters
 
 
 class LunarReactionSystem(GameSystem):
@@ -22,13 +23,16 @@ class LunarReactionSystem(GameSystem):
     4. 月曜触发判定方法
     """
 
+    # 默认配置（Registry 无结果时的回退）
+    DEFAULT_LUNAR_BLOOM: set[str] = {"奈芙尔", "菈乌玛", "哥伦比娅"}
+    DEFAULT_LUNAR_CHARGED: set[str] = {"菲林斯", "伊涅芙", "哥伦比娅"}
+    DEFAULT_LUNAR_CRYSTALLIZE: set[str] = {"兹白", "哥伦比娅"}
+
     def __init__(self) -> None:
         super().__init__()
 
-        # 月曜触发角色配置
-        self.lunar_bloom_characters: set[str] = {"奈芙尔", "菈乌玛", "哥伦比娅"}
-        self.lunar_charged_characters: set[str] = {"菲林斯", "伊涅芙", "哥伦比娅"}
-        self.lunar_crystallize_characters: set[str] = {"兹白", "哥伦比娅"}
+        # 月曜触发角色配置（从 Registry 自动发现或使用默认值）
+        self._init_lunar_trigger_characters()
 
         # 草露资源
         self.grass_dew: int = 0
@@ -64,6 +68,17 @@ class LunarReactionSystem(GameSystem):
             self._on_lunar_charged_triggered(event)
         elif event.event_type == EventType.AFTER_LUNAR_CRYSTALLIZE:
             self._on_lunar_crystallize_triggered(event)
+
+    # ================================
+    # 配置初始化
+    # ================================
+
+    def _init_lunar_trigger_characters(self) -> None:
+        """从 Registry 自动发现月曜触发角色。"""
+        discovered = discover_lunar_trigger_characters()
+        self.lunar_bloom_characters = discovered["bloom"] or self.DEFAULT_LUNAR_BLOOM
+        self.lunar_charged_characters = discovered["charged"] or self.DEFAULT_LUNAR_CHARGED
+        self.lunar_crystallize_characters = discovered["crystallize"] or self.DEFAULT_LUNAR_CRYSTALLIZE
 
     # ================================
     # 触发判定方法
