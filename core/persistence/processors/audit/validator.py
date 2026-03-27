@@ -201,3 +201,60 @@ class AuditValidator:
             deviation_direction=direction,
             errors=errors,
         )
+
+    @staticmethod
+    def validate_lunar_damage(
+        buckets: dict[str, Any],
+        db_damage: float,
+        tolerance: float = DEFAULT_TOLERANCE,
+        event_id: int | None = None,
+    ) -> ValidationResult:
+        """验证月曜反应伤害
+
+        [V17.0] 新增
+
+        公式：最终伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
+
+        其中基础伤害 = (等级系数 × 反应倍率 + 附加伤害) × (1 + 基础提升 + 月曜精通加成 + 反应加成)
+        """
+        from .coefficient_calculator import calculate_resistance_coefficient
+
+        # 计算基础伤害
+        base_bucket = buckets.get("base_damage", {})
+        level_coeff = base_bucket.get("level_coeff", 0.0)
+        reaction_mult = base_bucket.get("reaction_mult", 1.0)
+        base_bonus = base_bucket.get("base_bonus", 0.0)
+        em_bonus_pct = base_bucket.get("em_bonus_pct", 0.0)
+        reaction_bonus = base_bucket.get("reaction_bonus", 0.0)
+        extra_damage = base_bucket.get("extra_damage", 0.0)
+
+        # 基础伤害 = 等级系数 × 反应倍率 × (1 + 基础提升 + 月曜精通 + 反应加成) + 附加伤害
+        core_damage = level_coeff * reaction_mult * (
+            1 + base_bonus / 100 + em_bonus_pct / 100 + reaction_bonus / 100
+        ) + extra_damage
+
+        # 暴击区
+        crit_mult = buckets.get("crit", {}).get("multiplier", 1.0)
+
+        # 抗性区
+        res_bucket = buckets.get("resistance", {})
+        res_raw = res_bucket.get("raw_data", {})
+        res_mult = (
+            calculate_resistance_coefficient(res_raw)
+            if res_raw
+            else res_bucket.get("multiplier", 1.0)
+        )
+
+        # 擢升区
+        ascension_mult = buckets.get("ascension", {}).get("multiplier", 1.0)
+
+        # 计算最终伤害
+        calc_damage = core_damage * crit_mult * res_mult * ascension_mult
+
+        return AuditValidator._perform_validation(
+            calc_damage=calc_damage,
+            db_damage=db_damage,
+            tolerance=tolerance,
+            event_id=event_id,
+            errors=[],
+        )

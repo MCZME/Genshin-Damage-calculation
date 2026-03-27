@@ -735,3 +735,56 @@ def collect_resistance_raw_data(
     res_raw = buckets["resistance"].get("raw_data", {})
     if res_raw:
         buckets["resistance"]["multiplier"] = calculate_resistance_coefficient(res_raw)
+
+
+# ============================================================
+# [V17.0] 月曜反应桶结构
+# ============================================================
+
+
+def create_lunar_buckets() -> dict[str, Any]:
+    """创建月曜反应桶结构（4 桶模型）
+
+    月曜反应伤害公式：
+    伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
+
+    其中：
+    - 基础伤害 = 等级系数 × 反应倍率 × (1 + 基础提升 + 月曜精通加成 + 反应加成)
+    - 暴击区：月曜可暴击
+    - 抗性区：正常结算
+    - 擢升区：独立的增伤区
+
+    特点：
+    - 无增伤区（不享受角色增伤）
+    - 无防御区（无视防御）
+    """
+    return {
+        "base_damage": {
+            "level_coeff": 0.0,  # 等级系数
+            "reaction_mult": 1.0,  # 反应倍率
+            "base_bonus": 0.0,  # 基础伤害提升
+            "em_bonus_pct": 0.0,  # 月曜精通加成%（6 × EM / (EM + 2000)）
+            "reaction_bonus": 0.0,  # 月曜反应伤害提升%
+            "extra_damage": 0.0,  # 附加伤害
+            "multiplier": 1.0,  # 总乘数
+            "steps": [],
+            "contributions": [],  # 角色贡献列表（加权求和用）
+            "reaction_type": "",  # 反应类型中文名称
+        },
+        "crit": {
+            "multiplier": 1.0,
+            "crit_rate": 0.0,
+            "steps": [],
+        },
+        "resistance": {
+            "multiplier": 1.0,
+            "base_resistance": 0.0,
+            "final_resistance": 0.0,
+            "steps": [],
+        },
+        "ascension": {
+            "multiplier": 1.0,
+            "bonus_pct": 0.0,  # 擢升区加成%
+            "steps": [],
+        },
+    }

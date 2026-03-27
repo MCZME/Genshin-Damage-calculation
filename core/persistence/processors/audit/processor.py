@@ -17,6 +17,7 @@ from .constants import BUCKET_MAP, SOURCE_TYPE_MAP
 from .bucket_processor import (
     create_empty_buckets,
     create_transformative_buckets,
+    create_lunar_buckets,
     classify_trail_entry,
     inject_frame_snapshot,
     inject_target_modifiers,
@@ -240,6 +241,212 @@ class AuditProcessor:
         return buckets
 
     @staticmethod
+    def process_lunar(
+        damage_type_ctx: DamageTypeContext,
+        raw_trail: list[dict[str, Any]],
+        frame_snapshot: dict[str, Any] | None = None,
+        target_snapshot: dict[str, Any] | None = None,
+        element_type: str = "",
+    ) -> dict[str, Any]:
+        """[V17.0] 处理月曜反应审计数据
+
+        月曜反应使用 4 桶模型：
+        - base_damage: 基础伤害（等级系数 × 反应倍率 × 精通加成）
+        - crit: 暴击乘区（月曜可暴击）
+        - resistance: 抗性区
+        - ascension: 擢升区（独立增伤区）
+
+        特点：
+        - 无增伤区（不享受角色增伤）
+        - 无防御区（无视防御）
+
+        Args:
+            damage_type_ctx: 伤害类型上下文
+            raw_trail: 审计链
+            frame_snapshot: 帧快照
+            target_snapshot: 目标快照
+            element_type: 元素类型（用于抗性区数据收集）
+
+        Returns:
+            月曜反应 4 桶数据结构
+        """
+        from core.systems.contract.reaction import ElementalReactionType
+
+        buckets = create_lunar_buckets()
+
+        # 1. 填充基础伤害桶
+        attack_tag = damage_type_ctx.attack_tag
+        buckets["base_damage"]["level_coeff"] = damage_type_ctx.level_coeff
+        buckets["base_damage"]["reaction_mult"] = damage_type_ctx.reaction_coeff
+        buckets["base_damage"]["base_bonus"] = damage_type_ctx.base_bonus
+        buckets["base_damage"]["extra_damage"] = damage_type_ctx.extra_damage
+
+        # 1.1 从 attack_tag 提取反应类型中文名称
+        reaction_type_map = {
+            "月绽放": ElementalReactionType.LUNAR_BLOOM,
+            "月感电": ElementalReactionType.LUNAR_CHARGED,
+            "月结晶": ElementalReactionType.LUNAR_CRYSTALLIZE,
+        }
+        reaction_type = ""
+        for tag, rt_enum in reaction_type_map.items():
+            if tag in attack_tag:
+                reaction_type = rt_enum.value
+                break
+        buckets["base_damage"]["reaction_type"] = reaction_type
+
+        # 1.2 计算月曜精通加成：6 × EM / (EM + 2000)
+        em = damage_type_ctx.elemental_mastery
+        em_bonus_pct = (6 * em) / (em + 2000) * 100 if em > 0 else 0.0
+        buckets["base_damage"]["em_bonus_pct"] = em_bonus_pct
+
+        # 1.3 从上下文获取反应加成
+        reaction_bonus = damage_type_ctx.special_bonus  # 复用 special_bonus 字段
+        buckets["base_damage"]["reaction_bonus"] = reaction_bonus
+
+        # 1.4 计算基础伤害乘数
+        base_mult = damage_type_ctx.reaction_coeff * (
+            1 + damage_type_ctx.base_bonus / 100 + em_bonus_pct / 100 + reaction_bonus / 100
+        )
+        buckets["base_damage"]["multiplier"] = base_mult
+
+        # 1.5 添加步骤（用于域详情展示）
+        buckets["base_damage"]["steps"].append(
+            {
+                "stat": "等级系数",
+                "value": damage_type_ctx.level_coeff,
+                "op": "SET",
+                "source": "角色等级",
+            }
+        )
+        buckets["base_damage"]["steps"].append(
+            {
+                "stat": "反应倍率",
+                "value": damage_type_ctx.reaction_coeff,
+                "op": "MULT",
+                "source": reaction_type or attack_tag,
+            }
+        )
+
+        if damage_type_ctx.base_bonus > 0:
+            buckets["base_damage"]["steps"].append(
+                {
+                    "stat": "基础伤害提升",
+                    "value": damage_type_ctx.base_bonus,
+                    "op": "ADD",
+                    "source": "装备/天赋",
+                }
+            )
+
+        if em > 0:
+            buckets["base_damage"]["steps"].append(
+                {
+                    "stat": "月曜精通转化",
+                    "value": em_bonus_pct,
+                    "op": "ADD",
+                    "source": f"元素精通 {em:.0f}",
+                }
+            )
+
+        if reaction_bonus > 0:
+            buckets["base_damage"]["steps"].append(
+                {
+                    "stat": "月曜反应加成",
+                    "value": reaction_bonus,
+                    "op": "ADD",
+                    "source": "装备/天赋",
+                }
+            )
+
+        if damage_type_ctx.extra_damage > 0:
+            buckets["base_damage"]["steps"].append(
+                {
+                    "stat": "附加伤害",
+                    "value": damage_type_ctx.extra_damage,
+                    "op": "ADD",
+                    "source": "其他来源",
+                }
+            )
+
+        # 1.6 填充角色贡献列表（加权求和用）
+        buckets["base_damage"]["contributions"] = [
+            {
+                "character_name": c.character_name,
+                "damage_component": c.damage_component,
+                "weight_percentage": c.weight_percentage,
+            }
+            for c in damage_type_ctx.contributing_characters
+        ]
+
+        # 2. 处理暴击区（月曜可暴击）
+        for entry in raw_trail:
+            stat = entry.get("stat", "")
+            val = entry.get("value", 0.0)
+            source = entry.get("source", "Unknown")
+
+            if stat == "暴击乘数":
+                buckets["crit"]["multiplier"] = val
+                buckets["crit"]["steps"].append(
+                    {"stat": stat, "value": val, "op": "SET", "source": source}
+                )
+
+        # 从帧快照获取暴击率
+        if frame_snapshot:
+            base_crit_rate = frame_snapshot.get("stats", {}).get("暴击率", 0.0)
+            buckets["crit"]["crit_rate"] = base_crit_rate
+
+        # 3. 处理抗性区
+        for entry in raw_trail:
+            stat = entry.get("stat", "")
+            val = entry.get("value", 0.0)
+            source = entry.get("source", "Unknown")
+
+            if stat == "抗性区系数":
+                buckets["resistance"]["multiplier"] = val
+                buckets["resistance"]["steps"].append(
+                    {"stat": stat, "value": val, "op": "SET", "source": source}
+                )
+
+        # 从目标快照获取抗性信息
+        if target_snapshot:
+            target_resistance = target_snapshot.get("resistance", {})
+            element_name_map = {
+                "PHYSICAL": "物理",
+                "PYRO": "火",
+                "HYDRO": "水",
+                "ELECTRO": "雷",
+                "CRYO": "冰",
+                "ANEMO": "风",
+                "GEO": "岩",
+                "DENDRO": "草",
+            }
+            el_name = element_name_map.get(element_type, element_type)
+            base_res = target_resistance.get(el_name, 0.0)
+            if base_res != 0:
+                buckets["resistance"]["base_resistance"] = base_res
+                buckets["resistance"]["final_resistance"] = base_res / 100.0
+
+        # 注入减抗修饰符
+        inject_target_modifiers(target_snapshot, buckets, element_type)
+        collect_resistance_raw_data(frame_snapshot, target_snapshot, buckets, element_type)
+
+        # 4. 处理擢升区
+        ascension_bonus = damage_type_ctx.ascension_bonus
+        buckets["ascension"]["bonus_pct"] = ascension_bonus
+        buckets["ascension"]["multiplier"] = 1 + ascension_bonus / 100
+
+        if ascension_bonus > 0:
+            buckets["ascension"]["steps"].append(
+                {
+                    "stat": "月曜伤害擢升",
+                    "value": ascension_bonus,
+                    "op": "ADD",
+                    "source": "装备/天赋",
+                }
+            )
+
+        return buckets
+
+    @staticmethod
     def get_source_type(source: str) -> str:
         """[V10.0] 从来源名称推断来源类型"""
         return get_source_type(source)
@@ -269,16 +476,27 @@ class AuditProcessor:
         "烈绽放伤害",
     )
 
+    # 月曜反应攻击标签
+    LUNAR_TAGS = (
+        "月绽放伤害",
+        "月感电伤害",
+        "月结晶伤害",
+    )
+
     @staticmethod
     def detect_damage_type(attack_tag: str) -> DamageType:
         """[V15.0] 从攻击标签检测伤害类型
 
+        [V17.0] 新增月曜反应类型检测
+
         Args:
-            attack_tag: 攻击标签（如 "超载伤害", "普通攻击"）
+            attack_tag: 攻击标签（如 "超载伤害", "普通攻击", "月绽放伤害"）
 
         Returns:
             DamageType 枚举值
         """
+        if any(tag in attack_tag for tag in AuditProcessor.LUNAR_TAGS):
+            return DamageType.LUNAR
         if any(tag in attack_tag for tag in AuditProcessor.TRANSFORMATIVE_TAGS):
             return DamageType.TRANSFORMATIVE
         return DamageType.NORMAL
@@ -294,18 +512,26 @@ class AuditProcessor:
         """验证伤害计算结果
 
         [V15.0] 新增：验证审计链计算结果与数据库真值的一致性
+        [V17.0] 新增：月曜反应验证路径
 
         Args:
             buckets: 乘区桶数据
             db_damage: 数据库中的最终伤害值（真值）
-            damage_type: 伤害类型（常规/剧变）
+            damage_type: 伤害类型（常规/剧变/月曜）
             tolerance: 偏差容忍度（默认 0.1%）
             event_id: 事件 ID（用于日志）
 
         Returns:
             ValidationResult 验证结果
         """
-        if damage_type == DamageType.TRANSFORMATIVE:
+        if damage_type == DamageType.LUNAR:
+            return AuditValidator.validate_lunar_damage(
+                buckets=buckets,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )
+        elif damage_type == DamageType.TRANSFORMATIVE:
             return AuditValidator.validate_transformative_damage(
                 buckets=buckets,
                 db_damage=db_damage,

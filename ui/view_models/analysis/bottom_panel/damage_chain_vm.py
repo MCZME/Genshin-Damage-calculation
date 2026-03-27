@@ -58,8 +58,8 @@ class MultiplierCardViewModel:
 
     def __post_init__(self):
         """初始化派生属性 - 构建公式数据"""
-        from ui.components.analysis.bottom_panel.multiplier_formulas import (
-            build_formula, build_transformative_formula
+        from ui.components.analysis.bottom_panel.formulas import (
+            build_formula, build_transformative_formula, build_lunar_formula
         )
         from core.persistence.processors.audit.types import DamageType
 
@@ -67,7 +67,13 @@ class MultiplierCardViewModel:
         actual_damage_type = self.damage_type if self.damage_type is not None else DamageType.NORMAL
 
         # 根据伤害类型选择公式构建器
-        if actual_damage_type == DamageType.TRANSFORMATIVE:
+        if actual_damage_type == DamageType.LUNAR:
+            result = build_lunar_formula(
+                bucket_key=self.bucket_key,
+                bucket_data=self.bucket_data,
+                bucket_color=self.bucket_color,
+            )
+        elif actual_damage_type == DamageType.TRANSFORMATIVE:
             result = build_transformative_formula(
                 bucket_key=self.bucket_key,
                 bucket_data=self.bucket_data,

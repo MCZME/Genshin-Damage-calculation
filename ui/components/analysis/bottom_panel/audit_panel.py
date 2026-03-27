@@ -80,7 +80,7 @@ def render_formula_part(
     Returns:
         Flet 控件
     """
-    from ui.components.analysis.bottom_panel.multiplier_formulas import TextPart, DomainValuePart
+    from ui.components.analysis.bottom_panel.formulas import TextPart, DomainValuePart
 
     if isinstance(part, TextPart):
         # 文本部分：直接创建 Text 控件
@@ -175,7 +175,7 @@ def MultiplierCard(vm: 'MultiplierCardViewModel'):
     )
 
     # 构建列内容
-    column_content = [
+    column_content: list[ft.Control] = [
         # 标签
         ft.Text(
             vm.bucket_label,

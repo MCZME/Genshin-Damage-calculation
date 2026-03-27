@@ -309,7 +309,63 @@ class AnalysisDataService:
         damage_type = AuditProcessor.detect_damage_type(attack_tag)
 
         # Step 4: 根据类型选择处理方法
-        if damage_type == DamageType.TRANSFORMATIVE:
+        if damage_type == DamageType.LUNAR:
+            # [V17.0] 月曜反应路径
+            from core.persistence.processors.audit.types import CharacterContribution
+
+            # 从 reaction_data 获取月曜专用数据
+            level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0
+            reaction_coeff = reaction_data.get("reaction_coeff", 1.0) if reaction_data else 1.0
+            base_bonus = reaction_data.get("base_bonus", 0.0) if reaction_data else 0.0
+            extra_damage = reaction_data.get("extra_damage", 0.0) if reaction_data else 0.0
+            ascension_bonus = reaction_data.get("ascension_bonus", 0.0) if reaction_data else 0.0
+
+            # 计算精通
+            em_base = frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0
+            em_bonus = 0.0
+            if frame_snapshot:
+                for mod in frame_snapshot.get("active_modifiers", []):
+                    if mod.get("stat") in ("元素精通", "元素精通%"):
+                        val = mod.get("value", 0.0)
+                        if mod.get("op") == "PCT":
+                            em_bonus += em_base * val / 100.0
+                        else:
+                            em_bonus += val
+            elemental_mastery = em_base + em_bonus
+
+            # 从 reaction_data 获取角色贡献列表
+            contributions = []
+            if reaction_data and "contributions" in reaction_data:
+                for c in reaction_data["contributions"]:
+                    contributions.append(
+                        CharacterContribution(
+                            character_name=c.get("character_name", ""),
+                            damage_component=c.get("damage_component", 0.0),
+                            weight_percentage=c.get("weight_percentage", 0.0),
+                        )
+                    )
+
+            damage_type_ctx = DamageTypeContext(
+                damage_type=DamageType.LUNAR,
+                attack_tag=attack_tag,
+                level_coeff=level_coeff,
+                reaction_coeff=reaction_coeff,
+                elemental_mastery=elemental_mastery,
+                special_bonus=reaction_data.get("reaction_bonus", 0.0) if reaction_data else 0.0,
+                ascension_bonus=ascension_bonus,
+                base_bonus=base_bonus,
+                extra_damage=extra_damage,
+                contributing_characters=contributions,
+            )
+            processed = AuditProcessor.process_lunar(
+                damage_type_ctx=damage_type_ctx,
+                raw_trail=raw_trail,
+                frame_snapshot=frame_snapshot,
+                target_snapshot=target_snapshot,
+                element_type=element_type,
+            )
+            processed["_damage_type_ctx"] = damage_type_ctx
+        elif damage_type == DamageType.TRANSFORMATIVE:
             # 剧变反应路径
             # [V16.0] 从 reaction_data 获取等级系数和反应系数
             level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0
