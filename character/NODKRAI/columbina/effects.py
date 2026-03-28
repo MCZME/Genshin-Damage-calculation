@@ -1,9 +1,10 @@
-"""哥伦比娅效果类：新月之示等。"""
+"""哥伦比娅效果类：新月之示、月诱等。"""
 
 from __future__ import annotations
 from typing import Any
 
 from core.effect.base import BaseEffect, StackingRule
+from core.effect.common import StatModifierEffect
 
 
 class CrescentSignEffect(BaseEffect):
@@ -52,3 +53,34 @@ class CrescentSignEffect(BaseEffect):
         if isinstance(other, CrescentSignEffect):
             self.lunar_type = other.lunar_type
             self.accumulate_timer = 0  # 重置计时器
+
+
+class LunarInducementStack(StatModifierEffect):
+    """
+    月诱层数效果。
+
+    每层提供5%暴击率，持续10秒。
+    使用 ADD 堆叠规则，至多3层。
+    """
+
+    def __init__(self, owner: Any):
+        super().__init__(
+            owner=owner,
+            name="月诱",
+            stats={"暴击率": 5.0},
+            duration=600,  # 10秒
+        )
+        self.stacking_rule = StackingRule.ADD
+        self.max_stacks = 3
+        self._stacks = 1
+
+    def on_stack_added(self, other: "BaseEffect") -> None:
+        """叠加时刷新持续时间并增加层数。"""
+        if self._stacks < self.max_stacks:
+            # 添加新的修饰符
+            modifier = self.owner.add_modifier(self.name, "暴击率", 5.0)
+            self.modifier_records.append(modifier)
+            self._stacks += 1
+
+        # 刷新持续时间
+        self.duration = self.max_duration

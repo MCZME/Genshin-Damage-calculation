@@ -6,6 +6,7 @@ from core.effect.common import TalentEffect, MoonsignTalent
 from core.event import EventType, GameEvent
 from core.tool import get_current_time
 from core.systems.utils import AttributeCalculator
+from character.NODKRAI.columbina.effects import LunarInducementStack
 
 
 class LunarInducement(TalentEffect):
@@ -18,9 +19,6 @@ class LunarInducement(TalentEffect):
 
     def __init__(self):
         super().__init__("月诱", unlock_level=20)
-        self.stacks = 0
-        self.max_stacks = 3
-        self.stack_timers: list[int] = []  # 每层的独立计时器
 
     def on_apply(self) -> None:
         if self.character and self.character.event_engine:
@@ -31,49 +29,12 @@ class LunarInducement(TalentEffect):
             self._add_stack()
 
     def _add_stack(self) -> None:
-        """添加一层暴击率。"""
-        if self.stacks < self.max_stacks and self.character:
-            self.stacks += 1
-            self.stack_timers.append(600)  # 10秒 = 600帧
-
-            # 注入暴击率修饰符
-            self.character.add_modifier(
-                source=f"月诱-{self.stacks}层",
-                stat="暴击率",
-                value=5.0,
-            )
-
-    def on_frame_update(self) -> None:
-        """更新计时器。"""
-        if not self.is_active:
+        """添加一层暴击率效果。"""
+        if not self.character:
             return
 
-        # 更新每层计时器
-        expired_count = 0
-        new_timers = []
-        for timer in self.stack_timers:
-            timer -= 1
-            if timer > 0:
-                new_timers.append(timer)
-            else:
-                expired_count += 1
-
-        self.stack_timers = new_timers
-
-        # 如果有层过期，更新暴击率
-        if expired_count > 0 and self.character:
-            self.stacks = len(self.stack_timers)
-            # 移除旧修饰符，重新添加
-            self.character.dynamic_modifiers = [
-                m for m in self.character.dynamic_modifiers
-                if not m.source.startswith("月诱-")
-            ]
-            for i in range(self.stacks):
-                self.character.add_modifier(
-                    source=f"月诱-{i + 1}层",
-                    stat="暴击率",
-                    value=5.0,
-                )
+        effect = LunarInducementStack(self.character)
+        effect.apply()
 
 
 class MoonsDomainGrace(TalentEffect):
