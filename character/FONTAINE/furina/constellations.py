@@ -70,7 +70,7 @@ class FurinaC4(ConstellationEffect):
                 hasattr(self.character, "elemental_energy")
                 and self.character.elemental_energy
             ):
-                self.character.elemental_energy.gain_energy(4.0, source_type="命座四")
+                self.character.elemental_energy.gain(4.0)
                 self.last_trigger_frame = current_frame
 
 

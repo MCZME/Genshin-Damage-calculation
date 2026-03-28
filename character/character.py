@@ -12,6 +12,7 @@ from core.event import (
 )
 from core.effect.common import TalentEffect, ConstellationEffect
 from core.mechanics.aura import Element
+from core.mechanics.energy import ElementalEnergy
 from core.mechanics.infusion import InfusionManager
 from core.tool import get_current_time
 
@@ -85,7 +86,7 @@ class Character(CombatEntity, ABC):
             self.type = "Unknown"
 
         self.skills: dict[str, Any] = {}
-        self.elemental_energy: Any = None
+        self.elemental_energy: ElementalEnergy | None = None
 
         self.talents: list[TalentEffect] = []
         self.constellations: list[ConstellationEffect | None] = [None] * 6
@@ -229,13 +230,32 @@ class Character(CombatEntity, ABC):
 
     def _request_action(self, name: str, params: Any = None) -> bool:
         """核心动作请求入口，负责翻译技能数据并发布对应事件。"""
+        from core.skills.base import EnergySkill
+
+        # 0. 获取技能对象并检查施法条件
+        skill_obj = self.skills.get(name)
+        if skill_obj and hasattr(skill_obj, "can_cast"):
+            if not skill_obj.can_cast():
+                return False  # CD 未就绪或能量不足
+
         action_data = self._get_action_data(name, params)
 
         # 1. 向动作管理器请求执行
         if not self.action_manager.request_action(action_data):
             return False
 
-        # 2. 根据动作类型发布对应的标准事件 (V2.4 统一事件流)
+        # 2. 施法成功后更新状态
+        current_frame = get_current_time()
+
+        # 2a. 更新 CD（记录最后使用帧）
+        if skill_obj and hasattr(skill_obj, "last_use_frame"):
+            skill_obj.last_use_frame = current_frame
+
+        # 2b. 消耗能量（仅 EnergySkill）
+        if skill_obj and isinstance(skill_obj, EnergySkill):
+            skill_obj.consume_energy()
+
+        # 3. 根据动作类型发布对应的标准事件 (V2.4 统一事件流)
         event_map = {
             "elemental_skill": EventType.BEFORE_SKILL,
             "elemental_burst": EventType.BEFORE_BURST,

@@ -38,7 +38,7 @@ class EnergySystem(GameSystem):
             val = amount[1] if isinstance(amount, tuple) else amount
             energy_value = min(
                 val,
-                character.elemental_energy.elemental_energy[1]
+                character.elemental_energy.max_energy
                 - character.elemental_energy.current_energy,
             )
             character.elemental_energy.current_energy += energy_value
@@ -73,7 +73,7 @@ class EnergySystem(GameSystem):
     def get_rate(self, character, particle_element, team_obj):
         """计算微粒获取系数"""
         # 基础系数表 (同元素/异元素/无元素 x 站场/后台)
-        is_same = particle_element == character.elemental_energy.elemental_energy[0]
+        is_same = particle_element == character.elemental_energy.element
         is_neutral = particle_element == "无"
         on_field = getattr(character, "on_field", True)
 
