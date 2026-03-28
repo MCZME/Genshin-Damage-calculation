@@ -4,7 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from core.mechanics.aura import Element
 from core.systems.contract.attack import AOEShape
-from core.entities.base_entity import CombatEntity, EntityState, Faction
+from core.entities.base_entity import BaseEntity, CombatEntity, EntityState, Faction
 
 if TYPE_CHECKING:
     from core.systems.contract.damage import Damage
@@ -20,19 +20,19 @@ class CombatSpace:
 
     def __init__(self) -> None:
         """初始化战场空间。"""
-        self._entities: dict[Faction, list[CombatEntity]] = {
+        self._entities: dict[Faction, list[BaseEntity]] = {
             Faction.PLAYER: [],  # [重构] 此处仅存放召唤物
             Faction.ENEMY: [],
             Faction.NEUTRAL: [],
         }
-        self._remove_queue: list[CombatEntity] = []
+        self._remove_queue: list[BaseEntity] = []
         self.team: Team | None = None
 
     def set_team(self, team: Team) -> None:
         """注入队伍实例。角色由 Team 逻辑驱动，空间仅在物理计算时查询它。"""
         self.team = team
 
-    def register(self, entity: CombatEntity) -> None:
+    def register(self, entity: BaseEntity) -> None:
         """将实体注册到当前空间中（不应包含角色本体）。"""
         if entity not in self._entities[entity.faction]:
             self._entities[entity.faction].append(entity)
@@ -43,7 +43,7 @@ class CombatSpace:
                 sender="Physics",
             )
 
-    def unregister(self, entity: CombatEntity) -> None:
+    def unregister(self, entity: BaseEntity) -> None:
         """从移除队列中标记该实体，待本帧结束时统一注销。"""
         if entity not in self._remove_queue:
             self._remove_queue.append(entity)
@@ -80,9 +80,9 @@ class CombatSpace:
     # 物理判定内核 (XZ平面投影) - 已适配 Team 架构
     # ---------------------------------------------------------
 
-    def _get_search_targets(self, faction: Faction) -> list[CombatEntity]:
+    def _get_search_targets(self, faction: Faction) -> list[BaseEntity]:
         """获取检索时的候选实体列表（动态合并场上角色）。"""
-        targets = self._entities[faction].copy()
+        targets: list[BaseEntity] = self._entities[faction].copy()
 
         # 如果检索玩家方，自动加入场上角色本体
         if faction == Faction.PLAYER and self.team and self.team.current_character:
@@ -92,10 +92,10 @@ class CombatSpace:
 
     def get_entities_in_range(
         self, origin: tuple[float, float], radius: float, faction: Faction
-    ) -> list[CombatEntity]:
+    ) -> list[BaseEntity]:
         """执行圆柱/球体判定。"""
         ox, oz = origin
-        results: list[CombatEntity] = []
+        results: list[BaseEntity] = []
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -113,12 +113,12 @@ class CombatSpace:
         width: float,
         facing: float,
         faction: Faction,
-    ) -> list[CombatEntity]:
+    ) -> list[BaseEntity]:
         """执行矩形区域判定。"""
         ox, oz = origin
         rad = math.radians(-facing)
         cos_f, sin_f = math.cos(rad), math.sin(rad)
-        results: list[CombatEntity] = []
+        results: list[BaseEntity] = []
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -157,7 +157,7 @@ class CombatSpace:
         oz = attacker.pos[1] + offset[0] * math.sin(rad) + offset[1] * math.cos(rad)
         origin = (ox, oz)
 
-        targets: list[CombatEntity] = []
+        targets: list[BaseEntity] = []
         for faction in target_factions:
             if shape in [AOEShape.SPHERE, AOEShape.CYLINDER]:
                 targets.extend(self.get_entities_in_range(origin, radius, faction))
@@ -188,7 +188,9 @@ class CombatSpace:
         for t in final_targets:
             if not damage.target:
                 damage.set_target(t)
-            t.handle_damage(damage)
+            # 只有 CombatEntity 才能处理伤害
+            if isinstance(t, CombatEntity):
+                t.handle_damage(damage)
 
     def broadcast_element(
         self,
@@ -206,8 +208,10 @@ class CombatSpace:
             for t in targets:
                 if t == exclude_target or not t.is_active:
                     continue
-                t.aura.apply_element(element, u_value)
-                hit_count += 1
+                # 只有 CombatEntity 才有 aura 属性
+                if isinstance(t, CombatEntity):
+                    t.aura.apply_element(element, u_value)
+                    hit_count += 1
 
         from core.logger import get_emulation_logger
 
@@ -218,10 +222,10 @@ class CombatSpace:
 
     def _find_closest(
         self, origin: tuple[float, float], faction: Faction
-    ) -> CombatEntity | None:
+    ) -> BaseEntity | None:
         ox, oz = origin
         best_dist = float("inf")
-        best_e: CombatEntity | None = None
+        best_e: BaseEntity | None = None
 
         search_list = self._get_search_targets(faction)
         for e in search_list:
@@ -233,10 +237,10 @@ class CombatSpace:
 
     def _apply_selection_strategy(
         self,
-        targets: list[CombatEntity],
+        targets: list[BaseEntity],
         data: dict[str, Any],
         origin: tuple[float, float],
-    ) -> list[CombatEntity]:
+    ) -> list[BaseEntity]:
         if not targets:
             return []
         
@@ -258,9 +262,9 @@ class CombatSpace:
         
         return unique_targets[: min(len(unique_targets), max_targets)]
 
-    def get_all_entities(self) -> list[CombatEntity]:
+    def get_all_entities(self) -> list[BaseEntity]:
         """获取所有物理实体列表（包含场上角色）。"""
-        results: list[CombatEntity] = []
+        results: list[BaseEntity] = []
         for faction_list in self._entities.values():
             results.extend(faction_list)
 

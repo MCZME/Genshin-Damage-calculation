@@ -73,6 +73,11 @@ class EventType(Enum):
     AFTER_CHARACTER_SWITCH = auto()
     NIGHTSOUL_BURST = auto()
 
+    # 场景实体事件
+    SCENE_ENTITY_ENTER = auto()  # 实体进入场景区域
+    SCENE_ENTITY_EXIT = auto()  # 实体离开场景区域
+    SCENE_ENTITY_TICK = auto()  # 场景实体周期触发
+
 
 # --------------------------
 # 核心事件类
