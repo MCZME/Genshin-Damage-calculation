@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.entities.base_entity import CombatEntity, Faction
+from core.entities.attack_entity import AttackEntity, AttackTriggerType
 from core.systems.contract.attack import (
     AttackConfig,
     HitboxConfig,
@@ -157,7 +158,9 @@ class GravityRipple(CombatEntity):
         if not system_manager:
             return False
 
-        moonsign_sys = system_manager.get_system("moonsign")
+        # 使用类引用获取月兆系统
+        from core.systems.moonsign_system import MoonsignSystem
+        moonsign_sys = system_manager.get_system(MoonsignSystem)
         if not moonsign_sys:
             return False
 
@@ -203,7 +206,7 @@ class GravityRipple(CombatEntity):
         )
 
 
-class GravityInterference(CombatEntity):
+class GravityInterference(AttackEntity):
     """
     引力干涉 - 引力值满时触发的攻击实体。
 
@@ -256,60 +259,71 @@ class GravityInterference(CombatEntity):
         frame_key = self.FRAME_KEY_MAP.get(lunar_type, "引力干涉·月绽放")
         frame_data = ACTION_FRAME_DATA[frame_key]
 
+        # 构建攻击配置和伤害对象
+        attack_key = self.ATTACK_KEY_MAP.get(lunar_type, "引力干涉·月绽放")
+        attack_config = self._build_attack_config(attack_key)
+        dmg_obj = self._build_damage(lunar_type, skill_lv, attack_config)
+
         super().__init__(
             name=f"引力干涉·{lunar_type}",
-            faction=Faction.PLAYER,
+            damage=dmg_obj,
+            source=owner,
             life_frame=frame_data["total_frames"],
+            trigger_type=AttackTriggerType.ON_HIT_FRAME,
             context=context,
         )
 
-        # 命中帧数据
-        self.hit_frames = frame_data["hit_frames"]
-        self.hit_index = 0
+        # 设置命中帧（AttackEntity 内置支持）
+        self.set_hit_frames(frame_data["hit_frames"])
 
-        # 预载攻击配置
-        attack_key = self.ATTACK_KEY_MAP.get(lunar_type, "引力干涉·月绽放")
-        self.attack_config = self._build_attack_config(attack_key)
-
-    def _perform_tick(self) -> None:
-        """每帧逻辑，在指定帧执行攻击。"""
-        super()._perform_tick()
-
-        # 检查是否到达命中帧
-        if self.hit_index < len(self.hit_frames):
-            if self.current_frame >= self.hit_frames[self.hit_index]:
-                self._execute_attack()
-                self.hit_index += 1
+        # 保存攻击配置，用于每次命中帧重新构建伤害
+        self._attack_config = self._build_attack_config(
+            self.ATTACK_KEY_MAP.get(lunar_type, "引力干涉·月绽放")
+        )
 
     def _execute_attack(self) -> None:
-        """执行攻击。"""
-        element = self.ELEMENT_MAP.get(self.lunar_type, Element.DENDRO)
-        mult_key = self.MULTIPLIER_KEY_MAP.get(self.lunar_type, "引力干涉·月绽放伤害")
+        """
+        执行攻击：每次命中帧发布独立的伤害事件。
 
-        # 月绽放类型每枚月露之印单独计算伤害
-        # 其他类型只有一次攻击
-        mult: float = ELEMENTAL_SKILL_DATA[mult_key][1][self.skill_lv - 1]  # type: ignore[assignment]
+        重写父类方法以支持多帧攻击（月绽放类型需要5次攻击）。
+        """
+        # 重新构建伤害对象（每次命中帧独立计算）
+        dmg_obj = self._build_damage(
+            self.lunar_type, self.skill_lv, self._attack_config
+        )
+
+        if self.event_engine:
+            self.event_engine.publish(
+                GameEvent(
+                    EventType.BEFORE_DAMAGE,
+                    get_current_time(),
+                    source=self.owner,
+                    data={"character": self.owner, "damage": dmg_obj},
+                )
+            )
+
+    def _build_damage(
+        self,
+        lunar_type: str,
+        skill_lv: int,
+        config: AttackConfig,
+    ) -> Damage:
+        """构建伤害对象。"""
+        element = self.ELEMENT_MAP.get(lunar_type, Element.DENDRO)
+        mult_key = self.MULTIPLIER_KEY_MAP.get(lunar_type, "引力干涉·月绽放伤害")
+        mult: float = ELEMENTAL_SKILL_DATA[mult_key][1][skill_lv - 1]  # type: ignore[assignment]
 
         dmg_obj = Damage(
             element=(element, 0),  # 月曜伤害无附着
             damage_multiplier=(mult,),
             scaling_stat=("生命值",),
-            config=self.attack_config,
-            name=f"引力干涉·{self.lunar_type}",
+            config=config,
+            name=f"引力干涉·{lunar_type}",
         )
         # 标记为月曜伤害
         dmg_obj.data["is_lunar_damage"] = True
-        dmg_obj.data["lunar_type"] = self.lunar_type
-
-        if self.event_engine:
-            self.event_engine.publish(
-            GameEvent(
-                EventType.BEFORE_DAMAGE,
-                get_current_time(),
-                source=self.owner,
-                data={"character": self.owner, "damage": dmg_obj},
-            )
-        )
+        dmg_obj.data["lunar_type"] = lunar_type
+        return dmg_obj
 
     def _build_attack_config(self, name: str) -> AttackConfig:
         """构建攻击配置。"""
