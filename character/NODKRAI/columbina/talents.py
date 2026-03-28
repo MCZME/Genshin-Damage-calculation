@@ -96,9 +96,9 @@ class MoonsDomainGrace(TalentEffect):
 
     def on_apply(self) -> None:
         if self.character and self.character.event_engine:
-            self.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
-            self.event_engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
-            self.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
+            self.character.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
+            self.character.event_engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
+            self.character.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
 
     def handle_event(self, event: GameEvent) -> None:
         # 检查是否在月之领域内
