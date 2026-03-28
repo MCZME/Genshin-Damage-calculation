@@ -132,32 +132,103 @@ class TestGrassDewMechanism:
 
     def test_grass_dew_initial_state(self, lunar_system):
         """测试草露初始状态"""
-        assert lunar_system.grass_dew == 0
+        assert lunar_system.grass_dew == 0.0
         assert lunar_system.grass_dew_max == 3
+        assert isinstance(lunar_system.grass_dew, float)
+
+    def test_grass_dew_is_float(self, lunar_system):
+        """测试草露为浮点类型"""
+        lunar_system.add_grass_dew(0.5)
+        assert lunar_system.grass_dew == 0.5
+        assert isinstance(lunar_system.grass_dew, float)
 
     def test_grass_dew_add(self, lunar_system):
         """测试草露添加"""
-        result = lunar_system.add_grass_dew(2)
-        assert result == 2
-        assert lunar_system.grass_dew == 2
+        result = lunar_system.add_grass_dew(2.0)
+        assert result == 2.0
+        assert lunar_system.grass_dew == 2.0
 
     def test_grass_dew_max_limit(self, lunar_system):
         """测试草露上限"""
-        lunar_system.add_grass_dew(5)  # 尝试添加超过上限
-        assert lunar_system.grass_dew == 3  # 应被限制在上限
+        lunar_system.add_grass_dew(5.0)  # 尝试添加超过上限
+        assert lunar_system.grass_dew == 3.0  # 应被限制在上限
 
     def test_grass_dew_consume(self, lunar_system):
         """测试草露消耗"""
-        lunar_system.add_grass_dew(2)
+        lunar_system.add_grass_dew(2.0)
         result = lunar_system.consume_grass_dew(1)
         assert result is True
-        assert lunar_system.grass_dew == 1
+        assert lunar_system.grass_dew == 1.0
 
     def test_grass_dew_consume_insufficient(self, lunar_system):
         """测试草露不足时消耗失败"""
         result = lunar_system.consume_grass_dew(1)
         assert result is False
-        assert lunar_system.grass_dew == 0
+        assert lunar_system.grass_dew == 0.0
+
+    def test_grass_dew_consume_preserves_remainder(self, lunar_system):
+        """测试消耗后保留小数部分"""
+        lunar_system.add_grass_dew(1.7)
+        result = lunar_system.consume_grass_dew(1)
+        assert result is True
+        assert abs(lunar_system.grass_dew - 0.7) < 0.001
+
+    def test_grass_dew_continuous_recovery(self, lunar_system):
+        """测试持续恢复"""
+        lunar_system.start_grass_dew_recovery()
+        assert lunar_system.grass_dew_recovery_active is True
+        assert lunar_system.grass_dew_recovery_timer == 2.5
+
+        # 模拟1秒
+        lunar_system.update_grass_dew(1.0)
+        # 应恢复 0.4 枚（1.0 * 0.4）
+        assert abs(lunar_system.grass_dew - 0.4) < 0.001
+        assert lunar_system.grass_dew_recovery_timer == 1.5
+
+    def test_grass_dew_recovery_timer_expires(self, lunar_system):
+        """测试恢复状态2.5秒后自动结束"""
+        lunar_system.start_grass_dew_recovery()
+
+        # 模拟2.5秒
+        lunar_system.update_grass_dew(2.5)
+        assert lunar_system.grass_dew_recovery_active is False
+        assert abs(lunar_system.grass_dew - 1.0) < 0.001
+
+    def test_grass_dew_refresh_duration(self, lunar_system):
+        """测试再次触发刷新持续时间"""
+        lunar_system.start_grass_dew_recovery()
+
+        # 模拟1秒
+        lunar_system.update_grass_dew(1.0)
+        assert abs(lunar_system.grass_dew - 0.4) < 0.001
+        assert lunar_system.grass_dew_recovery_timer == 1.5
+
+        # 再次触发，刷新持续时间
+        lunar_system.refresh_grass_dew_recovery()
+        assert lunar_system.grass_dew_recovery_timer == 2.5
+
+        # 再模拟1.5秒
+        lunar_system.update_grass_dew(1.5)
+        assert abs(lunar_system.grass_dew - 1.0) < 0.001  # 0.4 + 1.5 * 0.4 = 1.0
+        assert lunar_system.grass_dew_recovery_timer == 1.0
+
+    def test_grass_dew_recovery_stops_at_max(self, lunar_system):
+        """测试达到上限后停止恢复"""
+        lunar_system.grass_dew = 2.9  # 接近上限
+        lunar_system.start_grass_dew_recovery()
+
+        # 模拟1秒，会超过上限
+        lunar_system.update_grass_dew(1.0)
+        assert lunar_system.grass_dew == 3.0  # 不超过上限
+        assert lunar_system.grass_dew_recovery_active is False
+
+    def test_grass_dew_consume_requires_full_unit(self, lunar_system):
+        """测试消耗需要满1枚"""
+        lunar_system.add_grass_dew(0.9)
+        assert lunar_system.can_consume_grass_dew(1) is False
+
+        lunar_system.add_grass_dew(0.2)  # 现在有 1.1
+        assert lunar_system.can_consume_grass_dew(1) is True
 
 
 class TestLunarCageCounter:

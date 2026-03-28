@@ -26,12 +26,11 @@ class LunarReactionSystem(GameSystem):
         super().__init__()
 
         # 草露资源
-        self.grass_dew: int = 0
+        self.grass_dew: float = 0.0  # 浮点类型，支持持续恢复
         self.grass_dew_max: int = 3
-        self.grass_dew_recovery_timer: float = 0.0
-        self.grass_dew_recovery_duration: float = 2.5  # 每2.5秒恢复1枚
+        self.grass_dew_recovery_rate: float = 1.0 / 2.5  # 恢复速率：0.4枚/秒
+        self.grass_dew_recovery_timer: float = 0.0  # 恢复状态剩余时间
         self.grass_dew_recovery_active: bool = False
-        self.grass_dew_recovery_remaining: float = 0.0  # 剩余恢复时间
 
         # 月笼触发计数
         self.lunar_cage_counter: int = 0  # 当前计数
@@ -98,50 +97,56 @@ class LunarReactionSystem(GameSystem):
     # ================================
 
     def start_grass_dew_recovery(self) -> None:
-        """开始草露恢复计时。"""
+        """开始草露恢复状态（持续2.5秒）。"""
         self.grass_dew_recovery_active = True
-        self.grass_dew_recovery_timer = 0.0
+        self.grass_dew_recovery_timer = 2.5  # 2.5秒恢复期
 
     def stop_grass_dew_recovery(self) -> None:
-        """停止草露恢复计时。"""
+        """停止草露恢复。"""
         self.grass_dew_recovery_active = False
+        self.grass_dew_recovery_timer = 0.0
 
     def refresh_grass_dew_recovery(self) -> None:
-        """刷新草露恢复计时（再次触发月绽放时）。"""
-        self.grass_dew_recovery_timer = 0.0
+        """刷新草露恢复持续时间（再次触发月绽放时）。"""
+        self.grass_dew_recovery_timer = 2.5  # 重置为2.5秒
         self.grass_dew_recovery_active = True
 
     def update_grass_dew(self, dt: float) -> None:
         """
         更新草露恢复状态。
 
-        每帧调用，检查是否需要恢复草露。
+        在恢复状态激活期间，按速率持续累积草露。
+        每2.5秒可恢复1枚草露（速率为0.4枚/秒）。
         """
         if not self.grass_dew_recovery_active:
             return
 
-        if self.grass_dew >= self.grass_dew_max:
+        # 减少剩余恢复时间
+        self.grass_dew_recovery_timer -= dt
+
+        # 持续累积草露
+        if self.grass_dew < self.grass_dew_max:
+            self.grass_dew = min(
+                self.grass_dew + self.grass_dew_recovery_rate * dt,
+                float(self.grass_dew_max)
+            )
+
+        # 恢复时间结束或达到上限，停止恢复
+        if self.grass_dew_recovery_timer <= 0 or self.grass_dew >= self.grass_dew_max:
             self.grass_dew_recovery_active = False
-            return
 
-        self.grass_dew_recovery_timer += dt
-
-        if self.grass_dew_recovery_timer >= self.grass_dew_recovery_duration:
-            self.grass_dew_recovery_timer = 0.0
-            self.add_grass_dew(1)
-
-    def add_grass_dew(self, amount: int) -> int:
+    def add_grass_dew(self, amount: float) -> float:
         """
         添加草露。
 
         Args:
-            amount: 添加数量
+            amount: 添加数量（支持浮点）
 
         Returns:
             实际添加数量
         """
         old = self.grass_dew
-        self.grass_dew = min(self.grass_dew + amount, self.grass_dew_max)
+        self.grass_dew = min(self.grass_dew + amount, float(self.grass_dew_max))
         actual = self.grass_dew - old
 
         if actual > 0 and self.engine:
@@ -158,15 +163,15 @@ class LunarReactionSystem(GameSystem):
         消耗草露。
 
         Args:
-            amount: 消耗数量
+            amount: 消耗数量（整数枚）
 
         Returns:
             是否成功消耗
         """
-        if self.grass_dew < amount:
+        if self.grass_dew < float(amount):
             return False
 
-        self.grass_dew -= amount
+        self.grass_dew -= float(amount)
 
         if self.engine:
             self.engine.publish(GameEvent(
@@ -178,8 +183,8 @@ class LunarReactionSystem(GameSystem):
         return True
 
     def can_consume_grass_dew(self, amount: int = 1) -> bool:
-        """检查是否有足够草露消耗。"""
-        return self.grass_dew >= amount
+        """检查是否有足够草露消耗（需要满1枚才能消耗）。"""
+        return self.grass_dew >= float(amount)
 
     # ================================
     # 月笼计数管理
