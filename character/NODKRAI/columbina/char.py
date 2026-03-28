@@ -73,9 +73,6 @@ class Columbina(NodKrai):
             "月结晶": 0,
         }
 
-        # 月之领域状态
-        self.lunar_domain_active: bool = False
-
         # 普攻段数
         self.max_combo = 3
 

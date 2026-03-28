@@ -100,8 +100,19 @@ class MoonsDomainGrace(TalentEffect):
             self.character.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
 
     def handle_event(self, event: GameEvent) -> None:
-        # 检查是否在月之领域内
-        if not getattr(self.character, "lunar_domain_active", False):
+        # 检查是否有活跃的月之领域
+        from character.NODKRAI.columbina.entities import LunarDomain
+        domains = LunarDomain.get_active_scenes("月之领域")
+        if not domains:
+            return
+
+        # 检查触发者是否在任一领域内
+        trigger = event.source
+        in_domain = any(
+            trigger.entity_id in domain._entities_in_range
+            for domain in domains
+        )
+        if not in_domain:
             return
 
         if event.event_type == EventType.AFTER_LUNAR_BLOOM:

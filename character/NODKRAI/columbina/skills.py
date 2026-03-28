@@ -1,6 +1,6 @@
 """哥伦比娅技能实现。"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import (
@@ -22,7 +22,7 @@ from character.NODKRAI.columbina.data import (
     ELEMENTAL_SKILL_DATA,
     ELEMENTAL_BURST_DATA,
 )
-from character.NODKRAI.columbina.entities import GravityRipple
+from character.NODKRAI.columbina.entities import GravityRipple, LunarDomain
 
 
 class ColumbinaNormalAttack(NormalAttackSkill):
@@ -87,7 +87,6 @@ class ColumbinaChargedAttack(ChargedAttackSkill):
         else:
             # 普通重击
             f = ACTION_FRAME_DATA["重击"]
-            p = ATTACK_DATA["重击"]
             return ActionFrameData(
                 name="重击",
                 action_type="charged_attack",
@@ -236,7 +235,6 @@ class ColumbinaElementalSkill(SkillBase):
         self, intent: Optional[Dict[str, Any]] = None
     ) -> ActionFrameData:
         f = ACTION_FRAME_DATA["元素战技"]
-        p = ATTACK_DATA["元素战技"]
 
         return ActionFrameData(
             name="元素战技",
@@ -336,12 +334,12 @@ class ColumbinaElementalBurst(EnergySkill):
         super().__init__(lv, caster)
         self.cd_frames = 900  # 15秒
         self.energy_cost = 60
+        self.active_domain: Optional[LunarDomain] = None
 
     def to_action_data(
         self, intent: Optional[Dict[str, Any]] = None
     ) -> ActionFrameData:
         f = ACTION_FRAME_DATA["元素爆发"]
-        p = ATTACK_DATA["元素爆发"]
 
         return ActionFrameData(
             name="元素爆发",
@@ -377,13 +375,22 @@ class ColumbinaElementalBurst(EnergySkill):
             )
         )
 
-        # 激活月之领域
-        self.caster.lunar_domain_active = True
-        self.caster.lunar_domain_duration = MECHANISM_CONFIG["LUNAR_DOMAIN_DURATION"]
+        # 创建月之领域实体
+        self._spawn_lunar_domain()
 
-        # 获取月曜反应伤害提升
-        dmg_bonus = ELEMENTAL_BURST_DATA["月曜反应伤害提升"][1][self.lv - 1]
-        self.caster.lunar_domain_dmg_bonus = dmg_bonus
+    def _spawn_lunar_domain(self) -> None:
+        """生成月之领域实体。"""
+        # 清理旧领域
+        if self.active_domain:
+            self.active_domain.finish()
+
+        # 创建新领域
+        self.active_domain = LunarDomain(
+            owner=self.caster,
+            context=self.caster.ctx,
+            burst_lv=self.lv,
+        )
+        self.caster.ctx.space.register(self.active_domain)
 
     def _build_attack_config(self, name: str) -> AttackConfig:
         """构建攻击配置。"""

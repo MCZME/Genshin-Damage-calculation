@@ -1,10 +1,11 @@
-"""哥伦比娅实体类：引力涟漪、引力干涉等。"""
+"""哥伦比娅实体类：引力涟漪、引力干涉、月之领域等。"""
 
 from __future__ import annotations
 from typing import Any
 
 from core.entities.base_entity import CombatEntity, Faction
 from core.entities.attack_entity import AttackEntity, AttackTriggerType
+from core.entities.scene_entity import SceneEntity
 from core.systems.contract.attack import (
     AttackConfig,
     HitboxConfig,
@@ -19,6 +20,7 @@ from character.NODKRAI.columbina.data import (
     ACTION_FRAME_DATA,
     ATTACK_DATA,
     ELEMENTAL_SKILL_DATA,
+    ELEMENTAL_BURST_DATA,
 )
 from character.NODKRAI.columbina.effects import CrescentSignEffect
 
@@ -350,3 +352,67 @@ class GravityInterference(AttackEntity):
             is_ranged=p.get("is_ranged", True),
             hitbox=hitbox,
         )
+
+
+class LunarDomain(SceneEntity):
+    """
+    月之领域 - 元素爆发产物。
+
+    特性：
+    - 固定位置的领域效果
+    - 持续20秒
+    - 领域内角色触发月曜反应时获得伤害加成
+    """
+
+    def __init__(
+        self,
+        owner: Any,
+        context: Any,
+        burst_lv: int,
+    ) -> None:
+        super().__init__(
+            name="月之领域",
+            pos=tuple(owner.pos),  # 在角色当前位置创建
+            life_frame=1200,  # 20秒
+            context=context,
+            owner=owner,
+            detection_radius=6.5,  # 与大招范围一致
+            affect_factions=[Faction.PLAYER],
+            tick_interval=60,
+        )
+        self.burst_lv = burst_lv
+        self.dmg_bonus: float = ELEMENTAL_BURST_DATA["月曜反应伤害提升"][1][burst_lv - 1]  # type: ignore[assignment]
+
+        # 订阅伤害计算事件
+        if self.event_engine:
+            self.event_engine.subscribe(EventType.BEFORE_CALCULATE, self)
+
+    def on_finish(self) -> None:
+        """清理事件订阅。"""
+        if self.event_engine:
+            self.event_engine.unsubscribe(EventType.BEFORE_CALCULATE, self)
+        super().on_finish()
+
+    def handle_event(self, event: GameEvent) -> None:
+        """处理伤害计算事件，为领域内角色的月曜伤害提供加成。"""
+        if event.event_type != EventType.BEFORE_CALCULATE:
+            return
+
+        dmg_ctx = event.data.get("damage_context")
+        if not dmg_ctx:
+            return
+
+        # 检查是否为月曜伤害
+        if not dmg_ctx.damage.data.get("is_lunar_damage"):
+            return
+
+        # 检查伤害来源是否在领域内
+        trigger = event.source
+        if trigger and trigger.entity_id in self._entities_in_range:
+            # 注入伤害加成修饰符
+            dmg_ctx.add_modifier(
+                source="月之领域",
+                stat="伤害加成",
+                value=self.dmg_bonus,
+                op="ADD",
+            )
