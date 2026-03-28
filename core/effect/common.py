@@ -1,6 +1,11 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING
 from core.effect.base import BaseEffect
 from core.mechanics.aura import Element
+
+if TYPE_CHECKING:
+    from character.character import Character
 
 
 class ShieldEffect(BaseEffect):
@@ -77,10 +82,10 @@ class TalentEffect:
     def __init__(self, name: str, unlock_level: int = 1):
         self.name = name
         self.unlock_level = unlock_level
-        self.character = None
+        self.character: Character | None = None
         self.is_active = False
 
-    def apply(self, character: Any):
+    def apply(self, character: Character):
         self.character = character
         if self.character and self.character.level >= self.unlock_level:
             self.is_active = True
@@ -105,10 +110,10 @@ class ConstellationEffect:
     def __init__(self, name: str, unlock_constellation: int = 1):
         self.name = name
         self.unlock_constellation = unlock_constellation
-        self.character = None
+        self.character: Character | None = None
         self.is_active = False
 
-    def apply(self, character: Any):
+    def apply(self, character: Character):
         """
         由 Character.apply_effects 调用。
         仅在角色已激活该命座层级时生效。
@@ -137,12 +142,19 @@ class MoonsignTalent(TalentEffect):
     月兆角色天赋基类。
 
     月兆角色拥有特殊的第三个天赋（月兆天赋），用于标识该角色为月兆角色。
+    同时封装月曜反应触发能力。
 
     判定方式：检查角色的 talents 列表中是否有 MoonsignTalent 实例。
     """
 
     def __init__(self, name: str = "月兆天赋", unlock_level: int = 1):
         super().__init__(name, unlock_level)
+        # 月曜反应触发类型，子类可覆盖
+        self.lunar_triggers: set[str] = set()
+
+    def get_lunar_triggers(self) -> set[str]:
+        """返回该月兆角色可触发的月曜反应类型。"""
+        return self.lunar_triggers
 
     def on_apply(self):
         """子类在此实现具体的月兆增益逻辑"""

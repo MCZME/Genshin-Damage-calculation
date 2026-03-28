@@ -40,8 +40,8 @@ class Columbina(NodKrai):
     - 草露机制：特殊重击消耗草露造成月绽放伤害
     """
 
-    # 月曜反应触发能力标识
-    lunar_triggers = {"bloom", "charged", "crystallize"}
+    # 月曜反应触发能力由月兆天赋 LunarGuidance 提供
+    # lunar_triggers 已移至 MoonsignTalent
 
     def __init__(
         self,

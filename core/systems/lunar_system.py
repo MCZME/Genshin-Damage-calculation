@@ -9,7 +9,7 @@ from typing import Any
 from core.systems.base_system import GameSystem
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
-from core.registry import discover_lunar_trigger_characters
+from core.effect.common import MoonsignTalent
 
 
 class LunarReactionSystem(GameSystem):
@@ -17,22 +17,13 @@ class LunarReactionSystem(GameSystem):
     月曜反应系统。
 
     职责：
-    1. 月曜触发角色配置管理
+    1. 月曜触发判定（运行时从月兆天赋检测）
     2. 草露资源管理（上限、恢复、消耗）
     3. 月笼触发计数与溢出管理
-    4. 月曜触发判定方法
     """
-
-    # 默认配置（Registry 无结果时的回退）
-    DEFAULT_LUNAR_BLOOM: set[str] = {"奈芙尔", "菈乌玛", "哥伦比娅"}
-    DEFAULT_LUNAR_CHARGED: set[str] = {"菲林斯", "伊涅芙", "哥伦比娅"}
-    DEFAULT_LUNAR_CRYSTALLIZE: set[str] = {"兹白", "哥伦比娅"}
 
     def __init__(self) -> None:
         super().__init__()
-
-        # 月曜触发角色配置（从 Registry 自动发现或使用默认值）
-        self._init_lunar_trigger_characters()
 
         # 草露资源
         self.grass_dew: int = 0
@@ -70,40 +61,37 @@ class LunarReactionSystem(GameSystem):
             self._on_lunar_crystallize_triggered(event)
 
     # ================================
-    # 配置初始化
-    # ================================
-
-    def _init_lunar_trigger_characters(self) -> None:
-        """从 Registry 自动发现月曜触发角色。"""
-        discovered = discover_lunar_trigger_characters()
-        self.lunar_bloom_characters = discovered["bloom"] or self.DEFAULT_LUNAR_BLOOM
-        self.lunar_charged_characters = discovered["charged"] or self.DEFAULT_LUNAR_CHARGED
-        self.lunar_crystallize_characters = discovered["crystallize"] or self.DEFAULT_LUNAR_CRYSTALLIZE
-
-    # ================================
-    # 触发判定方法
+    # 触发判定方法（运行时检测）
     # ================================
 
     def can_trigger_lunar_bloom(self, team_members: list[Any]) -> bool:
-        """判定是否可触发月绽放。"""
-        return any(
-            getattr(m, 'name', None) in self.lunar_bloom_characters
-            for m in team_members
-        )
+        """检查队伍中是否有角色可触发月绽放。"""
+        return any(self._has_lunar_trigger(m, "bloom") for m in team_members)
 
     def can_trigger_lunar_charged(self, team_members: list[Any]) -> bool:
-        """判定是否可触发月感电。"""
-        return any(
-            getattr(m, 'name', None) in self.lunar_charged_characters
-            for m in team_members
-        )
+        """检查队伍中是否有角色可触发月感电。"""
+        return any(self._has_lunar_trigger(m, "charged") for m in team_members)
 
     def can_trigger_lunar_crystallize(self, team_members: list[Any]) -> bool:
-        """判定是否可触发月结晶。"""
-        return any(
-            getattr(m, 'name', None) in self.lunar_crystallize_characters
-            for m in team_members
-        )
+        """检查队伍中是否有角色可触发月结晶。"""
+        return any(self._has_lunar_trigger(m, "crystallize") for m in team_members)
+
+    def _has_lunar_trigger(self, character: Any, trigger_type: str) -> bool:
+        """
+        检查角色的月兆天赋是否包含指定触发类型。
+
+        Args:
+            character: 角色对象
+            trigger_type: 触发类型 ("bloom"/"charged"/"crystallize")
+
+        Returns:
+            是否具备该触发能力
+        """
+        talents = getattr(character, 'talents', [])
+        for talent in talents:
+            if isinstance(talent, MoonsignTalent):
+                return trigger_type in talent.get_lunar_triggers()
+        return False
 
     # ================================
     # 草露资源管理

@@ -13,23 +13,9 @@ _initialized: bool = False
 
 # --- 自动发现函数 ---
 
-def discover_lunar_trigger_characters() -> dict[str, set[str]]:
-    """
-    自动发现所有月曜触发角色。
-
-    Returns:
-        {"bloom": {...}, "charged": {...}, "crystallize": {...}}
-    """
-    result: dict[str, set[str]] = {"bloom": set(), "charged": set(), "crystallize": set()}
-    for name, cls in CharacterClassMap.items():
-        triggers = getattr(cls, 'lunar_triggers', set())
-        if "bloom" in triggers:
-            result["bloom"].add(name)
-        if "charged" in triggers:
-            result["charged"].add(name)
-        if "crystallize" in triggers:
-            result["crystallize"].add(name)
-    return result
+# 注：discover_lunar_trigger_characters() 已移除
+# 月曜触发能力现在由 MoonsignTalent.get_lunar_triggers() 提供
+# LunarReactionSystem 使用运行时检测，无需预置角色集合
 
 
 # --- 注册装饰器 ---

@@ -32,7 +32,7 @@ class LunarInducement(TalentEffect):
 
     def _add_stack(self) -> None:
         """添加一层暴击率。"""
-        if self.stacks < self.max_stacks:
+        if self.stacks < self.max_stacks and self.character:
             self.stacks += 1
             self.stack_timers.append(600)  # 10秒 = 600帧
 
@@ -61,7 +61,7 @@ class LunarInducement(TalentEffect):
         self.stack_timers = new_timers
 
         # 如果有层过期，更新暴击率
-        if expired_count > 0:
+        if expired_count > 0 and self.character:
             self.stacks = len(self.stack_timers)
             # 移除旧修饰符，重新添加
             self.character.dynamic_modifiers = [
@@ -158,6 +158,8 @@ class LunarGuidance(MoonsignTalent):
 
     def __init__(self):
         super().__init__("月引", unlock_level=1)
+        # 定义可触发的月曜反应类型
+        self.lunar_triggers = {"bloom", "charged", "crystallize"}
         self.cached_bonus: float = 0.0
         self.hp_cache_frame: int = -1
 

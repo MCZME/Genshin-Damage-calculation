@@ -19,21 +19,16 @@ from core.systems.contract.reaction import (
     ReactionCategory,
 )
 from core.mechanics.aura import Element, Gauge, AuraManager
-from core.event import GameEvent, EventType, EventHandler
-from core.tool import get_current_time
 from core.systems.lunar_system import LunarReactionSystem
 from core.entities.lunar_entities import (
     ProsperousCoreEntity,
     ThunderCloudEntity,
     LunarCageEntity,
 )
-from character.character import Character
-
-
 class MockCharacter:
     """模拟角色对象（用于触发判定测试）"""
 
-    def __init__(self, name: str, level: int = 90):
+    def __init__(self, name: str, level: int = 90, lunar_triggers: set[str] | None = None):
         self.name = name
         self.level = level
         self.elemental_mastery = 100.0
@@ -41,6 +36,15 @@ class MockCharacter:
         self.crit_dmg = 100.0
         self.pos = [0.0, 0.0, 0.0]
         self.on_field = True
+        # 月兆天赋（用于触发判定）
+        self.talents = []
+        if lunar_triggers:
+            from core.effect.common import MoonsignTalent
+            class MockMoonsignTalent(MoonsignTalent):
+                def __init__(self, triggers):
+                    super().__init__()
+                    self.lunar_triggers = triggers
+            self.talents.append(MockMoonsignTalent(lunar_triggers))
 
 
 class MockTeam:
@@ -78,9 +82,9 @@ class TestLunarReactionSystem:
 
     def test_can_trigger_lunar_bloom(self, lunar_system):
         """测试月绽放触发判定"""
-        # 有触发角色
+        # 有触发角色（哥伦比娅可以触发所有类型）
         team = MockTeam([
-            MockCharacter("哥伦比娅"),
+            MockCharacter("哥伦比娅", lunar_triggers={"bloom", "charged", "crystallize"}),
             MockCharacter("其他角色"),
         ])
         assert lunar_system.can_trigger_lunar_bloom(team.get_members()) is True
@@ -95,7 +99,7 @@ class TestLunarReactionSystem:
     def test_can_trigger_lunar_charged(self, lunar_system):
         """测试月感电触发判定"""
         team = MockTeam([
-            MockCharacter("菲林斯"),
+            MockCharacter("菲林斯", lunar_triggers={"charged"}),
             MockCharacter("其他角色"),
         ])
         assert lunar_system.can_trigger_lunar_charged(team.get_members()) is True
@@ -109,7 +113,7 @@ class TestLunarReactionSystem:
     def test_can_trigger_lunar_crystallize(self, lunar_system):
         """测试月结晶触发判定"""
         team = MockTeam([
-            MockCharacter("兹白"),
+            MockCharacter("兹白", lunar_triggers={"crystallize"}),
         ])
         assert lunar_system.can_trigger_lunar_crystallize(team.get_members()) is True
 
@@ -217,7 +221,7 @@ class TestAuraSourceTracking:
         aura = AuraManager()
         char = MockCharacter("哥伦比娅")
 
-        results = aura.apply_element(Element.HYDRO, 1.0, source_character=char)
+        aura.apply_element(Element.HYDRO, 1.0, source_character=char)
 
         # 检查附着已创建且有来源记录
         assert len(aura.auras) == 1
@@ -343,8 +347,8 @@ class TestLunarEntities:
         LunarCageEntity.active_cages.clear()
 
         creator = MockCharacter("兹白")
-        cage1 = LunarCageEntity(creator=creator, pos=(0.0, 0.0, 0.0))
-        cage2 = LunarCageEntity(creator=creator, pos=(1.0, 0.0, 0.0))
+        LunarCageEntity(creator=creator, pos=(0.0, 0.0, 0.0))
+        LunarCageEntity(creator=creator, pos=(1.0, 0.0, 0.0))
 
         count = LunarCageEntity.count_nearby_cages((0.5, 0.0, 0.0))
         assert count == 2
