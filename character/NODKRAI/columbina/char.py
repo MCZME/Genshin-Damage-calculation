@@ -6,6 +6,9 @@ from character.NODKRAI.nodkrai import NodKrai
 from core.registry import register_character
 from core.skills.movement import DashSkill, JumpSkill
 from core.skills.common import SkipSkill
+from core.mechanics.energy import ElementalEnergy
+from core.event import GameEvent, EventType
+from core.tool import get_current_time
 from character.NODKRAI.columbina.skills import (
     ColumbinaNormalAttack,
     ColumbinaChargedAttack,
@@ -91,6 +94,9 @@ class Columbina(NodKrai):
         self.skills["jump"] = JumpSkill(caster=self)
         self.skills["skip"] = SkipSkill(caster=self)
 
+        # 初始化元素能量（水元素，60点）
+        self.elemental_energy = ElementalEnergy(element="水", max_energy=60)
+
     def _setup_effects(self) -> None:
         """挂载天赋与命座组件。"""
         self.talents = [
@@ -152,11 +158,33 @@ class Columbina(NodKrai):
         if self.constellation_level >= 2:
             amount = int(amount * 1.34)
 
+        old_value = self.gravity_value
         self.gravity_value = min(self.gravity_value + amount, self.gravity_max)
 
         # 记录来源类型
         if source_type in self.gravity_sources:
             self.gravity_sources[source_type] += amount
+
+        # 引力值满时触发事件
+        if old_value < self.gravity_max and self.gravity_value >= self.gravity_max:
+            self._trigger_gravity_full()
+
+    def _trigger_gravity_full(self) -> None:
+        """引力值满时触发事件，通知引力涟漪生成引力干涉。"""
+        dominant_type = self.get_dominant_gravity_type()
+
+        if self.event_engine:
+            self.event_engine.publish(
+                GameEvent(
+                    EventType.GRAVITY_INTERFERENCE,
+                    get_current_time(),
+                    source=self,
+                    data={"lunar_type": dominant_type},
+                )
+            )
+
+        # 重置引力值
+        self.reset_gravity()
 
     def get_dominant_gravity_type(self) -> str:
         """

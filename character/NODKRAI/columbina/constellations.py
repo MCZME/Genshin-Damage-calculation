@@ -3,8 +3,6 @@
 from core.effect.common import ConstellationEffect
 from core.event import EventType, GameEvent
 from core.tool import get_current_time
-from core.systems.utils import AttributeCalculator
-from core.systems.contract.healing import Healing, HealingType
 
 
 class ColumbinaC1(ConstellationEffect):
@@ -40,17 +38,21 @@ class ColumbinaC1(ConstellationEffect):
     def _trigger_instant_interference(self) -> None:
         """立刻触发一次引力干涉。"""
         # 发布引力干涉事件
-        self.character.event_engine.publish(
-            GameEvent(
-                EventType.GRAVITY_INTERFERENCE,
-                get_current_time(),
-                source=self.character,
-                data={
-                    "lunar_type": self.character.get_dominant_gravity_type(),
-                    "is_c1_trigger": True,
-                }
+        if self.character and self.character.event_engine:
+            lunar_type = "月绽放"
+            if hasattr(self.character, "get_dominant_gravity_type"):
+                lunar_type = self.character.get_dominant_gravity_type()  # type: ignore[union-attr]
+            self.character.event_engine.publish(
+                GameEvent(
+                    EventType.GRAVITY_INTERFERENCE,
+                    get_current_time(),
+                    source=self.character,
+                    data={
+                        "lunar_type": lunar_type,
+                        "is_c1_trigger": True,
+                    }
+                )
             )
-        )
 
 
 class ColumbinaC2(ConstellationEffect):
@@ -77,6 +79,9 @@ class ColumbinaC2(ConstellationEffect):
 
     def _activate_radiance(self) -> None:
         """激活皎辉效果。"""
+        if not self.character:
+            return
+
         self.radiance_active = True
         self.radiance_timer = 480  # 8秒
 
@@ -98,10 +103,11 @@ class ColumbinaC2(ConstellationEffect):
     def _deactivate_radiance(self) -> None:
         """移除皎辉效果。"""
         self.radiance_active = False
-        self.character.dynamic_modifiers = [
-            m for m in self.character.dynamic_modifiers
-            if m.source != "皎辉"
-        ]
+        if self.character:
+            self.character.dynamic_modifiers = [
+                m for m in self.character.dynamic_modifiers
+                if m.source != "皎辉"
+            ]
 
 
 class ColumbinaC3(ConstellationEffect):
@@ -135,8 +141,8 @@ class ColumbinaC4(ConstellationEffect):
     def handle_event(self, event: GameEvent) -> None:
         if event.event_type == EventType.GRAVITY_INTERFERENCE:
             # 恢复能量
-            if hasattr(self.character, "elemental_energy") and self.character.elemental_energy:
-                self.character.elemental_energy.gain_energy(4.0, source_type="命座四")
+            if self.character and hasattr(self.character, "elemental_energy") and self.character.elemental_energy:
+                self.character.elemental_energy.gain(4.0)
 
             # 伤害加成标记
             current_frame = get_current_time()
@@ -176,8 +182,6 @@ class ColumbinaC6(ConstellationEffect):
             self.character.event_engine.subscribe(EventType.BEFORE_CALCULATE, self)
 
     def handle_event(self, event: GameEvent) -> None:
-        current_frame = get_current_time()
-
         if event.event_type in [
             EventType.AFTER_LUNAR_BLOOM,
             EventType.AFTER_LUNAR_CHARGED,
