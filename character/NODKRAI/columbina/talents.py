@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from core.effect.common import TalentEffect
+from core.effect.common import TalentEffect, MoonsignTalent
 from core.event import EventType, GameEvent
 from core.tool import get_current_time
 from core.systems.utils import AttributeCalculator
-from character.NODKRAI.columbina.data import ELEMENTAL_SKILL_DATA
 
 
 class LunarInducement(TalentEffect):
@@ -148,10 +147,11 @@ class MoonsDomainGrace(TalentEffect):
                 self.mountain_dew_timer = 0
 
 
-class LunarGuidance(TalentEffect):
+class LunarGuidance(MoonsignTalent):
     """
-    固有天赋三：月引。
+    固有天赋三：月引（月兆天赋）。
 
+    标识哥伦比娅为月兆角色。
     队伍中的角色触发感电/绽放/水结晶反应时，转为触发月曜反应。
     基于生命值上限提升月曜反应基础伤害：每1000点提升0.2%，至多7%。
     """

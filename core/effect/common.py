@@ -126,3 +126,76 @@ class ConstellationEffect:
         if not self.is_active:
             return
         pass
+
+
+# ================================
+# 月兆系统相关类
+# ================================
+
+class MoonsignTalent(TalentEffect):
+    """
+    月兆角色天赋基类。
+
+    月兆角色拥有特殊的第三个天赋（月兆天赋），用于标识该角色为月兆角色。
+
+    判定方式：检查角色的 talents 列表中是否有 MoonsignTalent 实例。
+    """
+
+    def __init__(self, name: str = "月兆天赋", unlock_level: int = 1):
+        super().__init__(name, unlock_level)
+
+    def on_apply(self):
+        """子类在此实现具体的月兆增益逻辑"""
+        pass
+
+
+class MoonsignNascentEffect(BaseEffect):
+    """
+    月兆·初辉效果标记。
+
+    纯状态标记，无具体数值加成。
+    角色技能/天赋可通过检查此效果实现具体增益。
+    """
+
+    def __init__(self, owner: Any, duration: float = -1):
+        """
+        Args:
+            owner: 效果持有者
+            duration: 持续时间，默认 -1 表示永久
+        """
+        super().__init__(owner, "月兆·初辉", duration)
+
+    def on_apply(self):
+        """应用效果标记"""
+        pass
+
+    def on_remove(self):
+        """移除效果标记"""
+        pass
+
+
+class MoonsignAscendantEffect(BaseEffect):
+    """
+    月兆·满辉效果标记。
+
+    纯状态标记，无具体数值加成。
+    角色技能/天赋可通过检查此效果实现具体增益。
+
+    注意：满辉状态下也会触发初辉的对应效果。
+    """
+
+    def __init__(self, owner: Any, duration: float = -1):
+        """
+        Args:
+            owner: 效果持有者
+            duration: 持续时间，默认 -1 表示永久
+        """
+        super().__init__(owner, "月兆·满辉", duration)
+
+    def on_apply(self):
+        """应用效果标记"""
+        pass
+
+    def on_remove(self):
+        """移除效果标记"""
+        pass

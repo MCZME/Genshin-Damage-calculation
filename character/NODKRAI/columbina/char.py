@@ -1,6 +1,6 @@
 """哥伦比娅 - 少女 (Damselette)。"""
 
-from typing import Any, Dict
+from typing import Any
 
 from character.NODKRAI.nodkrai import NodKrai
 from core.registry import register_character
@@ -47,9 +47,9 @@ class Columbina(NodKrai):
         self,
         id: int = 103,
         level: int = 90,
-        skill_params: list = None,
+        skill_params: list[Any] | None = None,
         constellation: int = 0,
-        base_data: dict = None,
+        base_data: dict[Any, Any] | None = None,
     ):
         super().__init__(
             id=id,
@@ -64,7 +64,7 @@ class Columbina(NodKrai):
         self.gravity_max: int = 60
 
         # 引力值积攒类型计数
-        self.gravity_sources: Dict[str, int] = {
+        self.gravity_sources: dict[str, int] = {
             "月感电": 0,
             "月绽放": 0,
             "月结晶": 0,
@@ -96,7 +96,7 @@ class Columbina(NodKrai):
         self.talents = [
             LunarInducement(),     # 固有天赋1：月诱
             MoonsDomainGrace(),    # 固有天赋2：月之眷顾
-            LunarGuidance(),       # 固有天赋3：月引
+            LunarGuidance(),       # 固有天赋3：月引（月兆天赋）
         ]
 
         # 命座
@@ -110,7 +110,7 @@ class Columbina(NodKrai):
         ]
 
     @classmethod
-    def get_action_metadata(cls) -> Dict[str, Any]:
+    def get_action_metadata(cls) -> dict[str, Any]:
         """UI 元数据。"""
         return {
             "normal_attack": {

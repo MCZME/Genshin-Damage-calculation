@@ -313,6 +313,7 @@ def create_context() -> SimulationContext:
     from core.systems.energy_system import EnergySystem
     from core.systems.health_system import HealthSystem
     from core.systems.manager import SystemManager
+    from core.systems.moonsign_system import MoonsignSystem
     from core.systems.natlan_system import NatlanSystem
     from core.systems.reaction_system import ReactionSystem
     from core.systems.shield_system import ShieldSystem
@@ -335,5 +336,6 @@ def create_context() -> SimulationContext:
     ctx.system_manager.add_system(EnergySystem)
     ctx.system_manager.add_system(NatlanSystem)
     ctx.system_manager.add_system(ResonanceSystem)
+    ctx.system_manager.add_system(MoonsignSystem)
 
     return ctx
