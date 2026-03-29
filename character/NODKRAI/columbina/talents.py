@@ -42,81 +42,38 @@ class MoonsDomainGrace(TalentEffect):
     固有天赋二：新月自己的法则
 
     处于月之领域中的角色触发月曜反应时：
-    - 月感电：雷暴云有33%概率额外雷击
-    - 月绽放：为队伍提供山月草露（每18秒至多3枚）
-    - 月结晶：每枚月笼有33%概率额外攻击
+    - 月绽放：为队伍提供山月草露（18秒窗口内至多3枚）
+    - 月感电：雷暴云雷击有33%概率额外雷击（待实现）
+    - 月结晶：月笼谐奏攻击有33%概率额外攻击（待实现）
     """
 
     def __init__(self):
         super().__init__("月之眷顾", unlock_level=60)
-        self.mountain_dew_timer = 0
-        self.mountain_dew_cooldown = 1080  # 18秒
-        self.mountain_dew_count = 0
-        self.max_mountain_dew = 3
 
     def on_apply(self) -> None:
         if self.character and self.character.event_engine:
+            # 订阅月绽放事件
             self.character.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
-            self.character.event_engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
-            self.character.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
 
     def handle_event(self, event: GameEvent) -> None:
-        # 检查是否有活跃的月之领域
+        if event.event_type == EventType.AFTER_LUNAR_BLOOM:
+            if self._is_trigger_in_domain(event):
+                self._provide_mountain_grass_dew()
+
+    def _is_trigger_in_domain(self, event: GameEvent) -> bool:
+        """检查触发者是否在月之领域内。"""
         from character.NODKRAI.columbina.entities import LunarDomain
+        trigger = event.source
         domains = LunarDomain.get_active_scenes("月之领域")
         if not domains:
-            return
+            return False
+        return any(trigger.entity_id in domain._entities_in_range for domain in domains)
 
-        # 检查触发者是否在任一领域内
-        trigger = event.source
-        in_domain = any(
-            trigger.entity_id in domain._entities_in_range
-            for domain in domains
-        )
-        if not in_domain:
-            return
-
-        if event.event_type == EventType.AFTER_LUNAR_BLOOM:
-            self._provide_mountain_dew()
-        elif event.event_type == EventType.AFTER_LUNAR_CHARGED:
-            self._enhance_thunder_cloud(event)
-        elif event.event_type == EventType.AFTER_LUNAR_CRYSTALLIZE:
-            self._enhance_lunar_cage(event)
-
-    def _provide_mountain_dew(self) -> None:
-        """提供山月草露。"""
-        if self.mountain_dew_count >= self.max_mountain_dew:
-            return
-
-        self.mountain_dew_timer += 1
-        if self.mountain_dew_timer >= 0:  # 每次触发都提供
-            ctx = getattr(self.character, "ctx", None)
-            if ctx and hasattr(ctx, "lunar_system"):
-                ctx.lunar_system.add_grass_dew(1)
-                self.mountain_dew_count += 1
-                if self.mountain_dew_count >= self.max_mountain_dew:
-                    self.mountain_dew_timer = 0
-
-    def _enhance_thunder_cloud(self, event: GameEvent) -> None:
-        """增强雷暴云（33%额外雷击）。"""
-        # 在月曜反应系统中处理
-        event.data["extra_lightning_chance"] = 0.33
-
-    def _enhance_lunar_cage(self, event: GameEvent) -> None:
-        """增强月笼（33%额外攻击）。"""
-        event.data["extra_attack_chance"] = 0.33
-
-    def on_frame_update(self) -> None:
-        """冷却计时。"""
-        if not self.is_active:
-            return
-
-        # 重置山月草露计数（每18秒重置）
-        if self.mountain_dew_count >= self.max_mountain_dew:
-            self.mountain_dew_timer += 1
-            if self.mountain_dew_timer >= self.mountain_dew_cooldown:
-                self.mountain_dew_count = 0
-                self.mountain_dew_timer = 0
+    def _provide_mountain_grass_dew(self) -> None:
+        """提供山月草露（18秒窗口内至多3枚）。"""
+        ctx = getattr(self.character, "ctx", None)
+        if ctx and hasattr(ctx, "lunar_system"):
+            ctx.lunar_system.add_mountain_grass_dew()
 
 
 class LunarGuidance(MoonsignTalent):

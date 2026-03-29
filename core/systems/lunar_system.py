@@ -32,6 +32,12 @@ class LunarReactionSystem(GameSystem):
         self.grass_dew_recovery_timer: float = 0.0  # 恢复状态剩余时间
         self.grass_dew_recovery_active: bool = False
 
+        # 山月草露（独立资源，整数类型）
+        self.mountain_grass_dew: int = 0
+        self.mountain_grass_dew_max: int = 3
+        self.mountain_grass_dew_window_start: int | None = None  # 窗口起始帧
+        self.mountain_grass_dew_window_duration: int = 1080  # 18秒
+
         # 月笼触发计数
         self.lunar_cage_counter: int = 0  # 当前计数
         self.lunar_cage_threshold: int = 3  # 触发阈值
@@ -160,7 +166,7 @@ class LunarReactionSystem(GameSystem):
 
     def consume_grass_dew(self, amount: int) -> bool:
         """
-        消耗草露。
+        消耗草露（优先普通草露，不足时消耗山月草露）。
 
         Args:
             amount: 消耗数量（整数枚）
@@ -168,23 +174,77 @@ class LunarReactionSystem(GameSystem):
         Returns:
             是否成功消耗
         """
-        if self.grass_dew < float(amount):
-            return False
+        # 优先消耗普通草露
+        if self.grass_dew >= float(amount):
+            self.grass_dew -= float(amount)
 
-        self.grass_dew -= float(amount)
+            if self.engine:
+                self.engine.publish(GameEvent(
+                    event_type=EventType.GRASS_DEW_CONSUME,
+                    frame=get_current_time(),
+                    data={"amount": amount, "total": self.grass_dew}
+                ))
 
-        if self.engine:
-            self.engine.publish(GameEvent(
-                event_type=EventType.GRASS_DEW_CONSUME,
-                frame=get_current_time(),
-                data={"amount": amount, "total": self.grass_dew}
-            ))
+            return True
 
-        return True
+        # 普通草露不足，计算剩余需求
+        remaining = amount - int(self.grass_dew)
+
+        # 尝试消耗山月草露
+        if self.mountain_grass_dew >= remaining:
+            consumed_from_grass_dew = int(self.grass_dew)
+            self.grass_dew = 0.0
+            self.mountain_grass_dew -= remaining
+
+            if self.engine:
+                self.engine.publish(GameEvent(
+                    event_type=EventType.GRASS_DEW_CONSUME,
+                    frame=get_current_time(),
+                    data={
+                        "amount": amount,
+                        "total": self.grass_dew,
+                        "from_mountain_dew": remaining,
+                        "mountain_dew_remaining": self.mountain_grass_dew,
+                    }
+                ))
+
+            return True
+
+        return False
 
     def can_consume_grass_dew(self, amount: int = 1) -> bool:
         """检查是否有足够草露消耗（需要满1枚才能消耗）。"""
         return self.grass_dew >= float(amount)
+
+    # ================================
+    # 山月草露资源管理
+    # ================================
+
+    def add_mountain_grass_dew(self) -> bool:
+        """
+        尝试提供一枚山月草露。
+
+        山月草露是由天赋二「新月自己的法则」提供的特殊草露资源，
+        与普通草露分开计算。18秒窗口内至多提供3枚。
+
+        Returns:
+            是否成功提供
+        """
+        current = get_current_time()
+
+        # 初始化或重置窗口
+        if self.mountain_grass_dew_window_start is None:
+            self.mountain_grass_dew_window_start = current
+        elif current - self.mountain_grass_dew_window_start >= self.mountain_grass_dew_window_duration:
+            self.mountain_grass_dew_window_start = current
+            self.mountain_grass_dew = 0
+
+        # 窗口内提供
+        if self.mountain_grass_dew < self.mountain_grass_dew_max:
+            self.mountain_grass_dew += 1
+            return True
+
+        return False
 
     # ================================
     # 月笼计数管理
