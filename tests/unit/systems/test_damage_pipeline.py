@@ -1,7 +1,7 @@
 import pytest
 from core.systems.contract.damage import Damage
 from core.systems.contract.attack import AttackConfig
-from core.systems.damage_system import DamagePipeline, DamageContext
+from core.systems.damage import DamagePipeline, DamageContext
 from core.event import EventType
 from core.mechanics.aura import Element
 

@@ -436,22 +436,23 @@ class TestLunarReactionConversion:
         return create_context()
 
     @pytest.fixture
-    def reaction_sys(self, sim_ctx):
-        return sim_ctx.get_system("ReactionSystem")
+    def converter(self):
+        from core.systems.reaction.converter import LunarConverter
+        return LunarConverter()
 
-    def test_is_character_source(self, reaction_sys):
+    def test_is_character_source(self, converter):
         """测试角色源判定"""
         # 创建真正的 Character 实例来测试
         # 由于 MockCharacter 不是 Character 子类，测试其不是角色源
         mock_char = MockCharacter("哥伦比娅")
-        assert reaction_sys._is_character_source(mock_char) is False
+        assert converter._is_character_source(mock_char) is False
 
         # 非角色对象
         class NonCharacter:
             pass
-        assert reaction_sys._is_character_source(NonCharacter()) is False
+        assert converter._is_character_source(NonCharacter()) is False
 
-    def test_convert_to_lunar_bloom(self, reaction_sys):
+    def test_convert_to_lunar_bloom(self, converter):
         """测试绽放转月绽放"""
         char = MockCharacter("哥伦比娅")
         original = ReactionResult(
@@ -462,13 +463,13 @@ class TestLunarReactionConversion:
             gauge_consumed=0.8,
         )
 
-        converted = reaction_sys._convert_to_lunar_bloom(original, char)
+        converted = converter._convert_to_lunar_bloom(original, char)
 
         assert converted.reaction_type == ElementalReactionType.LUNAR_BLOOM
         assert converted.category == ReactionCategory.LUNAR
         assert converted.data.get("original_reaction") == ElementalReactionType.BLOOM
 
-    def test_convert_to_lunar_charged(self, reaction_sys):
+    def test_convert_to_lunar_charged(self, converter):
         """测试感电转月感电"""
         char = MockCharacter("菲林斯")
         original = ReactionResult(
@@ -479,13 +480,13 @@ class TestLunarReactionConversion:
             gauge_consumed=0.4,
         )
 
-        converted = reaction_sys._convert_to_lunar_charged(original, char)
+        converted = converter._convert_to_lunar_charged(original, char)
 
         assert converted.reaction_type == ElementalReactionType.LUNAR_CHARGED
         assert converted.category == ReactionCategory.LUNAR
         assert char in converted.data.get("source_characters", [])
 
-    def test_convert_to_lunar_crystallize(self, reaction_sys):
+    def test_convert_to_lunar_crystallize(self, converter):
         """测试结晶转月结晶"""
         char = MockCharacter("兹白")
         original = ReactionResult(
@@ -496,7 +497,7 @@ class TestLunarReactionConversion:
             gauge_consumed=0.5,
         )
 
-        converted = reaction_sys._convert_to_lunar_crystallize(original, char)
+        converted = converter._convert_to_lunar_crystallize(original, char)
 
         assert converted.reaction_type == ElementalReactionType.LUNAR_CRYSTALLIZE
         assert converted.category == ReactionCategory.LUNAR
@@ -615,7 +616,7 @@ class TestCrystallizeCooldown:
                         self.lunar_triggers = {"crystallize"}
                 self.talents.append(MockMoonsign())
 
-        # 测试 ReactionSystem 的转换逻辑
+        # 测试 LunarConverter 的转换逻辑
         # 模拟冷却中的水结晶结果
         cooled_result = ReactionResult(
             reaction_type=ElementalReactionType.CRYSTALLIZE,
@@ -627,12 +628,208 @@ class TestCrystallizeCooldown:
         )
 
         # 验证转换后冷却标记被清除
-        reaction_sys = sim_ctx.get_system("ReactionSystem")
+        from core.systems.reaction.converter import LunarConverter
+        converter = LunarConverter()
         char = MockCharWithLunar()
 
         # 直接测试转换方法
-        converted = reaction_sys._convert_to_lunar_crystallize(cooled_result, char)
+        converted = converter._convert_to_lunar_crystallize(cooled_result, char)
         assert converted.reaction_type == ElementalReactionType.LUNAR_CRYSTALLIZE
         assert converted.is_cooldown_skipped is False  # 月结晶无视冷却
+
+
+class TestLunarDamagePipeline:
+    """测试 LunarDamagePipeline 月曜伤害计算流水线"""
+
+    @pytest.fixture
+    def sim_ctx(self):
+        ctx = create_context()
+        import core.context as ctx_module
+        ctx_module._current_context.set(ctx)
+        yield ctx
+        ctx_module._current_context.set(None)
+
+    def test_lunar_pipeline_basic_calculation(self, sim_ctx):
+        """测试月曜伤害基本计算"""
+        from core.systems.damage import LunarDamagePipeline, DamageContext
+        from core.systems.contract.damage import Damage
+        from core.systems.contract.attack import AttackConfig
+        from core.context import EventEngine
+
+        # 创建模拟目标
+        class MockTarget:
+            def __init__(self):
+                self.pos = [0.0, 0.0, 0.0]
+                self.雷元素抗性 = 10  # 10% 雷抗
+                self.attribute_data = {"雷元素抗性": 10.0}
+
+            def handle_damage(self, damage):
+                """处理伤害（空实现）"""
+                pass
+
+        # 创建模拟源
+        class MockSource:
+            def __init__(self):
+                self.level = 90
+                self.elemental_mastery = 100
+                self.pos = [0.0, 0.0, 0.0]
+                self.attribute_data = {"元素精通": 100.0}
+
+        # 创建 Damage 对象
+        dmg = Damage(
+            element=(Element.ELECTRO, 0.0),
+            config=AttackConfig(attack_tag="月感电伤害"),
+            name="月感电",
+        )
+        # 通过 data 传递参数
+        dmg.add_data("等级系数", 1446.9)  # 90级基数
+        dmg.add_data("反应倍率", 1.8)
+
+        source = MockSource()
+        target = MockTarget()
+        dmg.set_source(source)
+        dmg.set_target(target)
+
+        # 创建 context
+        ctx = DamageContext(dmg, source, target)
+
+        # 创建 pipeline 并运行
+        engine = EventEngine()
+        pipeline = LunarDamagePipeline(engine)
+        pipeline.run(ctx)
+
+        # 验证伤害计算结果
+        # 基础伤害 = 等级系数 × 反应倍率 × (1 + 精通系数)
+        # 精通系数 = 6 × 100 / (100 + 2000) ≈ 0.286
+        # 反应提升 = 1 + 0.286 = 1.286
+        # 核心基础伤害 = 1446.9 × 1.8 × 1.286 ≈ 3348.7
+        assert ctx.final_result > 0
+        assert dmg.damage == ctx.final_result
+
+    def test_lunar_pipeline_respects_weighted_damage_formula(self, sim_ctx):
+        """测试加权求和公式正确性"""
+        from core.systems.reaction.handlers.lunar import LunarHandler
+
+        # 创建模拟数据
+        class MockChar:
+            def __init__(self, name):
+                self.name = name
+
+        handler = LunarHandler()
+
+        # 测试三组分加权求和
+        components = [
+            (MockChar("A"), 1000.0),  # 最高
+            (MockChar("B"), 600.0),   # 次高
+            (MockChar("C"), 240.0),   # 其余
+        ]
+
+        result = handler._calculate_weighted_damage(components)
+        # 公式：最高(1000) + 次高/2(300) + 其余/12(20) = 1320
+        expected = 1000 + 600 / 2 + 240 / 12
+        assert abs(result - expected) < 0.01
+
+    def test_lunar_pipeline_no_defense_zone(self, sim_ctx):
+        """测试月曜伤害无视防御"""
+        from core.systems.damage import LunarDamagePipeline, DamageContext
+        from core.systems.contract.damage import Damage
+        from core.systems.contract.attack import AttackConfig
+        from core.context import EventEngine
+
+        class MockTarget:
+            def __init__(self):
+                self.pos = [0.0, 0.0, 0.0]
+                self.雷元素抗性 = 0
+                self.防御力 = 10000  # 高防御
+                self.attribute_data = {"雷元素抗性": 0.0}
+
+            def handle_damage(self, damage):
+                """处理伤害（空实现）"""
+                pass
+
+        class MockSource:
+            def __init__(self):
+                self.level = 90
+                self.elemental_mastery = 0
+                self.pos = [0.0, 0.0, 0.0]
+                self.attribute_data = {"元素精通": 0.0}
+
+        dmg = Damage(
+            element=(Element.ELECTRO, 0.0),
+            config=AttackConfig(attack_tag="月感电伤害"),
+            name="月感电",
+        )
+        dmg.add_data("等级系数", 1446.9)
+        dmg.add_data("反应倍率", 1.8)
+
+        source = MockSource()
+        target = MockTarget()
+        dmg.set_source(source)
+        dmg.set_target(target)
+
+        ctx = DamageContext(dmg, source, target)
+
+        engine = EventEngine()
+        pipeline = LunarDamagePipeline(engine)
+        pipeline.run(ctx)
+
+        # 验证：月曜伤害无视防御，防御区系数应该趋近于 1
+        # 由于公式中没有防御区，最终结果不应受目标防御力影响
+        # 基础伤害 = 1446.9 × 1.8 × 1 = 2604.42
+        expected_base = 1446.9 * 1.8  # 无精通加成
+        assert abs(ctx.final_result - expected_base) < 10  # 允许抗性等影响
+
+    def test_lunar_pipeline_with_em_bonus(self, sim_ctx):
+        """测试元素精通加成"""
+        from core.systems.damage import LunarDamagePipeline, DamageContext
+        from core.systems.contract.damage import Damage
+        from core.systems.contract.attack import AttackConfig
+        from core.context import EventEngine
+        from unittest.mock import patch
+
+        class MockTarget:
+            def __init__(self):
+                self.pos = [0.0, 0.0, 0.0]
+                self.雷元素抗性 = 0
+                self.attribute_data = {"雷元素抗性": 0.0}
+
+            def handle_damage(self, damage):
+                """处理伤害（空实现）"""
+                pass
+
+        class MockSourceWithEM:
+            def __init__(self):
+                self.level = 90
+                self.elemental_mastery = 200  # 200 精通
+                self.pos = [0.0, 0.0, 0.0]
+                self.attribute_data = {"元素精通": 200.0}
+
+        dmg = Damage(
+            element=(Element.ELECTRO, 0.0),
+            config=AttackConfig(attack_tag="月感电伤害"),
+            name="月感电",
+        )
+        dmg.add_data("等级系数", 1446.9)
+        dmg.add_data("反应倍率", 1.8)
+
+        source = MockSourceWithEM()
+        target = MockTarget()
+        dmg.set_source(source)
+        dmg.set_target(target)
+
+        ctx = DamageContext(dmg, source, target)
+
+        engine = EventEngine()
+        pipeline = LunarDamagePipeline(engine)
+
+        # Mock 掉暴击随机数，确保不暴击
+        with patch('random.uniform', return_value=100):  # 100 > 50% 暴击率，不会暴击
+            pipeline.run(ctx)
+
+        # 精通系数 = 6 × 200 / (200 + 2000) ≈ 0.545
+        # 反应提升 = 1 + 0.545 = 1.545
+        # 基础伤害 = 1446.9 × 1.8 × 1.545 ≈ 4023.5
+        expected = 1446.9 * 1.8 * (1 + 6 * 200 / (200 + 2000))
+        assert abs(ctx.final_result - expected) < 10
 
 
