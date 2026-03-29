@@ -500,3 +500,139 @@ class TestLunarReactionConversion:
 
         assert converted.reaction_type == ElementalReactionType.LUNAR_CRYSTALLIZE
         assert converted.category == ReactionCategory.LUNAR
+
+
+class TestCrystallizeCooldown:
+    """测试结晶反应冷却机制"""
+
+    @pytest.fixture
+    def sim_ctx(self):
+        """创建测试上下文并设置帧数。"""
+        ctx = create_context()
+        # 设置上下文变量
+        import core.context as ctx_module
+        ctx_module._current_context.set(ctx)
+        yield ctx
+        ctx_module._current_context.set(None)
+
+    def test_crystallize_cooldown_initial_state(self):
+        """测试结晶冷却初始状态"""
+        aura = AuraManager()
+        assert hasattr(aura, '_crystallize_cooldowns')
+        assert aura._crystallize_cooldowns == {}
+
+    def test_first_crystallize_not_on_cooldown(self, sim_ctx):
+        """测试首次结晶不在冷却中"""
+        sim_ctx.current_frame = 0
+
+        aura = AuraManager()
+        # 先挂水
+        aura.apply_element(Element.HYDRO, 1.0)
+
+        # 首次结晶
+        results = aura.apply_element(Element.GEO, 1.0)
+
+        # 应生成结晶结果，且不在冷却中
+        assert len(results) == 1
+        assert results[0].reaction_type == ElementalReactionType.CRYSTALLIZE
+        assert results[0].is_cooldown_skipped is False
+
+    def test_crystallize_cooldown_blocks_second(self, sim_ctx):
+        """测试冷却中的结晶被跳过"""
+        aura = AuraManager()
+        # 先挂水
+        aura.apply_element(Element.HYDRO, 2.0)  # 挂足量水
+
+        # 首次结晶
+        sim_ctx.current_frame = 0
+        results1 = aura.apply_element(Element.GEO, 1.0)
+        assert results1[0].is_cooldown_skipped is False
+
+        # 0.5秒后再次尝试结晶（在1秒冷却内）
+        sim_ctx.current_frame = 30  # 0.5秒 = 30帧
+        # 重新挂水
+        aura.apply_element(Element.HYDRO, 1.0)
+        results2 = aura.apply_element(Element.GEO, 1.0)
+
+        # 应被冷却跳过
+        assert len(results2) == 1
+        assert results2[0].is_cooldown_skipped is True
+
+    def test_crystallize_cooldown_expires_after_1_second(self, sim_ctx):
+        """测试1秒后冷却结束"""
+        aura = AuraManager()
+        # 先挂水
+        aura.apply_element(Element.HYDRO, 2.0)
+
+        # 首次结晶
+        sim_ctx.current_frame = 0
+        results1 = aura.apply_element(Element.GEO, 1.0)
+        assert results1[0].is_cooldown_skipped is False
+
+        # 1秒后再次结晶（冷却结束）
+        sim_ctx.current_frame = 61  # 超过60帧
+        # 重新挂水
+        aura.apply_element(Element.HYDRO, 1.0)
+        results2 = aura.apply_element(Element.GEO, 1.0)
+
+        # 应正常触发
+        assert results2[0].is_cooldown_skipped is False
+
+    def test_different_elements_have_separate_cooldowns(self, sim_ctx):
+        """测试不同元素结晶独立冷却"""
+        aura = AuraManager()
+        # 挂水和火
+        aura.apply_element(Element.HYDRO, 1.0)
+        aura.apply_element(Element.PYRO, 1.0)
+
+        # 水结晶
+        sim_ctx.current_frame = 0
+        results1 = aura.apply_element(Element.GEO, 1.0)
+        assert results1[0].target_element == Element.HYDRO
+        assert results1[0].is_cooldown_skipped is False
+
+        # 0.5秒后再次尝试水结晶
+        sim_ctx.current_frame = 30  # 0.5秒后
+        # 重新挂水
+        aura.apply_element(Element.HYDRO, 1.0)
+        results2 = aura.apply_element(Element.GEO, 1.0)
+
+        # 水结晶应在冷却中
+        assert results2[0].is_cooldown_skipped is True
+
+    def test_lunar_crystallize_ignores_cooldown(self, sim_ctx):
+        """测试月结晶无视冷却"""
+        # 创建带月结晶触发能力的模拟角色
+        class MockCharWithLunar:
+            def __init__(self):
+                self.name = "哥伦比娅"
+                self.pos = [0.0, 0.0, 0.0]
+                self.talents = []
+                from core.effect.common import MoonsignTalent
+                class MockMoonsign(MoonsignTalent):
+                    def __init__(self):
+                        super().__init__()
+                        self.lunar_triggers = {"crystallize"}
+                self.talents.append(MockMoonsign())
+
+        # 测试 ReactionSystem 的转换逻辑
+        # 模拟冷却中的水结晶结果
+        cooled_result = ReactionResult(
+            reaction_type=ElementalReactionType.CRYSTALLIZE,
+            category=ReactionCategory.STATUS,
+            source_element=Element.GEO,
+            target_element=Element.HYDRO,
+            gauge_consumed=0.5,
+            is_cooldown_skipped=True,  # 在冷却中
+        )
+
+        # 验证转换后冷却标记被清除
+        reaction_sys = sim_ctx.get_system("ReactionSystem")
+        char = MockCharWithLunar()
+
+        # 直接测试转换方法
+        converted = reaction_sys._convert_to_lunar_crystallize(cooled_result, char)
+        assert converted.reaction_type == ElementalReactionType.LUNAR_CRYSTALLIZE
+        assert converted.is_cooldown_skipped is False  # 月结晶无视冷却
+
+

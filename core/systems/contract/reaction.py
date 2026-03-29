@@ -54,6 +54,10 @@ class ReactionResult:
     multiplier: float = 1.0  # 针对增幅类的基础倍率 (1.5/2.0)
     gauge_consumed: float = 0.0  # 消耗掉的附着元素量 (GU)
 
+    # 冷却状态（用于结晶反应）
+    # True 表示该结晶因冷却被跳过，但可能被转换为月结晶（月结晶无冷却）
+    is_cooldown_skipped: bool = False
+
     # 扩展数据 (用于剧变反应工厂或特殊效果)
     data: dict[str, Any] = field(default_factory=dict)
 

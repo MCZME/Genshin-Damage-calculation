@@ -381,7 +381,11 @@ class ReactionSystem(GameSystem):
             # 仅水元素结晶可转换
             if res.target_element == Element.HYDRO:
                 if self._can_trigger_lunar_crystallize(team_members):
-                    return self._convert_to_lunar_crystallize(res, source_char)
+                    # 月结晶无冷却：即使普通结晶在冷却中，仍可触发月结晶
+                    # 清除冷却标记
+                    converted = self._convert_to_lunar_crystallize(res, source_char)
+                    converted.is_cooldown_skipped = False
+                    return converted
 
         return res
 
@@ -487,6 +491,14 @@ class ReactionSystem(GameSystem):
         """根据反应类别分发逻辑。"""
         source_char = event.source
         target = event.data.get("target")
+
+        # 跳过冷却中的普通结晶反应
+        # 注意：月结晶已转换为 LUNAR 类别，不会进入此分支
+        if res.is_cooldown_skipped:
+            get_emulation_logger().log_info(
+                f"结晶反应冷却中，跳过: {res.target_element.value}结晶"
+            )
+            return
 
         get_emulation_logger().log_reaction(
             source_char=source_char,
