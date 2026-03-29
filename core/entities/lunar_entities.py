@@ -2,7 +2,7 @@
 月曜反应实体类。
 
 包含：
-- ProsperousCoreEntity：丰穰之核（月绽放产物）
+- ProsperousCoreEntity：丰穰之核（角色技能触发生成）
 - ThunderCloudEntity：雷暴云（月感电产物）
 - LunarCageEntity：月笼（月结晶产物）
 """
@@ -21,7 +21,9 @@ from core.tool import get_current_time
 
 class ProsperousCoreEntity(DendroCoreEntity):
     """
-    丰穰之核 - 月绽放产物。
+    丰穰之核 - 由角色技能触发生成的特殊草原核。
+
+    注意：非月绽放反应直接产物。月绽放仅生成普通草原核和草露资源。
 
     与普通草原核的区别：
     - 存在时间仅 0.4 秒（24 帧）

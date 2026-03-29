@@ -480,10 +480,12 @@ class ReactionSystem(GameSystem):
     def _handle_lunar_bloom(self, event: GameEvent, res: ReactionResult) -> None:
         """
         处理月绽放反应：
-        1. 生成丰穰之核（替代草原核）
-        2. 触发草露资源恢复
+        1. 生成草原核（保持原有绽放机制不变）
+        2. 额外触发草露资源恢复
+
+        注：丰穰之核由角色技能触发生成，非月绽放反应直接产物。
         """
-        from core.entities.lunar_entities import ProsperousCoreEntity
+        from core.entities.elemental_entities import DendroCoreEntity
         from core.systems.lunar_system import LunarReactionSystem
 
         target = event.data.get("target")
@@ -492,8 +494,8 @@ class ReactionSystem(GameSystem):
         if target is None:
             return
 
-        # 生成丰穰之核
-        core = ProsperousCoreEntity(
+        # 生成草原核（保持原有绽放机制）
+        core = DendroCoreEntity(
             creator=source_char,
             pos=tuple(target.pos),
         )
@@ -501,7 +503,7 @@ class ReactionSystem(GameSystem):
         if self.context and self.context.space:
             self.context.space.register(core)
 
-        # 触发草露恢复
+        # 额外触发草露恢复（月绽放特有）
         lunar_system = self.context.get_system(LunarReactionSystem) if self.context else None
         if lunar_system:
             lunar_system.start_grass_dew_recovery()
