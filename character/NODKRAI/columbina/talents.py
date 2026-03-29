@@ -6,15 +6,15 @@ from core.effect.common import TalentEffect, MoonsignTalent
 from core.event import EventType, GameEvent
 from core.tool import get_current_time
 from core.systems.utils import AttributeCalculator
+from core.action.attack_tag_resolver import AttackTagResolver
 from character.NODKRAI.columbina.effects import LunarInducementStack
 
 
 class LunarInducement(TalentEffect):
     """
-    固有天赋一：月诱。
+    固有天赋一：月亮诱发的疯狂
 
-    触发引力干涉时，暴击率提升5%，持续10秒。
-    至多叠加3层。
+    触发引力干涉时，哥伦比娅将获得月诱效果，使自身的暴击率提升5%，持续10秒。该效果至多叠加3层。
     """
 
     def __init__(self):
@@ -39,7 +39,7 @@ class LunarInducement(TalentEffect):
 
 class MoonsDomainGrace(TalentEffect):
     """
-    固有天赋二：月之眷顾。
+    固有天赋二：新月自己的法则
 
     处于月之领域中的角色触发月曜反应时：
     - 月感电：雷暴云有33%概率额外雷击
@@ -144,15 +144,25 @@ class LunarGuidance(MoonsignTalent):
     def handle_event(self, event: GameEvent) -> None:
         if event.event_type == EventType.BEFORE_CALCULATE:
             dmg_ctx = event.data.get("damage_context")
-            if dmg_ctx and dmg_ctx.damage.data.get("is_lunar_damage"):
-                # 注入月曜基础伤害加成
-                bonus = self._get_lunar_damage_bonus()
-                dmg_ctx.add_modifier(
-                    source="月引",
-                    stat="月曜基础伤害",
-                    value=bonus,
-                    op="ADD",
-                )
+            if not dmg_ctx:
+                return
+
+            # 使用 AttackTagResolver 判定月曜伤害
+            if not AttackTagResolver.is_lunar_damage(
+                dmg_ctx.damage.config.attack_tag,
+                dmg_ctx.damage.config.extra_attack_tags
+            ):
+                return
+
+            # 注入月曜基础伤害加成
+            bonus = self._get_lunar_damage_bonus()
+            dmg_ctx.add_modifier(
+                source="月引",
+                stat="基础伤害提升",
+                value=bonus * 100,  # 转为百分比
+                op="ADD",
+                audit=True,
+            )
 
     def _get_lunar_damage_bonus(self) -> float:
         """计算月曜反应基础伤害加成（缓存优化）。"""

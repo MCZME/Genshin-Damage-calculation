@@ -16,6 +16,7 @@ from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from core.mechanics.aura import Element
+from core.action.attack_tag_resolver import AttackTagResolver
 from character.NODKRAI.columbina.data import (
     ACTION_FRAME_DATA,
     ATTACK_DATA,
@@ -402,17 +403,21 @@ class LunarDomain(SceneEntity):
         if not dmg_ctx:
             return
 
-        # 检查是否为月曜伤害
-        if not dmg_ctx.damage.data.get("is_lunar_damage"):
+        # 使用 AttackTagResolver 判定月曜伤害
+        if not AttackTagResolver.is_lunar_damage(
+            dmg_ctx.damage.config.attack_tag,
+            dmg_ctx.damage.config.extra_attack_tags
+        ):
             return
 
         # 检查伤害来源是否在领域内
         trigger = event.source
         if trigger and trigger.entity_id in self._entities_in_range:
-            # 注入伤害加成修饰符
+            # 注入月曜反应伤害提升修饰符
             dmg_ctx.add_modifier(
                 source="月之领域",
-                stat="伤害加成",
+                stat="月曜反应伤害提升",
                 value=self.dmg_bonus,
                 op="ADD",
+                audit=True,
             )

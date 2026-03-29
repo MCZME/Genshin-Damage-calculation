@@ -11,6 +11,7 @@ from core.systems.base_system import GameSystem
 from core.systems.utils import AttributeCalculator
 from core.event import GameEvent, EventType
 from core.effect.common import MoonsignTalent, MoonsignNascentEffect, MoonsignAscendantEffect
+from core.action.attack_tag_resolver import AttackTagResolver
 
 
 class MoonsignSystem(GameSystem):
@@ -187,21 +188,25 @@ class MoonsignSystem(GameSystem):
         if not dmg_ctx:
             return
 
-        # 检查是否为月曜伤害
+        # 使用 AttackTagResolver 判定月曜伤害
         dmg = getattr(dmg_ctx, 'damage', None)
         if not dmg:
             return
 
-        is_lunar = dmg.data.get('is_lunar_damage', False)
-        if not is_lunar:
+        if not AttackTagResolver.is_lunar_damage(
+            dmg.config.attack_tag,
+            dmg.config.extra_attack_tags
+        ):
             return
 
         # 注入增益
         if self.non_moonsign_bonus > 0:
             dmg_ctx.add_modifier(
                 source="非月兆角色月曜增伤",
-                stat="月曜反应伤害%",
+                stat="月曜反应伤害提升",
                 value=self.non_moonsign_bonus,
+                op="ADD",
+                audit=True,
             )
 
     # ================================

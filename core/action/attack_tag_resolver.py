@@ -32,6 +32,13 @@ class AttackTagResolver:
         "另类绽放伤害"
     }
 
+    # 月曜伤害标签全集
+    LUNAR_DAMAGE_TAGS = {
+        "月绽放伤害",
+        "月感电伤害",
+        "月结晶伤害",
+    }
+
     @staticmethod
     def check(target_tag: str, main_tag: str, extra_tags: Sequence[str] | None = None) -> bool:
         """
@@ -55,9 +62,30 @@ class AttackTagResolver:
         """
         if main_tag in AttackTagResolver.TRANSFORMATIVE_TAGS:
             return True
-            
+
         if extra_tags:
             for tag in extra_tags:
                 if tag in AttackTagResolver.TRANSFORMATIVE_TAGS:
+                    return True
+        return False
+
+    @staticmethod
+    def is_lunar_damage(main_tag: str, extra_tags: Sequence[str] | None = None) -> bool:
+        """
+        判断当前伤害是否属于月曜伤害路径。
+        用于 DamagePipeline Stage 5 的公式路由决策。
+
+        月曜伤害特点：
+        - 可暴击
+        - 不享受增伤加成
+        - 无视防御
+        - 无元素附着
+        """
+        if main_tag in AttackTagResolver.LUNAR_DAMAGE_TAGS:
+            return True
+
+        if extra_tags:
+            for tag in extra_tags:
+                if tag in AttackTagResolver.LUNAR_DAMAGE_TAGS:
                     return True
         return False

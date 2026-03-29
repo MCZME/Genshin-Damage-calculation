@@ -273,9 +273,10 @@ class DamagePipeline:
 
     def _is_lunar_damage(self, ctx: DamageContext) -> bool:
         """判定是否为月曜伤害。"""
-        attack_tag = ctx.damage.config.attack_tag
-        lunar_tags = ("月绽放伤害", "月感电伤害", "月结晶伤害")
-        return attack_tag in lunar_tags
+        return AttackTagResolver.is_lunar_damage(
+            ctx.damage.config.attack_tag,
+            ctx.damage.config.extra_attack_tags
+        )
 
     def _calculate_lunar_damage(self, ctx: DamageContext) -> None:
         """
