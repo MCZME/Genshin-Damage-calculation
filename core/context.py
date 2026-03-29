@@ -318,6 +318,7 @@ def create_context() -> SimulationContext:
     from core.systems.reaction import ReactionSystem
     from core.systems.shield_system import ShieldSystem
     from core.systems.resonance_system import ResonanceSystem
+    from core.systems.lunar_system import LunarReactionSystem
 
     # 1. 基础环境准备
     initialize_registry()
@@ -337,5 +338,6 @@ def create_context() -> SimulationContext:
     ctx.system_manager.add_system(NatlanSystem)
     ctx.system_manager.add_system(ResonanceSystem)
     ctx.system_manager.add_system(MoonsignSystem)
+    ctx.system_manager.add_system(LunarReactionSystem)
 
     return ctx
