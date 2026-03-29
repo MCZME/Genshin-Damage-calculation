@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+
 from core.effect.common import TalentEffect, MoonsignTalent
 from core.event import EventType, GameEvent
 from core.tool import get_current_time
@@ -44,7 +46,7 @@ class MoonsDomainGrace(TalentEffect):
     处于月之领域中的角色触发月曜反应时：
     - 月绽放：为队伍提供山月草露（18秒窗口内至多3枚）
     - 月感电：雷暴云雷击有33%概率额外雷击（待实现）
-    - 月结晶：月笼谐奏攻击有33%概率额外攻击（待实现）
+    - 月结晶：月笼谐奏攻击有33%概率额外攻击
     """
 
     def __init__(self):
@@ -54,11 +56,16 @@ class MoonsDomainGrace(TalentEffect):
         if self.character and self.character.event_engine:
             # 订阅月绽放事件
             self.character.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
+            # 订阅月笼谐奏攻击事件
+            self.character.event_engine.subscribe(EventType.LUNAR_CRYSTALLIZE_ATTACK, self)
 
     def handle_event(self, event: GameEvent) -> None:
         if event.event_type == EventType.AFTER_LUNAR_BLOOM:
             if self._is_trigger_in_domain(event):
                 self._provide_mountain_grass_dew()
+        elif event.event_type == EventType.LUNAR_CRYSTALLIZE_ATTACK:
+            if self._has_active_domain():
+                self._try_extra_cage_attack(event)
 
     def _is_trigger_in_domain(self, event: GameEvent) -> bool:
         """检查触发者是否在月之领域内。"""
@@ -69,11 +76,37 @@ class MoonsDomainGrace(TalentEffect):
             return False
         return any(trigger.entity_id in domain._entities_in_range for domain in domains)
 
+    def _has_active_domain(self) -> bool:
+        """检查是否存在激活的月之领域。"""
+        from character.NODKRAI.columbina.entities import LunarDomain
+        return len(LunarDomain.get_active_scenes("月之领域")) > 0
+
     def _provide_mountain_grass_dew(self) -> None:
         """提供山月草露（18秒窗口内至多3枚）。"""
         ctx = getattr(self.character, "ctx", None)
         if ctx and hasattr(ctx, "lunar_system"):
             ctx.lunar_system.add_mountain_grass_dew()
+
+    def _try_extra_cage_attack(self, event: GameEvent) -> None:
+        """月笼谐奏攻击有33%概率额外攻击一次。"""
+        if random.random() < 0.33:
+            # 获取攻击参数
+            cage = event.data.get("cage")
+            target = event.data.get("target")
+            source_characters = event.data.get("source_characters", [])
+
+            if cage and target and source_characters and self.event_engine:
+                # 发布额外的谐奏攻击事件
+                self.event_engine.publish(GameEvent(
+                    event_type=EventType.LUNAR_CRYSTALLIZE_ATTACK,
+                    frame=get_current_time(),
+                    source=cage,
+                    data={
+                        "cage": cage,
+                        "target": target,
+                        "source_characters": source_characters,
+                    }
+                ))
 
 
 class LunarGuidance(MoonsignTalent):
