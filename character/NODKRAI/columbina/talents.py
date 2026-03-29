@@ -45,7 +45,7 @@ class MoonsDomainGrace(TalentEffect):
 
     处于月之领域中的角色触发月曜反应时：
     - 月绽放：为队伍提供山月草露（18秒窗口内至多3枚）
-    - 月感电：雷暴云雷击有33%概率额外雷击（待实现）
+    - 月感电：雷暴云雷击有33%概率额外雷击
     - 月结晶：月笼谐奏攻击有33%概率额外攻击
     """
 
@@ -58,6 +58,8 @@ class MoonsDomainGrace(TalentEffect):
             self.character.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
             # 订阅月笼谐奏攻击事件
             self.character.event_engine.subscribe(EventType.LUNAR_CRYSTALLIZE_ATTACK, self)
+            # 订阅雷暴云攻击事件
+            self.character.event_engine.subscribe(EventType.LUNAR_CHARGED_TICK, self)
 
     def handle_event(self, event: GameEvent) -> None:
         if event.event_type == EventType.AFTER_LUNAR_BLOOM:
@@ -66,6 +68,9 @@ class MoonsDomainGrace(TalentEffect):
         elif event.event_type == EventType.LUNAR_CRYSTALLIZE_ATTACK:
             if self._has_active_domain():
                 self._try_extra_cage_attack(event)
+        elif event.event_type == EventType.LUNAR_CHARGED_TICK:
+            if self._is_cloud_in_domain(event):
+                self._try_extra_lightning_strike(event)
 
     def _is_trigger_in_domain(self, event: GameEvent) -> bool:
         """检查触发者是否在月之领域内。"""
@@ -89,6 +94,10 @@ class MoonsDomainGrace(TalentEffect):
 
     def _try_extra_cage_attack(self, event: GameEvent) -> None:
         """月笼谐奏攻击有33%概率额外攻击一次。"""
+        # 额外攻击不能再触发额外攻击，避免事件循环
+        if event.data.get("is_extra_attack"):
+            return
+
         if random.random() < 0.33:
             # 获取攻击参数
             cage = event.data.get("cage")
@@ -105,6 +114,58 @@ class MoonsDomainGrace(TalentEffect):
                         "cage": cage,
                         "target": target,
                         "source_characters": source_characters,
+                        "is_extra_attack": True,  # 标记为额外攻击
+                    }
+                ))
+
+    def _is_cloud_in_domain(self, event: GameEvent) -> bool:
+        """检查雷暴云是否在月之领域内。"""
+        from character.NODKRAI.columbina.entities import LunarDomain
+        cloud = event.source
+        if not cloud:
+            return False
+
+        # 获取雷暴云位置
+        cloud_pos = tuple(cloud.pos) if hasattr(cloud, 'pos') else None
+        if not cloud_pos:
+            return False
+
+        domains = LunarDomain.get_active_scenes("月之领域")
+        if not domains:
+            return False
+
+        # 检查雷暴云是否在任一月之领域范围内
+        for domain in domains:
+            dx = cloud_pos[0] - domain.pos[0]
+            dz = cloud_pos[1] - domain.pos[1]
+            dist = (dx * dx + dz * dz) ** 0.5
+            if dist <= domain.detection_radius:
+                return True
+        return False
+
+    def _try_extra_lightning_strike(self, event: GameEvent) -> None:
+        """雷暴云雷击有33%概率额外进行一次雷击。"""
+        # 额外雷击不能再触发额外雷击，避免事件循环
+        if event.data.get("is_extra_strike"):
+            return
+
+        if random.random() < 0.33:
+            # 获取攻击参数
+            cloud = event.data.get("cloud")
+            target = event.data.get("target")
+            source_characters = event.data.get("source_characters", [])
+
+            if cloud and target and source_characters and self.event_engine:
+                # 发布额外的雷击事件
+                self.event_engine.publish(GameEvent(
+                    event_type=EventType.LUNAR_CHARGED_TICK,
+                    frame=get_current_time(),
+                    source=cloud,
+                    data={
+                        "cloud": cloud,
+                        "target": target,
+                        "source_characters": source_characters,
+                        "is_extra_strike": True,  # 标记为额外雷击
                     }
                 ))
 
