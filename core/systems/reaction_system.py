@@ -69,9 +69,17 @@ class ReactionSystem(GameSystem):
             self._handle_lunar_crystallize_attack(event)
 
     def _handle_ec_tick(self, event: GameEvent) -> None:
-        """处理感电周期性跳电伤害。"""
+        """处理感电周期性跳电伤害。
+
+        感电机制：
+        1. 对被触发目标自身造成感电伤害
+        2. 对范围内有水附着的同阵营目标造成传导攻击
+        """
         target = event.data.get("target")
-        # 产生感电剧变伤害 (倍率 1.2)
+        if target is None:
+            return
+
+        # 1. 对目标自身造成感电伤害 (倍率 1.2)
         self._generate_transformative_damage(
             source_char=target,  # Tick 伤害源简化处理为目标自身
             target=target,
@@ -79,6 +87,47 @@ class ReactionSystem(GameSystem):
             multiplier=1.2,
             element=Element.ELECTRO,
         )
+
+        # 2. 传导攻击：对范围内水附着目标造成伤害
+        if self.context and self.context.space:
+            self._conduct_ec_damage(target)
+
+    def _conduct_ec_damage(self, source_target: Any) -> None:
+        """感电传导：对范围内水附着目标造成伤害。
+
+        规则：
+        - 范围约 5 米
+        - 目标需与被触发目标同阵营
+        - 目标需有水附着
+        - 不会对源目标自身造成传导伤害
+        """
+        if not self.context or not self.context.space:
+            return
+
+        targets = self.context.space.get_entities_in_range(
+            origin=(source_target.pos[0], source_target.pos[1]),
+            radius=5.0,
+            faction=source_target.faction,  # 同阵营
+        )
+
+        for t in targets:
+            if t == source_target:
+                continue
+            # 检查是否有水附着
+            if self._has_hydro_aura(t):
+                self._generate_transformative_damage(
+                    source_char=source_target,
+                    target=t,
+                    r_type=ElementalReactionType.ELECTRO_CHARGED,
+                    multiplier=1.2,
+                    element=Element.ELECTRO,
+                )
+
+    def _has_hydro_aura(self, target: Any) -> bool:
+        """检查目标是否有水附着。"""
+        if not hasattr(target, "aura"):
+            return False
+        return any(a.element == Element.HYDRO for a in target.aura.auras)
 
     def _handle_burning_tick(self, event: GameEvent) -> None:
         """处理燃烧周期性范围伤害。"""

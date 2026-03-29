@@ -194,11 +194,35 @@ class ThunderCloudEntity(CombatEntity):
                 return
 
     def _has_character_aura(self, target: Any) -> bool:
-        """检查目标是否有来自角色的附着。"""
+        """检查目标的雷水共存是否至少其一来自角色。
+
+        月感电攻击条件：
+        - 目标必须有雷水共存状态
+        - 雷水共存中至少有一个附着来自角色
+        """
+        if not hasattr(target, "aura"):
+            return False
+
+        hydro_aura = None
+        electro_aura = None
+
         for aura in target.aura.auras:
-            if aura.source_character is not None:
-                return True
-        return False
+            if aura.element == Element.HYDRO:
+                hydro_aura = aura
+            elif aura.element == Element.ELECTRO:
+                electro_aura = aura
+
+        # 必须有雷水共存
+        if hydro_aura is None and electro_aura is None:
+            return False
+
+        # 至少其一来自角色
+        has_hydro_from_char = hydro_aura is not None and hydro_aura.source_character is not None
+        has_electro_from_char = (
+            electro_aura is not None and electro_aura.source_character is not None
+        )
+
+        return bool(has_hydro_from_char or has_electro_from_char)
 
     def _perform_attack(self, target: Any) -> None:
         """执行攻击，发布事件供 ReactionSystem 处理。"""
