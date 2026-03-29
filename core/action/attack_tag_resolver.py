@@ -34,9 +34,9 @@ class AttackTagResolver:
 
     # 月曜伤害标签全集
     LUNAR_DAMAGE_TAGS = {
-        "月绽放伤害",
-        "月感电伤害",
-        "月结晶伤害",
+        "月绽放",
+        "月感电",
+        "月结晶",
     }
 
     @staticmethod

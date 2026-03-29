@@ -193,8 +193,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "月露涤荡A": {
-        "attack_tag": "月露涤荡A",
-        "extra_attack_tags": ["月绽放"],
+        "attack_tag": "月绽放",
         "element_u": 0,  # 月曜伤害无附着
         "is_ranged": True,
         "icd_tag": "None",
@@ -206,8 +205,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "月露涤荡B": {
-        "attack_tag": "月露涤荡B",
-        "extra_attack_tags": ["月绽放"],
+        "attack_tag": "月绽放",
         "element_u": 0,
         "is_ranged": True,
         "icd_tag": "None",
@@ -219,8 +217,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "月露涤荡C": {
-        "attack_tag": "月露涤荡C",
-        "extra_attack_tags": ["月绽放"],
+        "attack_tag": "月绽放",
         "element_u": 0,
         "is_ranged": True,
         "icd_tag": "None",
@@ -244,8 +241,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "引力涟漪·持续伤害": {
-        "attack_tag": "引力涟漪·持续伤害",
-        "extra_attack_tags": ["元素战技"],
+        "attack_tag": "元素战技",
         "element_u": 1.0,
         "is_ranged": True,
         "icd_tag": "ColumbinaRipple",
@@ -257,8 +253,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "引力涟漪·满辉": {
-        "attack_tag": "引力涟漪·满辉",
-        "extra_attack_tags": ["元素战技"],
+        "attack_tag": "元素战技",
         "element_u": 1.0,
         "is_ranged": True,
         "icd_tag": "ColumbinaRipple",
@@ -270,8 +265,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "引力干涉·月感电": {
-        "attack_tag": "引力干涉·月感电",
-        "extra_attack_tags": ["月感电"],
+        "attack_tag": "月感电",
         "element_u": 0,  # 月曜伤害无附着
         "is_ranged": True,
         "icd_tag": "None",
@@ -283,8 +277,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "引力干涉·月绽放": {
-        "attack_tag": "引力干涉·月绽放",
-        "extra_attack_tags": ["月绽放"],
+        "attack_tag": "月绽放",
         "element_u": 0,
         "is_ranged": True,
         "icd_tag": "None",
@@ -295,8 +288,7 @@ ATTACK_DATA: dict[str, AttackDataDict] = {
         "strike_type": "默认",
     },
     "引力干涉·月结晶": {
-        "attack_tag": "引力干涉·月结晶",
-        "extra_attack_tags": ["月结晶"],
+        "attack_tag": "月结晶",
         "element_u": 0,
         "is_ranged": True,
         "icd_tag": "None",
