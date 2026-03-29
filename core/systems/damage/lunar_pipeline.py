@@ -20,17 +20,26 @@ class LunarDamagePipeline:
     """
     月曜伤害计算流水线。
 
-    特点：
-    - 可暴击
+    月曜伤害分为两种类型：
+    1. 反应伤害：由雷暴云/月笼等实体造成，使用等级基数计算
+    2. 角色伤害：由角色技能直接造成，使用属性×属性倍率计算
+
+    共同特点：
+    - 可暴击（各组分独立判定）
     - 不享受增伤加成
     - 无视防御
-    - 支持多角色加权求和
+    - 有独立的擢升区
 
-    公式：月曜伤害 = 基础伤害区 × 暴击区 × 抗性区 × 擢升区
-    基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
-    核心基础伤害 = 等级系数 × 反应倍率 × (1 + 基础伤害提升/100%)
-    反应提升 = 1 + 月曜精通系数 + (月曜反应伤害提升/100%)
+    反应伤害公式：
+    基础伤害区 = 等级基数 × 反应倍率 × (1 + 基础伤害提升/100%) × 反应提升 + 附加伤害
+    反应提升 = 1 + 月曜精通系数 + 反应造成的伤害提升/100%
     月曜精通系数 = 6 × 精通 / (精通 + 2000)
+    最终伤害 = 基础伤害区 × 组分暴击区 × 组分擢升区 × 抗性区
+
+    角色伤害公式：
+    核心基础伤害 = 属性 × 属性倍率 × 反应倍率 × (1 + 基础伤害提升/100%)
+    基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
+    最终伤害 = 基础伤害区 × 暴击区 × 擢升区 × 抗性区
     """
 
     def __init__(self, engine: EventEngine):
@@ -84,6 +93,13 @@ class LunarDamagePipeline:
         em = AttributeCalculator.get_val_by_name(src, "元素精通")
         ctx.add_modifier("[面板快照]", "元素精通", em, "SET", audit=False)
 
+        # 如果是角色伤害类型，需要额外抓取缩放属性
+        if self._is_character_damage(ctx):
+            scaling_stat = ctx.damage.scaling_stat
+            if scaling_stat and scaling_stat[0] != "固定值":
+                attr_val = AttributeCalculator.get_val_by_name(src, scaling_stat[0])
+                ctx.add_modifier("[面板快照]", scaling_stat[0], attr_val, "SET", audit=False)
+
     def _stage_3_evolution(self, ctx: DamageContext) -> None:
         """阶段三：允许外部系统注入 Buff。"""
         if self.engine:
@@ -133,8 +149,62 @@ class LunarDamagePipeline:
             coeff_res = 1.0 - final_res_val
         ctx.add_modifier("[抗性结算]", "抗性区系数", coeff_res, "SET", audit=False)
 
+    def _is_character_damage(self, ctx: DamageContext) -> bool:
+        """
+        判定是否为角色伤害类型。
+
+        角色伤害：由角色技能直接造成，有属性倍率
+        反应伤害：由雷暴云/月笼等实体造成，使用等级基数
+
+        判定逻辑：
+        1. 如果 damage.data 中明确标记了 "伤害类型" 为 "角色伤害"，则为角色伤害
+        2. 如果 damage.data 中明确标记了 "伤害类型" 为 "反应伤害"，则为反应伤害
+        3. 如果有等级系数且没有非零的属性倍率，则为反应伤害
+        4. 否则，检查 scaling_stat 是否为有效属性
+
+        Returns:
+            True 如果是角色伤害，False 如果是反应伤害
+        """
+        # 优先检查显式标记
+        damage_type = ctx.damage.data.get("伤害类型")
+        if damage_type == "角色伤害":
+            return True
+        if damage_type == "反应伤害":
+            return False
+
+        # 如果有等级系数但没有有效的属性倍率，认为是反应伤害
+        has_level_coeff = ctx.damage.data.get("等级系数") is not None
+        has_valid_mult = (
+            ctx.damage.damage_multiplier
+            and len(ctx.damage.damage_multiplier) > 0
+            and ctx.damage.damage_multiplier[0] > 0
+        )
+
+        if has_level_coeff and not has_valid_mult:
+            return False
+
+        # 默认：检查 scaling_stat 是否为有效属性
+        scaling_stat = ctx.damage.scaling_stat
+        if scaling_stat and len(scaling_stat) > 0:
+            return scaling_stat[0] != "固定值"
+        return False
+
     def _stage_5_synthesis(self, ctx: DamageContext) -> None:
         """阶段五：月曜伤害计算。"""
+        if self._is_character_damage(ctx):
+            self._calculate_character_damage(ctx)
+        else:
+            self._calculate_reaction_damage(ctx)
+
+    def _calculate_reaction_damage(self, ctx: DamageContext) -> None:
+        """
+        计算反应伤害（雷暴云/月笼攻击）。
+
+        公式：
+        基础伤害区 = 等级基数 × 反应倍率 × (1 + 基础伤害提升/100%) × 反应提升 + 附加伤害
+        反应提升 = 1 + 月曜精通系数 + 反应造成的伤害提升/100%
+        最终伤害 = 基础伤害区 × 暴击区 × 擢升区 × 抗性区
+        """
         s = ctx.stats
 
         # 从 Damage.data 获取参数
@@ -148,7 +218,7 @@ class LunarDamagePipeline:
         em = s.get("元素精通", 0)
         lunar_em_coeff = 6 * em / (em + 2000)
 
-        # 月曜反应伤害提升
+        # 月曜反应伤害提升（反应造成的伤害提升）
         reaction_bonus = s.get("月曜反应伤害提升", 0)
 
         # 反应提升
@@ -159,16 +229,79 @@ class LunarDamagePipeline:
 
         # 附加伤害
         extra_damage = float(ctx.damage.data.get("附加伤害", 0))
+
+        # 基础伤害区
         base_damage = core_damage + extra_damage
 
-        # 暴击区
+        # 暴击区（组分暴击区）
         crit_mult = s.get("暴击乘数", 1.0)
+
+        # 擢升区（组分擢升区）
+        ascension_mult = 1 + s.get("月曜伤害擢升", 0) / 100
 
         # 抗性区
         res_coeff = s.get("抗性区系数", 1.0)
 
+        # 最终伤害（无防御区，无增伤区）
+        ctx.final_result = base_damage * crit_mult * res_coeff * ascension_mult
+
+    def _calculate_character_damage(self, ctx: DamageContext) -> None:
+        """
+        计算角色伤害（角色技能直接造成）。
+
+        公式：
+        核心基础伤害 = 属性 × 属性倍率 × 反应倍率 × (1 + 基础伤害提升/100%)
+        基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
+        反应提升 = 1 + 月曜精通系数 + 月曜反应伤害提升/100%
+        最终伤害 = 基础伤害区 × 暴击区 × 擢升区 × 抗性区
+        """
+        s = ctx.stats
+
+        # 获取缩放属性和倍率
+        scaling_stat = ctx.damage.scaling_stat
+        damage_mult = ctx.damage.damage_multiplier
+
+        # 属性值
+        attr_val = 0.0
+        if scaling_stat and len(scaling_stat) > 0 and scaling_stat[0] != "固定值":
+            attr_val = s.get(scaling_stat[0], 0)
+
+        # 属性倍率（技能倍率）
+        skill_mult = damage_mult[0] if damage_mult else 0.0
+
+        # 反应倍率（月感电 3.0 / 月结晶 1.6 / 月绽放 1.0）
+        reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
+
+        # 基础伤害提升
+        base_bonus = s.get("基础伤害提升", 0)
+
+        # 核心基础伤害 = 属性 × 属性倍率 × 反应倍率 × (1 + 基础伤害提升/100%)
+        core_damage = attr_val * skill_mult / 100 * reaction_mult * (1 + base_bonus / 100)
+
+        # 月曜精通系数 = 6 × 精通 / (精通 + 2000)
+        em = s.get("元素精通", 0)
+        lunar_em_coeff = 6 * em / (em + 2000)
+
+        # 月曜反应伤害提升
+        reaction_bonus = s.get("月曜反应伤害提升", 0)
+
+        # 反应提升
+        reaction_boost = 1 + lunar_em_coeff + reaction_bonus / 100
+
+        # 附加伤害
+        extra_damage = float(ctx.damage.data.get("附加伤害", 0))
+
+        # 基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
+        base_damage = core_damage * reaction_boost + extra_damage
+
+        # 暴击区
+        crit_mult = s.get("暴击乘数", 1.0)
+
         # 擢升区
         ascension_mult = 1 + s.get("月曜伤害擢升", 0) / 100
 
-        # 最终伤害（无防御区，无增伤区）
+        # 抗性区
+        res_coeff = s.get("抗性区系数", 1.0)
+
+        # 最终伤害
         ctx.final_result = base_damage * crit_mult * res_coeff * ascension_mult

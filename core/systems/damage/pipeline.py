@@ -182,12 +182,8 @@ class DamagePipeline:
             ctx.final_result = level_coeff * react_base * (1 + em_inc + special_bonus) * s["抗性区系数"]
             return
 
-        # 路径 B: 月曜伤害路径
-        if self._is_lunar_damage(ctx):
-            self._calculate_lunar_damage(ctx)
-            return
-
-        # 路径 C: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 路径 B: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 注：月曜伤害由 DamageSystem 路由到 LunarDamagePipeline，不会进入此分支
         # 1. 核心伤害合算
         base_dmg = 0.0
         scaling_stats = cast(list[str], ctx.damage.scaling_stat)
@@ -215,56 +211,3 @@ class DamagePipeline:
             * s["防御区系数"]
             * s["抗性区系数"]
         )
-
-    def _is_lunar_damage(self, ctx: DamageContext) -> bool:
-        """判定是否为月曜伤害。"""
-        return AttackTagResolver.is_lunar_damage(
-            ctx.damage.config.attack_tag,
-            ctx.damage.config.extra_attack_tags
-        )
-
-    def _calculate_lunar_damage(self, ctx: DamageContext) -> None:
-        """
-        月曜伤害计算。
-
-        特点：
-        - 可暴击
-        - 不享受增伤加成
-        - 无视防御（防御区趋近于1）
-        - 有独立的擢升区
-        """
-        s = ctx.stats
-
-        # 获取基础数据
-        level_coeff = float(ctx.damage.data.get("等级系数", 0))
-        reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
-        base_bonus = s.get("基础伤害提升", 0)
-
-        # 月曜精通系数 = 6 × 精通 / (精通 + 2000)
-        em = s["元素精通"]
-        lunar_em_coeff = 6 * em / (em + 2000)
-
-        # 反应提升
-        reaction_bonus = s.get("月曜反应伤害提升", 0)
-        reaction_boost = 1 + lunar_em_coeff + reaction_bonus / 100
-
-        # 核心基础伤害
-        core_damage = level_coeff * reaction_mult * (1 + base_bonus / 100) * reaction_boost
-
-        # 附加伤害
-        extra_damage = float(ctx.damage.data.get("附加伤害", 0))
-
-        # 基础伤害区
-        base_damage = core_damage + extra_damage
-
-        # 暴击区（月曜伤害可暴击）
-        crit_mult = s["暴击乘数"]
-
-        # 抗性区
-        res_coeff = s["抗性区系数"]
-
-        # 擢升区（独立的增伤区）
-        ascension_mult = 1 + s.get("月曜伤害擢升", 0) / 100
-
-        # 最终伤害（无防御区，无增伤区）
-        ctx.final_result = base_damage * crit_mult * res_coeff * ascension_mult
