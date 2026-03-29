@@ -8,13 +8,12 @@ from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from core.mechanics.aura import Element
 from character.OTHER.test_char.data import (
-    ACTION_FRAME_DATA, 
-    ATTACK_DATA, 
+    ACTION_FRAME_DATA,
+    ATTACK_DATA,
     NORMAL_ATTACK_DATA,
     ELEMENTAL_SKILL_DATA,
     ELEMENTAL_BURST_DATA
 )
-from character.OTHER.test_char.effects import TestAuditSuiteEffect
 
 def _build_attack_config(name: str) -> AttackConfig:
     """从测试角色数据构建攻击契约。"""
@@ -86,13 +85,26 @@ class TestCharPlungingAttack(PlungingAttackSkill):
         }
 
 class TestCharElementalSkill(SkillBase):
+    """测试角色元素战技 - 可选择雷/岩/草元素，CD为0。"""
+
+    # 元素类型映射
+    ELEMENT_MAP = {
+        "雷": Element.ELECTRO,
+        "岩": Element.GEO,
+        "草": Element.DENDRO,
+    }
+
+    def __init__(self, lv: int, caster: Any = None):
+        super().__init__(lv, caster)
+        self.cd_frames = 0  # CD 为 0
+
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        test_mode = intent.get("test_mode", "基础计算") if intent else "基础计算"
+        element_type = intent.get("element_type", "雷") if intent else "雷"
         f = ACTION_FRAME_DATA["元素战技"]
-        attack_key = "元素战技" if test_mode != "多属性点积" else "混合缩放测试"
-        
+        attack_key = "元素战技"
+
         return ActionFrameData(
-            name=f"元素战技({test_mode})",
+            name=f"元素战技({element_type})",
             action_type="elemental_skill",
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
@@ -104,54 +116,29 @@ class TestCharElementalSkill(SkillBase):
                 strike_type=StrikeType.DEFAULT,
                 is_ranged=ATTACK_DATA[attack_key].get("is_ranged", False),
                 hitbox=HitboxConfig(
-                    shape=AOEShape.SPHERE, 
+                    shape=AOEShape.SPHERE,
                     radius=ATTACK_DATA[attack_key].get("radius", 5.0)
                 )
-            ) if attack_key in ATTACK_DATA else _build_attack_config(attack_key),
+            ),
             origin_skill=self,
-            tags=[test_mode] # 使用 tags 传递模式，避免修改核心 ActionFrameData
+            tags=[element_type]
         )
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         instance = self.caster.action_manager.current_action
-        # 从 tags 中恢复测试模式
-        test_mode = instance.data.tags[0] if instance.data.tags else "基础计算"
-        
-        mult_data = (ELEMENTAL_SKILL_DATA["技能伤害"][1][self.lv-1],)
-        scaling = ("攻击力",)
-        
-        if test_mode == "多属性点积":
-            mult_data = (
-                ELEMENTAL_SKILL_DATA["混合缩放倍率"][1][self.lv-1],
-                ELEMENTAL_SKILL_DATA["混合缩放精通"][1][self.lv-1]
-            )
-            scaling = ("攻击力", "元素精通")
-        elif test_mode == "攻防倍率测试":
-            mult_data = (
-                ELEMENTAL_SKILL_DATA["攻防缩放攻击"][1][self.lv-1],
-                ELEMENTAL_SKILL_DATA["攻防缩放防御"][1][self.lv-1]
-            )
-            scaling = ("攻击力", "防御力")
+        element_type = instance.data.tags[0] if instance.data.tags else "雷"
 
-        attack_key = "元素战技" if test_mode != "多属性点积" else "混合缩放测试"
-            
-        # 模式触发测试效果
-        if test_mode == "全乘区Buff":
-            exists = any(e.name == "审计验证套件" for e in self.caster.active_effects)
-            if not exists:
-                eff = TestAuditSuiteEffect(self.caster, mode=test_mode)
-                eff.apply()
-            
+        element = self.ELEMENT_MAP.get(element_type, Element.ELECTRO)
+
         dmg_obj = Damage(
-            element=(Element.ANEMO, 1.0),
-            damage_multiplier=mult_data,
-            scaling_stat=scaling,
+            element=(element, 1.0),
+            damage_multiplier=(ELEMENTAL_SKILL_DATA["技能伤害"][1][self.lv - 1],),
+            scaling_stat=("攻击力",),
             config=instance.data.attack_config,
-            name=f"战技伤害({test_mode})"
+            name=f"战技伤害({element_type})"
         )
-        if attack_key in ATTACK_DATA:
-            dmg_obj.set_element(Element.ANEMO, ATTACK_DATA[attack_key].get("element_u", 1.0))
-        
+        dmg_obj.set_element(element, 1.0)
+
         self.caster.event_engine.publish(
             GameEvent(
                 EventType.BEFORE_DAMAGE,
@@ -161,22 +148,29 @@ class TestCharElementalSkill(SkillBase):
             )
         )
 
-        from character.OTHER.test_char.effects import TestDebuffEffect
-        # 将减益施加给目标 (Target)
-        exists = any(e.name == "极致穿透减益" for e in dmg_obj.target.active_effects)
-        if not exists:
-            eff = TestDebuffEffect(dmg_obj.target)
-            eff.apply()
-
 
 class TestCharElementalBurst(EnergySkill):
+    """测试角色元素爆发 - 可选择雷/岩/草元素，CD为0，无能量消耗。"""
+
+    # 元素类型映射
+    ELEMENT_MAP = {
+        "雷": Element.ELECTRO,
+        "岩": Element.GEO,
+        "草": Element.DENDRO,
+    }
+
+    def __init__(self, lv: int, caster: Any = None):
+        super().__init__(lv, caster)
+        self.cd_frames = 0  # CD 为 0
+        self.energy_cost = 0  # 无能量消耗
+
     def to_action_data(self, intent: Optional[Dict[str, Any]] = None) -> ActionFrameData:
-        test_mode = intent.get("test_mode", "基础计算") if intent else "基础计算"
+        element_type = intent.get("element_type", "雷") if intent else "雷"
         f = ACTION_FRAME_DATA["元素爆发"]
-        attack_key = "元素爆发" if test_mode != "剧变反应测试" else "剧变反应测试"
-        
+        attack_key = "元素爆发"
+
         return ActionFrameData(
-            name="元素爆发" if test_mode != "剧变反应测试" else "剧变反应测试",
+            name=f"元素爆发({element_type})",
             action_type="elemental_burst",
             total_frames=f["total_frames"],
             hit_frames=f["hit_frames"],
@@ -188,54 +182,29 @@ class TestCharElementalBurst(EnergySkill):
                 strike_type=StrikeType.DEFAULT,
                 is_ranged=ATTACK_DATA[attack_key].get("is_ranged", False),
                 hitbox=HitboxConfig(
-                    shape=AOEShape.SPHERE, 
+                    shape=AOEShape.SPHERE,
                     radius=ATTACK_DATA[attack_key].get("radius", 10.0)
                 )
-            ) if attack_key in ATTACK_DATA else _build_attack_config(attack_key),
+            ),
             origin_skill=self,
-            tags=[test_mode]
+            tags=[element_type]
         )
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         instance = self.caster.action_manager.current_action
-        test_mode = instance.data.tags[0] if instance.data.tags else "基础计算"
-        
-        if hit_index == 0:
-            # 增幅反应测试模式下，第一段改为水，为后续火伤打蒸发做铺垫
-            el = Element.HYDRO if test_mode == "增幅反应测试" else Element.ANEMO
-            dmg_obj = Damage(
-                element=(el, 1.0),
-                damage_multiplier=(ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv-1],),
-                scaling_stat=("攻击力",),
-                config=instance.data.attack_config,
-                name="爆发伤害(水)" if test_mode == "增幅反应测试" else "爆发伤害(风)"
-            )
-        elif hit_index == 1:
-            dmg_obj = Damage(
-                element=(Element.PYRO, 1.0),
-                damage_multiplier=(ELEMENTAL_BURST_DATA["火伤害"][1][self.lv-1],),
-                scaling_stat=("攻击力",),
-                config=instance.data.attack_config,
-                name="爆发伤害(火)"
-            )
-        elif hit_index == 2:
-            dmg_obj = Damage(
-                element=(Element.ELECTRO, 1.0),
-                damage_multiplier=(ELEMENTAL_BURST_DATA["雷伤害"][1][self.lv-1],),
-                scaling_stat=("攻击力",),
-                config=instance.data.attack_config,
-                name="爆发伤害(雷)"
-            )
-        else:
-            return
+        element_type = instance.data.tags[0] if instance.data.tags else "雷"
 
-        attack_key = "元素爆发" if test_mode != "剧变反应测试" else "剧变反应测试"
-        if attack_key in ATTACK_DATA and hit_index == 0:
-             dmg_obj.set_element(dmg_obj.element[0], ATTACK_DATA[attack_key].get("element_u", 1.0))
-        elif hit_index > 0:
-             # 为火/雷伤害设置默认元素附着强度
-             dmg_obj.set_element(dmg_obj.element[0], 1.0)
-        
+        element = self.ELEMENT_MAP.get(element_type, Element.ELECTRO)
+
+        dmg_obj = Damage(
+            element=(element, 1.0),
+            damage_multiplier=(ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1],),
+            scaling_stat=("攻击力",),
+            config=instance.data.attack_config,
+            name=f"爆发伤害({element_type})"
+        )
+        dmg_obj.set_element(element, 1.0)
+
         self.caster.event_engine.publish(
             GameEvent(
                 EventType.BEFORE_DAMAGE,

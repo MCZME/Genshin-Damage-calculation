@@ -69,36 +69,34 @@ class TestChar(Character):
                 ]
             },
             "elemental_skill": {
-                "label": "元素战技 (审计验证)",
+                "label": "元素战技",
                 "params": [
                     {
-                        "key": "test_mode", 
-                        "label": "测试模式", 
-                        "type": "select", 
+                        "key": "element_type",
+                        "label": "元素类型",
+                        "type": "select",
                         "options": {
-                            "基础计算": "基础计算",
-                            "多属性点积": "多属性点积",
-                            "攻防倍率测试": "攻防倍率测试",
-                            "全乘区Buff": "全乘区Buff",
-                            "极致穿透": "极致穿透"
+                            "雷": "雷元素",
+                            "岩": "岩元素",
+                            "草": "草元素"
                         },
-                        "default": "基础计算"
+                        "default": "雷"
                     }
                 ]
             },
             "elemental_burst": {
-                "label": "元素爆发 (路径验证)",
+                "label": "元素爆发",
                 "params": [
                     {
-                        "key": "test_mode", 
-                        "label": "公式路径", 
-                        "type": "select", 
+                        "key": "element_type",
+                        "label": "元素类型",
+                        "type": "select",
                         "options": {
-                            "基础计算": "常规伤害路径", 
-                            "剧变反应测试": "剧变反应路径",
-                            "增幅反应测试": "增幅反应路径"
+                            "雷": "雷元素",
+                            "岩": "岩元素",
+                            "草": "草元素"
                         },
-                        "default": "基础计算"
+                        "default": "雷"
                     }
                 ]
             },
