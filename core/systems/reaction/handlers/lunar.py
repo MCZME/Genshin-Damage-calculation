@@ -179,7 +179,7 @@ class LunarHandler:
         for char in source_characters:
             dmg = Damage(
                 element=(Element.ELECTRO, 0.0),  # 无附着
-                config=AttackConfig(attack_tag="月感电伤害"),
+                config=AttackConfig(attack_tag="月感电"),
                 name="月感电",
             )
             # 通过 data 传递参数给 LunarDamagePipeline
@@ -229,7 +229,7 @@ class LunarHandler:
         for char in source_characters:
             dmg = Damage(
                 element=(Element.GEO, 0.0),  # 无附着
-                config=AttackConfig(attack_tag="月结晶伤害"),
+                config=AttackConfig(attack_tag="月结晶"),
                 name="月结晶",
             )
             # 通过 data 传递参数给 LunarDamagePipeline
