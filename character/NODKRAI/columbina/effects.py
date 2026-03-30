@@ -127,11 +127,11 @@ class RadianceEffect(StatModifierEffect):
         self.duration = self.max_duration
 
 
-class FullMoonStatBonusEffect(StatModifierEffect):
+class C2StatBonusEffect(StatModifierEffect):
     """
     C2月兆·满辉属性加成效果。
 
-    皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成：
+    月兆·满辉状态下，皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成：
     - 月感电：固定攻击力 + 生命值上限的1%
     - 月绽放：元素精通 + 生命值上限的0.35%
     - 月结晶：固定防御力 + 生命值上限的1%
@@ -177,5 +177,5 @@ class FullMoonStatBonusEffect(StatModifierEffect):
         stat_name = list(self.stats.keys())[0]
         get_emulation_logger().log_info(
             f"[C2月兆·满辉] {self.lunar_type}为 {self.owner.name} 提供 {stat_name}+{round(self.bonus_value, 1)}",
-            sender="FullMoonStatBonusEffect"
+            sender="C2StatBonusEffect"
         )

@@ -65,7 +65,7 @@ class ColumbinaC1(ColumbinaConstellationEffect):
     施放元素战技时，立刻触发一次引力干涉效果。
     每15秒至多触发一次。
 
-    月兆·满辉效果：
+    月兆·满辉状态下，触发引力干涉时根据月曜类型为场上角色提供增益：
     - 月感电：恢复6点元素能量
     - 月绽放：提升抗打断能力
     - 月结晶：唤出雨海护盾
@@ -122,17 +122,26 @@ class ColumbinaC1(ColumbinaConstellationEffect):
                 )
             )
 
+    def _is_ascendant_active(self) -> bool:
+        """检查队伍是否处于月兆·满辉状态（通过检查角色是否有月兆·满辉效果标记）。"""
+        if not self.character:
+            return False
+        return self.character.has_effect("月兆·满辉")
+
     def _handle_gravity_interference(self, event: GameEvent) -> None:
         """
-        处理引力干涉事件：触发月兆·满辉效果。
-        根据积攒最多引力值的月曜反应类型触发对应效果。
+        处理引力干涉事件：在月兆·满辉状态下为场上角色提供增益。
         """
-        lunar_type = event.data.get("lunar_type", "月绽放")
-        self._apply_full_moon_effect(lunar_type)
+        # 仅在月兆·满辉状态下触发
+        if not self._is_ascendant_active():
+            return
 
-    def _apply_full_moon_effect(self, lunar_type: str) -> None:
+        lunar_type = event.data.get("lunar_type", "月绽放")
+        self._apply_c1_bonus(lunar_type)
+
+    def _apply_c1_bonus(self, lunar_type: str) -> None:
         """
-        应用月兆·满辉效果。
+        C1月兆·满辉效果：根据月曜类型为场上角色提供增益。
 
         Args:
             lunar_type: 月曜反应类型 ("月感电"/"月绽放"/"月结晶")
@@ -221,8 +230,7 @@ class ColumbinaC2(ColumbinaConstellationEffect):
     引力值积攒速度提升34%。
     触发引力干涉时，获得皎辉效果（生命值上限+40%，持续8秒）。
 
-    月兆·满辉：
-    皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成：
+    月兆·满辉状态下，皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成：
     - 月感电：攻击力 + 生命值上限的1%
     - 月绽放：元素精通 + 生命值上限的0.35%
     - 月结晶：防御力 + 生命值上限的1%
@@ -248,6 +256,12 @@ class ColumbinaC2(ColumbinaConstellationEffect):
         if event.event_type == EventType.GRAVITY_INTERFERENCE:
             self._on_gravity_interference(event)
 
+    def _is_ascendant_active(self) -> bool:
+        """检查队伍是否处于月兆·满辉状态（通过检查角色是否有月兆·满辉效果标记）。"""
+        if not self.character:
+            return False
+        return self.character.has_effect("月兆·满辉")
+
     def _on_gravity_interference(self, event: GameEvent) -> None:
         """处理引力干涉事件。"""
         # 检查是否有皎辉效果
@@ -256,9 +270,9 @@ class ColumbinaC2(ColumbinaConstellationEffect):
         # 触发或刷新皎辉效果
         self._apply_radiance()
 
-        # 皎辉期间触发月兆·满辉（只在新获得皎辉时不触发，刷新时触发）
-        if has_radiance:
-            self._apply_full_moon_bonus(event)
+        # 月兆·满辉状态下，皎辉期间触发属性加成（只在新获得皎辉时不触发，刷新时触发）
+        if has_radiance and self._is_ascendant_active():
+            self._apply_c2_stat_bonus(event)
 
     def _has_radiance_effect(self) -> bool:
         """检查角色是否有皎辉效果。"""
@@ -282,9 +296,9 @@ class ColumbinaC2(ColumbinaConstellationEffect):
         # 使用 apply() 方法，它会自动处理堆叠/刷新逻辑
         RadianceEffect(self.character).apply()
 
-    def _apply_full_moon_bonus(self, event: GameEvent) -> None:
+    def _apply_c2_stat_bonus(self, event: GameEvent) -> None:
         """
-        月兆·满辉：皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成。
+        C2月兆·满辉效果：皎辉期间触发引力干涉时，根据月曜类型为场上角色提供属性加成。
         """
         if not self.character:
             return
@@ -307,21 +321,21 @@ class ColumbinaC2(ColumbinaConstellationEffect):
         # 获取月曜类型
         lunar_type = event.data.get("lunar_type", "月绽放")
 
-        from character.NODKRAI.columbina.effects import FullMoonStatBonusEffect
+        from character.NODKRAI.columbina.effects import C2StatBonusEffect
 
-        # 移除之前的月兆·满辉效果
-        self._clear_full_moon_bonus(active_char)
+        # 移除之前的C2属性加成效果
+        self._clear_c2_stat_bonus(active_char)
 
         # 创建新的属性加成效果
-        FullMoonStatBonusEffect(
+        C2StatBonusEffect(
             owner=active_char,
             source_char=self.character,
             lunar_type=lunar_type,
             duration=remaining_frames,
         ).apply()
 
-    def _clear_full_moon_bonus(self, target: Any) -> None:
-        """清除目标角色上的月兆·满辉效果。"""
+    def _clear_c2_stat_bonus(self, target: Any) -> None:
+        """清除目标角色上的C2月兆·满辉效果。"""
         for effect in target.get_effects_by_prefix("C2月兆·满辉"):
             effect.remove()
 
