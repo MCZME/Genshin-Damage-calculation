@@ -1,14 +1,14 @@
 """月曜伤害计算流水线模块。"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import random
 
 from core.systems.utils import AttributeCalculator
 from core.event import GameEvent, EventType
 from core.mechanics.aura import Element
 from core.config import Config
-from core.tool import get_current_time
+from core.tool import get_current_time, get_reaction_multiplier
 
 from .context import DamageContext
 
@@ -21,7 +21,7 @@ class LunarDamagePipeline:
     月曜伤害计算流水线。
 
     月曜伤害分为两种类型：
-    1. 反应伤害：由雷暴云/月笼等实体造成，使用等级基数计算
+    1. 反应伤害：由雷暴云/月笼等实体造成，使用等级基数计算，支持多组分加权求和
     2. 角色伤害：由角色技能直接造成，使用属性×属性倍率计算
 
     共同特点：
@@ -36,6 +36,9 @@ class LunarDamagePipeline:
     月曜精通系数 = 6 × 精通 / (精通 + 2000)
     最终伤害 = 基础伤害区 × 组分暴击区 × 组分擢升区 × 抗性区
 
+    多组分加权求和公式：
+    最终伤害 = 最高 + 次高÷2 + 其余之和÷12
+
     角色伤害公式：
     核心基础伤害 = 属性 × 属性倍率 × 反应倍率 × (1 + 基础伤害提升/100%)
     基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
@@ -47,6 +50,17 @@ class LunarDamagePipeline:
 
     def run(self, ctx: DamageContext) -> None:
         """执行月曜伤害计算。"""
+        # 检查是否为多组分反应伤害（有 source_characters 列表）
+        source_characters = ctx.damage.data.get("source_characters")
+        if source_characters and len(source_characters) > 0:
+            # 多组分反应伤害：逐个计算后加权求和
+            self._run_multi_component(ctx, source_characters)
+        else:
+            # 单一伤害：正常流程
+            self._run_single(ctx)
+
+    def _run_single(self, ctx: DamageContext) -> None:
+        """执行单一月曜伤害计算。"""
         # 阶段一：目标准备
         if not self._stage_1_preparation(ctx):
             return
@@ -67,6 +81,72 @@ class LunarDamagePipeline:
         ctx.damage.damage = ctx.final_result
         ctx.damage.is_crit = ctx.is_crit
         ctx.damage.data["audit_trail"] = ctx.audit_trail
+
+    def _run_multi_component(self, ctx: DamageContext, source_characters: list[Any]) -> None:
+        """
+        执行多组分反应伤害计算。
+
+        为每个来源角色独立计算伤害组分，然后加权求和。
+        """
+        from core.systems.contract.damage import Damage
+        from core.systems.contract.attack import AttackConfig
+
+        target = ctx.target
+        reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
+        attack_tag = ctx.damage.config.attack_tag
+        damage_name = ctx.damage.name
+        element = ctx.damage.element[0]
+
+        damage_components = []
+
+        for char in source_characters:
+            # 为每个角色创建独立的 Damage 和 Context
+            dmg = Damage(
+                element=(element, 0.0),
+                config=AttackConfig(attack_tag=attack_tag),
+                name=damage_name,
+            )
+            dmg.add_data("等级系数", get_reaction_multiplier(char.level))
+            dmg.add_data("反应倍率", reaction_mult)
+            dmg.add_data("伤害类型", "反应伤害")
+            dmg.set_source(char)
+            dmg.set_target(target)
+
+            # 创建独立的上下文并计算
+            component_ctx = DamageContext(dmg, char, target)
+            self._run_single(component_ctx)
+
+            damage_components.append((char, dmg.damage))
+
+        # 加权求和
+        final_damage = self._calculate_weighted_damage(damage_components)
+
+        # 将结果写入原始上下文
+        ctx.final_result = final_damage
+        ctx.damage.damage = final_damage
+        # 使用第一个角色的暴击状态（或可以设置为 False）
+        ctx.is_crit = False
+
+    def _calculate_weighted_damage(
+        self,
+        damage_components: list[tuple[Any, float]]
+    ) -> float:
+        """
+        加权求和计算月曜伤害。
+
+        公式：最终伤害 = 最高 + 次高÷2 + 其余之和÷12
+        """
+        if not damage_components:
+            return 0.0
+
+        damages = sorted([d[1] for d in damage_components], reverse=True)
+
+        if len(damages) == 1:
+            return damages[0]
+        elif len(damages) == 2:
+            return damages[0] + damages[1] / 2
+        else:
+            return damages[0] + damages[1] / 2 + sum(damages[2:]) / 12
 
     def _stage_1_preparation(self, ctx: DamageContext) -> bool:
         """阶段一：目标准备。"""
