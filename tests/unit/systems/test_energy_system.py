@@ -27,7 +27,7 @@ class TestEnergySystemUnit:
         team = MockTeam([source_entity])
         energy_sys.context.team = team
         # 补全 Mock 实体的组件
-        source_entity.elemental_energy = ElementalEnergy(source_entity, ("火", 80))
+        source_entity.elemental_energy = ElementalEnergy(element="火", max_energy=80)
         return team
 
     def test_fixed_energy_charge(self, energy_sys, source_entity, setup_team):

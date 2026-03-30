@@ -1,75 +1,20 @@
+"""常规伤害计算流水线模块。"""
+
 from __future__ import annotations
 from typing import Any, cast, TYPE_CHECKING
 import random
 
 from core.systems.utils import AttributeCalculator
-from core.systems.base_system import GameSystem
 from core.event import GameEvent, EventType
-from core.systems.contract.modifier import ModifierRecord
 from core.mechanics.aura import Element
 from core.config import Config
-from core.logger import get_emulation_logger
 from core.tool import get_current_time
 from core.action.attack_tag_resolver import AttackTagResolver
 
+from .context import DamageContext
+
 if TYPE_CHECKING:
     from core.context import EventEngine
-    from core.systems.contract.damage import Damage
-
-class DamageContext:
-    """伤害计算上下文 (V2.5 审计状态机)。"""
-
-    def __init__(self, damage: Damage, source: Any, target: Any | None = None):
-        self.damage = damage
-        self.source = source
-        self.target = target
-        self.config = damage.config
-
-        # 核心代数槽位 (根据 V2.5 审计规范定义)
-        self.stats: dict[str, float] = {
-            "固定伤害值加成": 0.0,
-            "伤害加成": 0.0,
-            "暴击率": 0.0,
-            "暴击伤害": 0.0,
-            "暴击乘数": 1.0,
-            "防御区系数": 1.0,
-            "抗性区系数": 1.0,
-            "反应基础倍率": 1.0,
-            "反应加成系数": 0.0,
-            "元素精通": 0.0,
-            "无视防御%": 0.0,
-            "独立乘区%": 0.0,  # 对应规范 2.2 中的 【独立乘区%】
-            "倍率加值%": 0.0,  # 对应规范 2.2 中的 【倍率加值%】
-        }
-        self.audit_trail: list[ModifierRecord] = []
-        self.final_result: float = 0.0
-        self.is_crit: bool = False
-
-    def add_modifier(
-        self, source: str, stat: str, value: float, op: str = "ADD", audit: bool = True
-    ) -> None:
-        """更新数值并同步审计。"""
-        if stat not in self.stats:
-            self.stats[stat] = 0.0 if op == "ADD" else 1.0
-            
-        if op == "ADD":
-            self.stats[stat] += value
-        elif op == "MULT":
-            self.stats[stat] *= value
-        elif op == "SET":
-            self.stats[stat] = value
-            
-        if not audit:
-            return
-
-        from core.context import get_context
-        m_id = 0
-        try:
-            m_id = get_context().get_next_modifier_id()
-        except Exception:
-            pass
-
-        self.audit_trail.append(ModifierRecord(m_id, source, stat, value, op))
 
 
 class DamagePipeline:
@@ -237,12 +182,8 @@ class DamagePipeline:
             ctx.final_result = level_coeff * react_base * (1 + em_inc + special_bonus) * s["抗性区系数"]
             return
 
-        # 路径 B: 月曜伤害路径
-        if self._is_lunar_damage(ctx):
-            self._calculate_lunar_damage(ctx)
-            return
-
-        # 路径 C: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 路径 B: 常规伤害路径 (严格对齐规范 2.2, 2.3, 3.0)
+        # 注：月曜伤害由 DamageSystem 路由到 LunarDamagePipeline，不会进入此分支
         # 1. 核心伤害合算
         base_dmg = 0.0
         scaling_stats = cast(list[str], ctx.damage.scaling_stat)
@@ -270,92 +211,3 @@ class DamagePipeline:
             * s["防御区系数"]
             * s["抗性区系数"]
         )
-
-    def _is_lunar_damage(self, ctx: DamageContext) -> bool:
-        """判定是否为月曜伤害。"""
-        attack_tag = ctx.damage.config.attack_tag
-        lunar_tags = ("月绽放伤害", "月感电伤害", "月结晶伤害")
-        return attack_tag in lunar_tags
-
-    def _calculate_lunar_damage(self, ctx: DamageContext) -> None:
-        """
-        月曜伤害计算。
-
-        特点：
-        - 可暴击
-        - 不享受增伤加成
-        - 无视防御（防御区趋近于1）
-        - 有独立的擢升区
-        """
-        s = ctx.stats
-
-        # 获取基础数据
-        level_coeff = float(ctx.damage.data.get("等级系数", 0))
-        reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
-        base_bonus = s.get("基础伤害提升", 0)
-
-        # 月曜精通系数 = 6 × 精通 / (精通 + 2000)
-        em = s["元素精通"]
-        lunar_em_coeff = 6 * em / (em + 2000)
-
-        # 反应提升
-        reaction_bonus = s.get("月曜反应伤害提升", 0)
-        reaction_boost = 1 + lunar_em_coeff + reaction_bonus / 100
-
-        # 核心基础伤害
-        core_damage = level_coeff * reaction_mult * (1 + base_bonus / 100) * reaction_boost
-
-        # 附加伤害
-        extra_damage = float(ctx.damage.data.get("附加伤害", 0))
-
-        # 基础伤害区
-        base_damage = core_damage + extra_damage
-
-        # 暴击区（月曜伤害可暴击）
-        crit_mult = s["暴击乘数"]
-
-        # 抗性区
-        res_coeff = s["抗性区系数"]
-
-        # 擢升区（独立的增伤区）
-        ascension_mult = 1 + s.get("月曜伤害擢升", 0) / 100
-
-        # 最终伤害（无防御区，无增伤区）
-        ctx.final_result = base_damage * crit_mult * res_coeff * ascension_mult
-
-
-class DamageSystem(GameSystem):
-    def initialize(self, context: Any):
-        super().initialize(context)
-        if self.engine:
-            self.pipeline = DamagePipeline(self.engine)
-
-    def register_events(self, engine: EventEngine):
-        engine.subscribe(EventType.BEFORE_DAMAGE, self)
-
-    def handle_event(self, event: GameEvent):
-        if event.event_type == EventType.BEFORE_DAMAGE:
-            char = event.data["character"]
-            dmg = cast('Damage', event.data["damage"])
-            target = event.data.get("target")
-            
-            ctx = DamageContext(dmg, char, target)
-            if hasattr(self, "pipeline"):
-                self.pipeline.run(ctx)
-
-            if dmg.target:
-                get_emulation_logger().log_damage(char, dmg.target, dmg)
-                if self.engine:
-                    self.engine.publish(
-                        GameEvent(
-                            event_type=EventType.AFTER_DAMAGE,
-                            frame=event.frame,
-                            source=char,
-                            data={
-                                "character": char, 
-                                "target": dmg.target, 
-                                "target_id": getattr(dmg.target, "entity_id", None),
-                                "damage": dmg
-                            },
-                        )
-                    )

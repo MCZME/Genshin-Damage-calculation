@@ -122,19 +122,46 @@ class Simulator:
 
     def _prepare_simulation(self) -> None:
         """模拟启动前的预处理逻辑。"""
+        # 根据动作序列的第一个角色设置初始场上角色
+        self._set_initial_active_character()
         self._try_enqueue_next_action()
+
+    def _set_initial_active_character(self) -> None:
+        """根据动作序列的第一个角色设置初始场上角色，避免不必要的切换。"""
+        if not self.actions:
+            return
+
+        team = self.ctx.space.team if self.ctx.space else None
+        if not team or not team.members:
+            return
+
+        first_command = self.actions[0]
+        target = team.get_character_by_name(first_command.character_name)
+
+        if target and target != team.current_character:
+            # 直接设置场上角色，不触发切换 CD
+            for char in team.members:
+                char.on_field = False
+            target.on_field = True
+            team.active_index = team.members.index(target)
 
     def _try_enqueue_next_action(self) -> None:
         """尝试从指令序列中提取下一个指令并请求角色执行。"""
         if self.action_ptr >= len(self.actions):
             return
 
+        team = self.ctx.space.team if self.ctx.space else None
+
+        # 检查全局动作状态：有角色正在执行动作时等待
+        if team and team.is_any_character_busy:
+            return
+
         command = cast(ActionCommand, self.actions[self.action_ptr])
 
         # 优先从 Team 实例中查找角色 (通过 Space 访问)
         char = None
-        if self.ctx.space and self.ctx.space.team:
-            char = self.ctx.space.team.get_character_by_name(command.character_name)
+        if team:
+            char = team.get_character_by_name(command.character_name)
 
         if not char:
             get_emulation_logger().log_error(
@@ -142,6 +169,11 @@ class Simulator:
             )
             self.action_ptr += 1
             return
+
+        # 自动切换角色：目标角色不在场上时执行切换
+        if team and char != team.current_character:
+            if not team.swap(char.name):
+                return  # 切换 CD 未就绪，等待
 
         # 尝试通过角色提供的统一动作分发接口执行指令
         if char.perform_action(command.action_type, command.params):

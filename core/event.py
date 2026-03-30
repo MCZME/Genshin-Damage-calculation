@@ -37,6 +37,10 @@ class EventType(Enum):
     GRASS_DEW_GAIN = auto()  # 草露获取
     GRASS_DEW_CONSUME = auto()  # 草露消耗
 
+    # 哥伦比娅核心机制事件
+    GRAVITY_INTERFERENCE = auto()  # 引力干涉触发
+    LUNAR_DAMAGE_DEALT = auto()  # 月曜伤害造成
+
     # 生命与状态
     AFTER_HEALTH_CHANGE = auto()
     BEFORE_HEAL = auto()
@@ -56,7 +60,9 @@ class EventType(Enum):
     BEFORE_CHARGED_ATTACK = auto()
     BEFORE_PLUNGING_ATTACK = auto()
     BEFORE_SKILL = auto()
+    AFTER_SKILL = auto()
     BEFORE_BURST = auto()
+    AFTER_BURST = auto()
     BEFORE_DASH = auto()
     BEFORE_JUMP = auto()
     BEFORE_FALLING = auto()
@@ -66,6 +72,11 @@ class EventType(Enum):
     AFTER_ENERGY_CHANGE = auto()
     AFTER_CHARACTER_SWITCH = auto()
     NIGHTSOUL_BURST = auto()
+
+    # 场景实体事件
+    SCENE_ENTITY_ENTER = auto()  # 实体进入场景区域
+    SCENE_ENTITY_EXIT = auto()  # 实体离开场景区域
+    SCENE_ENTITY_TICK = auto()  # 场景实体周期触发
 
 
 # --------------------------

@@ -26,17 +26,17 @@ class TestLunarDamageType:
 
     def test_detect_lunar_bloom(self):
         """测试月绽放伤害类型检测"""
-        damage_type = AuditProcessor.detect_damage_type("月绽放伤害")
+        damage_type = AuditProcessor.detect_damage_type("月绽放")
         assert damage_type == DamageType.LUNAR
 
     def test_detect_lunar_charged(self):
         """测试月感电伤害类型检测"""
-        damage_type = AuditProcessor.detect_damage_type("月感电伤害")
+        damage_type = AuditProcessor.detect_damage_type("月感电")
         assert damage_type == DamageType.LUNAR
 
     def test_detect_lunar_crystallize(self):
         """测试月结晶伤害类型检测"""
-        damage_type = AuditProcessor.detect_damage_type("月结晶伤害")
+        damage_type = AuditProcessor.detect_damage_type("月结晶")
         assert damage_type == DamageType.LUNAR
 
     def test_detect_transformative_not_lunar(self):

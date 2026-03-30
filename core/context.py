@@ -309,14 +309,16 @@ def create_context() -> SimulationContext:
     """
     from core.logger import SimulationLogger
     from core.registry import initialize_registry
-    from core.systems.damage_system import DamageSystem
+    from core.systems.damage import DamageSystem
     from core.systems.energy_system import EnergySystem
     from core.systems.health_system import HealthSystem
     from core.systems.manager import SystemManager
+    from core.systems.moonsign_system import MoonsignSystem
     from core.systems.natlan_system import NatlanSystem
-    from core.systems.reaction_system import ReactionSystem
+    from core.systems.reaction import ReactionSystem
     from core.systems.shield_system import ShieldSystem
     from core.systems.resonance_system import ResonanceSystem
+    from core.systems.lunar_system import LunarReactionSystem
 
     # 1. 基础环境准备
     initialize_registry()
@@ -335,5 +337,7 @@ def create_context() -> SimulationContext:
     ctx.system_manager.add_system(EnergySystem)
     ctx.system_manager.add_system(NatlanSystem)
     ctx.system_manager.add_system(ResonanceSystem)
+    ctx.system_manager.add_system(MoonsignSystem)
+    ctx.system_manager.add_system(LunarReactionSystem)
 
     return ctx

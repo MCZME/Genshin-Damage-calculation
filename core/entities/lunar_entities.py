@@ -2,7 +2,7 @@
 月曜反应实体类。
 
 包含：
-- ProsperousCoreEntity：丰穰之核（月绽放产物）
+- ProsperousCoreEntity：丰穰之核（角色技能触发生成）
 - ThunderCloudEntity：雷暴云（月感电产物）
 - LunarCageEntity：月笼（月结晶产物）
 """
@@ -21,7 +21,9 @@ from core.tool import get_current_time
 
 class ProsperousCoreEntity(DendroCoreEntity):
     """
-    丰穰之核 - 月绽放产物。
+    丰穰之核 - 由角色技能触发生成的特殊草原核。
+
+    注意：非月绽放反应直接产物。月绽放仅生成普通草原核和草露资源。
 
     与普通草原核的区别：
     - 存在时间仅 0.4 秒（24 帧）
@@ -192,11 +194,35 @@ class ThunderCloudEntity(CombatEntity):
                 return
 
     def _has_character_aura(self, target: Any) -> bool:
-        """检查目标是否有来自角色的附着。"""
+        """检查目标的雷水共存是否至少其一来自角色。
+
+        月感电攻击条件：
+        - 目标必须有雷水共存状态
+        - 雷水共存中至少有一个附着来自角色
+        """
+        if not hasattr(target, "aura"):
+            return False
+
+        hydro_aura = None
+        electro_aura = None
+
         for aura in target.aura.auras:
-            if aura.source_character is not None:
-                return True
-        return False
+            if aura.element == Element.HYDRO:
+                hydro_aura = aura
+            elif aura.element == Element.ELECTRO:
+                electro_aura = aura
+
+        # 必须有雷水共存
+        if hydro_aura is None and electro_aura is None:
+            return False
+
+        # 至少其一来自角色
+        has_hydro_from_char = hydro_aura is not None and hydro_aura.source_character is not None
+        has_electro_from_char = (
+            electro_aura is not None and electro_aura.source_character is not None
+        )
+
+        return bool(has_hydro_from_char or has_electro_from_char)
 
     def _perform_attack(self, target: Any) -> None:
         """执行攻击，发布事件供 ReactionSystem 处理。"""

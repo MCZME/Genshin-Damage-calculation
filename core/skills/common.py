@@ -317,7 +317,7 @@ class SkipSkill(SkillBase):
     def to_action_data(
         self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
-        frames = intent.get("frames", 1) if intent else 1
+        frames = int(intent.get("frames", 1)) if intent else 1
         return ActionFrameData(
             name="等待",
             action_type="skip",

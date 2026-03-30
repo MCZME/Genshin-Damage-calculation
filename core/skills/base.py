@@ -46,7 +46,13 @@ class SkillBase(ABC):
         检查技能是否满足施放条件 (如 CD、能量)。
         具体逻辑由子类 (如 EnergySkill) 扩展。
         """
-        # TODO: 实装基础 CD 判定
+        # CD 检查
+        if hasattr(self, "cd_frames") and self.cd_frames > 0:
+            from core.tool import get_current_time
+
+            current_frame = get_current_time()
+            if current_frame - self.last_use_frame < self.cd_frames:
+                return False
         return True
 
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
@@ -80,10 +86,10 @@ class EnergySkill(SkillBase):
             return False
 
         if hasattr(self.caster, "elemental_energy"):
-            return self.caster.elemental_energy.is_energy_full()
+            return self.caster.elemental_energy.is_full()
         return True
 
     def consume_energy(self) -> None:
         """消耗并清空施法者的能量。"""
         if hasattr(self.caster, "elemental_energy"):
-            self.caster.elemental_energy.clear_energy()
+            self.caster.elemental_energy.clear()

@@ -30,6 +30,7 @@ from .domain_calculator import (
     group_steps_by_source,
     calculate_domains,
 )
+from core.action.attack_tag_resolver import AttackTagResolver
 from .validator import AuditValidator, ValidationResult, DEFAULT_TOLERANCE
 
 
@@ -350,7 +351,7 @@ class AuditProcessor:
         if reaction_bonus > 0:
             buckets["base_damage"]["steps"].append(
                 {
-                    "stat": "月曜反应加成",
+                    "stat": "月曜反应伤害提升",
                     "value": reaction_bonus,
                     "op": "ADD",
                     "source": "装备/天赋",
@@ -465,39 +466,22 @@ class AuditProcessor:
     # [V15.0] 验证功能
     # ============================================================
 
-    # 剧变反应攻击标签
-    TRANSFORMATIVE_TAGS = (
-        "超载伤害",
-        "感电伤害",
-        "超导伤害",
-        "碎冰伤害",
-        "扩散",
-        "超绽放伤害",
-        "烈绽放伤害",
-    )
-
-    # 月曜反应攻击标签
-    LUNAR_TAGS = (
-        "月绽放伤害",
-        "月感电伤害",
-        "月结晶伤害",
-    )
-
     @staticmethod
     def detect_damage_type(attack_tag: str) -> DamageType:
         """[V15.0] 从攻击标签检测伤害类型
 
         [V17.0] 新增月曜反应类型检测
+        [V18.0] 统一使用 AttackTagResolver 进行检测
 
         Args:
-            attack_tag: 攻击标签（如 "超载伤害", "普通攻击", "月绽放伤害"）
+            attack_tag: 攻击标签（如 "超载伤害", "普通攻击", "月绽放"）
 
         Returns:
             DamageType 枚举值
         """
-        if any(tag in attack_tag for tag in AuditProcessor.LUNAR_TAGS):
+        if AttackTagResolver.is_lunar_damage(attack_tag):
             return DamageType.LUNAR
-        if any(tag in attack_tag for tag in AuditProcessor.TRANSFORMATIVE_TAGS):
+        if AttackTagResolver.is_transformative(attack_tag):
             return DamageType.TRANSFORMATIVE
         return DamageType.NORMAL
 

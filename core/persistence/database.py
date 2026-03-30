@@ -96,6 +96,7 @@ class ResultDatabase:
                     owner_id INTEGER, -- 所属者 ID (用于追溯)
                     created_frame INTEGER,
                     duration INTEGER,
+                    extra_data TEXT, -- JSON: 实体类型特有属性 (如 trigger_type, detection_radius 等)
                     PRIMARY KEY (session_id, entity_id),
                     FOREIGN KEY (session_id, entity_id) REFERENCES simulation_entity_registry(session_id, entity_id) ON DELETE CASCADE
                 )

@@ -69,10 +69,24 @@ class DataProjector:
                     "INSERT OR IGNORE INTO simulation_targets (session_id, entity_id, level, base_defense, res_phys, res_fire, res_water, res_wind, res_elec, res_grass, res_ice, res_rock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (self.session_id, eid, meta["level"], meta["base_defense"], meta["res_phys"], meta["res_fire"], meta["res_water"], meta["res_wind"], meta["res_elec"], meta["res_grass"], meta["res_ice"], meta["res_rock"])
                 ))
-            elif etype == "CONSTRUCT":
+            elif etype in ("CONSTRUCT", "ATTACK_ENTITY", "SCENE_ENTITY"):
+                # 提取实体类型特有属性
+                extra_data: dict[str, Any] = {}
+                if etype == "ATTACK_ENTITY":
+                    extra_data = {
+                        "trigger_type": meta.get("trigger_type"),
+                        "targeting_mode": meta.get("targeting_mode"),
+                    }
+                elif etype == "SCENE_ENTITY":
+                    extra_data = {
+                        "detection_radius": meta.get("detection_radius"),
+                        "tick_interval": meta.get("tick_interval"),
+                    }
+
                 commands.append((
-                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, owner_id, created_frame, duration) VALUES (?, ?, ?, ?, ?)",
-                    (self.session_id, eid, meta.get("owner_id"), snapshot.get("frame", 0), meta.get("duration"))
+                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, owner_id, created_frame, duration, extra_data) VALUES (?, ?, ?, ?, ?, ?)",
+                    (self.session_id, eid, meta.get("owner_id"), snapshot.get("frame", 0), meta.get("duration"),
+                     json.dumps(extra_data, cls=GenshinJSONEncoder) if extra_data else None)
                 ))
 
             self.registered_entities.add(eid)

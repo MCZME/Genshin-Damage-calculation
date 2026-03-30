@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from core.systems.contract.shield import ShieldConfig
 from core.effect.common import ShieldEffect
@@ -43,22 +43,23 @@ class ShieldSystem(GameSystem):
         effect = ShieldEffect(
             target, config.name, config.element, final_hp, config.duration
         )
-        active_instance = effect.apply()
-        
+        active_instance = cast(ShieldEffect, effect.apply())
+
         # 如果是刷新现有护盾，同步其盾量 (此处可根据业务逻辑微调)
         if active_instance is not effect:
             active_instance.current_hp = max(active_instance.current_hp, final_hp)
 
         # 4. 发布初始盾量变更事件 (使用 active_instance 以确保 ID 在 DB 中已存在)
         from core.tool import get_current_time
-        self.engine.publish(
-            GameEvent(
-                event_type=EventType.ON_SHIELD_CHANGE,
-                frame=get_current_time(),
-                source=target,
-                data={"shield": active_instance, "new_hp": active_instance.current_hp}
+        if self.engine is not None:
+            self.engine.publish(
+                GameEvent(
+                    event_type=EventType.ON_SHIELD_CHANGE,
+                    frame=get_current_time(),
+                    source=target,
+                    data={"shield": active_instance, "new_hp": active_instance.current_hp}
+                )
             )
-        )
 
         from core.logger import get_emulation_logger
 
@@ -110,14 +111,15 @@ class ShieldSystem(GameSystem):
             shield.current_hp -= to_deduct
             
             # 发布盾量变动事件
-            self.engine.publish(
-                GameEvent(
-                    event_type=EventType.ON_SHIELD_CHANGE,
-                    frame=event.frame,
-                    source=target,
-                    data={"shield": shield, "new_hp": shield.current_hp}
+            if self.engine is not None:
+                self.engine.publish(
+                    GameEvent(
+                        event_type=EventType.ON_SHIELD_CHANGE,
+                        frame=event.frame,
+                        source=target,
+                        data={"shield": shield, "new_hp": shield.current_hp}
+                    )
                 )
-            )
 
             # 4. 检查破碎
             if shield.current_hp <= 0:

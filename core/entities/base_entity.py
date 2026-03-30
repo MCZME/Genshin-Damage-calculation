@@ -33,17 +33,29 @@ class BaseEntity:
     """
     仿真世界中的实体基类。
     负责最底层的生命周期管理、上下文绑定与基础驱动。
+    包含空间属性（位置、朝向、碰撞盒）和阵营标识。
     """
     _id_counter = 0
 
     def __init__(
-        self, name: str, life_frame: float = float("inf"), context: SimulationContext | None = None
+        self,
+        name: str,
+        life_frame: float = float("inf"),
+        pos: tuple[float, float, float] = (0.0, 0.0, 0.0),
+        facing: float = 0.0,
+        hitbox: tuple[float, float] = (0.5, 2.0),
+        faction: Faction = Faction.NEUTRAL,
+        context: SimulationContext | None = None,
     ) -> None:
         """初始化基础实体。
 
         Args:
             name: 实体名称。
             life_frame: 实体的生存帧数，默认永久。
+            pos: 位置坐标 (x, z, y)，其中 y 为高度。
+            facing: 朝向角度（度）。
+            hitbox: 碰撞盒尺寸 (radius, height)。
+            faction: 实体阵营，默认中立。
             context: 绑定的仿真上下文。
         """
         BaseEntity._id_counter += 1
@@ -52,6 +64,12 @@ class BaseEntity:
         self.life_frame: float = life_frame
         self.current_frame: int = 0
         self.state: EntityState = EntityState.ACTIVE
+
+        # 空间属性
+        self.pos: list[float] = list(pos)
+        self.facing: float = facing
+        self.hitbox: tuple[float, float] = hitbox
+        self.faction: Faction = faction
 
         # 上下文与事件引擎绑定
         self.ctx = context if context else get_context()
@@ -112,14 +130,15 @@ class BaseEntity:
             "name": self.name,
             "frame": self.current_frame,
             "state": self.state.name,
-            "hitbox_radius": getattr(self, "hitbox", (0.5, 2.0))[0],
-            "hitbox_height": getattr(self, "hitbox", (0.5, 2.0))[1],
+            "pos": [round(x, 3) for x in self.pos],
+            "facing": round(self.facing, 2),
+            "faction": self.faction.name,
+            "hitbox_radius": self.hitbox[0],
+            "hitbox_height": self.hitbox[1],
         }
 
     def export_static_data(self) -> dict[str, Any]:
         """[扩展点] 导出实体的静态登记信息。由子类具体实现。"""
-        pos = getattr(self, "pos", [0.0, 0.0, 0.0])
-        hitbox = getattr(self, "hitbox", (0.5, 2.0))
         owner_id = None
         owner = getattr(self, "owner", None)
         if owner is not None:
@@ -129,20 +148,27 @@ class BaseEntity:
             "entity_id": self.entity_id,
             "entity_type": "CONSTRUCT",
             "name": self.name,
-            "spawn_x": pos[0],
-            "spawn_y": pos[2], # y 是高度
-            "spawn_z": pos[1],
-            "hitbox_radius": hitbox[0],
-            "hitbox_height": hitbox[1],
+            "spawn_x": self.pos[0],
+            "spawn_y": self.pos[2],  # y 是高度
+            "spawn_z": self.pos[1],
+            "hitbox_radius": self.hitbox[0],
+            "hitbox_height": self.hitbox[1],
             "duration": self.life_frame if self.life_frame != float('inf') else -1,
             "owner_id": owner_id
         }
+
+    def set_position(self, x: float, z: float, y: float | None = None) -> None:
+        """设置实体在场景中的坐标。"""
+        self.pos[0] = x
+        self.pos[1] = z
+        if y is not None:
+            self.pos[2] = y
 
 
 class CombatEntity(BaseEntity):
     """
     战斗实体类。
-    增加了空间位置、阵营、元素附着、效果列表及 ICD 管理。
+    继承 BaseEntity，增加元素附着、效果列表及 ICD 管理等战斗组件。
     """
 
     def __init__(
@@ -156,12 +182,7 @@ class CombatEntity(BaseEntity):
         context: SimulationContext | None = None,
     ) -> None:
         """初始化战斗实体。"""
-        super().__init__(name, life_frame, context)
-
-        self.faction: Faction = faction
-        self.pos: list[float] = list(pos)
-        self.facing: float = facing
-        self.hitbox: tuple[float, float] = hitbox
+        super().__init__(name, life_frame, pos, facing, hitbox, faction, context)
 
         # 核心战斗组件
         self.aura: AuraManager = AuraManager()
@@ -228,9 +249,6 @@ class CombatEntity(BaseEntity):
         base = super().export_state()
         base.update(
             {
-                "pos": [round(x, 3) for x in self.pos],
-                "facing": round(self.facing, 2),
-                "faction": self.faction.name,
                 "auras": self.aura.export_state(),
                 "shield_count": len(self.shield_effects),
                 "metrics": self.custom_metrics.copy(),
@@ -238,13 +256,6 @@ class CombatEntity(BaseEntity):
             }
         )
         return base
-
-    def set_position(self, x: float, z: float, y: float | None = None) -> None:
-        """设置实体在场景中的坐标。"""
-        self.pos[0] = x
-        self.pos[1] = z
-        if y is not None:
-            self.pos[2] = y
 
     def handle_damage(self, damage: Any) -> None:
         """处理受到的伤害。由子类实现。"""
@@ -292,6 +303,48 @@ class CombatEntity(BaseEntity):
                     )
                 )
 
+    def get_effect(self, name: str) -> Any | None:
+        """
+        根据效果名称获取效果实例。
+
+        Args:
+            name: 效果名称
+
+        Returns:
+            效果实例，如果不存在则返回 None
+        """
+        for effect in self.active_effects:
+            if effect.name == name:
+                return effect
+        return None
+
+    def has_effect(self, name: str) -> bool:
+        """
+        检查是否存在指定名称的效果。
+
+        Args:
+            name: 效果名称
+
+        Returns:
+            是否存在该效果
+        """
+        for effect in self.active_effects:
+            if effect.name == name:
+                return True
+        return False
+
+    def get_effects_by_prefix(self, prefix: str) -> list[Any]:
+        """
+        获取所有名称以指定前缀开头的效果。
+
+        Args:
+            prefix: 效果名称前缀
+
+        Returns:
+            匹配的效果列表
+        """
+        return [e for e in self.active_effects if e.name.startswith(prefix)]
+
     def apply_elemental_aura(self, damage: Any) -> list[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。"""
         # 1. 检查 ICD
@@ -312,7 +365,7 @@ class CombatEntity(BaseEntity):
         # 2. 应用元素附着
         element_data = getattr(damage, "element", (None, 0.0))
         final_u = element_data[1] * multiplier
-        results = self.aura.apply_element(element_data[0], final_u)
+        results = self.aura.apply_element(element_data[0], final_u, source_character=source_ent)
 
         # 3. 反馈并发布反应事件
         from core.event import GameEvent, EventType
