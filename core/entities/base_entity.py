@@ -303,6 +303,48 @@ class CombatEntity(BaseEntity):
                     )
                 )
 
+    def get_effect(self, name: str) -> Any | None:
+        """
+        根据效果名称获取效果实例。
+
+        Args:
+            name: 效果名称
+
+        Returns:
+            效果实例，如果不存在则返回 None
+        """
+        for effect in self.active_effects:
+            if effect.name == name:
+                return effect
+        return None
+
+    def has_effect(self, name: str) -> bool:
+        """
+        检查是否存在指定名称的效果。
+
+        Args:
+            name: 效果名称
+
+        Returns:
+            是否存在该效果
+        """
+        for effect in self.active_effects:
+            if effect.name == name:
+                return True
+        return False
+
+    def get_effects_by_prefix(self, prefix: str) -> list[Any]:
+        """
+        获取所有名称以指定前缀开头的效果。
+
+        Args:
+            prefix: 效果名称前缀
+
+        Returns:
+            匹配的效果列表
+        """
+        return [e for e in self.active_effects if e.name.startswith(prefix)]
+
     def apply_elemental_aura(self, damage: Any) -> list[Any]:
         """接收元素附着的统一入口，包含 ICD 判定逻辑。"""
         # 1. 检查 ICD
