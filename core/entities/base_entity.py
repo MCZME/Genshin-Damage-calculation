@@ -323,7 +323,7 @@ class CombatEntity(BaseEntity):
         # 2. 应用元素附着
         element_data = getattr(damage, "element", (None, 0.0))
         final_u = element_data[1] * multiplier
-        results = self.aura.apply_element(element_data[0], final_u)
+        results = self.aura.apply_element(element_data[0], final_u, source_character=source_ent)
 
         # 3. 反馈并发布反应事件
         from core.event import GameEvent, EventType
