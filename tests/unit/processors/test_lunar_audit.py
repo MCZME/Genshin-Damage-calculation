@@ -234,6 +234,141 @@ class TestLunarValidation:
         # 验证暴击乘数生效
         assert result.calc_damage > 2000  # 暴击后应大于 2000
 
+    def test_validate_lunar_multi_component_two(self):
+        """测试两组分加权求和验证"""
+        # 使用 _component_buckets（多组分模式）
+        buckets = {
+            "base_damage": {
+                "contributions": [],  # 单组分逻辑不走这里
+            },
+            "_component_buckets": [
+                {"damage_value": 100.0, "character_name": "角色A"},
+                {"damage_value": 60.0, "character_name": "角色B"},
+            ],
+            "crit": {"multiplier": 1.0},
+            "resistance": {"multiplier": 1.0},
+            "ascension": {"multiplier": 1.0},
+        }
+
+        result = AuditValidator.validate_lunar_damage(
+            buckets=buckets,
+            db_damage=130.0,  # 最高(100) + 次高/2(60/2=30) = 130
+            event_id=3,
+        )
+
+        # 验证加权求和结果
+        assert result.calc_damage == 130.0
+        assert result.passed is True
+
+    def test_validate_lunar_multi_component_three(self):
+        """测试三组分加权求和验证"""
+        buckets = {
+            "base_damage": {
+                "contributions": [],
+            },
+            "_component_buckets": [
+                {"damage_value": 100.0, "character_name": "角色A"},
+                {"damage_value": 60.0, "character_name": "角色B"},
+                {"damage_value": 24.0, "character_name": "角色C"},
+            ],
+            "crit": {"multiplier": 1.0},
+            "resistance": {"multiplier": 1.0},
+            "ascension": {"multiplier": 1.0},
+        }
+
+        result = AuditValidator.validate_lunar_damage(
+            buckets=buckets,
+            db_damage=132.0,  # 最高(100) + 次高/2(30) + 其余/12(24/12=2) = 132
+            event_id=4,
+        )
+
+        # 验证加权求和结果
+        assert result.calc_damage == 132.0
+        assert result.passed is True
+
+    def test_validate_lunar_multi_component_many(self):
+        """测试多组分（4+）加权求和验证"""
+        buckets = {
+            "base_damage": {
+                "contributions": [],
+            },
+            "_component_buckets": [
+                {"damage_value": 100.0, "character_name": "角色A"},
+                {"damage_value": 80.0, "character_name": "角色B"},
+                {"damage_value": 60.0, "character_name": "角色C"},
+                {"damage_value": 40.0, "character_name": "角色D"},
+            ],
+            "crit": {"multiplier": 1.0},
+            "resistance": {"multiplier": 1.0},
+            "ascension": {"multiplier": 1.0},
+        }
+
+        # 最高(100) + 次高/2(40) + 其余/12((60+40)/12≈8.33) = 148.33
+        expected = 100 + 80 / 2 + (60 + 40) / 12
+
+        result = AuditValidator.validate_lunar_damage(
+            buckets=buckets,
+            db_damage=expected,
+            event_id=5,
+        )
+
+        # 验证加权求和结果
+        assert abs(result.calc_damage - expected) < 0.01
+        assert result.passed is True
+
+    def test_validate_lunar_contributions_mode(self):
+        """测试使用 contributions 数据的多组分验证"""
+        buckets = {
+            "base_damage": {
+                "contributions": [
+                    {"damage_component": 100.0, "character_name": "角色A"},
+                    {"damage_component": 60.0, "character_name": "角色B"},
+                ],
+            },
+            "crit": {"multiplier": 1.0},
+            "resistance": {"multiplier": 1.0},
+            "ascension": {"multiplier": 1.0},
+        }
+
+        result = AuditValidator.validate_lunar_damage(
+            buckets=buckets,
+            db_damage=130.0,
+            event_id=6,
+        )
+
+        # 验证加权求和结果
+        assert result.calc_damage == 130.0
+        assert result.passed is True
+
+    def test_validate_lunar_single_component_fallback(self):
+        """测试单组分时回退到原有验证逻辑"""
+        buckets = {
+            "base_damage": {
+                "level_coeff": 1446.0,
+                "reaction_mult": 1.0,
+                "base_bonus": 0.0,
+                "em_bonus_pct": 28.5,
+                "reaction_bonus": 0.0,
+                "extra_damage": 0.0,
+                "contributions": [
+                    {"damage_component": 100.0, "character_name": "角色A"},
+                ],
+            },
+            "crit": {"multiplier": 1.0},
+            "resistance": {"multiplier": 1.0},
+            "ascension": {"multiplier": 1.0},
+        }
+
+        result = AuditValidator.validate_lunar_damage(
+            buckets=buckets,
+            db_damage=1858.0,
+            event_id=7,
+        )
+
+        # 单组分应使用公式计算而非加权求和
+        # 计算：1446 * 1.0 * (1 + 0 + 0.285 + 0) = 1858.11
+        assert result.calc_damage > 1850
+
 
 class TestCharacterContribution:
     """测试角色贡献数据结构"""
