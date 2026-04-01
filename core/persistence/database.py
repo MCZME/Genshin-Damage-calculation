@@ -223,6 +223,7 @@ class ResultDatabase:
                     is_crit INTEGER, -- 0/1
                     reaction TEXT, -- JSON: {"type": "VAPORIZE", "multiplier": 2.0, "source_element": "Hydro", ...}
                     name TEXT, -- 伤害名称（如"普通攻击·一段"、"元素战技·沙龙舞"）
+                    contributions TEXT, -- [V18.0] 月反应组分: JSON [{"name": "芙宁娜", "damage": 1234.5, "weight": 45.2}, ...]
                     FOREIGN KEY (event_id) REFERENCES simulation_event_log(event_id) ON DELETE CASCADE
                 )
             """)

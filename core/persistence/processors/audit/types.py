@@ -21,6 +21,41 @@ class DamageType(Enum):
 
 
 @dataclass
+class ComponentDamageData:
+    """[V18.0] 月反应组分伤害数据
+
+    存储每个组分的独立审计数据，用于UI多行展示。
+
+    设计决策：
+    - 暴击区：各组分独立判定，独立存储
+    - 擢升区：所有组分共享，不在此存储
+    - 抗性区：所有组分共享目标抗性
+
+    Attributes:
+        character_name: 角色名称
+        damage_value: 该组分的最终伤害值
+        weight: 权重系数 (1.0, 0.5, 或 1/12)
+        base_damage: 基础伤害区（乘区乘法前的值）
+        crit_multiplier: 暴击乘数（独立判定）
+        resistance_multiplier: 抗性系数（共享）
+        audit_steps: 该组分的审计步骤（用于域详情展示）
+        is_crit: 是否暴击
+        crit_rate: 暴击率
+        crit_dmg: 暴击伤害
+    """
+    character_name: str = ""
+    damage_value: float = 0.0
+    weight: float = 1.0
+    base_damage: float = 0.0
+    crit_multiplier: float = 1.0
+    resistance_multiplier: float = 1.0
+    audit_steps: list[dict] = field(default_factory=list)
+    is_crit: bool = False
+    crit_rate: float = 0.0
+    crit_dmg: float = 0.0
+
+
+@dataclass
 class CharacterContribution:
     """[V17.0] 角色贡献数据
 
@@ -30,10 +65,12 @@ class CharacterContribution:
         character_name: 角色名称
         damage_component: 该角色的伤害分量
         weight_percentage: 权重百分比（用于展示）
+        component_data: 组分独立乘区数据（V18.0 新增）
     """
     character_name: str = ""
     damage_component: float = 0.0
     weight_percentage: float = 0.0
+    component_data: ComponentDamageData | None = None
 
 
 @dataclass

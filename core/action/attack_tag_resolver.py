@@ -37,6 +37,9 @@ class AttackTagResolver:
         "月绽放",
         "月感电",
         "月结晶",
+        "月绽放伤害",  # 兼容带"伤害"后缀的格式
+        "月感电伤害",
+        "月结晶伤害",
     }
 
     @staticmethod

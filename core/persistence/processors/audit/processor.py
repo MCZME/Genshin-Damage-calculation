@@ -378,6 +378,43 @@ class AuditProcessor:
             for c in damage_type_ctx.contributing_characters
         ]
 
+        # [V18.0] 构建组分桶数据（用于多行展示）
+        contributions = damage_type_ctx.contributing_characters
+        if contributions:
+            # 按伤害值排序
+            sorted_contributions = sorted(
+                contributions,
+                key=lambda c: c.damage_component,
+                reverse=True
+            )
+
+            component_buckets = []
+            for i, contrib in enumerate(sorted_contributions[:2]):  # 只取前两名（最高组、次高组）
+                if contrib.component_data:
+                    comp_data = contrib.component_data
+                    comp_bucket = {
+                        "rank": "最高组" if i == 0 else "次高组",
+                        "character_name": contrib.character_name,
+                        "damage_value": comp_data.damage_value,
+                        "weight": comp_data.weight,
+                        "base_damage": {
+                            "value": comp_data.base_damage,
+                            "multiplier": comp_data.base_damage,
+                        },
+                        "crit": {
+                            "multiplier": comp_data.crit_multiplier,
+                            "is_crit": comp_data.is_crit,
+                            "crit_rate": comp_data.crit_rate,
+                        },
+                        "resistance": {
+                            "multiplier": comp_data.resistance_multiplier,
+                        },
+                    }
+                    component_buckets.append(comp_bucket)
+
+            if component_buckets:
+                buckets["_component_buckets"] = component_buckets
+
         # 2. 处理暴击区（月曜可暴击）
         for entry in raw_trail:
             stat = entry.get("stat", "")

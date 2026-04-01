@@ -288,6 +288,7 @@ class AnalysisDataService:
         reaction_data = event_meta.get("reaction")
         element_type_raw = event_meta.get("element_type", "")
         final_damage = event_meta.get("final_damage", 0)
+        contributions_data = event_meta.get("contributions")  # [V18.0] 月反应组分
 
         # [V16.0] 解析 element_type，格式可能是 '火:0.0' 或 'PYRO' 或 '火'
         element_type = element_type_raw
@@ -333,15 +334,32 @@ class AnalysisDataService:
                             em_bonus += val
             elemental_mastery = em_base + em_bonus
 
-            # 从 reaction_data 获取角色贡献列表
+            # [V18.0] 从独立的 contributions 字段获取角色贡献列表
             contributions = []
-            if reaction_data and "contributions" in reaction_data:
-                for c in reaction_data["contributions"]:
+            if contributions_data:
+                for c in contributions_data:
+                    # [V21.0] 解析完整的组分数据
+                    from core.persistence.processors.audit.types import ComponentDamageData
+
+                    component_data = None
+                    if c.get("base_damage") is not None:
+                        component_data = ComponentDamageData(
+                            character_name=c.get("name", ""),
+                            damage_value=c.get("damage", 0.0),
+                            weight=c.get("weight_coeff", 1.0),
+                            base_damage=c.get("base_damage", 0.0),
+                            crit_multiplier=c.get("crit_mult", 1.0),
+                            resistance_multiplier=c.get("res_mult", 1.0),
+                            is_crit=c.get("is_crit", False),
+                            crit_rate=c.get("crit_rate", 0.0),
+                        )
+
                     contributions.append(
                         CharacterContribution(
-                            character_name=c.get("character_name", ""),
-                            damage_component=c.get("damage_component", 0.0),
-                            weight_percentage=c.get("weight_percentage", 0.0),
+                            character_name=c.get("name", ""),  # 数据库存储为 "name"
+                            damage_component=c.get("damage", 0.0),  # 数据库存储为 "damage"
+                            weight_percentage=c.get("weight", 0.0),  # 数据库存储为 "weight"
+                            component_data=component_data,
                         )
                     )
 

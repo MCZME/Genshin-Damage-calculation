@@ -87,9 +87,16 @@ class LunarDamagePipeline:
         执行多组分反应伤害计算。
 
         为每个来源角色独立计算伤害组分，然后加权求和。
+        组分贡献存储到 ctx.damage.data["contributions"] 用于持久化。
+
+        [V18.0] 新增：保存各组分的独立乘区数据（基础伤害、暴击、抗性）
         """
         from core.systems.contract.damage import Damage
         from core.systems.contract.attack import AttackConfig
+        from core.persistence.processors.audit.types import (
+            CharacterContribution,
+            ComponentDamageData,
+        )
 
         target = ctx.target
         reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))
@@ -97,7 +104,8 @@ class LunarDamagePipeline:
         damage_name = ctx.damage.name
         element = ctx.damage.element[0]
 
-        damage_components = []
+        damage_components: list[tuple[Any, float, ComponentDamageData]] = []
+        contributions: list[CharacterContribution] = []
 
         for char in source_characters:
             # 为每个角色创建独立的 Damage 和 Context
@@ -116,25 +124,68 @@ class LunarDamagePipeline:
             component_ctx = DamageContext(dmg, char, target)
             self._run_single(component_ctx)
 
-            damage_components.append((char, dmg.damage))
+            # [V18.0] 提取组分独立的乘区数据
+            component_data = ComponentDamageData(
+                character_name=char.name,
+                damage_value=dmg.damage,
+                weight=1.0,  # 稍后根据排序设置
+                base_damage=component_ctx.stats.get("月曜基础伤害区", 0.0),
+                crit_multiplier=component_ctx.stats.get("暴击乘数", 1.0),
+                resistance_multiplier=component_ctx.stats.get("抗性区系数", 1.0),
+                audit_steps=[
+                    {"source": m.source, "stat": m.stat, "value": m.value, "op": m.op}
+                    for m in component_ctx.audit_trail
+                ],
+                is_crit=component_ctx.is_crit,
+                crit_rate=component_ctx.stats.get("暴击率", 0.0),
+                crit_dmg=component_ctx.stats.get("暴击伤害", 0.0),
+            )
+
+            damage_components.append((char, dmg.damage, component_data))
+            contributions.append(CharacterContribution(
+                character_name=char.name,
+                damage_component=dmg.damage,
+                weight_percentage=0.0,  # 稍后计算
+                component_data=component_data,
+            ))
 
         # 加权求和
-        final_damage = self._calculate_weighted_damage(damage_components)
+        final_damage = self._calculate_weighted_damage(
+            [(c, d, comp) for c, d, comp in damage_components]
+        )
+
+        # 按伤害值排序，设置权重
+        sorted_components = sorted(damage_components, key=lambda x: x[1], reverse=True)
+        for i, (char, dmg_val, comp_data) in enumerate(sorted_components):
+            if i == 0:
+                comp_data.weight = 1.0  # 最高组
+            elif i == 1:
+                comp_data.weight = 0.5  # 次高组
+            else:
+                comp_data.weight = 1.0 / 12  # 其余组
+
+        # 计算实际权重百分比
+        if final_damage > 0:
+            for c in contributions:
+                c.weight_percentage = c.damage_component / final_damage * 100
 
         # 将结果写入原始上下文
         ctx.final_result = final_damage
         ctx.damage.damage = final_damage
-        # 使用第一个角色的暴击状态（或可以设置为 False）
+        ctx.damage.data["contributions"] = contributions
         ctx.is_crit = False
 
     def _calculate_weighted_damage(
         self,
-        damage_components: list[tuple[Any, float]]
+        damage_components: list[tuple[Any, float, Any]]
     ) -> float:
         """
         加权求和计算月曜伤害。
 
         公式：最终伤害 = 最高 + 次高÷2 + 其余之和÷12
+
+        Args:
+            damage_components: 元组列表 (角色对象, 伤害值, 组分数据)
         """
         if not damage_components:
             return 0.0
@@ -312,6 +363,9 @@ class LunarDamagePipeline:
 
         # 基础伤害区
         base_damage = core_damage + extra_damage
+
+        # [V18.0] 保存基础伤害区到 stats，用于多组分展示
+        ctx.stats["月曜基础伤害区"] = base_damage
 
         # 暴击区（组分暴击区）
         crit_mult = s.get("暴击乘数", 1.0)

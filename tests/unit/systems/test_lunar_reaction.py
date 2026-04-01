@@ -708,14 +708,14 @@ class TestLunarDamagePipeline:
 
     def test_lunar_pipeline_respects_weighted_damage_formula(self, sim_ctx):
         """测试加权求和公式正确性"""
-        from core.systems.reaction.handlers.lunar import LunarHandler
+        from core.systems.damage.lunar_pipeline import LunarDamagePipeline
 
         # 创建模拟数据
         class MockChar:
             def __init__(self, name):
                 self.name = name
 
-        handler = LunarHandler()
+        pipeline = LunarDamagePipeline(engine=None)
 
         # 测试三组分加权求和
         components = [
@@ -724,7 +724,7 @@ class TestLunarDamagePipeline:
             (MockChar("C"), 240.0),   # 其余
         ]
 
-        result = handler._calculate_weighted_damage(components)
+        result = pipeline._calculate_weighted_damage(components)
         # 公式：最高(1000) + 次高/2(300) + 其余/12(20) = 1320
         expected = 1000 + 600 / 2 + 240 / 12
         assert abs(result - expected) < 0.01

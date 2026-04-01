@@ -393,7 +393,12 @@ def AuditPanelHeader(
     if event:
         elem_color = GenshinTheme.get_element_color(event.get('element', 'Neutral'))
         # 显示伤害类型标签
-        type_label = "剧变" if damage_type == DamageType.TRANSFORMATIVE else "常规"
+        if damage_type == DamageType.LUNAR:
+            type_label = "月反应"
+        elif damage_type == DamageType.TRANSFORMATIVE:
+            type_label = "剧变"
+        else:
+            type_label = "常规"
         return ft.Row(controls=[
             ft.IconButton(
                 icon=ft.Icons.ARROW_BACK_ROUNDED,
@@ -455,6 +460,183 @@ def AuditPanelHeader(
 
 
 @ft.component
+def ComponentChainRow(vm):  # ComponentChainRowViewModel
+    """[V21.0] 月反应组分伤害链行
+
+    用于展示单个组分的伤害链（最高组/次高组）。
+
+    Args:
+        vm: ComponentChainRowViewModel
+    """
+    cards: list[ft.Control] = []
+
+    # 组分标签
+    rank_label_text = f"[{vm.rank_label}] {vm.character_name}"
+    if vm.weight != 1.0:
+        rank_label_text += f" ×{vm.weight:.2f}"
+
+    # 从 ViewModel 获取乘区卡片列表
+    for i, card_vm in enumerate(vm.multiplier_cards):
+        cards.append(MultiplierCard(vm=card_vm))
+
+        # 添加连接符（除了最后一个乘区）
+        if i < len(vm.multiplier_cards) - 1:
+            cards.append(ft.Text("×", size=14, color=ft.Colors.WHITE_24, weight=ft.FontWeight.BOLD))
+
+    # 添加等号和伤害结果卡片
+    cards.append(ft.Text("=", size=14, color=ft.Colors.WHITE_24, weight=ft.FontWeight.BOLD))
+    if vm.damage_result:
+        cards.append(DamageResultCard(vm=vm.damage_result))
+
+    return ft.Container(
+        content=ft.Column([
+            # 组分标签行
+            ft.Row([
+                ft.Text(
+                    rank_label_text,
+                    size=10,
+                    color=ft.Colors.CYAN_200,
+                    weight=ft.FontWeight.W_500,
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER, expand=True),
+            # 伤害链行
+            ft.Row(
+                cards,
+                spacing=3,
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                wrap=False,
+                scroll=ft.ScrollMode.ADAPTIVE,
+                expand=True,
+            ),
+        ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        alignment=ft.Alignment.CENTER,
+        padding=ft.Padding(left=8, right=8, top=4, bottom=2),
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.CYAN_200),
+        border_radius=6,
+        margin=ft.Margin.only(left=8, right=8, top=2, bottom=2),
+    )
+
+
+@ft.component
+def LunarReactionSummary(vm):  # LunarReactionSummaryViewModel
+    """[V21.0] 月反应最终伤害汇总
+
+    展示加权求和公式和最终伤害。
+
+    Args:
+        vm: LunarReactionSummaryViewModel
+    """
+    from ui.theme import GenshinTheme
+    elem_color = GenshinTheme.get_element_color(vm.element)
+
+    # 构建公式行控件（可视化展示加权求和）
+    formula_controls: list[ft.Control] = [
+        ft.Icon(ft.Icons.FUNCTIONS_ROUNDED, size=14, color=ft.Colors.PURPLE_200),
+    ]
+
+    # 按贡献排序，最多显示前3个
+    sorted_contribs = sorted(
+        vm.contributions,
+        key=lambda c: c.get("damage_component", 0),
+        reverse=True
+    )[:3]
+
+    for i, contrib in enumerate(sorted_contribs):
+        name = contrib.get("character_name", "?")
+        damage = contrib.get("damage_component", 0)
+        weight_pct = contrib.get("weight_percentage", 0)
+
+        # 根据排名确定权重系数标签
+        if i == 0:
+            weight_label = "×1.0"
+            label_color = ft.Colors.AMBER_400
+        elif i == 1:
+            weight_label = "×0.5"
+            label_color = ft.Colors.CYAN_200
+        else:
+            weight_label = "×0.083"
+            label_color = ft.Colors.WHITE_54
+
+        # 添加组分卡片
+        formula_controls.append(
+            ft.Container(
+                content=ft.Column([
+                    ft.Text(
+                        name,
+                        size=10,
+                        color=ft.Colors.WHITE_70,
+                        no_wrap=True,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                    ),
+                    ft.Row([
+                        ft.Text(
+                            format_val(damage),
+                            size=11,
+                            weight=ft.FontWeight.BOLD,
+                            color=elem_color,
+                        ),
+                        ft.Text(
+                            weight_label,
+                            size=9,
+                            color=label_color,
+                        ),
+                    ], spacing=4, alignment=ft.MainAxisAlignment.CENTER),
+                ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.Padding.all(6),
+                bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
+                border_radius=6,
+            )
+        )
+
+        # 添加连接符（除了最后一个）
+        if i < len(sorted_contribs) - 1:
+            formula_controls.append(
+                ft.Text("+", size=14, color=ft.Colors.WHITE_38, weight=ft.FontWeight.BOLD)
+            )
+
+    # 添加等号和最终伤害卡片
+    formula_controls.append(ft.Text("=", size=14, color=ft.Colors.WHITE_38, weight=ft.FontWeight.BOLD))
+    formula_controls.append(
+        ft.Container(
+            content=ft.Column([
+                ft.Text(
+                    "最终伤害",
+                    size=10,
+                    color=ft.Colors.WHITE_54,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.Text(
+                    format_val(vm.final_damage),
+                    size=12,
+                    weight=ft.FontWeight.BOLD,
+                    color=elem_color,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding.all(8),
+            bgcolor=ft.Colors.with_opacity(0.15, elem_color),
+            border_radius=8,
+            border=ft.Border.all(2, elem_color),
+        )
+    )
+
+    return ft.Container(
+        content=ft.Row(
+            formula_controls,
+            spacing=4,
+            alignment=ft.MainAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            expand=True,
+        ),
+        padding=ft.Padding(left=16, right=16, top=8, bottom=8),
+        bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.PURPLE_200),
+        border_radius=8,
+        margin=ft.Margin.only(left=8, right=8, top=4, bottom=4),
+    )
+
+
+@ft.component
 def AuditPanel(
     vm: 'AuditPanelViewModel',
     on_back: Callable[[], None],
@@ -462,13 +644,20 @@ def AuditPanel(
 ):
     """[V17.0] 审计面板 - 两行布局（伤害链 + 域详情）
 
+    [V21.0] 新增多组分月反应支持：
+    - 如果是多组分月反应，展示：汇总行 + 最高组行 + 次高组行
+    - 否则使用常规单行展示
+
     使用 AuditPanelViewModel 的嵌套 ViewModel：
     - damage_chain: DamageChainRowViewModel
     - domain_detail: DomainDetailSectionViewModel
+    - component_chains: list[ComponentChainRowViewModel]
+    - lunar_summary: LunarReactionSummaryViewModel
 
-    支持两种伤害路径：
+    支持三种伤害路径：
     - 常规伤害：6 桶模型
     - 剧变反应：3 桶模型
+    - 月反应：4 桶模型（多组分时展示多行）
 
     Args:
         vm: 审计面板 ViewModel
@@ -486,22 +675,48 @@ def AuditPanel(
         on_back=on_back,
     )
 
-    # 伤害链行（使用嵌套 ViewModel）
-    damage_chain_row = DamageChainRow(vm=vm.damage_chain) if vm.damage_chain else ft.Container()
+    # [V21.0] 根据是否为多组分月反应选择渲染路径
+    if vm.is_multi_component_lunar:
+        # 多组分月反应路径
+        content_rows: list[ft.Control] = [
+            # 头部
+            ft.Container(
+                content=header_content,
+                padding=ft.Padding(left=4, top=8, right=4, bottom=4),
+            ),
+        ]
 
-    # 域详情区（使用嵌套 ViewModel）
-    domain_detail_section = DomainDetailSection(vm=vm.domain_detail) if vm.domain_detail else ft.Container()
+        # 添加汇总行
+        if vm.lunar_summary:
+            content_rows.append(LunarReactionSummary(vm=vm.lunar_summary))
 
-    return ft.Column([
-        # 头部
-        ft.Container(
-            content=header_content,
-            padding=ft.Padding(left=4, top=8, right=4, bottom=4),
-        ),
-        # 第一行：伤害链
-        damage_chain_row,
-        # 第二行：域详情
-        domain_detail_section,
-        # 占位（可扩展显示更多详情）
-        ft.Container(expand=True),
-    ], spacing=0, expand=True)
+        # 添加各组分伤害链
+        for comp_vm in vm.component_chains:
+            content_rows.append(ComponentChainRow(vm=comp_vm))
+
+        # 域详情区
+        if vm.domain_detail:
+            content_rows.append(DomainDetailSection(vm=vm.domain_detail))
+
+        # 占位
+        content_rows.append(ft.Container(expand=True))
+
+        return ft.Column(content_rows, spacing=0, expand=True)
+    else:
+        # 常规单行展示路径
+        damage_chain_row = DamageChainRow(vm=vm.damage_chain) if vm.damage_chain else ft.Container()
+        domain_detail_section = DomainDetailSection(vm=vm.domain_detail) if vm.domain_detail else ft.Container()
+
+        return ft.Column([
+            # 头部
+            ft.Container(
+                content=header_content,
+                padding=ft.Padding(left=4, top=8, right=4, bottom=4),
+            ),
+            # 第一行：伤害链
+            damage_chain_row,
+            # 第二行：域详情
+            domain_detail_section,
+            # 占位（可扩展显示更多详情）
+            ft.Container(expand=True),
+        ], spacing=0, expand=True)
