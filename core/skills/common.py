@@ -27,7 +27,7 @@ class NormalAttackSkill(SkillBase):
         # 这些属性由具体角色的子类初始化或动态注入
         self.action_frame_data: dict[str, Any] = {}
         self.attack_data: dict[str, Any] = {}
-        self.multiplier_data: dict[str, list[float]] = {}
+        self.multiplier_data: dict[str, Any] = {}
         self.label_map: dict[str, str] = {}  # "NORMAL_1" -> "一段伤害"
 
     def to_action_data(
@@ -103,7 +103,9 @@ class NormalAttackSkill(SkillBase):
         m_data = self.multiplier_data.get(damage_label)
         if not m_data:
             return
-        multiplier = m_data[1][self.lv - 1]
+        # m_data 格式: (属性名, 倍率列表)
+        values = m_data[1]
+        multiplier: float = values[self.lv - 1]  # type: ignore[index]
 
         # 核心变动：从附魔管理器获取当前生效元素
         current_element = self.caster.get_attack_element()
@@ -138,7 +140,7 @@ class ChargedAttackSkill(SkillBase):
         super().__init__(lv, caster)
         self.action_frame_data: dict[str, Any] = {}
         self.attack_data: dict[str, Any] = {}
-        self.multiplier_data: dict[str, list[float]] = {}
+        self.multiplier_data: dict[str, Any] = {}
 
     def to_action_data(
         self, intent: dict[str, Any] | None = None
@@ -191,7 +193,8 @@ class ChargedAttackSkill(SkillBase):
         m_data = self.multiplier_data.get("重击伤害")
         if not m_data:
             return
-        multiplier = m_data[1][self.lv - 1]
+        values = m_data[1]
+        multiplier: float = values[self.lv - 1]  # type: ignore[index]
 
         # 核心变动：支持附魔
         current_element = self.caster.get_attack_element()
@@ -226,7 +229,7 @@ class PlungingAttackSkill(SkillBase):
         super().__init__(lv, caster)
         self.action_frame_data: dict[str, Any] = {}
         self.attack_data: dict[str, Any] = {}
-        self.multiplier_data: dict[str, list[float]] = {}
+        self.multiplier_data: dict[str, Any] = {}
 
         self.fall_speed = 0.6
         self.path_damage_interval = 20
@@ -286,7 +289,8 @@ class PlungingAttackSkill(SkillBase):
         m_data = self.multiplier_data.get(label)
         if not m_data:
             return
-        multiplier = m_data[1][self.lv - 1]
+        values = m_data[1]
+        multiplier: float = values[self.lv - 1]  # type: ignore[index]
 
         p = self.attack_data.get(label, {"element_u": 1.0})
         dmg_obj = Damage(

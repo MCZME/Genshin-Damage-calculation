@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, Optional
 
+from core.logger import get_emulation_logger
 from core.skills.base import SkillBase, EnergySkill
 from core.skills.common import (
     NormalAttackSkill,
@@ -14,6 +15,7 @@ from core.systems.contract.damage import Damage
 from core.event import GameEvent, EventType
 from core.tool import get_current_time
 from core.mechanics.aura import Element
+from core.systems.lunar_system import LunarReactionSystem
 from character.NODKRAI.columbina.data import (
     ACTION_FRAME_DATA,
     ATTACK_DATA,
@@ -21,6 +23,8 @@ from character.NODKRAI.columbina.data import (
     NORMAL_ATTACK_DATA,
     ELEMENTAL_SKILL_DATA,
     ELEMENTAL_BURST_DATA,
+    FrameDataDict,
+    AttackDataDict,
 )
 from character.NODKRAI.columbina.entities import GravityRipple, LunarDomain
 
@@ -30,19 +34,19 @@ class ColumbinaNormalAttack(NormalAttackSkill):
 
     def __init__(self, lv: int, caster: Any) -> None:
         super().__init__(lv, caster)
-        self.action_frame_data = ACTION_FRAME_DATA
-        self.attack_data = ATTACK_DATA
-        self.multiplier_data = NORMAL_ATTACK_DATA
+        self.action_frame_data: dict[str, FrameDataDict] = ACTION_FRAME_DATA
+        self.attack_data: dict[str, AttackDataDict] = ATTACK_DATA
+        self.multiplier_data: dict[str, tuple[str, list[float] | list[int] | list[list[float]]]] = NORMAL_ATTACK_DATA
 
         # 物理名称到倍率标签的映射
-        self.label_map = {
+        self.label_map: dict[str, str] = {
             "普通攻击1": "一段伤害",
             "普通攻击2": "二段伤害",
             "普通攻击3": "三段伤害",
         }
 
         # 当前段数
-        self.current_combo = 0
+        self.current_combo: int = 0
 
 
 class ColumbinaChargedAttack(ChargedAttackSkill):
@@ -57,9 +61,9 @@ class ColumbinaChargedAttack(ChargedAttackSkill):
 
     def __init__(self, lv: int, caster: Any) -> None:
         super().__init__(lv, caster)
-        self.action_frame_data = ACTION_FRAME_DATA
-        self.attack_data = ATTACK_DATA
-        self.multiplier_data = NORMAL_ATTACK_DATA
+        self.action_frame_data: dict[str, FrameDataDict] = ACTION_FRAME_DATA
+        self.attack_data: dict[str, AttackDataDict] = ATTACK_DATA
+        self.multiplier_data: dict[str, tuple[str, list[float] | list[int] | list[list[float]]]] = NORMAL_ATTACK_DATA
 
     def to_action_data(
         self, intent: Optional[Dict[str, Any]] = None
@@ -69,8 +73,10 @@ class ColumbinaChargedAttack(ChargedAttackSkill):
         ctx = getattr(self.caster, "ctx", None)
         has_grass_dew = False
 
-        if ctx and hasattr(ctx, "lunar_system"):
-            has_grass_dew = ctx.lunar_system.can_consume_grass_dew(1)
+        if ctx:
+            lunar_system = ctx.get_system(LunarReactionSystem)
+            if lunar_system:
+                has_grass_dew = lunar_system.can_consume_grass_dew(1)
 
         if has_grass_dew:
             # 使用月露涤荡数据
@@ -110,7 +116,8 @@ class ColumbinaChargedAttack(ChargedAttackSkill):
 
     def _execute_normal_charged(self, target: Any, hit_index: int) -> None:
         """执行普通重击。"""
-        mult = NORMAL_ATTACK_DATA["重击伤害"][1][self.lv - 1]
+        values = NORMAL_ATTACK_DATA["重击伤害"][1]
+        mult: float = values[self.lv - 1]  # type: ignore[assignment, arg-type, index]
 
         attack_config = self._build_attack_config("重击")
         dmg_obj = Damage(
@@ -143,14 +150,17 @@ class ColumbinaChargedAttack(ChargedAttackSkill):
             return
 
         # 第一次命中时消耗草露
-        if hit_index == 0 and ctx and hasattr(ctx, "lunar_system"):
-            ctx.lunar_system.consume_grass_dew(1)
+        if hit_index == 0 and ctx:
+            lunar_system = ctx.get_system(LunarReactionSystem)
+            if lunar_system:
+                lunar_system.consume_grass_dew(1)
 
         # 获取对应攻击配置
         attack_names = ["月露涤荡A", "月露涤荡B", "月露涤荡C"]
         attack_name = attack_names[hit_index]
 
-        mult = NORMAL_ATTACK_DATA["月露涤荡伤害"][1][self.lv - 1]
+        values = NORMAL_ATTACK_DATA["月露涤荡伤害"][1]
+        mult: float = values[self.lv - 1]  # type: ignore[assignment, arg-type, index]
 
         attack_config = self._build_attack_config(attack_name)
         dmg_obj = Damage(
@@ -210,9 +220,9 @@ class ColumbinaPlungingAttack(PlungingAttackSkill):
 
     def __init__(self, lv: int, caster: Any) -> None:
         super().__init__(lv, caster)
-        self.action_frame_data = ACTION_FRAME_DATA
-        self.attack_data = ATTACK_DATA
-        self.multiplier_data = NORMAL_ATTACK_DATA
+        self.action_frame_data: dict[str, FrameDataDict] = ACTION_FRAME_DATA
+        self.attack_data: dict[str, AttackDataDict] = ATTACK_DATA
+        self.multiplier_data: dict[str, tuple[str, list[float] | list[int] | list[list[float]]]] = NORMAL_ATTACK_DATA
 
 
 class ColumbinaElementalSkill(SkillBase):
@@ -230,6 +240,10 @@ class ColumbinaElementalSkill(SkillBase):
         self.active_ripple: Optional[GravityRipple] = None
         self.remaining_frames = 0
         self.cd_frames = 1020  # 17秒
+
+        # 产球冷却（战技和引力涟漪共用）
+        self.last_particle_frame = -9999
+        self.particle_cd = MECHANISM_CONFIG["ENERGY_PARTICLE_CD"]
 
     def to_action_data(
         self, intent: Optional[Dict[str, Any]] = None
@@ -249,7 +263,7 @@ class ColumbinaElementalSkill(SkillBase):
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         """战技命中后创建引力涟漪。"""
         # 造成初始伤害
-        mult = ELEMENTAL_SKILL_DATA["技能伤害"][1][self.lv - 1]
+        mult: float = ELEMENTAL_SKILL_DATA["技能伤害"][1][self.lv - 1]  # type: ignore[index]
         attack_config = self._build_attack_config("元素战技")
 
         dmg_obj = Damage(
@@ -270,8 +284,47 @@ class ColumbinaElementalSkill(SkillBase):
             )
         )
 
+        # 产球逻辑
+        self._try_spawn_energy_particle()
+
         # 创建引力涟漪
         self._spawn_gravity_ripple()
+
+    def _try_spawn_energy_particle(self) -> None:
+        """
+        尝试产生能量微粒。
+
+        触发条件：元素战技命中
+        产出：1~2个水元素微粒，概率 66.67%:33.33%
+        冷却：3.5秒（与引力涟漪共用）
+        """
+        current_frame = get_current_time()
+        particle_cd: int = self.particle_cd  # type: ignore[assignment]
+        if current_frame - self.last_particle_frame < particle_cd:
+            return
+
+        # 更新冷却
+        self.last_particle_frame = current_frame
+
+        # 随机决定微粒数量
+        import random
+        rates_raw = MECHANISM_CONFIG["ENERGY_PARTICLE_RATES"]
+        rates: tuple[float, float] = rates_raw  # type: ignore[assignment]
+        num_particles = 1 if random.random() < rates[0] else 2
+
+        # 产球
+        from core.factory.entity_factory import EntityFactory
+        EntityFactory.spawn_energy(
+            num=num_particles,
+            character=self.caster,
+            element_energy=("水", 2),  # 水元素微粒，每个提供2点能量
+            time=40,  # 约0.67秒后生效
+        )
+
+        get_emulation_logger().log_info(
+            f"[元素战技] 产生 {num_particles} 个水元素微粒",
+            sender="ColumbinaElementalSkill"
+        )
 
     def _spawn_gravity_ripple(self) -> None:
         """生成引力涟漪实体。"""
@@ -285,10 +338,11 @@ class ColumbinaElementalSkill(SkillBase):
             context=self.caster.ctx,
             skill_lv=self.lv,
         )
-        self.active_ripple.life_frame = MECHANISM_CONFIG["GRAVITY_RIPPLE_DURATION"]
+        duration: int = MECHANISM_CONFIG["GRAVITY_RIPPLE_DURATION"]  # type: ignore[assignment]
+        self.active_ripple.life_frame = duration
         self.caster.ctx.space.register(self.active_ripple)
 
-        self.remaining_frames = MECHANISM_CONFIG["GRAVITY_RIPPLE_DURATION"]
+        self.remaining_frames = duration
 
     def on_frame_update(self) -> None:
         """每帧更新。"""
@@ -354,7 +408,7 @@ class ColumbinaElementalBurst(EnergySkill):
     def on_execute_hit(self, target: Any, hit_index: int) -> None:
         """爆发命中后创建月之领域。"""
         # 造成初始伤害
-        mult = ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1]
+        mult: float = ELEMENTAL_BURST_DATA["技能伤害"][1][self.lv - 1]  # type: ignore[index]
         attack_config = self._build_attack_config("元素爆发")
 
         dmg_obj = Damage(

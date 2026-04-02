@@ -9,6 +9,7 @@ from core.event import EventType, GameEvent
 from core.tool import get_current_time
 from core.systems.utils import AttributeCalculator
 from core.action.attack_tag_resolver import AttackTagResolver
+from core.systems.lunar_system import LunarReactionSystem
 from character.NODKRAI.columbina.effects import LunarInducementStack
 
 
@@ -89,8 +90,10 @@ class MoonsDomainGrace(TalentEffect):
     def _provide_mountain_grass_dew(self) -> None:
         """提供山月草露（18秒窗口内至多3枚）。"""
         ctx = getattr(self.character, "ctx", None)
-        if ctx and hasattr(ctx, "lunar_system"):
-            ctx.lunar_system.add_mountain_grass_dew()
+        if ctx:
+            lunar_system = ctx.get_system(LunarReactionSystem)
+            if lunar_system:
+                lunar_system.add_mountain_grass_dew()
 
     def _try_extra_cage_attack(self, event: GameEvent) -> None:
         """月笼谐奏攻击有33%概率额外攻击一次。"""
@@ -104,9 +107,9 @@ class MoonsDomainGrace(TalentEffect):
             target = event.data.get("target")
             source_characters = event.data.get("source_characters", [])
 
-            if cage and target and source_characters and self.event_engine:
+            if cage and target and source_characters and self.character and self.character.event_engine:
                 # 发布额外的谐奏攻击事件
-                self.event_engine.publish(GameEvent(
+                self.character.event_engine.publish(GameEvent(
                     event_type=EventType.LUNAR_CRYSTALLIZE_ATTACK,
                     frame=get_current_time(),
                     source=cage,
@@ -155,9 +158,9 @@ class MoonsDomainGrace(TalentEffect):
             target = event.data.get("target")
             source_characters = event.data.get("source_characters", [])
 
-            if cloud and target and source_characters and self.event_engine:
+            if cloud and target and source_characters and self.character and self.character.event_engine:
                 # 发布额外的雷击事件
-                self.event_engine.publish(GameEvent(
+                self.character.event_engine.publish(GameEvent(
                     event_type=EventType.LUNAR_CHARGED_TICK,
                     frame=get_current_time(),
                     source=cloud,
