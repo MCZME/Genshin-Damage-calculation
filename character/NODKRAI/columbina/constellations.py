@@ -92,7 +92,7 @@ class ColumbinaC1(ColumbinaConstellationEffect):
 
     def handle_event(self, event: GameEvent) -> None:
         super().handle_event(event)
-        if event.event_type == EventType.BEFORE_SKILL:
+        if event.event_type == EventType.BEFORE_SKILL and event.source == self.character:
             self._handle_skill_event(event)
         elif event.event_type == EventType.GRAVITY_INTERFERENCE:
             self._handle_gravity_interference(event)
@@ -106,10 +106,34 @@ class ColumbinaC1(ColumbinaConstellationEffect):
 
     def _trigger_instant_interference(self) -> None:
         """立刻触发一次引力干涉。"""
-        if self.character and self.character.event_engine:
-            lunar_type = "月绽放"
-            if hasattr(self.character, "get_dominant_gravity_type"):
-                lunar_type = self.character.get_dominant_gravity_type()  # type: ignore[union-attr]
+        if not self.character:
+            return
+
+        ctx = getattr(self.character, "ctx", None)
+        if not ctx or not ctx.space:
+            return
+
+        # 确定月曜类型
+        lunar_type = "月绽放"
+        if hasattr(self.character, "get_dominant_gravity_type"):
+            lunar_type = self.character.get_dominant_gravity_type() # type: ignore
+
+        # 直接创建引力干涉攻击实体
+        from character.NODKRAI.columbina.entities import GravityInterference
+
+        skill = self.character.skills.get("elemental_skill")
+        skill_lv = skill.lv if skill else 1
+
+        interference = GravityInterference(
+            owner=self.character,
+            context=ctx,
+            lunar_type=lunar_type,
+            skill_lv=skill_lv,
+        )
+        ctx.space.register(interference)
+
+        # 发布引力干涉事件，触发其他命座效果（C2皎辉、C4能量恢复等）
+        if self.character.event_engine:
             self.character.event_engine.publish(
                 GameEvent(
                     EventType.GRAVITY_INTERFERENCE,
@@ -121,6 +145,11 @@ class ColumbinaC1(ColumbinaConstellationEffect):
                     }
                 )
             )
+
+        get_emulation_logger().log_info(
+            f"[C1] 立刻触发引力干涉·{lunar_type}",
+            sender="ColumbinaC1"
+        )
 
     def _is_ascendant_active(self) -> bool:
         """检查队伍是否处于月兆·满辉状态（通过检查角色是否有月兆·满辉效果标记）。"""
