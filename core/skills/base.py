@@ -90,6 +90,32 @@ class EnergySkill(SkillBase):
         return True
 
     def consume_energy(self) -> None:
-        """消耗并清空施法者的能量。"""
+        """
+        消耗并清空施法者的能量。
+
+        会发布 AFTER_ENERGY_CHANGE 事件以保持与其他能量变化的一致性。
+        """
         if hasattr(self.caster, "elemental_energy"):
+            old_energy = self.caster.elemental_energy.current_energy
             self.caster.elemental_energy.clear()
+
+            # 发布能量变动事件
+            from core.context import get_context
+            from core.event import GameEvent, EventType
+            from core.tool import get_current_time
+
+            ctx = get_context()
+            if ctx and ctx.event_engine:
+                ctx.event_engine.publish(
+                    GameEvent(
+                        event_type=EventType.AFTER_ENERGY_CHANGE,
+                        frame=get_current_time(),
+                        source=self.caster,
+                        data={
+                            "character": self.caster,
+                            "new_energy": 0.0,
+                            "delta": -old_energy,
+                            "source_type": "技能消耗",
+                        }
+                    )
+                )
