@@ -55,6 +55,7 @@ class LunarReactionSystem(GameSystem):
         engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
         engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
         engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
+        engine.subscribe(EventType.FRAME_END, self)
 
     def handle_event(self, event: GameEvent) -> None:
         """事件处理。"""
@@ -64,6 +65,8 @@ class LunarReactionSystem(GameSystem):
             self._on_lunar_charged_triggered(event)
         elif event.event_type == EventType.AFTER_LUNAR_CRYSTALLIZE:
             self._on_lunar_crystallize_triggered(event)
+        elif event.event_type == EventType.FRAME_END:
+            self.on_frame_update()
 
     # ================================
     # 触发判定方法（运行时检测）
@@ -192,7 +195,6 @@ class LunarReactionSystem(GameSystem):
 
         # 尝试消耗山月草露
         if self.mountain_grass_dew >= remaining:
-            consumed_from_grass_dew = int(self.grass_dew)
             self.grass_dew = 0.0
             self.mountain_grass_dew -= remaining
 
@@ -213,8 +215,18 @@ class LunarReactionSystem(GameSystem):
         return False
 
     def can_consume_grass_dew(self, amount: int = 1) -> bool:
-        """检查是否有足够草露消耗（需要满1枚才能消耗）。"""
-        return self.grass_dew >= float(amount)
+        """
+        检查是否有足够草露消耗（需要满1枚才能消耗）。
+
+        草露 + 山月草露合计满足即可。
+        """
+        # 普通草露足够
+        if self.grass_dew >= float(amount):
+            return True
+
+        # 普通草露 + 山月草露合计足够
+        total_available = int(self.grass_dew) + self.mountain_grass_dew
+        return total_available >= amount
 
     # ================================
     # 山月草露资源管理

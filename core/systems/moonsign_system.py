@@ -54,6 +54,7 @@ class MoonsignSystem(GameSystem):
         engine.subscribe(EventType.AFTER_SKILL, self)
         engine.subscribe(EventType.AFTER_BURST, self)
         engine.subscribe(EventType.BEFORE_CALCULATE, self)
+        engine.subscribe(EventType.FRAME_END, self)
 
     def handle_event(self, event: GameEvent) -> None:
         """事件处理。"""
@@ -63,6 +64,8 @@ class MoonsignSystem(GameSystem):
             self._on_skill_or_burst(event)
         elif event.event_type == EventType.BEFORE_CALCULATE:
             self._on_before_calculate(event)
+        elif event.event_type == EventType.FRAME_END:
+            self.on_frame_update()
 
     # ================================
     # 月兆等级管理（初始化时确定）

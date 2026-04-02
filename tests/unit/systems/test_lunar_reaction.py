@@ -230,6 +230,39 @@ class TestGrassDewMechanism:
         lunar_system.add_grass_dew(0.2)  # 现在有 1.1
         assert lunar_system.can_consume_grass_dew(1) is True
 
+    def test_can_consume_with_mountain_grass_dew(self, lunar_system):
+        """测试山月草露可用于消耗判定"""
+        # 无普通草露，但有山月草露
+        lunar_system.mountain_grass_dew = 1
+        assert lunar_system.can_consume_grass_dew(1) is True
+
+        # 普通草露不足，但有山月草露补充
+        lunar_system.grass_dew = 0.5
+        lunar_system.mountain_grass_dew = 1
+        assert lunar_system.can_consume_grass_dew(1) is True
+
+        # 两者合计不足
+        lunar_system.grass_dew = 0.5
+        lunar_system.mountain_grass_dew = 0
+        assert lunar_system.can_consume_grass_dew(1) is False
+
+    def test_can_consume_multiple_units(self, lunar_system):
+        """测试消耗多枚草露的判定"""
+        # 普通草露2枚，可消耗2枚
+        lunar_system.grass_dew = 2.0
+        assert lunar_system.can_consume_grass_dew(2) is True
+
+        # 普通1枚 + 山月1枚 = 可消耗2枚
+        lunar_system.grass_dew = 1.0
+        lunar_system.mountain_grass_dew = 1
+        assert lunar_system.can_consume_grass_dew(2) is True
+
+        # 普通0.5枚 + 山月1枚 = 可消耗1枚（0.5不足1，但合计1.5>=1）
+        lunar_system.grass_dew = 0.5
+        lunar_system.mountain_grass_dew = 1
+        assert lunar_system.can_consume_grass_dew(1) is True
+        assert lunar_system.can_consume_grass_dew(2) is False  # 0.5取整+1=1<2
+
 
 class TestLunarCageCounter:
     """测试月笼计数机制"""
