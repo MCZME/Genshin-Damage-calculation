@@ -466,11 +466,12 @@ class SimulationRepository:
             - attack_tag: 攻击标签（如 "超载伤害"、"感电伤害"）
             - reaction: 反应数据字典 {"type": "VAPORIZE", "multiplier": 2.0, ...}
             - name: 伤害名称（如 "普通攻击·一段"）
+            - contributions: 月反应组分 [{"name": "芙宁娜", "damage": 1234.5, "weight": 45.2}, ...]
         """
         async with aiosqlite.connect(self.db_path) as db:
             sql = """
                 SELECT l.session_id, l.event_id, l.frame_id, l.source_id, d.target_id, l.event_type,
-                       d.is_crit, d.final_damage, d.element_type, d.attack_tag, d.reaction, d.name
+                       d.is_crit, d.final_damage, d.element_type, d.attack_tag, d.reaction, d.name, d.contributions
                 FROM simulation_event_log l
                 LEFT JOIN event_damage_data d ON l.event_id = d.event_id
                 WHERE l.event_id = ?
@@ -479,6 +480,7 @@ class SimulationRepository:
                 row = await cursor.fetchone()
                 if row:
                     reaction_data = json.loads(row[10]) if row[10] else None
+                    contributions_data = json.loads(row[12]) if row[12] else None
                     return {
                         "session_id": row[0],
                         "event_id": row[1],
@@ -491,6 +493,7 @@ class SimulationRepository:
                         "element_type": row[8],
                         "attack_tag": row[9],
                         "reaction": reaction_data,
-                        "name": row[11]
+                        "name": row[11],
+                        "contributions": contributions_data,
                     }
                 return None

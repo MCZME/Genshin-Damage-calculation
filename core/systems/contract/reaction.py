@@ -10,6 +10,7 @@ class ReactionCategory(Enum):
     ADDITIVE = auto()  # 加算类 (超激化, 蔓激化) -> 基础伤害加成
     TRANSFORMATIVE = auto()  # 剧变类 (超载, 感电, 超导, 扩散, 碎冰, 绽放等) -> 独立伤害
     STATUS = auto()  # 状态类 (冻结, 结晶, 燃烧) -> 改变目标状态或生成对象
+    LUNAR = auto()  # 月曜类 (月绽放, 月感电, 月结晶) -> 可暴击、无视防御、无增伤加成
 
 
 class ElementalReactionType(Enum):
@@ -31,6 +32,10 @@ class ElementalReactionType(Enum):
     SPREAD = "蔓激化"
     FREEZE = "冻结"
     SHATTER = "碎冰"
+    # 月曜反应
+    LUNAR_BLOOM = "月绽放"
+    LUNAR_CHARGED = "月感电"
+    LUNAR_CRYSTALLIZE = "月结晶"
 
 
 @dataclass
@@ -48,6 +53,10 @@ class ReactionResult:
     # 数值负载
     multiplier: float = 1.0  # 针对增幅类的基础倍率 (1.5/2.0)
     gauge_consumed: float = 0.0  # 消耗掉的附着元素量 (GU)
+
+    # 冷却状态（用于结晶反应）
+    # True 表示该结晶因冷却被跳过，但可能被转换为月结晶（月结晶无冷却）
+    is_cooldown_skipped: bool = False
 
     # 扩展数据 (用于剧变反应工厂或特殊效果)
     data: dict[str, Any] = field(default_factory=dict)
@@ -71,4 +80,8 @@ REACTION_CLASSIFICATION: dict[ElementalReactionType, ReactionCategory] = {
     ElementalReactionType.QUICKEN: ReactionCategory.STATUS,
     ElementalReactionType.BURNING: ReactionCategory.STATUS,
     ElementalReactionType.CRYSTALLIZE: ReactionCategory.STATUS,
+    # 月曜反应
+    ElementalReactionType.LUNAR_BLOOM: ReactionCategory.LUNAR,
+    ElementalReactionType.LUNAR_CHARGED: ReactionCategory.LUNAR,
+    ElementalReactionType.LUNAR_CRYSTALLIZE: ReactionCategory.LUNAR,
 }

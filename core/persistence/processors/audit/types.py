@@ -12,10 +12,65 @@ class DamageType(Enum):
 
     区分常规伤害路径和剧变反应路径：
     - NORMAL: 常规伤害路径，使用 6 乘区模型
-    - TRANSFORMATIVE: 剧变反应路径，使用 4 桶模型
+    - TRANSFORMATIVE: 剧变反应路径，使用 3 桶模型
+    - LUNAR: 月曜反应路径，使用 4 桶模型
     """
     NORMAL = "normal"
     TRANSFORMATIVE = "transformative"
+    LUNAR = "lunar"
+
+
+@dataclass
+class ComponentDamageData:
+    """[V18.0] 月反应组分伤害数据
+
+    存储每个组分的独立审计数据，用于UI多行展示。
+
+    设计决策：
+    - 暴击区：各组分独立判定，独立存储
+    - 擢升区：所有组分共享，不在此存储
+    - 抗性区：所有组分共享目标抗性
+
+    Attributes:
+        character_name: 角色名称
+        damage_value: 该组分的最终伤害值
+        weight: 权重系数 (1.0, 0.5, 或 1/12)
+        base_damage: 基础伤害区（乘区乘法前的值）
+        crit_multiplier: 暴击乘数（独立判定）
+        resistance_multiplier: 抗性系数（共享）
+        audit_steps: 该组分的审计步骤（用于域详情展示）
+        is_crit: 是否暴击
+        crit_rate: 暴击率
+        crit_dmg: 暴击伤害
+    """
+    character_name: str = ""
+    damage_value: float = 0.0
+    weight: float = 1.0
+    base_damage: float = 0.0
+    crit_multiplier: float = 1.0
+    resistance_multiplier: float = 1.0
+    audit_steps: list[dict] = field(default_factory=list)
+    is_crit: bool = False
+    crit_rate: float = 0.0
+    crit_dmg: float = 0.0
+
+
+@dataclass
+class CharacterContribution:
+    """[V17.0] 角色贡献数据
+
+    用于月曜反应加权求和的伤害贡献展示。
+
+    Attributes:
+        character_name: 角色名称
+        damage_component: 该角色的伤害分量
+        weight_percentage: 权重百分比（用于展示）
+        component_data: 组分独立乘区数据（V18.0 新增）
+    """
+    character_name: str = ""
+    damage_component: float = 0.0
+    weight_percentage: float = 0.0
+    component_data: ComponentDamageData | None = None
 
 
 @dataclass
@@ -25,12 +80,16 @@ class DamageTypeContext:
     存储伤害类型及其相关元数据，用于 UI 展示路径选择。
 
     Attributes:
-        damage_type: 伤害类型（常规/剧变）
+        damage_type: 伤害类型（常规/剧变/月曜）
         attack_tag: 攻击标签（如 "超载", "感电", "扩散"）
         level_coeff: 等级系数（剧变反应专用）
         reaction_coeff: 反应系数（剧变反应专用，如超载 2.75、超导 0.5）
         elemental_mastery: 元素精通值
         special_bonus: 特殊加成（如魔女套等）
+        ascension_bonus: 擢升区加成（月曜专用）
+        base_bonus: 基础伤害提升（月曜专用）
+        extra_damage: 附加伤害（月曜专用）
+        contributing_characters: 角色贡献列表（月曜加权求和专用）
     """
     damage_type: DamageType = DamageType.NORMAL
     attack_tag: str = ""
@@ -38,6 +97,11 @@ class DamageTypeContext:
     reaction_coeff: float = 1.0
     elemental_mastery: float = 0.0
     special_bonus: float = 0.0
+    # 月曜专用字段
+    ascension_bonus: float = 0.0
+    base_bonus: float = 0.0
+    extra_damage: float = 0.0
+    contributing_characters: list[CharacterContribution] = field(default_factory=list)
 
 
 @dataclass

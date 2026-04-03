@@ -33,6 +33,11 @@ class AuditPanelViewModel:
     交互状态（active_bucket, selected_domain）由父级 BottomPanelViewModel 管理，
     通过 update_domain_state() 方法同步。
 
+    [V21.0] 新增多组分月反应支持：
+    - is_multi_component_lunar: 是否为多组分月反应
+    - component_chains: 组分伤害链 ViewModel 列表
+    - lunar_summary: 月反应汇总 ViewModel
+
     Attributes:
         event: 当前事件数据
         current_event_id: 跟踪当前请求的事件 ID，防止异步竞态
@@ -46,6 +51,8 @@ class AuditPanelViewModel:
         # 嵌套 ViewModel (派生属性)
         damage_chain: 伤害链行 ViewModel
         domain_detail: 域详情区 ViewModel
+        component_chains: 月反应组分伤害链列表
+        lunar_summary: 月反应汇总 ViewModel
     """
 
     # 数据状态
@@ -65,6 +72,11 @@ class AuditPanelViewModel:
     # 使用 Any 类型避免循环导入问题，实际类型在运行时由 _update_nested_viewmodels 设置
     damage_chain: Any = field(default=None, init=False, repr=False)
     domain_detail: Any = field(default=None, init=False, repr=False)
+
+    # [V21.0] 月反应多组分支持
+    is_multi_component_lunar: bool = field(default=False, init=False)
+    component_chains: list[Any] = field(default_factory=list, init=False, repr=False)
+    lunar_summary: Any = field(default=None, init=False, repr=False)
 
     # ─────────────────────────────────────────
     # 状态管理方法
@@ -163,24 +175,70 @@ class AuditPanelViewModel:
         )
 
     def _update_nested_viewmodels(self):
-        """更新嵌套的子 ViewModel"""
-        from ui.view_models.analysis.bottom_panel.damage_chain_vm import DamageChainRowViewModel
+        """更新嵌套的子 ViewModel
+
+        [V21.0] 新增多组分月反应处理：
+        - 检测 buckets_data 中是否有 _component_buckets
+        - 如果有，创建 component_chains 和 lunar_summary
+        - 否则使用常规单行展示
+        """
+        from ui.view_models.analysis.bottom_panel.damage_chain_vm import (
+            DamageChainRowViewModel,
+            ComponentChainRowViewModel,
+            LunarReactionSummaryViewModel,
+        )
         from ui.view_models.analysis.bottom_panel.domain_detail_vm import DomainDetailSectionViewModel
 
-        # 更新伤害链 ViewModel
-        self.damage_chain = DamageChainRowViewModel.from_audit_data(
-            buckets_data=self.buckets_data,
-            damage_value=self.event.get('dmg', 0) if self.event else 0,
-            element=self.event.get('element', 'Neutral') if self.event else 'Neutral',
-            damage_type=self.damage_type,
-            active_bucket=self.active_bucket,
-            selected_domain=self.selected_domain,
-            on_domain_click=self.on_domain_click,
-        )
+        # [V21.0] 检测是否为多组分月反应
+        component_buckets = self.buckets_data.get("_component_buckets", [])
+        if self.damage_type == DamageType.LUNAR and component_buckets:
+            # 多组分月反应路径
+            self.is_multi_component_lunar = True
 
-        # 更新域详情 ViewModel
-        self.domain_detail = DomainDetailSectionViewModel.from_audit_data(
-            active_bucket=self.active_bucket,
-            selected_domain=self.selected_domain,
-            buckets_data=self.buckets_data,
-        )
+            # 创建组分伤害链 ViewModel 列表
+            self.component_chains = [
+                ComponentChainRowViewModel.from_component_data(comp)
+                for comp in component_buckets
+            ]
+
+            # 创建月反应汇总 ViewModel
+            contributions = self.buckets_data.get("base_damage", {}).get("contributions", [])
+            self.lunar_summary = LunarReactionSummaryViewModel(
+                formula_text="最高 + 次高÷2 + 其余÷12",
+                final_damage=self.event.get('dmg', 0) if self.event else 0,
+                element=self.event.get('element', 'Neutral') if self.event else 'Neutral',
+                contributions=contributions,
+            )
+
+            # 清空常规伤害链
+            self.damage_chain = None
+
+            # 更新域详情 ViewModel（使用共享的擢升区和抗性区）
+            self.domain_detail = DomainDetailSectionViewModel.from_audit_data(
+                active_bucket=self.active_bucket,
+                selected_domain=self.selected_domain,
+                buckets_data=self.buckets_data,
+            )
+        else:
+            # 常规单行展示路径
+            self.is_multi_component_lunar = False
+            self.component_chains = []
+            self.lunar_summary = None
+
+            # 更新伤害链 ViewModel
+            self.damage_chain = DamageChainRowViewModel.from_audit_data(
+                buckets_data=self.buckets_data,
+                damage_value=self.event.get('dmg', 0) if self.event else 0,
+                element=self.event.get('element', 'Neutral') if self.event else 'Neutral',
+                damage_type=self.damage_type,
+                active_bucket=self.active_bucket,
+                selected_domain=self.selected_domain,
+                on_domain_click=self.on_domain_click,
+            )
+
+            # 更新域详情 ViewModel
+            self.domain_detail = DomainDetailSectionViewModel.from_audit_data(
+                active_bucket=self.active_bucket,
+                selected_domain=self.selected_domain,
+                buckets_data=self.buckets_data,
+            )

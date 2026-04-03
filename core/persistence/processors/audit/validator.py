@@ -201,3 +201,193 @@ class AuditValidator:
             deviation_direction=direction,
             errors=errors,
         )
+
+    @staticmethod
+    def validate_lunar_damage(
+        buckets: dict[str, Any],
+        db_damage: float,
+        tolerance: float = DEFAULT_TOLERANCE,
+        event_id: int | None = None,
+    ) -> ValidationResult:
+        """验证月曜反应伤害
+
+        [V17.0] 新增
+        [V19.0] 支持多组分加权求和验证
+
+        公式：最终伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
+
+        其中基础伤害 = (等级系数 × 反应倍率 + 附加伤害) × (1 + 基础提升 + 月曜精通加成 + 反应加成)
+
+        多组分加权求和公式：
+        最终伤害 = 最高组 + 次高组÷2 + 其余组之和÷12
+        """
+        # 检查是否为多组分模式
+        component_buckets = buckets.get("_component_buckets", [])
+        contributions = buckets.get("base_damage", {}).get("contributions", [])
+
+        if component_buckets and len(component_buckets) > 1:
+            # 多组分: 使用 _component_buckets 数据加权求和
+            return AuditValidator._validate_multi_component_lunar(
+                component_buckets=component_buckets,
+                buckets=buckets,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )
+        elif contributions and len(contributions) > 1:
+            # 多组分: 使用 contributions 数据加权求和
+            return AuditValidator._validate_contributions_lunar(
+                contributions=contributions,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )
+        else:
+            # 单组分: 原有逻辑
+            return AuditValidator._validate_single_component_lunar(
+                buckets=buckets,
+                db_damage=db_damage,
+                tolerance=tolerance,
+                event_id=event_id,
+            )
+
+    @staticmethod
+    def _validate_single_component_lunar(
+        buckets: dict[str, Any],
+        db_damage: float,
+        tolerance: float,
+        event_id: int | None,
+    ) -> ValidationResult:
+        """单组分月曜伤害验证
+
+        公式：最终伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
+        """
+        from .coefficient_calculator import calculate_resistance_coefficient
+
+        # 计算基础伤害
+        base_bucket = buckets.get("base_damage", {})
+        level_coeff = base_bucket.get("level_coeff", 0.0)
+        reaction_mult = base_bucket.get("reaction_mult", 1.0)
+        base_bonus = base_bucket.get("base_bonus", 0.0)
+        em_bonus_pct = base_bucket.get("em_bonus_pct", 0.0)
+        reaction_bonus = base_bucket.get("reaction_bonus", 0.0)
+        extra_damage = base_bucket.get("extra_damage", 0.0)
+
+        # 基础伤害 = 等级系数 × 反应倍率 × (1 + 基础提升 + 月曜精通 + 反应加成) + 附加伤害
+        core_damage = level_coeff * reaction_mult * (
+            1 + base_bonus / 100 + em_bonus_pct / 100 + reaction_bonus / 100
+        ) + extra_damage
+
+        # 暴击区
+        crit_mult = buckets.get("crit", {}).get("multiplier", 1.0)
+
+        # 抗性区
+        res_bucket = buckets.get("resistance", {})
+        res_raw = res_bucket.get("raw_data", {})
+        res_mult = (
+            calculate_resistance_coefficient(res_raw)
+            if res_raw
+            else res_bucket.get("multiplier", 1.0)
+        )
+
+        # 擢升区
+        ascension_mult = buckets.get("ascension", {}).get("multiplier", 1.0)
+
+        # 计算最终伤害
+        calc_damage = core_damage * crit_mult * res_mult * ascension_mult
+
+        return AuditValidator._perform_validation(
+            calc_damage=calc_damage,
+            db_damage=db_damage,
+            tolerance=tolerance,
+            event_id=event_id,
+            errors=[],
+        )
+
+    @staticmethod
+    def _validate_multi_component_lunar(
+        component_buckets: list[dict],
+        buckets: dict[str, Any],
+        db_damage: float,
+        tolerance: float,
+        event_id: int | None,
+    ) -> ValidationResult:
+        """多组分月曜伤害验证（使用 _component_buckets）
+
+        从各组分的 damage_value 提取伤害值，进行加权求和后验证。
+
+        Args:
+            component_buckets: 组分桶列表，每个包含 damage_value 等字段
+            buckets: 完整桶数据（用于可能的扩展验证）
+            db_damage: 数据库真值
+            tolerance: 偏差容忍度
+            event_id: 事件 ID
+        """
+        # 提取各组分的伤害值
+        damages = [cb.get("damage_value", 0.0) for cb in component_buckets]
+
+        # 加权求和
+        calc_damage = AuditValidator._calculate_weighted_damage(damages)
+
+        return AuditValidator._perform_validation(
+            calc_damage=calc_damage,
+            db_damage=db_damage,
+            tolerance=tolerance,
+            event_id=event_id,
+            errors=[],
+        )
+
+    @staticmethod
+    def _validate_contributions_lunar(
+        contributions: list[dict],
+        db_damage: float,
+        tolerance: float,
+        event_id: int | None,
+    ) -> ValidationResult:
+        """多组分月曜伤害验证（使用 contributions）
+
+        从各角色贡献的 damage_component 提取伤害值，进行加权求和后验证。
+
+        Args:
+            contributions: 角色贡献列表，每个包含 damage_component 字段
+            db_damage: 数据库真值
+            tolerance: 偏差容忍度
+            event_id: 事件 ID
+        """
+        # 提取各组分的伤害值
+        damages = [c.get("damage_component", 0.0) for c in contributions]
+
+        # 加权求和
+        calc_damage = AuditValidator._calculate_weighted_damage(damages)
+
+        return AuditValidator._perform_validation(
+            calc_damage=calc_damage,
+            db_damage=db_damage,
+            tolerance=tolerance,
+            event_id=event_id,
+            errors=[],
+        )
+
+    @staticmethod
+    def _calculate_weighted_damage(damages: list[float]) -> float:
+        """加权求和计算月曜伤害
+
+        公式：最终伤害 = 最高 + 次高÷2 + 其余之和÷12
+
+        Args:
+            damages: 各组分伤害值列表
+
+        Returns:
+            加权求和后的最终伤害
+        """
+        if not damages:
+            return 0.0
+
+        sorted_damages = sorted(damages, reverse=True)
+
+        if len(sorted_damages) == 1:
+            return sorted_damages[0]
+        elif len(sorted_damages) == 2:
+            return sorted_damages[0] + sorted_damages[1] / 2
+        else:
+            return sorted_damages[0] + sorted_damages[1] / 2 + sum(sorted_damages[2:]) / 12

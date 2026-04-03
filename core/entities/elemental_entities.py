@@ -2,7 +2,7 @@ from typing import Any
 
 from core.systems.contract.damage import Damage
 from core.systems.contract.reaction import ElementalReactionType
-from core.entities.base_entity import CombatEntity, Faction
+from core.entities.base_entity import CombatEntity, EntityState, Faction
 from core.event import GameEvent, EventType
 from core.mechanics.aura import Element
 from core.tool import get_current_time, get_reaction_multiplier
@@ -68,7 +68,7 @@ class DendroCoreEntity(CombatEntity):
             multiplier=2.0,
             element=Element.DENDRO,
         )
-        self.state = "FINISHING"
+        self.state = EntityState.FINISHING
 
     def _trigger_burgeon(self) -> None:
         """触发烈绽放 (大范围草元素伤害)。"""
@@ -79,7 +79,7 @@ class DendroCoreEntity(CombatEntity):
             element=Element.DENDRO,
             radius=5.0,
         )
-        self.state = "FINISHING"
+        self.state = EntityState.FINISHING
 
     def _trigger_hyperbloom(self) -> None:
         """触发超绽放 (单体追踪草元素伤害)。"""
@@ -101,7 +101,7 @@ class DendroCoreEntity(CombatEntity):
                     data={"character": self.creator, "target": target, "damage": dmg},
                 )
             )
-        self.state = "FINISHING"
+        self.state = EntityState.FINISHING
 
     def _publish_aoe_damage(
         self,
@@ -172,6 +172,8 @@ class CrystalShardEntity(CombatEntity):
         super().on_frame_update()
 
         # 检索 1.5 米内的玩家实体
+        if self.ctx.space is None:
+            return
         nearby_players = self.ctx.space.get_entities_in_range(
             origin=(self.pos[0], self.pos[1]), radius=1.5, faction=Faction.PLAYER
         )

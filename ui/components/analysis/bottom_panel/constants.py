@@ -17,6 +17,9 @@ BUCKET_COLORS: dict[str, str] = {
     "LEVEL": ft.Colors.INDIGO_400,    # 等级系数
     "REACT_BASE": ft.Colors.PINK_400, # 反应系数
     "EM_BONUS": ft.Colors.LIME_400,   # 精通加成
+    # [V17.0] 月曜反应专用颜色（月光色系）
+    "LUNAR_BASE": ft.Colors.CYAN_200,   # 基础伤害（浅青色）
+    "ASCENSION": ft.Colors.PURPLE_200,  # 擢升区
 }
 
 # 乘区配置: (显示键, 标签, 数据键)
@@ -47,6 +50,15 @@ NORMAL_BUCKET_CONFIGS = [
     ("REACT", "反应乘区", "reaction"),
     ("DEF", "防御减免", "defense"),
     ("RES", "抗性削减", "resistance"),
+]
+
+# [V17.0] 月曜反应 4 桶配置
+# 公式：基础伤害 × 暴击区 × 抗性区 × 擢升区
+LUNAR_BUCKET_CONFIGS = [
+    ("LUNAR_BASE", "基础伤害", "base_damage"),
+    ("CRIT", "暴击乘区", "crit"),
+    ("RES", "抗性区", "resistance"),
+    ("ASCENSION", "擢升区", "ascension"),
 ]
 
 # 面板背景色

@@ -106,6 +106,14 @@ class Team:
             # 使用 on_frame_update() 确保基类中的生命周期与帧数自增逻辑被执行
             char.on_frame_update()
 
+    @property
+    def is_any_character_busy(self) -> bool:
+        """检查是否有角色正在执行动作。"""
+        for char in self.members:
+            if char.action_manager.current_action is not None:
+                return True
+        return False
+
     def reset(self) -> None:
         self.swap_cd_timer = 0
         self.active_index = 0

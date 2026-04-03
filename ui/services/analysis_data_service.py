@@ -288,6 +288,7 @@ class AnalysisDataService:
         reaction_data = event_meta.get("reaction")
         element_type_raw = event_meta.get("element_type", "")
         final_damage = event_meta.get("final_damage", 0)
+        contributions_data = event_meta.get("contributions")  # [V18.0] 月反应组分
 
         # [V16.0] 解析 element_type，格式可能是 '火:0.0' 或 'PYRO' 或 '火'
         element_type = element_type_raw
@@ -309,7 +310,80 @@ class AnalysisDataService:
         damage_type = AuditProcessor.detect_damage_type(attack_tag)
 
         # Step 4: 根据类型选择处理方法
-        if damage_type == DamageType.TRANSFORMATIVE:
+        if damage_type == DamageType.LUNAR:
+            # [V17.0] 月曜反应路径
+            from core.persistence.processors.audit.types import CharacterContribution
+
+            # 从 reaction_data 获取月曜专用数据
+            level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0
+            reaction_coeff = reaction_data.get("reaction_coeff", 1.0) if reaction_data else 1.0
+            base_bonus = reaction_data.get("base_bonus", 0.0) if reaction_data else 0.0
+            extra_damage = reaction_data.get("extra_damage", 0.0) if reaction_data else 0.0
+            ascension_bonus = reaction_data.get("ascension_bonus", 0.0) if reaction_data else 0.0
+
+            # 计算精通
+            em_base = frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0
+            em_bonus = 0.0
+            if frame_snapshot:
+                for mod in frame_snapshot.get("active_modifiers", []):
+                    if mod.get("stat") in ("元素精通", "元素精通%"):
+                        val = mod.get("value", 0.0)
+                        if mod.get("op") == "PCT":
+                            em_bonus += em_base * val / 100.0
+                        else:
+                            em_bonus += val
+            elemental_mastery = em_base + em_bonus
+
+            # [V18.0] 从独立的 contributions 字段获取角色贡献列表
+            contributions = []
+            if contributions_data:
+                for c in contributions_data:
+                    # [V21.0] 解析完整的组分数据
+                    from core.persistence.processors.audit.types import ComponentDamageData
+
+                    component_data = None
+                    if c.get("base_damage") is not None:
+                        component_data = ComponentDamageData(
+                            character_name=c.get("name", ""),
+                            damage_value=c.get("damage", 0.0),
+                            weight=c.get("weight_coeff", 1.0),
+                            base_damage=c.get("base_damage", 0.0),
+                            crit_multiplier=c.get("crit_mult", 1.0),
+                            resistance_multiplier=c.get("res_mult", 1.0),
+                            is_crit=c.get("is_crit", False),
+                            crit_rate=c.get("crit_rate", 0.0),
+                        )
+
+                    contributions.append(
+                        CharacterContribution(
+                            character_name=c.get("name", ""),  # 数据库存储为 "name"
+                            damage_component=c.get("damage", 0.0),  # 数据库存储为 "damage"
+                            weight_percentage=c.get("weight", 0.0),  # 数据库存储为 "weight"
+                            component_data=component_data,
+                        )
+                    )
+
+            damage_type_ctx = DamageTypeContext(
+                damage_type=DamageType.LUNAR,
+                attack_tag=attack_tag,
+                level_coeff=level_coeff,
+                reaction_coeff=reaction_coeff,
+                elemental_mastery=elemental_mastery,
+                special_bonus=reaction_data.get("reaction_bonus", 0.0) if reaction_data else 0.0,
+                ascension_bonus=ascension_bonus,
+                base_bonus=base_bonus,
+                extra_damage=extra_damage,
+                contributing_characters=contributions,
+            )
+            processed = AuditProcessor.process_lunar(
+                damage_type_ctx=damage_type_ctx,
+                raw_trail=raw_trail,
+                frame_snapshot=frame_snapshot,
+                target_snapshot=target_snapshot,
+                element_type=element_type,
+            )
+            processed["_damage_type_ctx"] = damage_type_ctx
+        elif damage_type == DamageType.TRANSFORMATIVE:
             # 剧变反应路径
             # [V16.0] 从 reaction_data 获取等级系数和反应系数
             level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0

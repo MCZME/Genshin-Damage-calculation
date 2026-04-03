@@ -1,6 +1,6 @@
 import pytest
 from core.context import create_context
-from core.systems.damage_system import DamageContext
+from core.systems.damage import DamageContext
 from core.systems.contract.damage import Damage
 from core.systems.contract.reaction import ElementalReactionType
 from core.systems.contract.attack import AttackConfig

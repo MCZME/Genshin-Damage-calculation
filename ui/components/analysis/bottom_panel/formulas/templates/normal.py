@@ -1,92 +1,15 @@
-"""[V20.0] 乘区公式生成器
+"""[V20.0] 常规伤害模板
 
-按模板分类重构，返回数据结构而非组件。
-
-[V20.0] 数据结构设计：
-- FormulaPartData: 公式部分数据（TextPart | DomainValuePart）
-- TextPart: 纯文本
-- DomainValuePart: 可点击的域值
-- FormulaResult: 公式生成结果（数据）
-
-组件创建在渲染层完成，ViewModel 只持有数据。
+包含常规伤害路径的公式生成模板：
+- CORE: 核心伤害（BASE + MULT 融合）
+- BONUS: 增伤乘区
+- CRIT: 暴击乘区
+- REACT: 反应乘区
+- DEF: 防御区
+- RES: 抗性区
 """
 
-from dataclasses import dataclass, field
-from collections.abc import Callable
-
-
-# ============================================================
-# 数据结构定义
-# ============================================================
-
-
-@dataclass
-class TextPart:
-    """文本部分数据"""
-
-    content: str
-    size: int = 10
-    color: str = "white54"  # 默认颜色，组件层转换
-
-
-@dataclass
-class DomainValuePart:
-    """域值部分数据（可点击）"""
-
-    value: float
-    domain_key: str
-    bucket_key: str
-    bucket_color: str
-    show_sign: bool = False
-    format_spec: str = ".1f"
-
-
-# 公式部分类型
-FormulaPartData = TextPart | DomainValuePart
-
-
-@dataclass
-class FormulaResult:
-    """公式生成结果（纯数据）"""
-
-    parts: list[FormulaPartData] = field(default_factory=list)
-    total_text: str = ""
-    total_color: str | None = None  # 总计颜色覆盖
-    parts_line2: list[FormulaPartData] = field(default_factory=list)  # 第二行公式（可选）
-
-
-# ============================================================
-# 域值数据生成
-# ============================================================
-
-
-def _domain_value(
-    value: float,
-    domain_key: str,
-    bucket_key: str,
-    bucket_color: str,
-    show_sign: bool = False,
-    format_spec: str = ".1f",
-) -> DomainValuePart:
-    """创建域值数据"""
-    return DomainValuePart(
-        value=value,
-        domain_key=domain_key,
-        bucket_key=bucket_key,
-        bucket_color=bucket_color,
-        show_sign=show_sign,
-        format_spec=format_spec,
-    )
-
-
-def _text(content: str, size: int = 10, color: str = "white54") -> TextPart:
-    """创建文本数据"""
-    return TextPart(content=content, size=size, color=color)
-
-
-# ============================================================
-# 模板 1: CORE - 核心伤害（BASE + MULT 融合）
-# ============================================================
+from ..types import FormulaResult, FormulaPartData, domain_value, text
 
 
 def build_core(
@@ -99,7 +22,7 @@ def build_core(
     单属性：2000 × 120% = 2400
     多属性：攻击力×120% + 防御力×180%
     """
-    from .utils import format_val
+    from ...utils import format_val
 
     scaling_info = bucket_data.get("scaling_info", [])
     independent_pct = bucket_data.get("independent_pct", 0.0)
@@ -112,7 +35,7 @@ def build_core(
         # 无 scaling_info，显示简化形式
         total = bucket_data.get("total", 0) * bucket_data.get("multiplier", 1.0)
         parts.append(
-            _domain_value(
+            domain_value(
                 total,
                 "core",
                 bucket_key,
@@ -132,9 +55,9 @@ def build_core(
 
         parts.extend(
             [
-                _text(f"{total_val:.0f}", color="white70"),
-                _text(" × "),
-                _domain_value(
+                text(f"{total_val:.0f}", color="white70"),
+                text(" × "),
+                domain_value(
                     skill_mult,
                     "skill_mult",
                     bucket_key,
@@ -142,7 +65,7 @@ def build_core(
                     False,
                     ".1f",
                 ),
-                _text("%", size=9),
+                text("%", size=9),
             ]
         )
         core_dmg = total_val * skill_mult / 100
@@ -150,7 +73,7 @@ def build_core(
         # 多属性：显示数值 × 倍率
         for i, info in enumerate(scaling_info):
             if i > 0:
-                parts.append(_text(" + ", color="white38"))
+                parts.append(text(" + ", color="white38"))
 
             attr_name = info.get("attr_name", "")
             total_val = info.get("total_val", 0.0)
@@ -158,9 +81,9 @@ def build_core(
 
             parts.extend(
                 [
-                    _text(f"{total_val:.0f}", color="white70"),
-                    _text("×"),
-                    _domain_value(
+                    text(f"{total_val:.0f}", color="white70"),
+                    text("×"),
+                    domain_value(
                         skill_mult,
                         f"skill_mult:{attr_name}",
                         bucket_key,
@@ -168,7 +91,7 @@ def build_core(
                         False,
                         ".1f",
                     ),
-                    _text("%", size=9),
+                    text("%", size=9),
                 ]
             )
 
@@ -181,14 +104,14 @@ def build_core(
     if independent_pct > 0:
         parts.extend(
             [
-                _text("×(1+"),
-                _domain_value(
+                text("×(1+"),
+                domain_value(
                     independent_pct,
                     "independent",
                     bucket_key,
                     bucket_color,
                 ),
-                _text(")"),
+                text(")"),
             ]
         )
         core_dmg *= 1 + independent_pct / 100
@@ -197,14 +120,14 @@ def build_core(
     if bonus_pct > 0:
         parts.extend(
             [
-                _text("+", color="white38"),
-                _domain_value(
+                text("+", color="white38"),
+                domain_value(
                     bonus_pct,
                     "bonus_pct",
                     bucket_key,
                     bucket_color,
                 ),
-                _text("%"),
+                text("%"),
             ]
         )
         core_dmg *= 1 + bonus_pct / 100
@@ -213,8 +136,8 @@ def build_core(
     if flat_val > 0:
         parts.extend(
             [
-                _text("+", color="white38"),
-                _domain_value(
+                text("+", color="white38"),
+                domain_value(
                     flat_val,
                     "flat",
                     bucket_key,
@@ -227,11 +150,6 @@ def build_core(
 
     total_text = format_val(core_dmg)
     return FormulaResult(parts, total_text)
-
-
-# ============================================================
-# 模板 2: BONUS_CRIT - 增伤/暴击区
-# ============================================================
 
 
 def build_bonus_crit(
@@ -257,21 +175,21 @@ def build_bonus_crit(
             # 暴击：显示 CR: XX% | 1+CD%，添加星号，使用金色
             parts.extend(
                 [
-                    _text("CR:"),
-                    _domain_value(
+                    text("CR:"),
+                    domain_value(
                         crit_rate,
                         "crit_rate",
                         bucket_key,
                         bucket_color,
                     ),
-                    _text("% | 1+"),
-                    _domain_value(
+                    text("% | 1+"),
+                    domain_value(
                         cd_pct,
                         "crit_dmg",
                         bucket_key,
                         bucket_color,
                     ),
-                    _text("%"),
+                    text("%"),
                 ]
             )
             total_text = f"{mult_val:.2f}*"
@@ -280,21 +198,21 @@ def build_bonus_crit(
             # 未暴击
             parts.extend(
                 [
-                    _text("CR:"),
-                    _domain_value(
+                    text("CR:"),
+                    domain_value(
                         crit_rate,
                         "crit_rate",
                         bucket_key,
                         bucket_color,
                     ),
-                    _text("% | 1+"),
-                    _domain_value(
+                    text("% | 1+"),
+                    domain_value(
                         0.0,
                         "crit_dmg",
                         bucket_key,
                         bucket_color,
                     ),
-                    _text("%"),
+                    text("%"),
                 ]
             )
             total_text = "1.00"
@@ -303,24 +221,19 @@ def build_bonus_crit(
         bonus_pct = (mult_val - 1) * 100
         parts.extend(
             [
-                _text("1+"),
-                _domain_value(
+                text("1+"),
+                domain_value(
                     bonus_pct,
                     "bonus_pct",
                     bucket_key,
                     bucket_color,
                 ),
-                _text("%"),
+                text("%"),
             ]
         )
         total_text = f"{mult_val:.2f}" if bonus_pct != 0 else "1.00"
 
     return FormulaResult(parts, total_text, total_color)
-
-
-# ============================================================
-# 模板 3: REACT - 反应区
-# ============================================================
 
 
 def build_react(
@@ -343,14 +256,14 @@ def build_react(
 
     # 逻辑区分：如果总倍率为 1.0 (包括无反应或仅触发剧变反应的情况)，显示简洁的 1.00
     if mult_val == 1.0:
-        return FormulaResult([_text("1.00", color="white70")], "1.00")
+        return FormulaResult([text("1.00", color="white70")], "1.00")
 
     # 有反应且有加成（如增幅反应 VAPORIZE/MELT）
     if reaction_type:
         parts.extend(
             [
-                _text(f"{reaction_type}", size=10, color=bucket_color),
-                _domain_value(
+                text(f"{reaction_type}", size=10, color=bucket_color),
+                domain_value(
                     reaction_base,
                     "reaction_base",
                     bucket_key,
@@ -363,48 +276,43 @@ def build_react(
         # 仅在有加成时显示后缀部分
         bonus = em_bonus + other_bonus
         if bonus > 0:
-            parts.append(_text("×(1+", size=9))
+            parts.append(text("×(1+", size=9))
 
             # 精通加成
             if em_bonus > 0:
                 parts.extend(
                     [
-                        _domain_value(
+                        domain_value(
                             em_bonus,
                             "em_bonus",
                             bucket_key,
                             bucket_color,
                         ),
-                        _text("%"),
+                        text("%"),
                     ]
                 )
 
             # 其他加成
             if other_bonus > 0:
                 if em_bonus > 0:
-                    parts.append(_text("+", color="white38"))
+                    parts.append(text("+", color="white38"))
                 parts.extend(
                     [
-                        _domain_value(
+                        domain_value(
                             other_bonus,
                             "other_bonus",
                             bucket_key,
                             bucket_color,
                         ),
-                        _text("%"),
+                        text("%"),
                     ]
                 )
 
-            parts.append(_text(")"))
+            parts.append(text(")"))
 
         return FormulaResult(parts, f"{mult_val:.2f}")
 
     return FormulaResult(parts, f"{mult_val:.2f}")
-
-
-# ============================================================
-# 模板 4: DEF - 防御区
-# ============================================================
 
 
 def build_def(
@@ -432,12 +340,12 @@ def build_def(
     if raw_data:
         # 第一行：分子
         K = attacker_level * 5 + 500
-        parts.append(_text(f"({K})"))
+        parts.append(text(f"({K})"))
 
         # 第二行：分母
         parts_line2.extend([
-            _text(f"({K}+"),
-            _domain_value(
+            text(f"({K}+"),
+            domain_value(
                 target_defense,
                 "target_def",
                 bucket_key,
@@ -449,22 +357,22 @@ def build_def(
         # 有减防时显示减防部分
         if def_reduction_pct > 0:
             parts_line2.extend([
-                _text("×(1-"),
-                _domain_value(
+                text("×(1-"),
+                domain_value(
                     def_reduction_pct,
                     "def_reduce",
                     bucket_key,
                     bucket_color,
                     format_spec=".0f",
                 ),
-                _text("%)"),
+                text("%)"),
             ])
 
-        parts_line2.append(_text(")"))
+        parts_line2.append(text(")"))
     else:
         # 无数据时简洁显示系数
         parts.append(
-            _domain_value(
+            domain_value(
                 mult_val,
                 "def_coeff",
                 bucket_key,
@@ -475,11 +383,6 @@ def build_def(
 
     total_text = f"{mult_val:.2f}"
     return FormulaResult(parts, total_text, parts_line2=parts_line2)
-
-
-# ============================================================
-# 模板 5: RES - 抗性区
-# ============================================================
 
 
 def build_res(
@@ -510,8 +413,8 @@ def build_res(
     if R < 0:
         # 负抗性：1 - R/2
         parts.extend([
-            _text("1 - ("),
-            _domain_value(
+            text("1 - ("),
+            domain_value(
                 final_res,
                 "final_res",
                 bucket_key,
@@ -519,143 +422,41 @@ def build_res(
                 show_sign=True,
                 format_spec=".0f",
             ),
-            _text("%)/2"),
+            text("%)/2"),
         ])
     elif R > 0.75:
         # 高抗性：1 / (1 + 4R)
         parts.extend([
-            _text("1 / (1 + 4×"),
-            _domain_value(
+            text("1 / (1 + 4×"),
+            domain_value(
                 final_res,
                 "final_res",
                 bucket_key,
                 bucket_color,
                 format_spec=".0f",
             ),
-            _text("%)"),
+            text("%)"),
         ])
     else:
         # 正常区间：1 - R
         parts.extend([
-            _text("1 - "),
-            _domain_value(
+            text("1 - "),
+            domain_value(
                 final_res,
                 "final_res",
                 bucket_key,
                 bucket_color,
                 format_spec=".0f",
             ),
-            _text("%"),
+            text("%"),
         ])
 
     total_text = f"{mult_val:.2f}"
     return FormulaResult(parts, total_text)
 
 
-# ============================================================
-# 模板 6: LEVEL_REACT_BASE - 等级系数/反应系数
-# ============================================================
-
-
-def build_level_react_base(
-    bucket_data: dict,
-    bucket_key: str,
-    bucket_color: str,
-) -> FormulaResult:
-    """等级系数模板：固定值显示
-
-    LEVEL: 等级系数（如 1446）
-    """
-    value = bucket_data.get("value", 0.0)
-
-    parts: list[FormulaPartData] = [_text(f"{value:.0f}", color="white70")]
-    total_text = f"{value:.0f}"
-
-    return FormulaResult(parts, total_text)
-
-
-# ============================================================
-# 模板 7: TRANSFORMATIVE_REACT - 剧变反应反应乘区
-# ============================================================
-
-
-def build_transformative_react(
-    bucket_data: dict,
-    bucket_key: str,
-    bucket_color: str,
-) -> FormulaResult:
-    """剧变反应反应乘区模板：反应类型 + 反应系数×(1+精通加成%)
-
-    显示格式：超载2.75×(1+15%)
-    """
-    reaction_type = bucket_data.get("reaction_type", "")
-    reaction_base = bucket_data.get("reaction_base", 1.0)
-    em_bonus_pct = bucket_data.get("em_bonus_pct", 0.0)
-    special_bonus = bucket_data.get("special_bonus", 0.0)
-    multiplier = bucket_data.get("multiplier", 1.0)
-
-    parts: list[FormulaPartData] = []
-
-    # 显示反应类型 + 基础倍率（如「超载2.75」）
-    if reaction_type:
-        parts.append(_text(f"{reaction_type}", size=10, color=bucket_color))
-
-    parts.append(
-        _domain_value(
-            reaction_base,
-            "reaction_base",
-            bucket_key,
-            bucket_color,
-            format_spec=".2f",
-        )
-    )
-
-    # 仅在有加成时显示括号部分
-    bonus = em_bonus_pct + special_bonus
-    if bonus > 0:
-        parts.append(_text("×(1+", size=9))
-
-        # 精通加成（可点击）
-        if em_bonus_pct > 0:
-            parts.extend(
-                [
-                    _domain_value(
-                        em_bonus_pct,
-                        "em_bonus",
-                        bucket_key,
-                        bucket_color,
-                    ),
-                    _text("%"),
-                ]
-            )
-
-        # 特殊加成
-        if special_bonus > 0:
-            if em_bonus_pct > 0:
-                parts.append(_text("+", color="white38"))
-            parts.extend(
-                [
-                    _domain_value(
-                        special_bonus,
-                        "special",
-                        bucket_key,
-                        bucket_color,
-                    ),
-                    _text("%"),
-                ]
-            )
-
-        parts.append(_text(")"))
-
-    return FormulaResult(parts, f"{multiplier:.2f}")
-
-
-# ============================================================
-# 模板映射与入口函数
-# ============================================================
-
 # 常规伤害路径模板映射
-NORMAL_TEMPLATE_MAP: dict[str, Callable] = {
+NORMAL_TEMPLATE_MAP = {
     "CORE": build_core,
     "BONUS": build_bonus_crit,
     "CRIT": build_bonus_crit,
@@ -664,15 +465,8 @@ NORMAL_TEMPLATE_MAP: dict[str, Callable] = {
     "RES": build_res,
 }
 
-# 剧变反应路径模板映射
-TRANSFORMATIVE_TEMPLATE_MAP: dict[str, Callable] = {
-    "LEVEL": build_level_react_base,
-    "REACT": build_transformative_react,
-    "RES": build_res,
-}
-
 # 桶到模板的映射
-BUCKET_TO_TEMPLATE: dict[str, str] = {
+BUCKET_TO_TEMPLATE = {
     "BASE": "CORE",
     "MULT": "CORE",
     "BONUS": "BONUS",
@@ -681,46 +475,3 @@ BUCKET_TO_TEMPLATE: dict[str, str] = {
     "DEF": "DEF",
     "RES": "RES",
 }
-
-
-def build_formula(
-    bucket_key: str,
-    bucket_data: dict,
-    bucket_color: str,
-) -> FormulaResult:
-    """构建常规伤害桶公式（返回数据结构）
-
-    Args:
-        bucket_key: 乘区键
-        bucket_data: 乘区数据
-        bucket_color: 乘区颜色
-    """
-    template_name = BUCKET_TO_TEMPLATE.get(bucket_key, bucket_key)
-    builder = NORMAL_TEMPLATE_MAP.get(template_name)
-
-    if not builder:
-        mult_val = bucket_data.get("multiplier", 1.0)
-        return FormulaResult([_text(f"{mult_val:.2f}", color="white70")], f"{mult_val:.2f}")
-
-    return builder(bucket_data, bucket_key, bucket_color)
-
-
-def build_transformative_formula(
-    bucket_key: str,
-    bucket_data: dict,
-    bucket_color: str,
-) -> FormulaResult:
-    """构建剧变反应桶公式（返回数据结构）
-
-    Args:
-        bucket_key: 乘区键
-        bucket_data: 乘区数据
-        bucket_color: 乘区颜色
-    """
-    builder = TRANSFORMATIVE_TEMPLATE_MAP.get(bucket_key)
-
-    if not builder:
-        mult_val = bucket_data.get("multiplier", 1.0)
-        return FormulaResult([_text(f"{mult_val:.2f}", color="white70")], f"{mult_val:.2f}")
-
-    return builder(bucket_data, bucket_key, bucket_color)

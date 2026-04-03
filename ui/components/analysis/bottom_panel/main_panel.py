@@ -152,9 +152,6 @@ def DamageAuditBottomPanel(
         if on_close:
             on_close()
 
-    # 计算面板高度
-    panel_height = 420 if panel_vm.panel_mode == "selection" else 320
-
     # 根据面板模式渲染不同内容
     if panel_vm.panel_mode == "selection":
         panel_content = SelectionPanel(
@@ -174,18 +171,19 @@ def DamageAuditBottomPanel(
         content=ft.Column([
             DragHandle(handle_close),
             panel_content,
-        ], spacing=0, expand=True),
+        ], spacing=0, auto_scroll=True),
         bgcolor=PANEL_BG_COLOR,
         border_radius=ft.BorderRadius(top_left=20, top_right=20, bottom_left=0, bottom_right=0),
-        height=panel_height,
-        bottom=0 if panel_vm.visible else -panel_height,
+        bottom=0,
         left=0,
         right=0,
+        opacity=1.0 if panel_vm.visible else 0.0,
+        visible=panel_vm.visible,
         shadow=ft.BoxShadow(
             spread_radius=0,
             blur_radius=24,
             color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
             offset=ft.Offset(0, -4)
         ),
-        animate=ft.Animation(500, ft.AnimationCurve.EASE_OUT_QUART),
+        animate=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
     )

@@ -69,10 +69,24 @@ class DataProjector:
                     "INSERT OR IGNORE INTO simulation_targets (session_id, entity_id, level, base_defense, res_phys, res_fire, res_water, res_wind, res_elec, res_grass, res_ice, res_rock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (self.session_id, eid, meta["level"], meta["base_defense"], meta["res_phys"], meta["res_fire"], meta["res_water"], meta["res_wind"], meta["res_elec"], meta["res_grass"], meta["res_ice"], meta["res_rock"])
                 ))
-            elif etype == "CONSTRUCT":
+            elif etype in ("CONSTRUCT", "ATTACK_ENTITY", "SCENE_ENTITY"):
+                # 提取实体类型特有属性
+                extra_data: dict[str, Any] = {}
+                if etype == "ATTACK_ENTITY":
+                    extra_data = {
+                        "trigger_type": meta.get("trigger_type"),
+                        "targeting_mode": meta.get("targeting_mode"),
+                    }
+                elif etype == "SCENE_ENTITY":
+                    extra_data = {
+                        "detection_radius": meta.get("detection_radius"),
+                        "tick_interval": meta.get("tick_interval"),
+                    }
+
                 commands.append((
-                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, owner_id, created_frame, duration) VALUES (?, ?, ?, ?, ?)",
-                    (self.session_id, eid, meta.get("owner_id"), snapshot.get("frame", 0), meta.get("duration"))
+                    "INSERT OR IGNORE INTO simulation_entities (session_id, entity_id, owner_id, created_frame, duration, extra_data) VALUES (?, ?, ?, ?, ?, ?)",
+                    (self.session_id, eid, meta.get("owner_id"), snapshot.get("frame", 0), meta.get("duration"),
+                     json.dumps(extra_data, cls=GenshinJSONEncoder) if extra_data else None)
                 ))
 
             self.registered_entities.add(eid)
@@ -269,10 +283,10 @@ class DataProjector:
                         }
                         reaction_json = json.dumps(reaction_data)
 
-                    # [V16.0] 对于剧变反应，从 dmg.data 提取等级系数和反应系数
+                    # [V16.0] 对于剧变反应/月曜反应，从 dmg.data 提取等级系数和反应系数
                     dmg_data = getattr(dmg_obj, "data", {})
                     level_coeff = dmg_data.get("等级系数")
-                    react_coeff = dmg_data.get("反应系数")
+                    react_coeff = dmg_data.get("反应系数") or dmg_data.get("反应倍率")  # [V18.0] 兼容月曜
                     if level_coeff is not None or react_coeff is not None:
                         # 更新或创建 reaction_json
                         if reaction_json:
@@ -291,9 +305,31 @@ class DataProjector:
                     # 提取伤害名称
                     dmg_name = getattr(dmg_obj, "name", "Unknown Damage")
 
+                    # [V18.0] 月反应组分序列化 - 包含完整乘区数据
+                    contributions_json = None
+                    contributions = dmg_data.get("contributions")
+                    if contributions:
+                        contributions_list = []
+                        for c in contributions:
+                            contrib_data = {
+                                "name": c.character_name,
+                                "damage": c.damage_component,
+                                "weight": c.weight_percentage,
+                            }
+                            # [V18.0] 序列化组分独立乘区数据
+                            if c.component_data:
+                                contrib_data["base_damage"] = c.component_data.base_damage
+                                contrib_data["crit_mult"] = c.component_data.crit_multiplier
+                                contrib_data["res_mult"] = c.component_data.resistance_multiplier
+                                contrib_data["is_crit"] = c.component_data.is_crit
+                                contrib_data["crit_rate"] = c.component_data.crit_rate
+                                contrib_data["weight_coeff"] = c.component_data.weight
+                            contributions_list.append(contrib_data)
+                        contributions_json = json.dumps(contributions_list)
+
                     commands.append((
-                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction, name) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?, ?)",
-                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_json, dmg_name)
+                        "INSERT INTO event_damage_data (event_id, target_id, final_damage, element_type, attack_tag, is_crit, reaction, name, contributions) VALUES ((SELECT MAX(event_id) FROM simulation_event_log), ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (tid, dmg_val, elem_str, attack_tag, 1 if getattr(dmg_obj, "is_crit", False) else 0, reaction_json, dmg_name, contributions_json)
                     ))
 
                     audit_trail = getattr(dmg_obj, "data", {}).get("audit_trail", [])

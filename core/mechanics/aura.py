@@ -30,7 +30,7 @@ class Element(Enum):
 class Gauge:
     """
     元素量载体。
-    遵循原神“附着论”，管理元素量的衰减与消耗。
+    遵循原神"附着论"，管理元素量的衰减与消耗。
     """
 
     element: Element
@@ -38,9 +38,18 @@ class Gauge:
     max_gauge: float  # 最大附着量 (通常为 0.8 * u_value)
     current_gauge: float  # 当前剩余附着量
     decay_rate: float  # 衰减速率 (每秒扣除量)
+    # 月曜反应：附着来源追踪
+    source_character: Any = None  # 附着来源角色
+    source_time: float = 0.0  # 附着时间戳
 
     @classmethod
-    def create(cls, element: Element, u_value: float) -> "Gauge":
+    def create(
+        cls,
+        element: Element,
+        u_value: float,
+        source_character: Any = None,
+        source_time: float = 0.0
+    ) -> "Gauge":
         """工厂方法：根据初始 U 值创建附着。"""
         max_g = 0.8 * u_value
         if u_value <= 1.0:
@@ -50,7 +59,7 @@ class Gauge:
         else:
             duration = 17.0
         decay = max_g / duration
-        return cls(element, u_value, max_g, max_g, decay)
+        return cls(element, u_value, max_g, max_g, decay, source_character, source_time)
 
     def update(self, dt: float) -> None:
         """更新衰减逻辑。"""
@@ -79,6 +88,9 @@ class AuraManager:
     负责实体的元素附着状态维护、反应优先级判定及元素量结算。
     """
 
+    # 结晶反应冷却时间（秒）
+    CRYSTALLIZE_COOLDOWN: float = 1.0
+
     def __init__(self) -> None:
         self.auras: list[Gauge] = []
         self.frozen_gauge: Gauge | None = None
@@ -89,6 +101,11 @@ class AuraManager:
 
         self.is_burning: bool = False
         self.burning_timer: float = 0.0
+
+        # 结晶反应冷却追踪
+        # key: 被结晶消耗的元素类型 (Element.HYDRO/PYRO/ELECTRO/CRYO)
+        # value: 上次触发结晶的时间戳（帧数）
+        self._crystallize_cooldowns: dict[Element, int] = {}
 
     def export_state(self) -> dict[str, Any]:
         """导出当前实体的所有附着状态快照。"""
@@ -135,9 +152,19 @@ class AuraManager:
             else:
                 self._apply_burning_tick(owner, dt, is_damage_frame=False)
 
-    def apply_element(self, element: Any, attack_u: float) -> list[ReactionResult]:
+    def apply_element(
+        self,
+        element: Any,
+        attack_u: float,
+        source_character: Any = None
+    ) -> list[ReactionResult]:
         """
         应用外部元素攻击。
+
+        Args:
+            element: 攻击元素
+            attack_u: 攻击元素量
+            source_character: 附着来源角色（用于月曜反应追踪）
         """
         if not isinstance(element, Element):
             attack_element = Element(element)
@@ -270,9 +297,18 @@ class AuraManager:
                     if attack_element not in [Element.ANEMO, Element.GEO]:
                         rem_u -= consume / tax
                     r_type = self._map_reaction(attack_element, aura.element)
+
+                    # 结晶反应冷却检查
+                    # 火水雷冰结晶共享 1 秒冷却，但月结晶无冷却
+                    # 此处检查冷却，但先生成结果（标记跳过），让 ReactionSystem 处理月结晶转换
+                    is_cooldown_skipped = False
+                    if r_type == ElementalReactionType.CRYSTALLIZE:
+                        is_cooldown_skipped = self._check_crystallize_cooldown(aura.element)
+
                     results.append(
                         self._create_result(
-                            r_type, attack_element, aura.element, consume
+                            r_type, attack_element, aura.element, consume,
+                            is_cooldown_skipped=is_cooldown_skipped,
                         )
                     )
                     if aura.current_gauge <= 0:
@@ -289,7 +325,7 @@ class AuraManager:
         if attack_element in [Element.ANEMO, Element.GEO]:
             return results
         if rem_u > 0.001 and not prevent_attachment:
-            self._attach(attack_element, rem_u)
+            self._attach(attack_element, rem_u, source_character)
         return results
 
     def has_aura(self, element_name: str) -> bool:
@@ -306,6 +342,7 @@ class AuraManager:
         source: Element,
         target: Element,
         consume: float = 0.0,
+        is_cooldown_skipped: bool = False,
     ) -> ReactionResult:
         category = REACTION_CLASSIFICATION.get(r_type, ReactionCategory.STATUS)
         mult = (
@@ -320,6 +357,7 @@ class AuraManager:
             target_element=target,
             multiplier=mult,
             gauge_consumed=consume,
+            is_cooldown_skipped=is_cooldown_skipped,
         )
 
     def _map_reaction(self, atk: Element, target: Element) -> ElementalReactionType:
@@ -432,12 +470,25 @@ class AuraManager:
         else:
             self.is_burning = False
 
-    def _attach(self, element: Element, u: float) -> None:
+    def _attach(
+        self,
+        element: Element,
+        u: float,
+        source_character: Any = None
+    ) -> None:
+        """施加元素附着。"""
+        from core.tool import get_current_time
+
         existing = next((a for a in self.auras if a.element == element), None)
-        new_a = Gauge.create(element, u)
+        source_time = get_current_time() if source_character else 0.0
+        new_a = Gauge.create(element, u, source_character, source_time)
         if existing:
             existing.current_gauge = max(existing.current_gauge, new_a.current_gauge)
             existing.decay_rate = new_a.decay_rate
+            # 更新来源信息（如果新附着有来源）
+            if source_character:
+                existing.source_character = source_character
+                existing.source_time = source_time
         else:
             self.auras.append(new_a)
 
@@ -459,3 +510,41 @@ class AuraManager:
         if atk == el2:
             return any(a.element == el1 for a in self.auras)
         return False
+
+    def _check_crystallize_cooldown(self, target_element: Element) -> bool:
+        """
+        检查结晶反应冷却状态。
+
+        火/水/雷/冰结晶共享 1 秒冷却（按被消耗的元素类型分别计时）。
+        月结晶无冷却，由 ReactionSystem 在转换时处理。
+
+        Args:
+            target_element: 被岩消耗的目标元素（火/水/雷/冰）
+
+        Returns:
+            True 表示当前在冷却中，应跳过该结晶
+        """
+        from core.tool import get_current_time
+
+        current_frame = get_current_time()
+        cooldown_frames = int(self.CRYSTALLIZE_COOLDOWN * 60)  # 1秒 = 60帧
+
+        # 检查是否在冷却中
+        last_frame = self._crystallize_cooldowns.get(target_element, -cooldown_frames - 1)
+        is_on_cooldown = (current_frame - last_frame) < cooldown_frames
+
+        # 更新冷却时间戳（无论是否在冷却中都更新，以重置计时）
+        if not is_on_cooldown:
+            self._crystallize_cooldowns[target_element] = current_frame
+
+        return is_on_cooldown
+
+    def _reset_crystallize_cooldown(self, target_element: Element) -> None:
+        """
+        重置指定元素的结晶冷却。
+
+        用于月结晶转换后重置冷却，允许后续普通结晶正常触发。
+        """
+        if target_element in self._crystallize_cooldowns:
+            del self._crystallize_cooldowns[target_element]
+

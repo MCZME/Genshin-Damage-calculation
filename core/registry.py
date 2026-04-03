@@ -10,6 +10,14 @@ ArtifactSetMap: dict[str, type[Any]] = {}
 
 _initialized: bool = False
 
+
+# --- 自动发现函数 ---
+
+# 注：discover_lunar_trigger_characters() 已移除
+# 月曜触发能力现在由 MoonsignTalent.get_lunar_triggers() 提供
+# LunarReactionSystem 使用运行时检测，无需预置角色集合
+
+
 # --- 注册装饰器 ---
 
 def register_character(name: str) -> Callable[[type[Any]], type[Any]]:

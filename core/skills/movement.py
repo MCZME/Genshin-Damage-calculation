@@ -1,6 +1,12 @@
-from typing import Any
+from typing import Any, TypedDict
 from core.skills.base import SkillBase
 from core.action.action_data import ActionFrameData
+
+
+class FrameData(TypedDict, total=False):
+    """帧数据结构。"""
+    total_frames: int
+    interrupt_frames: dict[str, int]
 
 
 class DashSkill(SkillBase):
@@ -12,24 +18,27 @@ class DashSkill(SkillBase):
     def __init__(self, lv: int = 1, caster: Any = None):
         super().__init__(lv, caster)
         # 默认冲刺时序 (若 data.py 未定义则使用此默认值)
-        self.default_frames = {"total_frames": 20, "interrupt_frames": {"any": 20}}
+        self.default_frames: FrameData = {"total_frames": 20, "interrupt_frames": {"any": 20}}
 
     def to_action_data(
         self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
         # 尝试从角色数据中获取实测冲刺数据
-        frames = self.default_frames
+        frames: FrameData = self.default_frames
         if hasattr(self.caster, "action_frame_data"):
-            frames = self.caster.action_frame_data.get("DASH", self.default_frames)
+            raw = self.caster.action_frame_data.get("DASH", self.default_frames)
+            if isinstance(raw, dict):
+                frames = raw  # type: ignore[assignment]
+
+        total = frames["total_frames"]
+        interrupt_frames = frames.get("interrupt_frames", {"any": total})
 
         return ActionFrameData(
             name="冲刺",
             action_type="dash",
-            total_frames=frames["total_frames"],
+            total_frames=total,
             hit_frames=[],
-            interrupt_frames=frames.get(
-                "interrupt_frames", {"any": frames["total_frames"]}
-            ),
+            interrupt_frames=interrupt_frames,
             origin_skill=self,
         )
 
@@ -46,23 +55,26 @@ class JumpSkill(SkillBase):
 
     def __init__(self, lv: int = 1, caster: Any = None):
         super().__init__(lv, caster)
-        self.default_frames = {"total_frames": 31, "interrupt_frames": {"any": 31}}
+        self.default_frames: FrameData = {"total_frames": 31, "interrupt_frames": {"any": 31}}
 
     def to_action_data(
         self, intent: dict[str, Any] | None = None
     ) -> ActionFrameData:
-        frames = self.default_frames
+        frames: FrameData = self.default_frames
         if hasattr(self.caster, "action_frame_data"):
-            frames = self.caster.action_frame_data.get("JUMP", self.default_frames)
+            raw = self.caster.action_frame_data.get("JUMP", self.default_frames)
+            if isinstance(raw, dict):
+                frames = raw  # type: ignore[assignment]
+
+        total = frames["total_frames"]
+        interrupt_frames = frames.get("interrupt_frames", {"any": total})
 
         return ActionFrameData(
             name="跳跃",
             action_type="jump",
-            total_frames=frames["total_frames"],
+            total_frames=total,
             hit_frames=[],
-            interrupt_frames=frames.get(
-                "interrupt_frames", {"any": frames["total_frames"]}
-            ),
+            interrupt_frames=interrupt_frames,
             origin_skill=self,
         )
 
