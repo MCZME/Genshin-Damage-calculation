@@ -57,9 +57,10 @@ class DataProjector:
 
             if etype == "CHARACTER":
                 commands.append((
-                    "INSERT OR IGNORE INTO simulation_characters (session_id, entity_id, level, constellation, base_attributes, weapon_data, artifact_sets, skill_levels) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO simulation_characters (session_id, entity_id, level, constellation, base_attributes, max_energy, weapon_data, artifact_sets, skill_levels) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (self.session_id, eid, meta["level"], meta["constellation"],
                      json.dumps(meta["base_attributes"], cls=GenshinJSONEncoder),
+                     meta.get("max_energy", 0),
                      json.dumps(meta["weapon_data"], cls=GenshinJSONEncoder),
                      json.dumps(meta["artifact_sets"], cls=GenshinJSONEncoder),
                      json.dumps(meta["skill_levels"], cls=GenshinJSONEncoder))

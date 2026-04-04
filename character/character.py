@@ -326,6 +326,7 @@ class Character(CombatEntity, ABC):
             "level": self.level,
             "constellation": self.constellation_level,
             "base_attributes": self.attribute_data.copy(),
+            "max_energy": self.elemental_energy.max_energy if self.elemental_energy else 0,
             "weapon_data": {
                 "name": getattr(self.weapon, "name", "None"),
                 "refinement": getattr(self.weapon, "refinement", 1)

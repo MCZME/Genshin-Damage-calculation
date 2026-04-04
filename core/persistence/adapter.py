@@ -116,6 +116,7 @@ class ReviewDataAdapter:
             name = row["name"]
             stats = json.loads(row["base_attributes"])
             stats["名称"] = name
+            stats["元素爆发能量"] = row.get("max_energy", 40)
             results[eid] = stats
         return results
 

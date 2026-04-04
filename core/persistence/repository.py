@@ -166,18 +166,18 @@ class SimulationRepository:
             sid: 会话 ID
 
         Returns:
-            [{"entity_id": int, "name": str, "base_attributes": str}, ...]
+            [{"entity_id": int, "name": str, "base_attributes": str, "max_energy": int}, ...]
         """
         async with aiosqlite.connect(self.db_path) as db:
             sql = """
-                SELECT sc.entity_id, r.name, sc.base_attributes
+                SELECT sc.entity_id, r.name, sc.base_attributes, sc.max_energy
                 FROM simulation_characters sc
                 JOIN simulation_entity_registry r ON sc.session_id = r.session_id AND sc.entity_id = r.entity_id
                 WHERE sc.session_id = ?
             """
             async with db.execute(sql, (sid,)) as cursor:
                 rows = await cursor.fetchall()
-                return [{"entity_id": r[0], "name": r[1], "base_attributes": r[2]} for r in rows]
+                return [{"entity_id": r[0], "name": r[1], "base_attributes": r[2], "max_energy": r[3]} for r in rows]
 
     async def fetch_entity_base_attributes(self, sid: int, entity_id: int) -> dict | None:
         """获取实体基础属性原始数据

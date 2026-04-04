@@ -130,6 +130,7 @@ class ResultDatabase:
                     level INTEGER,
                     constellation INTEGER,
                     base_attributes TEXT, -- JSON: 初始 attribute_data 快照
+                    max_energy INTEGER,   -- 元素爆发能量上限
                     weapon_data TEXT,     -- JSON: 名称、精炼等
                     artifact_sets TEXT,   -- JSON: 激活的套装名称列表
                     skill_levels TEXT,    -- JSON: A/E/Q 等级
@@ -174,6 +175,12 @@ class ResultDatabase:
             # [V17.0] 兼容旧数据库：如果 start_event_id 列不存在则添加
             try:
                 await db.execute("ALTER TABLE modifier_lifecycles ADD COLUMN start_event_id INTEGER")
+            except Exception:
+                pass  # 列已存在，忽略
+
+            # 兼容旧数据库：如果 max_energy 列不存在则添加
+            try:
+                await db.execute("ALTER TABLE simulation_characters ADD COLUMN max_energy INTEGER")
             except Exception:
                 pass  # 列已存在，忽略
 
