@@ -36,7 +36,7 @@ class AppLayout:
 
         # 1. 视图实例持久化
         strat_view = ft.use_memo(lambda: StrategicView(self.state), [])
-        scene_view = ft.use_memo(lambda: SceneView(self.state), [])
+        scene_view = ft.use_memo(lambda: SceneView(self.state, self.persistence), [])
         tact_view = ft.use_memo(lambda: TacticalView(self.state), [])
 
         # AnalysisState 专用 (保持动态 build 因为其数据量大且生命周期独立)
@@ -83,7 +83,7 @@ class AppLayout:
             ),
             # 场景视图
             ft.Container(
-                content=scene_view.build(self.state.strategic_state),
+                content=scene_view.build(self.state.scene_state),
                 visible=(active_phase == "scene"),
                 expand=True
             ),

@@ -1,7 +1,11 @@
+"""工作台核心状态管理器。"""
+
 import json
 import os
+
 import flet as ft
-from typing import Any
+from typing import Any, cast
+
 from core.data.repository import MySQLDataRepository
 from core.data_models.team_data_model import CharacterDataModel
 from core.logger import get_ui_logger
@@ -10,36 +14,40 @@ from ui.services.simulation_service import SimulationService
 from ui.view_models.library_vm import LibraryViewModel
 from ui.view_models.layout_vm import LayoutViewModel
 from ui.states.strategic_state import StrategicState
+from ui.states.scene_state import SceneState
 from ui.states.tactical_state import TacticalState
+
 
 @ft.observable
 class AppState:
     """
-    工作台核心状态管理器 (MVVM V5.0 - 职责瘦身版)。
+    工作台核心状态管理器 (MVVM V5.0)。
+
     作为各领域状态与服务的协调中枢。
-    已移除旧版 UIEventBus，完全转向声明式状态驱动。
     """
-    def __init__(self):
-        self.page = None
+
+    def __init__(self) -> None:
+        self.page: ft.Page | None = None
         self.main_to_branch = None
         self.branch_to_main = None
-        
+
         # 1. 基础设施层
         self.repo = MySQLDataRepository()
-        
+
         # 2. 业务服务层
         self.metadata = MetadataService(self.repo)
         self.metadata.load_all()
         self.simulation = SimulationService(self.repo)
-        
+
         # 3. 领域状态层
         self.strategic_state = StrategicState()
+        self.scene_state = SceneState()
         self.tactical_state = TacticalState()
         self.tactical_state.clear_sequence()
 
         # 4. 视图模型层
         self.library_vm = LibraryViewModel(self.repo)
-        self.library_vm.initialize() # 同步 Metadata 状态
+        self.library_vm.initialize()
         self.layout_vm = LayoutViewModel()
 
         # 5. 仿真运行状态
@@ -47,43 +55,42 @@ class AppState:
         self.sim_progress = 0.0
         self.is_simulating = False
 
-    def register_page(self, page: ft.Page):
+    def register_page(self, page: ft.Page) -> None:
         self.page = page
 
     # --- 代理属性 ---
+
     @property
-    def char_map(self):
+    def char_map(self) -> dict:
         return self.metadata.char_map
 
     @property
-    def weapon_map(self):
+    def weapon_map(self) -> dict:
         return self.metadata.weapon_map
 
     @property
-    def target_map(self):
+    def target_map(self) -> dict:
         return self.metadata.target_map
 
     @property
-    def implemented_chars(self):
+    def implemented_chars(self) -> set[str]:
         return self.metadata.implemented_chars
 
     @property
-    def implemented_weapons(self):
+    def implemented_weapons(self) -> set[str]:
         return self.metadata.implemented_weapons
 
     @property
-    def artifact_sets(self):
+    def artifact_sets(self) -> list[str]:
         return self.metadata.artifact_sets
 
-    # --- 配置流重构 ---
+    # --- 配置流 ---
 
-    async def apply_external_config(self, config: dict):
-        """导入外部全量配置"""
-        from core.data_models.team_data_model import CharacterDataModel
-
+    async def apply_external_config(self, config: dict) -> None:
+        """导入外部全量配置。"""
         ctx = config.get("context_config", {})
 
-        # 1. 恢复编队 (从仿真格式转回内部格式)
+        # 1. 恢复编队
         loaded_team = ctx.get("team", [])
         for i in range(4):
             if i < len(loaded_team) and loaded_team[i]:
@@ -114,38 +121,23 @@ class AppState:
             else:
                 self.strategic_state.team_data[i] = CharacterDataModel.create_empty().raw_data
 
-        # 2. 恢复场景
-        self.strategic_state.targets_data.clear()
-        self.strategic_state.spatial_data["target_positions"].clear()
-        for t_item in ctx.get("targets", []):
-            target_id = t_item.get("id", "target_unknown")
-            # 直接写入位置数据，确保坐标正确转换为 float
-            position = t_item.get("position", {"x": 0.0, "z": 5.0})
-            self.strategic_state.spatial_data["target_positions"][target_id] = {
-                "x": float(position.get("x", 0.0)),
-                "z": float(position.get("z", 5.0))
-            }
-
-            internal_target = {
-                "id": target_id,
-                "name": t_item.get("name"),
-                "level": str(t_item.get("level", 90)),
-                "resists": {k: str(v) for k, v in t_item.get("resists", {}).items()}
-            }
-            self.strategic_state.targets_data.append(internal_target)
-
-        self.strategic_state.scene_data = ctx.get("environment", {})
+        # 2. 恢复场景（使用 SceneState）
+        self.scene_state.load_from_context_config(ctx)
 
         # 3. 恢复战术
         self.tactical_state.load_from_dict(config.get("sequence_config", []))
 
-        # 4. 触发 VM 重建与全局刷新
+        # 4. 恢复规则配置
+        rules_data = config.get("rules_config", {})
+        self.scene_state.rules_vm.load_from_dict(rules_data)
+
+        # 5. 触发 VM 重建与全局刷新
         self.strategic_state.rebind_all_vms()
-        self.notify()  # 代替 events.notify
+        self.notify_update()
         get_ui_logger().log_info("AppState: Configuration normalized and applied.")
 
     def export_config(self) -> dict[str, Any]:
-        """导出全量配置"""
+        """导出全量配置。"""
         team_cfg = [
             CharacterDataModel(m).to_simulator_format()
             for m in self.strategic_state.team_data if m.get("id")
@@ -159,23 +151,23 @@ class AppState:
         return {
             "context_config": {
                 "team": team_cfg,
-                "targets": [t.to_simulator_format() for t in self.strategic_state.target_vms],
-                "environment": self.strategic_state.scene_data
+                **self.scene_state.to_context_config()
             },
-            "sequence_config": simulation_sequence
+            "sequence_config": simulation_sequence,
+            "rules_config": self.scene_state.rules_vm.to_dict()
         }
 
     # --- 仿真控制代理 ---
 
-    async def run_simulation(self):
+    async def run_simulation(self) -> None:
         if self.is_simulating:
             return
 
-        def update_progress(status, progress):
+        def update_progress(status: str, progress: float) -> None:
             self.sim_status = status
             self.sim_progress = progress
             self.layout_vm.update_simulation(status, progress, True)
-            self.notify()
+            self.notify_update()
 
         self.is_simulating = True
         try:
@@ -184,9 +176,13 @@ class AppState:
         finally:
             self.is_simulating = False
             self.layout_vm.update_simulation(self.sim_status, self.sim_progress, False)
-            self.notify()
+            self.notify_update()
 
-    def save_config(self, filename: str, data: dict | None = None):
+    def notify_update(self) -> None:
+        """触发 UI 刷新。"""
+        cast(Any, self).notify()
+
+    def save_config(self, filename: str, data: dict | None = None) -> None:
         if not filename.endswith(".json"):
             filename += ".json"
         save_path = os.path.join("data/configs", filename) if not os.path.isabs(filename) else filename
@@ -196,7 +192,7 @@ class AppState:
             json.dump(config_data, f, ensure_ascii=False, indent=4)
         get_ui_logger().log_info(f"Config saved: {save_path}")
 
-    async def load_config(self, filename: str):
+    async def load_config(self, filename: str) -> None:
         path = os.path.join("data/configs", filename)
         if not os.path.exists(path):
             return

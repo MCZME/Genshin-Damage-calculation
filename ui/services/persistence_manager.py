@@ -136,3 +136,41 @@ class PersistenceManager:
                     self._show_toast("圣遗物套装已加载")
                     return True
         return False
+
+    async def save_rules_config(self):
+        """保存规则配置。"""
+        target_dir = os.path.join(self.base_data_dir, "rules")
+        os.makedirs(target_dir, exist_ok=True)
+
+        path = await ft.FilePicker().save_file(
+            dialog_title="保存规则配置",
+            initial_directory=target_dir,
+            file_name="rules_config.json"
+        )
+
+        if path:
+            self.app_state.scene_state.rules_vm.save_to_file(path)
+            self._show_toast(f"规则配置已保存: {os.path.basename(cast(str, path))}")
+            return True
+        return False
+
+    async def load_rules_config(self):
+        """加载规则配置。"""
+        target_dir = os.path.join(self.base_data_dir, "rules")
+        os.makedirs(target_dir, exist_ok=True)
+
+        result = await ft.FilePicker().pick_files(
+            dialog_title="读取规则配置",
+            initial_directory=target_dir,
+            allowed_extensions=["json"]
+        )
+
+        if result:
+            files = getattr(result, "files", result)
+            if files and isinstance(files, list) and len(files) > 0:
+                path = files[0].path
+                if path:
+                    self.app_state.scene_state.rules_vm.load_from_file(path)
+                    self._show_toast(f"规则配置已加载: {os.path.basename(cast(str, path))}")
+                    return True
+        return False
