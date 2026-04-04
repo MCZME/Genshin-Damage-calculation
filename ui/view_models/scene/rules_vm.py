@@ -59,6 +59,18 @@ class RulesViewModel:
     """规则配置 ViewModel。"""
 
     instances: list[RuleInstanceVM] = field(default_factory=list)
+    _initialized: bool = field(default=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """初始化后添加默认规则。"""
+        if not self._initialized:
+            self._initialized = True
+            self._add_default_rules()
+
+    def _add_default_rules(self) -> None:
+        """添加默认规则实例。"""
+        # 默认添加满能量规则
+        self.add_rule("energy_set", {"energy_state": "full"})
 
     @property
     def rule_type_schemas(self) -> dict[str, dict[str, Any]]:

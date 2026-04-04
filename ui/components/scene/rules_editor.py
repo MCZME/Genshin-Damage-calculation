@@ -18,7 +18,7 @@ def RulesEditor(vm: "RulesViewModel", persistence: "PersistenceManager") -> ft.C
     """
     规则编辑器组件。
 
-    包含规则列表、添加规则按钮、加载/保存按钮。
+    包含规则网格、添加规则按钮、加载/保存按钮。
     """
 
     # 规则卡片列表（直接绑定 VM 实例）
@@ -82,8 +82,8 @@ def RulesEditor(vm: "RulesViewModel", persistence: "PersistenceManager") -> ft.C
         ),
     ], spacing=8)
 
-    # 规则列表面板
-    rules_panel = ft.Column(
+    # 规则网格面板（每行 4 个）
+    rules_panel = ft.GridView(
         controls=cast(list[ft.Control], rule_cards) if rule_cards else [
             ft.Container(
                 content=ft.Column([
@@ -92,11 +92,25 @@ def RulesEditor(vm: "RulesViewModel", persistence: "PersistenceManager") -> ft.C
                     ft.Text("点击上方添加按钮创建规则", size=11, color=ft.Colors.WHITE_38),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
                 alignment=ft.Alignment.CENTER,
-                expand=True,
+                col={"xs": 12, "sm": 6, "md": 4, "lg": 3},
             )
         ],
+        max_extent=280,  # 卡片最大宽度
+        child_aspect_ratio=1.8,  # 宽高比
         spacing=10,
-        scroll=ft.ScrollMode.ADAPTIVE,
+        run_spacing=10,
+        expand=True,
+        padding=5,
+    )
+
+    # 空状态提示
+    empty_state = ft.Container(
+        content=ft.Column([
+            ft.Icon(ft.Icons.RULE, size=48, color=ft.Colors.WHITE_24),
+            ft.Text("暂无规则配置", size=14, color=GenshinTheme.TEXT_SECONDARY),
+            ft.Text("点击上方添加按钮创建规则", size=12, color=ft.Colors.WHITE_38),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
+        alignment=ft.Alignment.CENTER,
         expand=True,
     )
 
@@ -104,7 +118,7 @@ def RulesEditor(vm: "RulesViewModel", persistence: "PersistenceManager") -> ft.C
     main_content = ft.Column([
         header_row,
         ft.Divider(height=1, color=GenshinTheme.GLASS_BORDER),
-        rules_panel,
+        rules_panel if rule_cards else empty_state,
     ], spacing=12)
 
     return ft.Container(

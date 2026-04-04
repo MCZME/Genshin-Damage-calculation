@@ -203,13 +203,13 @@ class SceneView:
                 lower_section,
             ],
             spacing=30,
-            expand=2,
+            expand=3,
         )
 
         # 下半部分：规则配置区域
         rules_config_section = ft.Container(
             content=RulesEditor(scene_state.rules_vm, self.persistence),
-            expand=1,
+            expand=2,
         )
 
         # 整个工作台（上下分割）
