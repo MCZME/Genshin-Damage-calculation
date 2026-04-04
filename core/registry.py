@@ -7,6 +7,7 @@ from typing import Any
 CharacterClassMap: dict[str, type[Any]] = {}
 WeaponClassMap: dict[str, type[Any]] = {}
 ArtifactSetMap: dict[str, type[Any]] = {}
+RuleTypeMap: dict[str, Any] = {}  # 规则类型实例映射
 
 _initialized: bool = False
 
@@ -38,6 +39,15 @@ def register_artifact_set(name: str) -> Callable[[type[Any]], type[Any]]:
     """注册圣遗物套装类到全局映射。"""
     def wrapper(cls: type[Any]) -> type[Any]:
         ArtifactSetMap[name] = cls
+        return cls
+    return wrapper
+
+
+def register_rule_type(rule_type_id: str) -> Callable[[type], type]:
+    """注册规则类型到全局映射。"""
+    def wrapper(cls: type) -> type:
+        instance = cls()
+        RuleTypeMap[rule_type_id] = instance
         return cls
     return wrapper
 

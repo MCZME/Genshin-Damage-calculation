@@ -7,6 +7,7 @@ from core.target import Target
 from core.simulator import Simulator
 from core.factory.action_parser import ActionParser
 from core.data.repository import DataRepository
+from core.systems.rule_system import RuleSystem
 
 
 class SimulationAssembler:
@@ -37,6 +38,7 @@ class SimulationAssembler:
         """
         # 1. 初始化上下文环境 (自动激活系统与物理空间)
         ctx = create_context()
+        assert ctx.space is not None  # create_context() 保证 space 已初始化
 
         # 2. 组装队伍
         context_cfg = config.get("context_config", {})
@@ -46,9 +48,8 @@ class SimulationAssembler:
         team = self.team_factory.create_team(team_list_cfg)
         team.ctx = ctx  # 显式关联 Context 以便发布事件
 
-        # [NEW] 将 Team 注入 CombatSpace，开启物理同步与事件监听
-        if ctx.space:
-            ctx.space.set_team(team)
+        # 将 Team 注入 CombatSpace，开启物理同步与事件监听
+        ctx.space.set_team(team)
 
         # 3. 组装受击目标 (Enemy)
         target_cfg_list = context_cfg.get("targets", [])
@@ -61,15 +62,23 @@ class SimulationAssembler:
             # 手动注入到空间 (Target 默认是 Faction.ENEMY)
             ctx.space.register(target)
 
-        # 4. 解析动作序列
+        # 4. 导入规则配置 (在目标创建后、动作解析前)
+        rules_data = config.get("rules_config", {})
+        rules_list = rules_data.get("rules", [])
+        if rules_list:
+            rule_system = ctx.get_system(RuleSystem)
+            if rule_system:
+                rule_system.import_config({"rules": rules_list})
+
+        # 5. 解析动作序列
         sequence_cfg = config.get("sequence_config", [])
         parser = ActionParser()
         action_sequence = parser.parse_sequence(sequence_cfg)
 
-        # 5. 构建模拟器 (注入持久化接口)
+        # 6. 构建模拟器 (注入持久化接口)
         simulator = Simulator(ctx, action_sequence, persistence_db=persistence_db)
 
-        # 6. 收集静态修饰符数据 (用于后续异步持久化)
+        # 7. 收集静态修饰符数据 (用于后续异步持久化)
         static_modifiers_data: list[dict[str, Any]] = []
         if persistence_db and hasattr(persistence_db, "record_static_modifiers"):
             for char in team.get_members():
