@@ -122,7 +122,13 @@ class Simulator:
 
     def _prepare_simulation(self) -> None:
         """模拟启动前的预处理逻辑。"""
-        # 根据动作序列的第一个角色设置初始场上角色
+        # 1. 应用规则系统中的所有规则
+        from core.systems.rule_system import RuleSystem
+        rule_system = self.ctx.get_system(RuleSystem)
+        if rule_system:
+            rule_system.apply_all()
+
+        # 2. 根据动作序列的第一个角色设置初始场上角色
         self._set_initial_active_character()
         self._try_enqueue_next_action()
 

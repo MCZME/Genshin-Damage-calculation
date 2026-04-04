@@ -31,6 +31,10 @@ class ElementalEnergy:
         """清空能量。"""
         self.current_energy = 0.0
 
+    def fill(self) -> None:
+        """填满能量。"""
+        self.current_energy = float(self.max_energy)
+
     def gain(self, amount: float) -> float:
         """恢复能量。
 

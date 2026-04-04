@@ -32,7 +32,7 @@ class RuleSystem(GameSystem):
 
     def register_events(self, engine: EventEngine) -> None:
         """注册事件监听。"""
-        # 规则系统在 add_instance 时通过 apply_all() 触发，暂不需要事件订阅
+        # 规则系统通过 apply_all() 在模拟开始前触发，订阅类规则在此注册事件
         pass
 
     # === 实例管理 ===
