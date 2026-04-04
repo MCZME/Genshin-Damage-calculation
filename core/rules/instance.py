@@ -23,8 +23,6 @@ class RuleInstance:
     instance_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     # 引用的规则类型 ID
     rule_type_id: str = ""
-    # 作用目标
-    target: str = "all_characters"
     # 具体参数
     params: dict[str, Any] = field(default_factory=dict)
     # 是否启用
@@ -55,7 +53,6 @@ class RuleInstance:
         return {
             "instance_id": self.instance_id,
             "rule_type_id": self.rule_type_id,
-            "target": self.target,
             "params": self.params,
             "enabled": self.enabled
         }
@@ -74,7 +71,6 @@ class RuleInstance:
         return cls(
             instance_id=data.get("instance_id", str(uuid.uuid4())[:8]),
             rule_type_id=data.get("rule_type_id", ""),
-            target=data.get("target", "all_characters"),
             params=data.get("params", {}),
             enabled=data.get("enabled", True)
         )

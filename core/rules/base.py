@@ -49,15 +49,14 @@ class RuleTypeBase(ABC):
         }
 
     @abstractmethod
-    def apply(self, target: Any, params: dict[str, Any], ctx: SimulationContext) -> None:
+    def apply(self, params: dict[str, Any], ctx: SimulationContext) -> None:
         """
-        应用规则到目标。
+        应用规则。
 
         一次性模式：模拟开始时调用一次。
         订阅模式：可选实现，用于初始化。
 
         Args:
-            target: 目标实体
             params: 实例参数
             ctx: 模拟上下文
         """
@@ -75,7 +74,6 @@ class RuleTypeBase(ABC):
     def on_event(
         self,
         event: Any,
-        target: Any,
         params: dict[str, Any],
         ctx: SimulationContext
     ) -> None:
@@ -84,7 +82,6 @@ class RuleTypeBase(ABC):
 
         Args:
             event: 事件对象
-            target: 目标实体
             params: 实例参数
             ctx: 模拟上下文
         """

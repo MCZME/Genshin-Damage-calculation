@@ -39,21 +39,25 @@ class EnergySetRule(RuleTypeBase):
 
     def apply(
         self,
-        target: Any,
         params: dict[str, Any],
         ctx: SimulationContext
     ) -> None:
         """
-        应用能量设置。
+        应用能量设置到所有角色。
 
         Args:
-            target: 目标实体（角色）
             params: 参数字典，包含 energy_percent
             ctx: 模拟上下文
         """
         percent = params.get("energy_percent", 100) / 100.0
 
-        if hasattr(target, 'elemental_energy') and target.elemental_energy:
-            target.elemental_energy.current_energy = (
-                target.elemental_energy.max_energy * percent
-            )
+        # 获取所有角色
+        if ctx.space is None or ctx.space.team is None:
+            return
+
+        targets = ctx.space.team.get_members()
+        for target in targets:
+            if hasattr(target, 'elemental_energy') and target.elemental_energy:
+                target.elemental_energy.current_energy = (
+                    target.elemental_energy.max_energy * percent
+                )

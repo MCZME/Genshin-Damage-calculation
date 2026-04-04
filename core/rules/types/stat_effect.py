@@ -54,15 +54,13 @@ class StatEffectRule(RuleTypeBase):
 
     def apply(
         self,
-        target: Any,
         params: dict[str, Any],
         ctx: SimulationContext
     ) -> None:
         """
-        应用属性效果。
+        应用属性效果到所有角色。
 
         Args:
-            target: 目标实体
             params: 参数字典，包含 stat, value
             ctx: 模拟上下文
         """
@@ -71,13 +69,18 @@ class StatEffectRule(RuleTypeBase):
         stat = params.get("stat", "攻击力%")
         value = params.get("value", 0)
 
-        # 创建永久效果 (duration=-1 表示永久)
-        effect = StatModifierEffect(
-            owner=target,
-            name=f"规则效果:{stat}",
-            stats={stat: value},
-            duration=-1
-        )
+        # 获取所有角色
+        if ctx.space is None or ctx.space.team is None:
+            return
 
-        # 应用效果
-        effect.apply()
+        targets = ctx.space.team.get_members()
+        for target in targets:
+            # 创建永久效果 (duration=-1 表示永久)
+            effect = StatModifierEffect(
+                owner=target,
+                name=f"规则效果:{stat}",
+                stats={stat: value},
+                duration=-1
+            )
+            # 应用效果
+            effect.apply()

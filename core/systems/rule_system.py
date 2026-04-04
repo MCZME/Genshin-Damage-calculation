@@ -41,7 +41,7 @@ class RuleSystem(GameSystem):
         """添加规则实例。"""
         self._instances.append(instance)
         self._logger.log_debug(
-            f"规则实例已注册: [{instance.rule_type_id}] -> {instance.target}",
+            f"规则实例已注册: [{instance.rule_type_id}]",
             sender="RuleSystem"
         )
 
@@ -106,15 +106,11 @@ class RuleSystem(GameSystem):
         """一次性应用规则。"""
         if self.context is None:
             return
-        targets = self._resolve_targets(instance.target)
-        if not targets:
-            return
 
-        for target in targets:
-            rule_type.apply(target, instance.params, self.context)
+        rule_type.apply(instance.params, self.context)
 
         self._logger.log_debug(
-            f"规则 [{rule_type.display_name}] 已应用到 {len(targets)} 个目标",
+            f"规则 [{rule_type.display_name}] 已应用",
             sender="RuleSystem"
         )
 
@@ -129,9 +125,7 @@ class RuleSystem(GameSystem):
         ctx = self.context  # 捕获以供闭包使用
 
         def handler(event: Any) -> None:
-            targets = self._resolve_targets(instance.target)
-            for target in targets:
-                rule_type.on_event(event, target, instance.params, ctx)
+            rule_type.on_event(event, instance.params, ctx)
 
         self.engine.subscribe(event_type, handler)
         key = f"{instance.instance_id}:{event_type}"
@@ -149,20 +143,6 @@ class RuleSystem(GameSystem):
             return
         event_type = key.split(":")[1]
         self.engine.unsubscribe(event_type, handler)
-
-    def _resolve_targets(self, target: str) -> list[Any]:
-        """解析目标为实体列表。"""
-        if self.context is None:
-            return []
-
-        if target == "all_characters":
-            if self.context.space and self.context.space.team:
-                return self.context.space.team.get_members()
-        elif target == "all_targets":
-            if self.context.space:
-                from core.entities.base_entity import Faction
-                return self.context.space._entities.get(Faction.ENEMY, [])
-        return []
 
     # === 持久化 ===
 

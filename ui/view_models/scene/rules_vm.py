@@ -14,13 +14,6 @@ from core.registry import RuleTypeMap
 from core.logger import get_ui_logger
 
 
-# 目标类型的显示名称
-TARGET_DISPLAY_NAMES: dict[str, str] = {
-    "all_characters": "所有角色",
-    "all_targets": "所有目标"
-}
-
-
 @ft.observable
 @dataclass
 class RuleInstanceVM:
@@ -28,7 +21,6 @@ class RuleInstanceVM:
 
     instance_id: str
     rule_type_id: str
-    target: str = "all_characters"
     params: dict[str, Any] = field(default_factory=dict)
     enabled: bool = True
 
@@ -46,7 +38,6 @@ class RuleInstanceVM:
         return {
             "instance_id": self.instance_id,
             "rule_type_id": self.rule_type_id,
-            "target": self.target,
             "params": self.params,
             "enabled": self.enabled
         }
@@ -57,7 +48,6 @@ class RuleInstanceVM:
         return cls(
             instance_id=data.get("instance_id", str(uuid.uuid4())[:8]),
             rule_type_id=data.get("rule_type_id", ""),
-            target=data.get("target", "all_characters"),
             params=data.get("params", {}),
             enabled=data.get("enabled", True)
         )
@@ -78,22 +68,15 @@ class RulesViewModel:
             schemas[rule_type_id] = rule_type.get_schema()
         return schemas
 
-    @property
-    def target_display_names(self) -> dict[str, str]:
-        """获取目标类型显示名称。"""
-        return TARGET_DISPLAY_NAMES
-
     def add_rule(
         self,
         rule_type_id: str,
-        target: str = "all_characters",
         params: dict[str, Any] | None = None
     ) -> None:
         """添加新规则实例。"""
         instance = RuleInstanceVM(
             instance_id=str(uuid.uuid4())[:8],
             rule_type_id=rule_type_id,
-            target=target,
             params=params or self._get_default_params(rule_type_id)
         )
         self.instances.append(instance)
@@ -101,13 +84,6 @@ class RulesViewModel:
     def remove_rule(self, instance_id: str) -> None:
         """移除规则实例。"""
         self.instances = [i for i in self.instances if i.instance_id != instance_id]
-
-    def update_rule_target(self, instance_id: str, target: str) -> None:
-        """更新规则目标。"""
-        for instance in self.instances:
-            if instance.instance_id == instance_id:
-                instance.target = target
-                break
 
     def update_rule_param(self, instance_id: str, key: str, value: Any) -> None:
         """更新规则参数。"""
@@ -184,7 +160,6 @@ class RulesViewModel:
             rule_system.add_instance(RuleInstance(
                 instance_id=vm.instance_id,
                 rule_type_id=vm.rule_type_id,
-                target=vm.target,
                 params=vm.params.copy(),
                 enabled=vm.enabled
             ))
@@ -195,7 +170,6 @@ class RulesViewModel:
             RuleInstanceVM(
                 instance_id=i.instance_id,
                 rule_type_id=i.rule_type_id,
-                target=i.target,
                 params=i.params.copy(),
                 enabled=i.enabled
             )

@@ -16,7 +16,7 @@ class RuleCard(ft.Container):
     """
     单条规则实例配置卡片。
 
-    直接绑定 RuleInstanceVM，显示规则类型、目标和参数。
+    直接绑定 RuleInstanceVM，显示规则类型和参数。
     """
 
     def __init__(
@@ -38,7 +38,6 @@ class RuleCard(ft.Container):
 
     def _build_content(self) -> ft.Control:
         rule_type_id = self.instance.rule_type_id
-        target = self.instance.target
         params = self.instance.params
 
         # 获取规则类型
@@ -50,7 +49,7 @@ class RuleCard(ft.Container):
         # 获取应用模式标签
         apply_mode = self._get_apply_mode(rule_type)
 
-        # 标题行：规则类型 + 应用模式标签 + 删除按钮
+        # 标题行：规则类型 + 应用模式标签 + 启用开关 + 删除按钮
         header = ft.Row([
             ft.Icon(ft.Icons.TUNE, size=16, color=GenshinTheme.PRIMARY),
             ft.Text(
@@ -70,6 +69,11 @@ class RuleCard(ft.Container):
                 padding=ft.Padding(4, 2, 4, 2),
             ),
             ft.Container(expand=True),
+            ft.Switch(
+                value=self.instance.enabled,
+                on_change=lambda e: self.vm.toggle_rule_enabled(self.instance.instance_id),
+                active_color=GenshinTheme.PRIMARY,
+            ),
             ft.IconButton(
                 ft.Icons.DELETE_OUTLINE,
                 icon_size=18,
@@ -88,23 +92,6 @@ class RuleCard(ft.Container):
                 color=GenshinTheme.TEXT_SECONDARY,
             )
 
-        # 目标选择
-        target_dropdown = ft.Dropdown(
-            label="目标",
-            value=target,
-            options=[
-                ft.dropdown.Option(k, v)
-                for k, v in self.vm.target_display_names.items()
-            ],
-            dense=True,
-            text_size=12,
-            width=150,
-            border_color=ft.Colors.WHITE_24,
-            on_select=lambda e: self.vm.update_rule_target(
-                self.instance.instance_id, e.control.value
-            ),
-        )
-
         # 参数控件（根据 schema 动态生成）
         param_controls = self._build_param_controls(schema, params)
 
@@ -112,13 +99,13 @@ class RuleCard(ft.Container):
         content_controls: list[ft.Control] = [header]
         if description_text:
             content_controls.append(description_text)
-        content_controls.append(ft.Row([target_dropdown], spacing=10))
-        content_controls.append(
-            ft.Container(
-                content=ft.Column(param_controls, spacing=8),
-                padding=ft.Padding(10, 5, 0, 0),
+        if param_controls:
+            content_controls.append(
+                ft.Container(
+                    content=ft.Column(param_controls, spacing=8),
+                    padding=ft.Padding(10, 5, 0, 0),
+                )
             )
-        )
 
         return ft.Column(content_controls, spacing=10)
 
