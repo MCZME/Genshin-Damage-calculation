@@ -17,7 +17,7 @@ class ElementalEnergy:
         """
         self.element: str = element
         self.max_energy: int = max_energy
-        self.current_energy: float = float(max_energy)
+        self.current_energy: float = -1.0  # -1 表示未初始化
 
     def is_full(self) -> bool:
         """检查能量是否已满。"""

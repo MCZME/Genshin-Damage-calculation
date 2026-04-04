@@ -50,6 +50,11 @@ class Simulator:
             # 初始帧前准备
             self._prepare_simulation()
 
+            # [V19.0] 记录第 0 帧快照（包含规则应用产生的事件，如能量设置）
+            # 必须在 advance_frame() 之前记录，因为 advance_frame() 会清空事件缓冲区
+            if self.db:
+                self.db.record_snapshot(self.ctx.take_snapshot())
+
             while self.is_running:
                 # 1. 推进全局帧 (此方法内部会驱动 ctx.space.on_frame_update, 进而驱动 team)
                 self.ctx.advance_frame()

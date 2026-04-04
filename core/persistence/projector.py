@@ -216,8 +216,9 @@ class DataProjector:
                 # 使用 SELECT MAX(event_id) 子查询捕获当前帧内最新的伤害/反应事件 ID。
                 # 若本帧尚无伤害事件，MAX 返回全局最后 event_id，查询条件仍然准确。
                 # 此策略确保：修饰符的 start_event_id >= 同帧内所有先发伤害的 event_id。
+                # [V19.0] 使用 INSERT OR IGNORE 避免与 record_static_modifiers 的预写入冲突
                 commands.append((
-                    "INSERT INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type, start_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT MAX(event_id) FROM simulation_event_log))",
+                    "INSERT OR IGNORE INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type, start_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT MAX(event_id) FROM simulation_event_log))",
                     (self.session_id, mid, eid, frame_id, getattr(mod, "source", ""), getattr(mod, "stat", ""), getattr(mod, "value", 0.0), getattr(mod, "op", "ADD"))
                 ))
 
@@ -372,7 +373,7 @@ class DataProjector:
             mid = getattr(mod, "modifier_id", 0)
 
             commands.append((
-                "INSERT INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO modifier_lifecycles (session_id, modifier_id, entity_id, start_frame, source_name, stat_type, value, op_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (self.session_id, mid, entity_id, frame, getattr(mod, "source", ""), getattr(mod, "stat", ""), getattr(mod, "value", 0.0), getattr(mod, "op", "ADD"))
             ))
 
