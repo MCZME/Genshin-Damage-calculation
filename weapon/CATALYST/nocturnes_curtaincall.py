@@ -44,8 +44,8 @@ class NectarsDionysusEffect(BaseEffect):
         # 额外生命值上限
         self._hp_modifier = self.owner.add_modifier(
             source="丰饶海的神酒",
-            stat="hp_percent",
-            value=self.extra_hp,
+            stat="生命值%",
+            value=self.extra_hp * 100,
         )
 
         # 订阅伤害计算事件，用于注入月曜暴击伤害
@@ -142,8 +142,8 @@ class NocturnesCurtainCall(Weapon):
         # 基础生命值加成
         self.character.add_modifier(
             source="帷间夜曲",
-            stat="hp_percent",
-            value=hp_bonus,
+            stat="生命值%",
+            value=hp_bonus * 100,
         )
 
         # 订阅月曜反应事件
