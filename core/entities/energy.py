@@ -16,6 +16,7 @@ class EnergyDropsObject(BaseEntity):
         life_frame: int = 60,
         is_fixed: bool = False,
         is_alone: bool = False,
+        count: int = 1,
         **kwargs: Any,
     ):
         if element_energy[1] == 2:
@@ -29,13 +30,14 @@ class EnergyDropsObject(BaseEntity):
         self.element_energy = element_energy
         self.is_fixed = is_fixed
         self.is_alone = is_alone
+        self.count = count  # 微粒数量
 
     def on_frame_update(self) -> None:
         pass
 
     def on_finish(self) -> None:
         get_emulation_logger().log_info(
-            f"{self.character.name}的 {self.name} 存活时间结束",
+            f"{self.character.name}的 {self.name}x{self.count} 存活时间结束",
             "EnergyDropsObject"
         )
         energy_event = GameEvent(
@@ -44,7 +46,7 @@ class EnergyDropsObject(BaseEntity):
             source=self.character,
             data={
                 "character": self.character,
-                "amount": self.element_energy,
+                "amount": (self.element_energy[0], self.element_energy[1] * self.count),
                 "is_fixed": self.is_fixed,
                 "is_alone": self.is_alone,
             },

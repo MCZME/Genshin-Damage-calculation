@@ -1,5 +1,6 @@
 """哥伦比娅技能实现。"""
 
+import random
 from typing import Any, Dict, Optional
 
 from core.logger import get_emulation_logger
@@ -242,8 +243,8 @@ class ColumbinaElementalSkill(SkillBase):
         self.cd_frames = 1020  # 17秒
 
         # 产球冷却（战技和引力涟漪共用）
-        self.last_particle_frame = -9999
-        self.particle_cd = MECHANISM_CONFIG["ENERGY_PARTICLE_CD"]
+        self.last_particle_frame: int = -9999
+        self.particle_cd: int = MECHANISM_CONFIG["ENERGY_PARTICLE_CD"]  # type: ignore[assignment]
 
     def to_action_data(
         self, intent: Optional[Dict[str, Any]] = None
@@ -290,26 +291,27 @@ class ColumbinaElementalSkill(SkillBase):
         # 创建引力涟漪
         self._spawn_gravity_ripple()
 
-    def _try_spawn_energy_particle(self) -> None:
+    def _try_spawn_energy_particle(self) -> bool:
         """
         尝试产生能量微粒。
 
         触发条件：元素战技命中
         产出：1~2个水元素微粒，概率 66.67%:33.33%
         冷却：3.5秒（与引力涟漪共用）
+
+        Returns:
+            bool: 是否成功产球
         """
         current_frame = get_current_time()
         particle_cd: int = self.particle_cd  # type: ignore[assignment]
         if current_frame - self.last_particle_frame < particle_cd:
-            return
+            return False
 
         # 更新冷却
         self.last_particle_frame = current_frame
 
         # 随机决定微粒数量
-        import random
-        rates_raw = MECHANISM_CONFIG["ENERGY_PARTICLE_RATES"]
-        rates: tuple[float, float] = rates_raw  # type: ignore[assignment]
+        rates: tuple[float, float] = MECHANISM_CONFIG["ENERGY_PARTICLE_RATES"]  # type: ignore[assignment]
         num_particles = 1 if random.random() < rates[0] else 2
 
         # 产球
@@ -325,6 +327,44 @@ class ColumbinaElementalSkill(SkillBase):
             f"[元素战技] 产生 {num_particles} 个水元素微粒",
             sender="ColumbinaElementalSkill"
         )
+        return True
+
+    def can_spawn_particle(self) -> bool:
+        """检查是否可以产球（供引力涟漪调用）。"""
+        current_frame = get_current_time()
+        return current_frame - self.last_particle_frame >= self.particle_cd
+
+    def spawn_particle(self, source_name: str = "引力涟漪") -> bool:
+        """
+        执行产球逻辑（供引力涟漪调用）。
+
+        Args:
+            source_name: 产球来源名称，用于日志
+
+        Returns:
+            bool: 是否成功产球
+        """
+        current_frame = get_current_time()
+        if current_frame - self.last_particle_frame < self.particle_cd:
+            return False
+
+        self.last_particle_frame = current_frame
+        rates: tuple[float, float] = MECHANISM_CONFIG["ENERGY_PARTICLE_RATES"]  # type: ignore[assignment]
+        num_particles = 1 if random.random() < rates[0] else 2
+
+        from core.factory.entity_factory import EntityFactory
+        EntityFactory.spawn_energy(
+            num=num_particles,
+            character=self.caster,
+            element_energy=("水", 2),
+            time=40,
+        )
+
+        get_emulation_logger().log_info(
+            f"[{source_name}] 产生 {num_particles} 个水元素微粒",
+            sender="ColumbinaElementalSkill"
+        )
+        return True
 
     def _spawn_gravity_ripple(self) -> None:
         """生成引力涟漪实体。"""

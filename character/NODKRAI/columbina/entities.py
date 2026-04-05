@@ -6,7 +6,6 @@ from typing import Any
 from core.entities.base_entity import CombatEntity, Faction
 from core.entities.attack_entity import AttackEntity, AttackTriggerType
 from core.entities.scene_entity import SceneEntity
-from core.logger import get_emulation_logger
 from core.systems.contract.attack import (
     AttackConfig,
     HitboxConfig,
@@ -23,7 +22,6 @@ from character.NODKRAI.columbina.data import (
     ATTACK_DATA,
     ELEMENTAL_SKILL_DATA,
     ELEMENTAL_BURST_DATA,
-    MECHANISM_CONFIG,
 )
 from character.NODKRAI.columbina.effects import CrescentSignEffect
 
@@ -58,8 +56,8 @@ class GravityRipple(CombatEntity):
         self.damage_timer = 0
         self.damage_interval = 120
 
-        # 产球冷却（从战技对象获取）
-        self.particle_cd = MECHANISM_CONFIG["ENERGY_PARTICLE_CD"]
+        # 产球冷却：从战技对象获取冷却状态
+        # 注意：实际产球逻辑委托给战技的 spawn_particle 方法
 
         # 预载攻击配置
         self.normal_config = self._build_attack_config("引力涟漪·持续伤害")
@@ -71,6 +69,7 @@ class GravityRipple(CombatEntity):
             self.event_engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
             self.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
             self.event_engine.subscribe(EventType.GRAVITY_INTERFERENCE, self)
+            self.event_engine.subscribe(EventType.BEFORE_DAMAGE, self)
             self.event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
     def on_finish(self) -> None:
@@ -80,6 +79,7 @@ class GravityRipple(CombatEntity):
             self.event_engine.unsubscribe(EventType.AFTER_LUNAR_CHARGED, self)
             self.event_engine.unsubscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
             self.event_engine.unsubscribe(EventType.GRAVITY_INTERFERENCE, self)
+            self.event_engine.unsubscribe(EventType.BEFORE_DAMAGE, self)
             self.event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
 
         # 引力涟漪结束时移除引力值
@@ -94,15 +94,12 @@ class GravityRipple(CombatEntity):
             if event.data.get("is_c1_trigger"):
                 return
             self._spawn_gravity_interference(event)
-        elif event.event_type == EventType.AFTER_DAMAGE:
+        elif event.event_type == EventType.BEFORE_DAMAGE:
             dmg = event.data.get("damage")
             if not dmg:
                 return
-            # 产球逻辑：引力涟漪·持续伤害命中时
-            if dmg.name == "引力涟漪·持续伤害":
-                self._try_spawn_energy_particle(event)
             # 月曜伤害：为哥伦比娅添加新月之示效果
-            elif AttackTagResolver.is_lunar_damage(
+            if AttackTagResolver.is_lunar_damage(
                 dmg.config.attack_tag,
                 getattr(dmg.config, "extra_attack_tags", None)
             ):
@@ -110,6 +107,11 @@ class GravityRipple(CombatEntity):
                 if lunar_type:
                     effect = CrescentSignEffect(self.owner, lunar_type=lunar_type)
                     effect.apply()
+        elif event.event_type == EventType.AFTER_DAMAGE:
+            # 产球逻辑：引力涟漪·持续伤害命中时
+            dmg = event.data.get("damage")
+            if dmg and dmg.name == "引力涟漪·持续伤害":
+                self._try_spawn_energy_particle(event)
         else:
             # 月曜反应事件：为哥伦比娅添加新月之示效果
             lunar_type = self._get_lunar_type(event)
@@ -124,42 +126,21 @@ class GravityRipple(CombatEntity):
         触发条件：引力涟漪·持续伤害命中
         产出：1~2个水元素微粒，概率 66.67%:33.33%
         冷却：3.5秒（与战技共用）
+
+        委托给战技的 spawn_particle 方法执行，确保冷却共用。
         """
         # 检查是否为引力涟漪·持续伤害
         dmg = event.data.get("damage")
         if not dmg or dmg.name != "引力涟漪·持续伤害":
             return
 
-        # 从战技对象获取冷却状态
+        # 从战技对象获取产球方法
         skill = self.owner.skills.get("elemental_skill")
-        if not skill:
+        if not skill or not hasattr(skill, "spawn_particle"):
             return
 
-        current_frame = get_current_time()
-        if current_frame - skill.last_particle_frame < self.particle_cd:
-            return
-
-        # 更新冷却
-        skill.last_particle_frame = current_frame
-
-        # 随机决定微粒数量
-        import random
-        rates: tuple[float, float] = MECHANISM_CONFIG["ENERGY_PARTICLE_RATES"]  # type: ignore[assignment]
-        num_particles = 1 if random.random() < rates[0] else 2
-
-        # 产球
-        from core.factory.entity_factory import EntityFactory
-        EntityFactory.spawn_energy(
-            num=num_particles,
-            character=self.owner,
-            element_energy=("水", 2),  # 水元素微粒，每个提供2点能量
-            time=40,  # 约0.67秒后生效
-        )
-
-        get_emulation_logger().log_info(
-            f"[引力涟漪] 产生 {num_particles} 个水元素微粒",
-            sender="GravityRipple"
-        )
+        # 委托战技执行产球（自动处理冷却和随机）
+        skill.spawn_particle(source_name="引力涟漪")
 
     def _get_lunar_type(self, event: GameEvent) -> str | None:
         """从月曜反应事件中提取月曜类型。"""
