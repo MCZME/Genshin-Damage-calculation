@@ -25,6 +25,13 @@ async def main():
         else:
             print(f"FAILED: 角色 [{args.name}] 同步失败")
 
+    elif args.type == "weapon":
+        success = await manager.add_weapon(args.name)
+        if success:
+            print(f"SUCCESS: 武器 [{args.name}] 数据同步成功！")
+        else:
+            print(f"FAILED: 武器 [{args.name}] 同步失败")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

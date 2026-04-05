@@ -59,3 +59,29 @@ class AmberFetcher:
         """获取全量成长曲线表。"""
         params = {"vh": vh} if vh else None
         return self._get(f"{self.STATIC_URL}/avatarCurve", params=params)
+
+    # --- 武器相关方法 ---
+
+    def find_weapon_id(self, name: str) -> str | None:
+        """通过武器名查找 API ID。"""
+        get_emulation_logger().log_info(f"正在查找武器 ID: {name}...", sender="Fetcher")
+        data = self._get(f"{self.BASE_URL}/weapon")
+        if not data:
+            return None
+        items = data.get("items", {})
+        for weapon_id, details in items.items():
+            if details.get("name") == name:
+                return str(weapon_id)
+        return None
+
+    def fetch_weapon_detail(
+        self, weapon_id: str | int, vh: str | None = None
+    ) -> dict[str, Any] | None:
+        """获取武器详情。"""
+        params = {"vh": vh} if vh else None
+        return self._get(f"{self.BASE_URL}/weapon/{weapon_id}", params=params)
+
+    def fetch_weapon_curve(self, vh: str | None = "63F3") -> dict[str, Any] | None:
+        """获取武器成长曲线表。"""
+        params = {"vh": vh} if vh else None
+        return self._get(f"{self.STATIC_URL}/weaponCurve", params=params)

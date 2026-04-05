@@ -23,6 +23,14 @@ class DatabaseSync:
         "生命值%": 11,
         "攻击力%": 12,
         "防御力%": 13,
+        "物理伤害加成": 14,
+        "火元素伤害加成": 15,
+        "水元素伤害加成": 16,
+        "冰元素伤害加成": 17,
+        "雷元素伤害加成": 18,
+        "风元素伤害加成": 19,
+        "岩元素伤害加成": 20,
+        "草元素伤害加成": 21,
     }
 
     def __init__(self) -> None:
@@ -64,6 +72,104 @@ class DatabaseSync:
                 f"数据库同步失败: {str(e)}", sender="DBSync"
             )
             return None
+
+    def sync_weapon(self, data: dict[str, Any]) -> int | None:
+        """同步武器数据到数据库并返回真实 ID。"""
+        weapon_name = data["metadata"]["name"]
+        get_emulation_logger().log_info(
+            f"开始同步武器数据: {weapon_name}", sender="DBSync"
+        )
+
+        try:
+            # 1. 确保表结构
+            self._ensure_weapon_schema()
+
+            # 2. 同步基础信息
+            self._sync_weapon_base_info(data)
+
+            # 3. 获取数据库 ID
+            real_id = self._get_weapon_id(weapon_name)
+            if not real_id:
+                raise ValueError(f"无法获取武器 {weapon_name} 的数据库 ID")
+
+            # 4. 同步攻击力表
+            self._sync_weapon_atk(real_id, data["base_atk"])
+
+            # 5. 同步副属性表
+            secondary = data.get("secondary_attribute", {})
+            if secondary.get("name"):
+                self._sync_weapon_secondary(real_id, secondary)
+
+            get_emulation_logger().log_info(
+                f"武器数据同步成功 (ID: {real_id})", sender="DBSync"
+            )
+            return real_id
+        except Exception as e:
+            get_emulation_logger().log_error(
+                f"武器数据同步失败: {str(e)}", sender="DBSync"
+            )
+            return None
+
+    def _ensure_weapon_schema(self) -> None:
+        """确保武器相关表结构完整。"""
+        tables = ["w_atk", "w_secondary_attribute"]
+        for table in tables:
+            for col in ["95", "100"]:
+                check_sql = f"SHOW COLUMNS FROM `{table}` LIKE '{col}'"
+                if not self.db.execute_query(check_sql):
+                    alter_sql = (
+                        f"ALTER TABLE `{table}` ADD COLUMN `{col}` DOUBLE DEFAULT 0"
+                    )
+                    self.db.execute_non_query(alter_sql)
+
+    def _sync_weapon_base_info(self, data: dict[str, Any]) -> None:
+        """同步武器基础信息。"""
+        m = data["metadata"]
+        sql = """
+            INSERT INTO `weapon` (Name, Type, Rarity)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            Type = VALUES(Type),
+            Rarity = VALUES(Rarity)
+        """
+        params = (m["name"], m["type"], m["rarity"])
+        self.db.execute_non_query(sql, params)
+
+    def _get_weapon_id(self, name: str) -> int | None:
+        """获取武器的数据库 ID。"""
+        sql = "SELECT ID FROM `weapon` WHERE Name = %s"
+        result = self.db.execute_query(sql, (name,))
+        return result[0][0] if result else None
+
+    def _sync_weapon_atk(self, weapon_id: int, atk_data: dict[int, float]) -> None:
+        """同步武器攻击力数据。"""
+        levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
+        vals = [atk_data.get(lv, 0.0) for lv in levels]
+
+        columns = ", ".join([f"`{lv}`" for lv in levels])
+        placeholders = ", ".join(["%s"] * (len(levels) + 1))
+
+        sql = f"REPLACE INTO `w_atk` (ID, {columns}) VALUES ({placeholders})"
+        params = tuple([weapon_id] + vals)
+        self.db.execute_non_query(sql, params)
+
+    def _sync_weapon_secondary(
+        self, weapon_id: int, secondary_data: dict[str, Any]
+    ) -> None:
+        """同步武器副属性数据。"""
+        prop_name = secondary_data.get("name")
+        values = secondary_data.get("values", {})
+        attr_id = self.ATTR_NAME_TO_ID.get(prop_name, 0)
+
+        levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
+        vals = [values.get(lv, 0.0) for lv in levels]
+
+        columns = ", ".join([f"`{lv}`" for lv in levels])
+        placeholders = ", ".join(["%s"] * (len(levels) + 2))
+
+        sql = f"REPLACE INTO `w_secondary_attribute` (ID, {columns}, AttributeId) VALUES ({placeholders})"
+        params = tuple([weapon_id] + vals + [attr_id])
+        self.db.execute_non_query(sql, params)
 
     def _ensure_schema(self) -> None:
         tables = ["basehp", "baseatk", "basedef", "breakthrough_attribute"]

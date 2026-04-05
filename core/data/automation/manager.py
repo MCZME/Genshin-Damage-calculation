@@ -1,6 +1,7 @@
 import os
 from core.data.automation.fetcher import AmberFetcher
 from core.data.automation.transformer import DataTransformer
+from core.data.automation.weapon_transformer import WeaponDataTransformer
 from core.data.automation.generator import DataGenerator
 from core.data.automation.db_sync import DatabaseSync
 from core.logger import get_emulation_logger
@@ -62,3 +63,49 @@ class AutomationManager:
             f"正在生成本地代码文件: {output_path}", sender="Automation"
         )
         return self.generator.generate_character_data(clean_data, output_path)
+
+    async def add_weapon(self, name: str) -> bool:
+        """自动化添加一个新武器。"""
+        get_emulation_logger().log_info(
+            f"--- 开始自动化处理武器: {name} ---", sender="Automation"
+        )
+
+        # 1. 抓取数据 (需要武器 API 支持)
+        weapon_id = self.fetcher.find_weapon_id(name)
+        if not weapon_id:
+            get_emulation_logger().log_error(
+                f"未找到武器: {name}", sender="Automation"
+            )
+            return False
+
+        raw_data = self.fetcher.fetch_weapon_detail(weapon_id, vh="63F3")
+        curve_data = self.fetcher.fetch_weapon_curve(vh="63F3")
+
+        if not raw_data or not curve_data:
+            get_emulation_logger().log_error("武器数据抓取失败", sender="Automation")
+            return False
+
+        # 2. 转换数据
+        get_emulation_logger().log_info("正在清洗武器数据...", sender="Automation")
+        weapon_transformer = WeaponDataTransformer()
+        clean_data = weapon_transformer.transform(raw_data, curve_data)
+
+        # 3. 数据库同步并获取真实 ID
+        real_id = self.db_syncer.sync_weapon(clean_data)
+        if not real_id:
+            get_emulation_logger().log_error(
+                "武器数据库同步失败，停止文件生成", sender="Automation"
+            )
+            return False
+
+        # 回填真实 ID
+        clean_data["metadata"]["id"] = real_id
+
+        # 4. 确定输出路径 (直接放在 weapon/{TYPE}/ 目录下)
+        output_path = "weapon/weapon.py"  # 传递基础路径，generator 会处理类型目录
+
+        # 5. 生成文件
+        get_emulation_logger().log_info(
+            f"正在生成武器代码文件...", sender="Automation"
+        )
+        return self.generator.generate_weapon_data(clean_data, output_path)

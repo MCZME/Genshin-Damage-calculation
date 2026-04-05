@@ -1,6 +1,8 @@
 import os
 from typing import Any
 
+from core.logger import get_emulation_logger
+
 
 class DataGenerator:
     """
@@ -85,3 +87,80 @@ class DataGenerator:
         except Exception as e:
             print(f"代码生成失败: {str(e)}")
             return False
+
+    def generate_weapon_data(self, data: dict[str, Any], output_path: str) -> bool:
+        """生成武器代码文件。"""
+        try:
+            m = data["metadata"]
+
+            # 生成类名（中文转拼音或使用 route）
+            class_name = self._generate_class_name(m.get("route", m["name"]))
+            weapon_type_dir = self._get_weapon_type_dir(m["type"])
+
+            lines = [
+                f'"""{m["name"]} 的自动化提取数据。"""',
+                "",
+                "from typing import Any",
+                "from weapon.weapon import Weapon",
+                "from core.registry import register_weapon",
+                "",
+                "",
+                f'@register_weapon("{m["name"]}", "{m["type"]}")',
+                f"class {class_name}(Weapon):",
+                f'    """{m["name"]}：武器描述待补充。"""',
+                "",
+                f"    ID = {m['id']}",
+                "",
+                "    def __init__(",
+                "        self,",
+                "        character: Any,",
+                "        level: int = 1,",
+                "        lv: int = 1,",
+                "        base_data: dict[str, Any] | None = None,",
+                "    ):",
+                f"        super().__init__(character, {class_name}.ID, level, lv, base_data)",
+                "",
+                "    def skill(self) -> None:",
+                "        # TODO: 实现武器特效",
+                "        pass",
+            ]
+
+            # 确保目录存在：weapon/{TYPE}/
+            dir_path = os.path.join("weapon", weapon_type_dir)
+            os.makedirs(dir_path, exist_ok=True)
+
+            # 写入文件
+            file_path = os.path.join(dir_path, f"{class_name.lower()}.py")
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+
+            get_emulation_logger().log_info(
+                f"武器代码文件已生成: {file_path}", sender="Generator"
+            )
+            return True
+        except Exception as e:
+            get_emulation_logger().log_error(
+                f"武器代码生成失败: {str(e)}", sender="Generator"
+            )
+            return False
+
+    def _generate_class_name(self, route: str) -> str:
+        """根据 route 生成类名。"""
+        if not route:
+            return "UnknownWeapon"
+        # 移除空格，转为驼峰
+        # route 可能是 "Aqua Simulacra" 或 "aqua_simulacra"
+        route = route.replace("_", " ")
+        parts = route.split()
+        return "".join(part.capitalize() for part in parts)
+
+    def _get_weapon_type_dir(self, weapon_type: str) -> str:
+        """获取武器类型目录名。"""
+        type_map = {
+            "单手剑": "SWORD",
+            "双手剑": "CLAYMORE",
+            "长柄武器": "POLEARM",
+            "弓": "BOW",
+            "法器": "CATALYST",
+        }
+        return type_map.get(weapon_type, "OTHER")
