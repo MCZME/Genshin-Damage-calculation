@@ -48,8 +48,6 @@ class WeaponDataTransformer:
         70: 5,
         80: 6,
         90: 7,
-        95: 7,  # 近似
-        100: 7,  # 近似
     }
 
     def transform(

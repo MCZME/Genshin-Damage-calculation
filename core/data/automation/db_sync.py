@@ -112,15 +112,7 @@ class DatabaseSync:
 
     def _ensure_weapon_schema(self) -> None:
         """确保武器相关表结构完整。"""
-        tables = ["w_atk", "w_secondary_attribute"]
-        for table in tables:
-            for col in ["95", "100"]:
-                check_sql = f"SHOW COLUMNS FROM `{table}` LIKE '{col}'"
-                if not self.db.execute_query(check_sql):
-                    alter_sql = (
-                        f"ALTER TABLE `{table}` ADD COLUMN `{col}` DOUBLE DEFAULT 0"
-                    )
-                    self.db.execute_non_query(alter_sql)
+        pass
 
     def _sync_weapon_base_info(self, data: dict[str, Any]) -> None:
         """同步武器基础信息。"""
@@ -143,7 +135,7 @@ class DatabaseSync:
 
     def _sync_weapon_atk(self, weapon_id: int, atk_data: dict[int, float]) -> None:
         """同步武器攻击力数据。"""
-        levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
+        levels = [1, 20, 40, 50, 60, 70, 80, 90]
         vals = [atk_data.get(lv, 0.0) for lv in levels]
 
         columns = ", ".join([f"`{lv}`" for lv in levels])
@@ -161,7 +153,7 @@ class DatabaseSync:
         values = secondary_data.get("values", {})
         attr_id = self.ATTR_NAME_TO_ID.get(prop_name, 0)
 
-        levels = [1, 20, 40, 50, 60, 70, 80, 90, 95, 100]
+        levels = [1, 20, 40, 50, 60, 70, 80, 90]
         vals = [values.get(lv, 0.0) for lv in levels]
 
         columns = ", ".join([f"`{lv}`" for lv in levels])
