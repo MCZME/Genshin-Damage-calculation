@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 import flet as ft
 from core.data.repository import DataRepository
+from core.registry import ArtifactSetMap
 
 
 @dataclass
@@ -37,7 +38,7 @@ class LibraryViewModel:
         from core.registry import CharacterClassMap, WeaponClassMap
         self.implemented_chars = set(CharacterClassMap.keys())
         self.implemented_weapons = set(WeaponClassMap.keys())
-        
+
         self.refresh_data()
 
     def refresh_data(self):
@@ -63,7 +64,7 @@ class LibraryViewModel:
                 ) for w in raw_ws
             ]
             
-        self._artifacts = self._repo.get_all_artifact_sets()
+        self._artifacts = sorted(ArtifactSetMap.keys())
         cast(Any, self).notify()
 
     @property

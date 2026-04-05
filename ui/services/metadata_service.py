@@ -41,8 +41,8 @@ class MetadataService:
             for wt in weapon_types:
                 self.weapon_map[wt] = self._repo.get_weapons_by_type(wt)
                 
-            # 3. 加载圣遗物套装
-            self.artifact_sets = self._repo.get_all_artifact_sets()
+            # 3. 加载圣遗物套装 (从注册表获取已实现的套装)
+            self.artifact_sets = sorted(ArtifactSetMap.keys())
 
             # 4. 刷新已实装列表 (从注册表获取)
             self.implemented_chars = set(CharacterClassMap.keys())

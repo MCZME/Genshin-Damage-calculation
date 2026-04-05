@@ -2,7 +2,7 @@ from typing import Any
 from artifact.base_artifact_set import BaseArtifactSet
 from core.registry import register_artifact_set
 from core.event import EventType, GameEvent
-from core.action.attack_tag_resolver import AttackTagResolver, AttackCategory
+from core.action.attack_tag_resolver import AttackTagResolver
 
 
 @register_artifact_set("黄金剧团")
@@ -50,11 +50,13 @@ class GoldenTroupeSet(BaseArtifactSet):
             return
 
         # 判定是否为元素战技类伤害
-        categories = AttackTagResolver.resolve_categories(
-            dmg_ctx.config.attack_tag, dmg_ctx.config.extra_attack_tags
+        is_skill_damage = AttackTagResolver.check(
+            "元素战技",
+            dmg_ctx.damage.config.attack_tag,
+            dmg_ctx.damage.config.extra_attack_tags
         )
 
-        if AttackCategory.SKILL in categories:
+        if is_skill_damage:
             # 动态注入后台额外增伤
             dmg_ctx.add_modifier(
                 source=self.name + " (4件套后台加成)", stat="伤害加成", value=25.0
