@@ -70,7 +70,6 @@ class GravityRipple(CombatEntity):
             self.event_engine.subscribe(EventType.AFTER_LUNAR_BLOOM, self)
             self.event_engine.subscribe(EventType.AFTER_LUNAR_CHARGED, self)
             self.event_engine.subscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
-            self.event_engine.subscribe(EventType.LUNAR_DAMAGE_DEALT, self)
             self.event_engine.subscribe(EventType.GRAVITY_INTERFERENCE, self)
             self.event_engine.subscribe(EventType.AFTER_DAMAGE, self)
 
@@ -80,7 +79,6 @@ class GravityRipple(CombatEntity):
             self.event_engine.unsubscribe(EventType.AFTER_LUNAR_BLOOM, self)
             self.event_engine.unsubscribe(EventType.AFTER_LUNAR_CHARGED, self)
             self.event_engine.unsubscribe(EventType.AFTER_LUNAR_CRYSTALLIZE, self)
-            self.event_engine.unsubscribe(EventType.LUNAR_DAMAGE_DEALT, self)
             self.event_engine.unsubscribe(EventType.GRAVITY_INTERFERENCE, self)
             self.event_engine.unsubscribe(EventType.AFTER_DAMAGE, self)
 
@@ -97,8 +95,21 @@ class GravityRipple(CombatEntity):
                 return
             self._spawn_gravity_interference(event)
         elif event.event_type == EventType.AFTER_DAMAGE:
+            dmg = event.data.get("damage")
+            if not dmg:
+                return
             # 产球逻辑：引力涟漪·持续伤害命中时
-            self._try_spawn_energy_particle(event)
+            if dmg.name == "引力涟漪·持续伤害":
+                self._try_spawn_energy_particle(event)
+            # 月曜伤害：为哥伦比娅添加新月之示效果
+            elif AttackTagResolver.is_lunar_damage(
+                dmg.config.attack_tag,
+                getattr(dmg.config, "extra_attack_tags", None)
+            ):
+                lunar_type = dmg.data.get("lunar_type") or self._get_lunar_type_from_tag(dmg.config.attack_tag)
+                if lunar_type:
+                    effect = CrescentSignEffect(self.owner, lunar_type=lunar_type)
+                    effect.apply()
         else:
             # 月曜反应事件：为哥伦比娅添加新月之示效果
             lunar_type = self._get_lunar_type(event)
@@ -151,15 +162,23 @@ class GravityRipple(CombatEntity):
         )
 
     def _get_lunar_type(self, event: GameEvent) -> str | None:
-        """从事件中提取月曜类型。"""
+        """从月曜反应事件中提取月曜类型。"""
         if event.event_type == EventType.AFTER_LUNAR_BLOOM:
             return "月绽放"
         elif event.event_type == EventType.AFTER_LUNAR_CHARGED:
             return "月感电"
         elif event.event_type == EventType.AFTER_LUNAR_CRYSTALLIZE:
             return "月结晶"
-        elif event.event_type == EventType.LUNAR_DAMAGE_DEALT:
-            return event.data.get("lunar_type")
+        return None
+
+    def _get_lunar_type_from_tag(self, attack_tag: str) -> str | None:
+        """从 attack_tag 提取月曜类型。"""
+        if "月绽放" in attack_tag:
+            return "月绽放"
+        elif "月感电" in attack_tag:
+            return "月感电"
+        elif "月结晶" in attack_tag:
+            return "月结晶"
         return None
 
     def _perform_tick(self) -> None:

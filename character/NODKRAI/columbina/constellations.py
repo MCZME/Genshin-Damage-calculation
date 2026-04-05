@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from core.action.attack_tag_resolver import AttackTagResolver
 from core.effect.common import ConstellationEffect
 from core.event import EventType, GameEvent
 from core.logger import get_emulation_logger
@@ -47,15 +48,20 @@ class ColumbinaConstellationEffect(ConstellationEffect):
             return
 
         dmg = dmg_ctx.damage
-        # 检查是否为月曜伤害
-        if dmg.data.get("is_lunar_damage"):
-            dmg_ctx.add_modifier(
-                source=f"C{self.unlock_constellation}月曜伤害",
-                stat="月曜伤害擢升",
-                value=self.lunar_damage_bonus,
-                op="ADD",
-                audit=True,
-            )
+        # 使用 AttackTagResolver 判断月曜伤害
+        if not AttackTagResolver.is_lunar_damage(
+            dmg.config.attack_tag,
+            getattr(dmg.config, "extra_attack_tags", None)
+        ):
+            return
+
+        dmg_ctx.add_modifier(
+            source=f"C{self.unlock_constellation}月曜伤害",
+            stat="月曜伤害擢升",
+            value=self.lunar_damage_bonus,
+            op="ADD",
+            audit=True,
+        )
 
 
 class ColumbinaC1(ColumbinaConstellationEffect):

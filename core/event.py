@@ -39,7 +39,6 @@ class EventType(Enum):
 
     # 哥伦比娅核心机制事件
     GRAVITY_INTERFERENCE = auto()  # 引力干涉触发
-    LUNAR_DAMAGE_DEALT = auto()  # 月曜伤害造成
 
     # 生命与状态
     AFTER_HEALTH_CHANGE = auto()
