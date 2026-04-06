@@ -15,7 +15,7 @@ class SceneState:
     """
     场景视图状态管理器 (MVVM V5.0)。
 
-    负责维护目标实体、战场空间、场景环境及规则配置。
+    负责维护目标实体、战场空间及规则配置。
     """
 
     def __init__(self) -> None:
@@ -39,14 +39,7 @@ class SceneState:
             for d in self.targets_data
         ]
 
-        # 4. 场景与环境
-        self.scene_data: dict[str, Any] = {
-            "weather": "Clear",
-            "field": "Neutral",
-            "manual_buffs": []
-        }
-
-        # 5. 规则配置
+        # 4. 规则配置
         self.rules_vm = RulesViewModel()
 
     def notify_update(self) -> None:
@@ -113,8 +106,7 @@ class SceneState:
     def to_context_config(self) -> dict[str, Any]:
         """导出为仿真上下文配置格式。"""
         return {
-            "targets": [t.to_simulator_format() for t in self.target_vms],
-            "environment": self.scene_data
+            "targets": [t.to_simulator_format() for t in self.target_vms]
         }
 
     def load_from_context_config(self, ctx: dict[str, Any]) -> None:
@@ -136,9 +128,6 @@ class SceneState:
                 "resists": {k: str(v) for k, v in t_item.get("resists", {}).items()}
             }
             self.targets_data.append(internal_target)
-
-        # 恢复环境
-        self.scene_data = ctx.get("environment", {})
 
         # 重建 VM
         self.rebind_target_vms()

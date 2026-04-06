@@ -16,7 +16,6 @@ def _base_config():
     return {
         "context_config": {
             "team": [{"character": {"level": 80}}],
-            "environment": {"weather": "sunny"},
         }
     }
 
@@ -62,9 +61,9 @@ def test_state_save_and_load_project(tmp_path):
     state.initialize_project(_base_config(), "save_test")
     state.add_rule_child("root")
     state.update_rule(
-        "context_config.environment.weather",
-        '"rainy"',
-        "天气",
+        "context_config.team.0.character.level",
+        "90",
+        "等级",
     )
 
     save_path = str(tmp_path / "save_test.json")
@@ -79,7 +78,7 @@ def test_state_save_and_load_project(tmp_path):
     assert loaded.inspector_vm.node_id == "root"
     child = loaded.project.root.children[0]
     assert child.rule is not None
-    assert child.rule.value == "rainy"
+    assert child.rule.value == 90
 
 
 @pytest.mark.asyncio

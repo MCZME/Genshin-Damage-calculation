@@ -15,7 +15,6 @@ def _base_project() -> BatchProject:
         base_config={
             "context_config": {
                 "team": [{"character": {"level": 80, "constellation": 0}}],
-                "environment": {"weather": "sunny"},
             }
         },
     )
