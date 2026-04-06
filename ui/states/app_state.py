@@ -199,3 +199,103 @@ class AppState:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         await self.apply_external_config(data)
+
+    # --- 模板导入导出 ---
+
+    def export_character_template(self, index: int) -> dict[str, Any]:
+        """导出单个角色配置模板。"""
+        from core.data_models.team_data_model import CharacterDataModel
+
+        member = self.strategic_state.team_data[index]
+        model = CharacterDataModel(member)
+
+        if not model.id:
+            return {}
+
+        return {
+            "character": {
+                "id": model.id,
+                "name": model.name,
+                "element": model.element,
+                "level": model.level,
+                "constellation": model.constellation,
+                "talents": model.talent_levels,
+                "type": member.get("type", "Unknown")
+            },
+            "weapon": {
+                "name": model.weapon.name,
+                "level": model.weapon.level,
+                "refinement": model.weapon.refinement
+            },
+            "artifacts": model.artifacts.raw_data
+        }
+
+    def apply_character_template(self, index: int, template: dict) -> None:
+        """导入角色配置模板。"""
+        from core.data_models.team_data_model import CharacterDataModel
+
+        if not template:
+            return
+
+        char_cfg = template.get("character", {})
+        weapon_cfg = template.get("weapon", {})
+        artifacts_cfg = template.get("artifacts", {})
+
+        model = CharacterDataModel.create_empty()
+        model.id = char_cfg.get("id")
+        model.name = char_cfg.get("name", "Unknown")
+        model.element = char_cfg.get("element", "Neutral")
+        model.level = char_cfg.get("level", 90)
+        model.constellation = char_cfg.get("constellation", 0)
+
+        talents = char_cfg.get("talents", {})
+        if isinstance(talents, dict):
+            for k, v in talents.items():
+                model.set_talent(k, int(v) if isinstance(v, str) else v)
+        elif isinstance(talents, list) and len(talents) >= 3:
+            model.set_talent("na", talents[0])
+            model.set_talent("e", talents[1])
+            model.set_talent("q", talents[2])
+
+        model.weapon.name = weapon_cfg.get("name", "")
+        model.weapon.level = weapon_cfg.get("level", 90)
+        model.weapon.refinement = weapon_cfg.get("refinement", 1)
+
+        model.raw_data["artifacts"] = artifacts_cfg
+        model.raw_data["type"] = char_cfg.get("type", "Unknown")
+
+        self.strategic_state.team_data[index] = model.raw_data
+        from ui.view_models.strategic.character_vm import CharacterViewModel
+        self.strategic_state.team_vms[index] = CharacterViewModel(model)
+        if self.strategic_state.current_index == index:
+            self.strategic_state.active_character_proxy.bind_to(self.strategic_state.team_vms[index])
+
+        self.notify_update()
+
+    def export_artifact_set(self, index: int) -> dict[str, Any]:
+        """导出圣遗物五件套配置。"""
+        from core.data_models.team_data_model import CharacterDataModel
+
+        member = self.strategic_state.team_data[index]
+        model = CharacterDataModel(member)
+
+        return model.artifacts.raw_data.copy()
+
+    def apply_artifact_set(self, index: int, template: dict) -> None:
+        """导入圣遗物五件套配置。"""
+        from core.data_models.team_data_model import CharacterDataModel
+
+        if not template:
+            return
+
+        member = self.strategic_state.team_data[index]
+        member["artifacts"] = template
+
+        # 重新绑定 VM
+        model = CharacterDataModel(member)
+        from ui.view_models.strategic.character_vm import CharacterViewModel
+        self.strategic_state.team_vms[index] = CharacterViewModel(model)
+        if self.strategic_state.current_index == index:
+            self.strategic_state.active_character_proxy.bind_to(self.strategic_state.team_vms[index])
+
+        self.notify_update()
