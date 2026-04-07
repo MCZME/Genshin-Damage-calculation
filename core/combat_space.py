@@ -177,6 +177,9 @@ class CombatSpace:
 
         final_targets = self._apply_selection_strategy(targets, damage.data, origin)
 
+        # 过滤不可攻击实体
+        final_targets = [t for t in final_targets if getattr(t, 'is_targetable', True)]
+
         if final_targets:
             from core.logger import get_emulation_logger
 

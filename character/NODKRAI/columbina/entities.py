@@ -49,6 +49,7 @@ class GravityRipple(CombatEntity):
             life_frame=1500,  # 25秒
             context=context,
         )
+        self.is_targetable = False  # 引力涟漪不可被选为攻击目标
         self.owner = owner
         self.skill_lv = skill_lv
 

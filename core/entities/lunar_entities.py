@@ -83,6 +83,7 @@ class ThunderCloudEntity(CombatEntity):
             hitbox=(8.0, 8.0),  # 索敌范围
             life_frame=life_frame,
         )
+        self.is_targetable = False  # 雷暴云不可被选为攻击目标
         self.creator = creator
         self.spawn_pos = list(pos)  # 生成位置（用于移动限制）
         self.max_move_distance = 5.0  # 最大移动距离
@@ -290,6 +291,7 @@ class LunarCageEntity(CombatEntity):
             hitbox=(12.0, 5.0),  # 索敌范围
             life_frame=life_frame,
         )
+        self.is_targetable = False  # 月笼不可被选为攻击目标
         self.creator = creator
         self.attack_cooldown: float = 0.0
         self.has_attacked: bool = False  # 是否进行过谐奏攻击

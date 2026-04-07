@@ -71,6 +71,9 @@ class BaseEntity:
         self.hitbox: tuple[float, float] = hitbox
         self.faction: Faction = faction
 
+        # 目标选择属性
+        self.is_targetable: bool = True  # 是否可被选为攻击目标
+
         # 上下文与事件引擎绑定
         self.ctx = context if context else get_context()
         self.event_engine: EventEngine | None = self.ctx.event_engine if self.ctx else None

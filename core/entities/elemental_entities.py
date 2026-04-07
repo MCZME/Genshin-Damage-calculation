@@ -34,6 +34,7 @@ class DendroCoreEntity(CombatEntity):
         self.creator = creator
         # 记录创建时的等级系数
         self.level_mult = get_reaction_multiplier(creator.level)
+        self.is_targetable = False
 
         # 上限管理
         DendroCoreEntity.active_cores.append(self)
