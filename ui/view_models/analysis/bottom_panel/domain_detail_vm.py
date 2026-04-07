@@ -47,7 +47,7 @@ class ModifierCardViewModel:
         if self.is_percentage:
             self.display_text = f"{self.value:+.1f}%"
         else:
-            self.display_text = f"{self.value:+.0f}"
+            self.display_text = f"{self.value:+.1f}"
 
     @classmethod
     def from_dict(cls, modifier: dict, bucket_color: str) -> 'ModifierCardViewModel':
@@ -93,15 +93,16 @@ class DomainDetailSectionViewModel:
     def __post_init__(self):
         """初始化派生属性"""
         from ui.components.analysis.bottom_panel.constants import (
-            BUCKET_COLORS, NORMAL_BUCKET_CONFIGS, TRANSFORMATIVE_BUCKET_CONFIGS
+            BUCKET_COLORS, NORMAL_BUCKET_CONFIGS, TRANSFORMATIVE_BUCKET_CONFIGS, LUNAR_BUCKET_CONFIGS
         )
 
         if not self.active_bucket:
             return
 
-        # 合并常规伤害和剧变反应的桶配置映射
+        # 合并常规伤害、剧变反应和月曜反应的桶配置映射
         bucket_data_map = {key: data_key for key, _, data_key in NORMAL_BUCKET_CONFIGS}
         bucket_data_map.update({key: data_key for key, _, data_key in TRANSFORMATIVE_BUCKET_CONFIGS})
+        bucket_data_map.update({key: data_key for key, _, data_key in LUNAR_BUCKET_CONFIGS})
 
         data_key = bucket_data_map.get(self.active_bucket, "core_dmg")
         self.bucket_color = BUCKET_COLORS.get(self.active_bucket, ft.Colors.WHITE)
@@ -148,6 +149,12 @@ class DomainDetailSectionViewModel:
         # DEF 区处理
         elif self.active_bucket == "DEF":
             modifiers = self._resolve_def_modifiers(steps, data_key)
+        # [V22.0] 月曜反应基础伤害区处理
+        elif self.active_bucket == "LUNAR_BASE":
+            modifiers = self._resolve_lunar_base_modifiers(steps, data_key)
+        # [V22.0] 月曜反应擢升区处理
+        elif self.active_bucket == "ASCENSION":
+            modifiers = self._resolve_ascension_modifiers(steps, data_key)
         # 其他乘区
         else:
             from core.persistence.processors.audit import AuditProcessor
@@ -366,6 +373,103 @@ class DomainDetailSectionViewModel:
                 })
             modifiers.extend(steps)
             self.domain_label = "防御来源"
+
+        return modifiers
+
+    def _resolve_lunar_base_modifiers(self, steps: list[dict], data_key: str) -> list[dict]:
+        """[V22.0] 解析月曜反应基础伤害区修饰符
+
+        [V24.0] 添加角色伤害路径支持（属性值、技能倍率）
+
+        根据 selected_domain 显示不同的修饰符：
+        - attr_val: 显示属性值（角色伤害路径）
+        - skill_mult: 显示技能倍率（角色伤害路径）
+        - level_coeff: 显示等级系数（反应伤害路径）
+        - reaction_mult: 显示反应倍率来源
+        - em_bonus: 显示月曜精通转化来源
+        - reaction_bonus: 显示月曜反应伤害提升来源（支持多来源）
+        - base_bonus: 显示基础伤害提升来源
+        - 其他: 显示全部
+        """
+        modifiers = []
+
+        if self.selected_domain == "attr_val":
+            # [V24.0] 角色伤害路径：属性值
+            modifiers = [s for s in steps if s.get("op") == "SET" and s.get("source") == "[面板快照]"]
+            self.domain_label = "属性值"
+            if not modifiers:
+                # 如果 steps 中没有，从 bucket_data 直接获取
+                base_damage = self.buckets_data.get(data_key, {})
+                attr_val = base_damage.get("attr_val", 0.0)
+                scaling_stat = base_damage.get("scaling_stat", "")
+                if attr_val > 0:
+                    modifiers = [{
+                        "stat": scaling_stat or "属性值",
+                        "value": attr_val,
+                        "source": "[面板快照]",
+                    }]
+
+        elif self.selected_domain == "skill_mult":
+            # [V24.0] 角色伤害路径：技能倍率
+            modifiers = [s for s in steps if s.get("stat") == "技能倍率%"]
+            self.domain_label = "技能倍率"
+            if not modifiers:
+                # 如果 steps 中没有，从 bucket_data 直接获取
+                base_damage = self.buckets_data.get(data_key, {})
+                skill_mult = base_damage.get("skill_mult", 0.0)
+                if skill_mult > 0:
+                    modifiers = [{
+                        "stat": "技能倍率%",
+                        "value": skill_mult,
+                        "source": "技能",
+                    }]
+
+        elif self.selected_domain == "reaction_mult":
+            modifiers = [s for s in steps if s.get("stat") in ("反应倍率", "反应系数")]
+            self.domain_label = "反应倍率"
+
+        elif self.selected_domain == "em_bonus":
+            modifiers = [s for s in steps if "精通" in s.get("stat", "")]
+            if not modifiers:
+                modifiers = [s for s in steps if "精通" in s.get("source", "")]
+            self.domain_label = "精通转化"
+
+        elif self.selected_domain == "reaction_bonus":
+            # 显示所有月曜反应伤害提升来源（可能多个）
+            modifiers = [s for s in steps if s.get("stat") == "月曜反应伤害提升"]
+            self.domain_label = "反应伤害提升来源"
+
+        elif self.selected_domain == "base_bonus":
+            # 显示基础伤害提升来源（可能多个）
+            modifiers = [s for s in steps if s.get("stat") == "基础伤害提升"]
+            self.domain_label = "基础伤害提升来源"
+
+        elif self.selected_domain == "level_coeff":
+            modifiers = [s for s in steps if s.get("stat") == "等级系数"]
+            self.domain_label = "等级系数"
+
+        else:
+            # 显示全部步骤
+            modifiers = steps
+            self.domain_label = "全部来源"
+
+        return modifiers
+
+    def _resolve_ascension_modifiers(self, steps: list[dict], data_key: str) -> list[dict]:
+        """[V22.0] 解析月曜反应擢升区修饰符
+
+        显示月曜伤害擢升的来源（支持多来源）。
+        """
+        modifiers = []
+
+        if self.selected_domain == "ascension_pct":
+            # 显示月曜伤害擢升来源（可能多个）
+            modifiers = [s for s in steps if s.get("stat") == "月曜伤害擢升"]
+            self.domain_label = "擢升加成来源"
+        else:
+            # 显示全部步骤
+            modifiers = steps
+            self.domain_label = "全部来源"
 
         return modifiers
 

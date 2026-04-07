@@ -301,6 +301,19 @@ class DataProjector:
                             reaction_data["reaction_coeff"] = react_coeff
                         reaction_json = json.dumps(reaction_data)
 
+                    # [V24.0] 月曜角色伤害路径：提取属性值和技能倍率
+                    damage_type_detail = dmg_data.get("伤害类型")
+                    if damage_type_detail == "角色伤害":
+                        if reaction_json:
+                            reaction_data = json.loads(reaction_json)
+                        else:
+                            reaction_data = {}
+                        reaction_data["damage_type"] = "character"
+                        reaction_data["scaling_stat"] = dmg_data.get("缩放属性", "")
+                        reaction_data["attr_val"] = dmg_data.get("属性值", 0.0)
+                        reaction_data["skill_mult"] = dmg_data.get("技能倍率", 0.0)
+                        reaction_json = json.dumps(reaction_data)
+
                     # 使用专门的序列化工具处理元素类型
                     elem_str = self._serialize_element(getattr(dmg_obj, "element", "Neutral"))
 

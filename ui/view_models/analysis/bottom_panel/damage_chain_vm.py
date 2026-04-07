@@ -249,12 +249,21 @@ class ComponentChainRowViewModel:
 
     用于展示单个组分的伤害链（最高组/次高组）。
 
+    [V22.0] 新增擢升区点击支持：
+    - 接收共享的擢升区数据和点击回调
+    - 擢升区卡片支持点击显示来源
+    - 擢升区卡片支持选中状态
+
     Attributes:
         rank_label: 组分标签（"最高组" 或 "次高组"）
         character_name: 角色名称
         buckets_data: 乘区数据字典
         damage_value: 该组分的最终伤害值
         weight: 权重系数 (1.0, 0.5, 或 1/12)
+        shared_ascension_data: 共享的擢升区数据
+        on_domain_click: 域点击回调（仅擢升区支持）
+        active_bucket: 当前激活的乘区（用于擢升区选中状态）
+        selected_domain: 选中的域（用于擢升区选中状态）
         multiplier_cards: 乘区卡片 ViewModel 列表
         damage_result: 伤害结果卡片 ViewModel
     """
@@ -263,6 +272,13 @@ class ComponentChainRowViewModel:
     buckets_data: dict[str, Any] = field(default_factory=dict)
     damage_value: float = 0.0
     weight: float = 1.0
+    # [V22.0] 新增：共享的擢升区数据
+    shared_ascension_data: dict[str, Any] = field(default_factory=dict)
+    # [V22.0] 新增：域点击回调（仅擢升区支持）
+    on_domain_click: Callable[[str, str], None] | None = field(default=None, repr=False)
+    # [V22.0] 新增：选中状态（用于擢升区）
+    active_bucket: str | None = field(default=None)
+    selected_domain: str | None = field(default=None)
 
     # 派生属性
     multiplier_cards: list[MultiplierCardViewModel] = field(default_factory=list, init=False)
@@ -284,28 +300,58 @@ class ComponentChainRowViewModel:
         # 创建乘区卡片 ViewModel 列表
         self.multiplier_cards = []
         for bucket_key, bucket_label, data_key in LUNAR_BUCKET_CONFIGS:
-            bucket_data = self.buckets_data.get(data_key, {})
+            # [V22.0] 擢升区使用共享数据
+            if bucket_key == "ASCENSION" and self.shared_ascension_data:
+                bucket_data = self.shared_ascension_data
+            else:
+                bucket_data = self.buckets_data.get(data_key, {})
             bucket_color = BUCKET_COLORS.get(bucket_key, "#FFFFFF")
+
+            # [V22.0] 擢升区支持点击和选中状态
+            if bucket_key == "ASCENSION":
+                on_click = self.on_domain_click
+                # 擢升区卡片显示选中状态
+                is_selected = self.active_bucket == "ASCENSION"
+            else:
+                on_click = None
+                is_selected = False
 
             card_vm = MultiplierCardViewModel(
                 bucket_key=bucket_key,
                 bucket_label=bucket_label,
                 bucket_data=bucket_data,
                 bucket_color=bucket_color,
-                is_selected=False,  # 组分卡片不支持选中
-                selected_domain=None,
-                active_bucket=None,
+                is_selected=is_selected,
+                selected_domain=self.selected_domain if bucket_key == "ASCENSION" else None,
+                active_bucket=self.active_bucket if bucket_key == "ASCENSION" else None,
                 damage_type=DamageType.LUNAR,
-                on_domain_click=None,  # 组分卡片不支持点击
+                on_domain_click=on_click,
             )
             self.multiplier_cards.append(card_vm)
 
     @classmethod
-    def from_component_data(cls, comp_data: dict[str, Any]) -> ComponentChainRowViewModel:
+    def from_component_data(
+        cls,
+        comp_data: dict[str, Any],
+        shared_ascension_data: dict[str, Any] | None = None,
+        on_domain_click: Callable[[str, str], None] | None = None,
+        active_bucket: str | None = None,
+        selected_domain: str | None = None,
+    ) -> ComponentChainRowViewModel:
         """从组分数据创建 ViewModel
+
+        [V22.0] 新增参数：
+        - shared_ascension_data: 共享的擢升区数据
+        - on_domain_click: 擢升区点击回调
+        - active_bucket: 当前激活的乘区
+        - selected_domain: 选中的域
 
         Args:
             comp_data: 组分桶数据（来自 processor 的 _component_buckets）
+            shared_ascension_data: 共享的擢升区数据（来自 buckets_data["ascension"]）
+            on_domain_click: 域点击回调函数
+            active_bucket: 当前激活的乘区（用于擢升区选中状态）
+            selected_domain: 选中的域（用于擢升区选中状态）
 
         Returns:
             ComponentChainRowViewModel 实例
@@ -317,10 +363,14 @@ class ComponentChainRowViewModel:
                 "base_damage": comp_data.get("base_damage", {}),
                 "crit": comp_data.get("crit", {}),
                 "resistance": comp_data.get("resistance", {}),
-                "ascension": {},  # 擢升区共享，不在此展示
+                "ascension": {},  # 擢升区使用 shared_ascension_data 传递
             },
             damage_value=comp_data.get("damage_value", 0.0),
             weight=comp_data.get("weight", 1.0),
+            shared_ascension_data=shared_ascension_data or {},
+            on_domain_click=on_domain_click,
+            active_bucket=active_bucket,
+            selected_domain=selected_domain,
         )
 
 

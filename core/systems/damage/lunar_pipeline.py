@@ -397,11 +397,19 @@ class LunarDamagePipeline:
 
         # 属性值
         attr_val = 0.0
+        scaling_stat_name = ""
         if scaling_stat and len(scaling_stat) > 0 and scaling_stat[0] != "固定值":
-            attr_val = s.get(scaling_stat[0], 0)
+            scaling_stat_name = scaling_stat[0]
+            attr_val = s.get(scaling_stat_name, 0)
 
         # 属性倍率（技能倍率）
         skill_mult = damage_mult[0] if damage_mult else 0.0
+
+        # [V24.0] 存储角色伤害路径的关键数据（用于审计显示）
+        ctx.damage.add_data("伤害类型", "角色伤害")
+        ctx.damage.add_data("缩放属性", scaling_stat_name)
+        ctx.damage.add_data("属性值", attr_val)
+        ctx.damage.add_data("技能倍率", skill_mult)
 
         # 反应倍率（月感电 3.0 / 月结晶 1.6 / 月绽放 1.0）
         reaction_mult = float(ctx.damage.data.get("反应倍率", 1.0))

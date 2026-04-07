@@ -314,12 +314,26 @@ class AnalysisDataService:
             # [V17.0] 月曜反应路径
             from core.persistence.processors.audit.types import CharacterContribution
 
-            # 从 reaction_data 获取月曜专用数据
+            # 从 reaction_data 获取基础数据
             level_coeff = reaction_data.get("level_coeff", 0.0) if reaction_data else 0.0
             reaction_coeff = reaction_data.get("reaction_coeff", 1.0) if reaction_data else 1.0
-            base_bonus = reaction_data.get("base_bonus", 0.0) if reaction_data else 0.0
             extra_damage = reaction_data.get("extra_damage", 0.0) if reaction_data else 0.0
-            ascension_bonus = reaction_data.get("ascension_bonus", 0.0) if reaction_data else 0.0
+
+            # [V22.0] 从审计链聚合月曜专用加成值
+            base_bonus = 0.0
+            reaction_bonus = 0.0
+            ascension_bonus = 0.0
+            for entry in raw_trail:
+                stat = entry.get("stat", "")
+                val = entry.get("value", 0.0)  # adapter.get_damage_audit 返回 "value"
+                op = entry.get("op", "ADD")
+                if op == "ADD":
+                    if stat == "基础伤害提升":
+                        base_bonus += val
+                    elif stat == "月曜反应伤害提升":
+                        reaction_bonus += val
+                    elif stat == "月曜伤害擢升":
+                        ascension_bonus += val
 
             # 计算精通
             em_base = frame_snapshot.get("stats", {}).get("元素精通", 0.0) if frame_snapshot else 0.0
@@ -363,17 +377,28 @@ class AnalysisDataService:
                         )
                     )
 
+            # [V24.0] 从 reaction_data 获取角色伤害路径数据
+            damage_type_detail = reaction_data.get("damage_type", "reaction") if reaction_data else "reaction"
+            scaling_stat = reaction_data.get("scaling_stat", "") if reaction_data else ""
+            attr_val = reaction_data.get("attr_val", 0.0) if reaction_data else 0.0
+            skill_mult = reaction_data.get("skill_mult", 0.0) if reaction_data else 0.0
+
             damage_type_ctx = DamageTypeContext(
                 damage_type=DamageType.LUNAR,
                 attack_tag=attack_tag,
                 level_coeff=level_coeff,
                 reaction_coeff=reaction_coeff,
                 elemental_mastery=elemental_mastery,
-                special_bonus=reaction_data.get("reaction_bonus", 0.0) if reaction_data else 0.0,
+                special_bonus=reaction_bonus,  # [V22.0] 使用从审计链聚合的值
                 ascension_bonus=ascension_bonus,
                 base_bonus=base_bonus,
                 extra_damage=extra_damage,
                 contributing_characters=contributions,
+                # [V24.0] 角色伤害路径字段
+                damage_type_detail=damage_type_detail,
+                scaling_stat=scaling_stat,
+                attr_val=attr_val,
+                skill_mult=skill_mult,
             )
             processed = AuditProcessor.process_lunar(
                 damage_type_ctx=damage_type_ctx,

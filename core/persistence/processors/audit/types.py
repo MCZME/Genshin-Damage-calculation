@@ -90,6 +90,10 @@ class DamageTypeContext:
         base_bonus: 基础伤害提升（月曜专用）
         extra_damage: 附加伤害（月曜专用）
         contributing_characters: 角色贡献列表（月曜加权求和专用）
+        damage_type_detail: 伤害类型详情（月曜专用："reaction" 或 "character"）
+        scaling_stat: 缩放属性名（月曜角色伤害专用）
+        attr_val: 属性值（月曜角色伤害专用）
+        skill_mult: 技能倍率%（月曜角色伤害专用）
     """
     damage_type: DamageType = DamageType.NORMAL
     attack_tag: str = ""
@@ -102,6 +106,11 @@ class DamageTypeContext:
     base_bonus: float = 0.0
     extra_damage: float = 0.0
     contributing_characters: list[CharacterContribution] = field(default_factory=list)
+    # [V24.0] 月曜角色伤害路径专用字段
+    damage_type_detail: str = ""  # "reaction" 或 "character"
+    scaling_stat: str = ""        # 缩放属性名（如 "攻击力"、"生命值"）
+    attr_val: float = 0.0         # 属性值
+    skill_mult: float = 0.0       # 技能倍率%
 
 
 @dataclass

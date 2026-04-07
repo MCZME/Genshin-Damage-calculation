@@ -282,6 +282,12 @@ class AuditProcessor:
         buckets["base_damage"]["base_bonus"] = damage_type_ctx.base_bonus
         buckets["base_damage"]["extra_damage"] = damage_type_ctx.extra_damage
 
+        # [V24.0] 存储角色伤害路径数据
+        buckets["base_damage"]["damage_type"] = damage_type_ctx.damage_type_detail
+        buckets["base_damage"]["scaling_stat"] = damage_type_ctx.scaling_stat
+        buckets["base_damage"]["attr_val"] = damage_type_ctx.attr_val
+        buckets["base_damage"]["skill_mult"] = damage_type_ctx.skill_mult
+
         # 1.1 从 attack_tag 提取反应类型中文名称
         reaction_type_map = {
             "月绽放": ElementalReactionType.LUNAR_BLOOM,
@@ -311,14 +317,37 @@ class AuditProcessor:
         buckets["base_damage"]["multiplier"] = base_mult
 
         # 1.5 添加步骤（用于域详情展示）
-        buckets["base_damage"]["steps"].append(
-            {
-                "stat": "等级系数",
-                "value": damage_type_ctx.level_coeff,
-                "op": "SET",
-                "source": "角色等级",
-            }
-        )
+        # [V24.0] 根据伤害类型添加不同的步骤
+        if damage_type_ctx.damage_type_detail == "character":
+            # 角色伤害路径：显示属性值和技能倍率
+            if damage_type_ctx.scaling_stat:
+                buckets["base_damage"]["steps"].append(
+                    {
+                        "stat": damage_type_ctx.scaling_stat,
+                        "value": damage_type_ctx.attr_val,
+                        "op": "SET",
+                        "source": "[面板快照]",
+                    }
+                )
+            if damage_type_ctx.skill_mult > 0:
+                buckets["base_damage"]["steps"].append(
+                    {
+                        "stat": "技能倍率%",
+                        "value": damage_type_ctx.skill_mult,
+                        "op": "MULT",
+                        "source": "技能",
+                    }
+                )
+        else:
+            # 反应伤害路径：显示等级系数
+            buckets["base_damage"]["steps"].append(
+                {
+                    "stat": "等级系数",
+                    "value": damage_type_ctx.level_coeff,
+                    "op": "SET",
+                    "source": "角色等级",
+                }
+            )
         buckets["base_damage"]["steps"].append(
             {
                 "stat": "反应倍率",
@@ -328,13 +357,19 @@ class AuditProcessor:
             }
         )
 
-        if damage_type_ctx.base_bonus > 0:
+        # [V22.0] 从审计链提取月曜专用修饰符来源
+        # 提取基础伤害提升来源
+        base_bonus_mods = [
+            entry for entry in raw_trail
+            if entry.get("stat") == "基础伤害提升"
+        ]
+        for mod in base_bonus_mods:
             buckets["base_damage"]["steps"].append(
                 {
                     "stat": "基础伤害提升",
-                    "value": damage_type_ctx.base_bonus,
-                    "op": "ADD",
-                    "source": "装备/天赋",
+                    "value": mod.get("value", 0.0),
+                    "op": mod.get("op", "ADD"),
+                    "source": mod.get("source", "装备/天赋"),
                 }
             )
 
@@ -348,13 +383,18 @@ class AuditProcessor:
                 }
             )
 
-        if reaction_bonus > 0:
+        # 提取月曜反应伤害提升来源
+        reaction_bonus_mods = [
+            entry for entry in raw_trail
+            if entry.get("stat") == "月曜反应伤害提升"
+        ]
+        for mod in reaction_bonus_mods:
             buckets["base_damage"]["steps"].append(
                 {
                     "stat": "月曜反应伤害提升",
-                    "value": reaction_bonus,
-                    "op": "ADD",
-                    "source": "装备/天赋",
+                    "value": mod.get("value", 0.0),
+                    "op": mod.get("op", "ADD"),
+                    "source": mod.get("source", "装备/天赋"),
                 }
             )
 
@@ -472,13 +512,18 @@ class AuditProcessor:
         buckets["ascension"]["bonus_pct"] = ascension_bonus
         buckets["ascension"]["multiplier"] = 1 + ascension_bonus / 100
 
-        if ascension_bonus > 0:
+        # [V22.0] 从审计链提取擢升区来源
+        ascension_mods = [
+            entry for entry in raw_trail
+            if entry.get("stat") == "月曜伤害擢升"
+        ]
+        for mod in ascension_mods:
             buckets["ascension"]["steps"].append(
                 {
                     "stat": "月曜伤害擢升",
-                    "value": ascension_bonus,
-                    "op": "ADD",
-                    "source": "装备/天赋",
+                    "value": mod.get("value", 0.0),
+                    "op": mod.get("op", "ADD"),
+                    "source": mod.get("source", "装备/天赋"),
                 }
             )
 

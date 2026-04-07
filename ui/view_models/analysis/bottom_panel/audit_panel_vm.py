@@ -195,9 +195,19 @@ class AuditPanelViewModel:
             # 多组分月反应路径
             self.is_multi_component_lunar = True
 
+            # [V22.0] 获取共享的擢升区数据
+            shared_ascension_data = self.buckets_data.get("ascension", {})
+
             # 创建组分伤害链 ViewModel 列表
+            # [V22.0] 传递共享的擢升区数据、点击回调和选中状态
             self.component_chains = [
-                ComponentChainRowViewModel.from_component_data(comp)
+                ComponentChainRowViewModel.from_component_data(
+                    comp,
+                    shared_ascension_data=shared_ascension_data,
+                    on_domain_click=self.on_domain_click,
+                    active_bucket=self.active_bucket,
+                    selected_domain=self.selected_domain,
+                )
                 for comp in component_buckets
             ]
 

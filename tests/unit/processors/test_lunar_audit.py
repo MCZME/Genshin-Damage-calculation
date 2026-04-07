@@ -180,6 +180,48 @@ class TestLunarProcessing:
         # 验证抗性处理
         assert "raw_data" in buckets["resistance"]
 
+    def test_process_lunar_with_source_tracking(self, lunar_context):
+        """测试月曜审计链来源追踪"""
+        raw_trail = [
+            {"stat": "月曜反应伤害提升", "value": 20.0, "op": "ADD", "source": "晨星与月的晓歌 (4件套后台)"},
+            {"stat": "月曜反应伤害提升", "value": 40.0, "op": "ADD", "source": "晨星与月的晓歌 (4件套满辉)"},
+            {"stat": "月曜伤害擢升", "value": 15.0, "op": "ADD", "source": "C1月曜伤害"},
+            {"stat": "基础伤害提升", "value": 10.0, "op": "ADD", "source": "基础伤害提升效果"},
+        ]
+
+        buckets = AuditProcessor.process_lunar(
+            damage_type_ctx=lunar_context,
+            raw_trail=raw_trail,
+            frame_snapshot=None,
+            target_snapshot=None,
+            element_type="DENDRO",
+        )
+
+        # 验证基础伤害提升来源
+        base_bonus_steps = [
+            s for s in buckets["base_damage"]["steps"]
+            if s["stat"] == "基础伤害提升"
+        ]
+        assert len(base_bonus_steps) == 1
+        assert base_bonus_steps[0]["source"] == "基础伤害提升效果"
+        assert base_bonus_steps[0]["value"] == 10.0
+
+        # 验证月曜反应伤害提升来源（多个来源）
+        reaction_bonus_steps = [
+            s for s in buckets["base_damage"]["steps"]
+            if s["stat"] == "月曜反应伤害提升"
+        ]
+        assert len(reaction_bonus_steps) == 2
+        sources = [s["source"] for s in reaction_bonus_steps]
+        assert "晨星与月的晓歌 (4件套后台)" in sources
+        assert "晨星与月的晓歌 (4件套满辉)" in sources
+
+        # 验证擢升区来源
+        ascension_steps = buckets["ascension"]["steps"]
+        assert len(ascension_steps) == 1
+        assert ascension_steps[0]["source"] == "C1月曜伤害"
+        assert ascension_steps[0]["value"] == 15.0
+
 
 class TestLunarValidation:
     """测试月曜伤害验证"""
@@ -341,7 +383,13 @@ class TestLunarValidation:
         assert result.passed is True
 
     def test_validate_lunar_single_component_fallback(self):
-        """测试单组分时回退到原有验证逻辑"""
+        """测试单组分时回退到原有验证逻辑
+
+        [V23.0] 修复公式后：
+        核心基础伤害 = 等级系数 × 反应倍率 × (1 + 基础伤害提升/100)
+        反应提升 = 1 + 月曜精通加成 + 月曜反应伤害提升
+        基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
+        """
         buckets = {
             "base_damage": {
                 "level_coeff": 1446.0,
@@ -366,7 +414,10 @@ class TestLunarValidation:
         )
 
         # 单组分应使用公式计算而非加权求和
-        # 计算：1446 * 1.0 * (1 + 0 + 0.285 + 0) = 1858.11
+        # 计算：
+        # 核心基础伤害 = 1446 * 1.0 * (1 + 0) = 1446
+        # 反应提升 = 1 + 0.285 + 0 = 1.285
+        # 基础伤害区 = 1446 * 1.285 + 0 = 1858.11
         assert result.calc_damage > 1850
 
 

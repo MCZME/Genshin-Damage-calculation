@@ -260,23 +260,47 @@ class AuditValidator:
     ) -> ValidationResult:
         """单组分月曜伤害验证
 
-        公式：最终伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
+        [V24.0] 支持角色伤害路径验证
+
+        公式：
+        - 反应伤害路径：等级系数 × 反应倍率 × (1 + 基础伤害提升%) × 反应提升 + 附加伤害
+        - 角色伤害路径：属性值 × 技能倍率/100 × 反应倍率 × (1 + 基础伤害提升%) × 反应提升 + 附加伤害
+
+        最终伤害 = 基础伤害 × 暴击区 × 抗性区 × 擢升区
         """
         from .coefficient_calculator import calculate_resistance_coefficient
 
         # 计算基础伤害
         base_bucket = buckets.get("base_damage", {})
+        damage_type = base_bucket.get("damage_type", "reaction")  # [V24.0]
+
+        # 角色伤害路径数据
+        attr_val = base_bucket.get("attr_val", 0.0)
+        skill_mult = base_bucket.get("skill_mult", 0.0)
+
+        # 反应伤害路径数据
         level_coeff = base_bucket.get("level_coeff", 0.0)
+
+        # 通用数据
         reaction_mult = base_bucket.get("reaction_mult", 1.0)
         base_bonus = base_bucket.get("base_bonus", 0.0)
         em_bonus_pct = base_bucket.get("em_bonus_pct", 0.0)
         reaction_bonus = base_bucket.get("reaction_bonus", 0.0)
         extra_damage = base_bucket.get("extra_damage", 0.0)
 
-        # 基础伤害 = 等级系数 × 反应倍率 × (1 + 基础提升 + 月曜精通 + 反应加成) + 附加伤害
-        core_damage = level_coeff * reaction_mult * (
-            1 + base_bonus / 100 + em_bonus_pct / 100 + reaction_bonus / 100
-        ) + extra_damage
+        # [V24.0] 根据伤害类型计算核心基础伤害
+        if damage_type == "character" and attr_val > 0:
+            # 角色伤害路径：属性值 × 技能倍率/100 × 反应倍率 × (1 + 基础伤害提升/100)
+            core_damage = attr_val * skill_mult / 100 * reaction_mult * (1 + base_bonus / 100)
+        else:
+            # 反应伤害路径：等级系数 × 反应倍率 × (1 + 基础伤害提升/100)
+            core_damage = level_coeff * reaction_mult * (1 + base_bonus / 100)
+
+        # 反应提升 = 1 + 月曜精通加成 + 月曜反应伤害提升
+        reaction_boost = 1 + em_bonus_pct / 100 + reaction_bonus / 100
+
+        # 基础伤害区 = 核心基础伤害 × 反应提升 + 附加伤害
+        base_damage = core_damage * reaction_boost + extra_damage
 
         # 暴击区
         crit_mult = buckets.get("crit", {}).get("multiplier", 1.0)
@@ -294,7 +318,7 @@ class AuditValidator:
         ascension_mult = buckets.get("ascension", {}).get("multiplier", 1.0)
 
         # 计算最终伤害
-        calc_damage = core_damage * crit_mult * res_mult * ascension_mult
+        calc_damage = base_damage * crit_mult * res_mult * ascension_mult
 
         return AuditValidator._perform_validation(
             calc_damage=calc_damage,

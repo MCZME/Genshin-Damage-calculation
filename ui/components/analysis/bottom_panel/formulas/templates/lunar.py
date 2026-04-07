@@ -14,13 +14,30 @@ def build_lunar_base(
     bucket_key: str,
     bucket_color: str,
 ) -> FormulaResult:
-    """月曜基础伤害模板：等级系数 × 反应倍率 × (1+精通加成%+反应加成%)
-
-    显示格式：月绽放1.0×(1+15%)
+    """月曜基础伤害模板
 
     [V17.0] 新增月曜反应支持
+    [V23.0] 修复公式显示，与伤害系统计算顺序一致
+    [V24.0] 支持角色伤害路径显示
+
+    公式：
+    - 反应伤害路径：等级系数 × 反应倍率 × (1 + 基础伤害提升%) × 反应提升 + 附加伤害
+    - 角色伤害路径：属性值 × 技能倍率% × 反应倍率 × (1 + 基础伤害提升%) × 反应提升 + 附加伤害
+
+    反应提升 = 1 + 月曜精通加成% + 月曜反应伤害提升%
     """
     reaction_type = bucket_data.get("reaction_type", "")
+    damage_type = bucket_data.get("damage_type", "reaction")  # [V24.0]
+
+    # 角色伤害路径数据
+    scaling_stat = bucket_data.get("scaling_stat", "")
+    attr_val = bucket_data.get("attr_val", 0.0)
+    skill_mult = bucket_data.get("skill_mult", 0.0)
+
+    # 反应伤害路径数据
+    level_coeff = bucket_data.get("level_coeff", 0.0)
+
+    # 通用数据
     reaction_mult = bucket_data.get("reaction_mult", 1.0)
     base_bonus = bucket_data.get("base_bonus", 0.0)
     em_bonus_pct = bucket_data.get("em_bonus_pct", 0.0)
@@ -31,10 +48,51 @@ def build_lunar_base(
 
     parts: list[FormulaPartData] = []
 
-    # 显示反应类型 + 基础倍率（如「月绽放1.0」）
+    # 显示反应类型标签（如「月绽放」）
     if reaction_type:
-        parts.append(text(f"{reaction_type}", size=10, color=bucket_color))
+        parts.append(text(f"{reaction_type} ", size=10, color=bucket_color))
 
+    # [V24.0] 根据伤害类型显示不同的公式开头
+    if damage_type == "character" and attr_val > 0:
+        # 角色伤害路径：显示属性值和技能倍率
+        if scaling_stat:
+            parts.append(text(f"{scaling_stat}", size=9, color="white70"))
+            parts.append(text(" ", size=9))
+        parts.append(
+            domain_value(
+                attr_val,
+                "attr_val",
+                bucket_key,
+                bucket_color,
+                format_spec=".0f",
+            )
+        )
+        parts.append(text("×", size=9, color="white38"))
+        parts.append(
+            domain_value(
+                skill_mult,
+                "skill_mult",
+                bucket_key,
+                bucket_color,
+                format_spec=".1f",
+            )
+        )
+        parts.append(text("%", size=9, color="white70"))
+        parts.append(text("×", size=9, color="white38"))
+    elif level_coeff > 0:
+        # 反应伤害路径：显示等级系数
+        parts.append(
+            domain_value(
+                level_coeff,
+                "level_coeff",
+                bucket_key,
+                bucket_color,
+                format_spec=".0f",
+            )
+        )
+        parts.append(text("×", size=9, color="white38"))
+
+    # 反应倍率
     parts.append(
         domain_value(
             reaction_mult,
@@ -45,29 +103,28 @@ def build_lunar_base(
         )
     )
 
-    # 仅在有加成时显示括号部分
-    total_bonus = base_bonus + em_bonus_pct + reaction_bonus
-    if total_bonus > 0:
+    # 第一组加成：基础伤害提升 (影响核心基础伤害)
+    if base_bonus > 0:
         parts.append(text("×(1+", size=9))
+        parts.extend(
+            [
+                domain_value(
+                    base_bonus,
+                    "base_bonus",
+                    bucket_key,
+                    bucket_color,
+                ),
+                text("%)"),
+            ]
+        )
 
-        # 基础伤害提升
-        if base_bonus > 0:
-            parts.extend(
-                [
-                    domain_value(
-                        base_bonus,
-                        "base_bonus",
-                        bucket_key,
-                        bucket_color,
-                    ),
-                    text("%"),
-                ]
-            )
+    # 第二组加成：反应提升 (影响最终基础伤害区)
+    reaction_boost_total = em_bonus_pct + reaction_bonus
+    if reaction_boost_total > 0:
+        parts.append(text("×(1+", size=9))
 
         # 月曜精通加成
         if em_bonus_pct > 0:
-            if base_bonus > 0:
-                parts.append(text("+", color="white38"))
             parts.extend(
                 [
                     domain_value(
@@ -80,9 +137,9 @@ def build_lunar_base(
                 ]
             )
 
-        # 月曜反应加成
+        # 月曜反应伤害提升
         if reaction_bonus > 0:
-            if base_bonus > 0 or em_bonus_pct > 0:
+            if em_bonus_pct > 0:
                 parts.append(text("+", color="white38"))
             parts.extend(
                 [
