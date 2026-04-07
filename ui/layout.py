@@ -165,7 +165,7 @@ class AppLayout:
                         bgcolor="rgba(0, 0, 0, 0.2)", 
                         border_radius=30, 
                         padding=4, 
-                        border=ft.border.all(1, "rgba(255, 255, 255, 0.05)")
+                        border=ft.Border.all(1, "rgba(255, 255, 255, 0.05)")
                     ),
                     ft.Row(controls=header_right_controls, spacing=5)
                 ], 
@@ -174,7 +174,7 @@ class AppLayout:
             padding=ft.Padding.symmetric(horizontal=32, vertical=12), 
             bgcolor=GenshinTheme.HEADER_BG, 
             blur=20, 
-            border=ft.border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
+            border=ft.Border.only(bottom=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
         )
 
     def _build_footer_declarative(self):
@@ -185,8 +185,8 @@ class AppLayout:
                     ft.Text(self.state.sim_status, size=11, weight=ft.FontWeight.BOLD, color=GenshinTheme.ON_SURFACE),
                 ], spacing=10),
                 ft.Row([
-                    ft.ElevatedButton("开始仿真", bgcolor=ft.Colors.PRIMARY, color=GenshinTheme.ON_PRIMARY, height=40, on_click=lambda _: self.page.run_task(self.state.run_simulation)),
+                    ft.Button("开始仿真", bgcolor=ft.Colors.PRIMARY, color=GenshinTheme.ON_PRIMARY, height=40, on_click=lambda _: self.page.run_task(self.state.run_simulation)),
                 ], spacing=10)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding(40, 4, 40, 4), bgcolor=GenshinTheme.FOOTER_BG, height=50, border=ft.border.only(top=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
+            padding=ft.Padding(40, 4, 40, 4), bgcolor=GenshinTheme.FOOTER_BG, height=50, border=ft.Border.only(top=ft.BorderSide(1, GenshinTheme.GLASS_BORDER))
         )

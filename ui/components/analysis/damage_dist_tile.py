@@ -390,7 +390,7 @@ class DamageDistributionTile(AnalysisTile):
                     width=panel_w,
                     height=burst_h,
                     visible=is_split,
-                    border=ft.border.only(bottom=ft.BorderSide(0.8, "rgba(100, 149, 237, 0.3)"))
+                    border=ft.Border.only(bottom=ft.BorderSide(0.8, "rgba(100, 149, 237, 0.3)"))
                 ),
                 # --- 2.0 内容层 ---
                 ft.Container(

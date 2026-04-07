@@ -119,7 +119,7 @@ def EditorHeader(
                             tooltip="加载批处理项目",
                             on_click=on_load,
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "执行批处理",
                             icon=ft.Icons.PLAY_ARROW_ROUNDED,
                             bgcolor=GenshinTheme.PRIMARY,
@@ -135,5 +135,5 @@ def EditorHeader(
         ),
         padding=ft.Padding.symmetric(horizontal=28, vertical=18),
         bgcolor="rgba(25, 21, 37, 0.86)",
-        border=ft.border.only(bottom=ft.BorderSide(1, "rgba(255,255,255,0.06)")),
+        border=ft.Border.only(bottom=ft.BorderSide(1, "rgba(255,255,255,0.06)")),
     )

@@ -124,6 +124,6 @@ def AnalysisToolbox(active_counts: dict[str, int], on_tile_action=None):
         ], spacing=0),
         width=220 if is_expanded else 72,
         bgcolor="#1A1625",
-        border=ft.border.only(right=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.05)")),
+        border=ft.Border.only(right=ft.BorderSide(1, "rgba(255, 255, 255, 0.05)")),
         animate=ft.Animation(400, ft.AnimationCurve.EASE_OUT_QUINT)
     )

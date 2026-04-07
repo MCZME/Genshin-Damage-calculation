@@ -247,8 +247,8 @@ class AnalysisView:
                         content=GlobalScrubber(state=state),
                         height=45,
                         bgcolor="#1E1A2A",
-                        border=ft.border.only(
-                            top=ft.border.BorderSide(1, "rgba(255, 255, 255, 0.08)")
+                        border=ft.Border.only(
+                            top=ft.BorderSide(1, "rgba(255, 255, 255, 0.08)")
                         ),
                         padding=ft.Padding(left=20, top=0, right=30, bottom=0),
                         alignment=ft.Alignment(0, 0)

@@ -21,7 +21,7 @@ def SpatialRadar(
             ft.Container(
                 width=px * 2, 
                 height=px * 2,
-                border=ft.border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
+                border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
                 border_radius=px,
             )
         ]

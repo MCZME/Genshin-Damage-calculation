@@ -84,7 +84,7 @@ def StatusIndicator(
         content=main_content,
         padding=ft.Padding(left=2, right=8, top=4, bottom=4),
         bgcolor=ft.Colors.WHITE_10,
-        border=ft.border.all(1, ft.Colors.AMBER_400) if selected else None,
+        border=ft.Border.all(1, ft.Colors.AMBER_400) if selected else None,
         border_radius=4,
         expand=True
     )

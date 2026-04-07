@@ -188,7 +188,7 @@ def RangeAnchorForm(
                 value=range_label,
                 on_change=lambda e: on_set_range_label(e.control.value),  # type: ignore
             ),
-            ft.ElevatedButton(
+            ft.Button(
                 "生成区间子节点",
                 icon=ft.Icons.AUTO_AWESOME,
                 bgcolor=GenshinTheme.PRIMARY,

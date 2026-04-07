@@ -76,7 +76,7 @@ class DPSChartTile(AnalysisTile):
         return ft.Container(
             content=fch.LineChart(
                 data_series=chart_data,
-                border=ft.border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
+                border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
                 horizontal_grid_lines=fch.ChartGridLines(
                     interval=10000,
                     width=0.5,
